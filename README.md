@@ -23,6 +23,7 @@ An asymmetric 1v1 multiplayer strategy tower defense game built with **React**, 
 │   └── server/         # Colyseus game server & room lifecycle logic
 ├── packages/
 │   └── shared/         # Shared TypeScript types, interfaces, and schemas
+```
 
 ---
 
