@@ -11,6 +11,14 @@ export interface GameRoomMetadata {
   roleChoice: RoleChoice;
 }
 
+/**
+ * 1v1 tower-defense match room. Roles are only decided once both seats fill.
+ *
+ * @remarks
+ * - `maxClients = 2`; the room locks on the second join, so late joiners bounce.
+ * - `IdleKickPlugin` drops clients idle for 60s.
+ * - `update()` is driven by `setTimestep`, not a manual interval.
+ */
 export class GameRoom extends Room<{ state: MyRoomState }> {
   // Enforce 1v1 matches
   maxClients = 2;
@@ -35,7 +43,6 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
     this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
   }
 
-  // apps/server/src/rooms/GameRoom.ts inside onJoin:
   async onJoin(client: Client, options: any) {
     // Store player name in client userData
     client.userData = {
@@ -52,7 +59,11 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
   }
 
   /**
-   * Evaluates creator role preference and assigns final roles to both players
+   * Turns the host's `roleChoice` into concrete roles and tells each player privately.
+   *
+   * @remarks
+   * Uses `client.send` (not `broadcast`) since the two players get different roles.
+   * `"any"` = host defends, joiner attacks; `"random"` coin-flips.
    */
   private assignRolesAndStart() {
     const creatorClient = this.clients[0];
@@ -91,11 +102,17 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
     console.log(`Roles assigned: Creator = ${creatorRole}, Joiner = ${joinerRole}`);
   }
 
+  /**
+   * Holds a dropped player's seat for 30s so flaky/mobile clients can reconnect.
+   *
+   * @remarks
+   * Returning without calling `allowReconnection` would drop them immediately.
+   * If the window lapses, Colyseus fires `onLeave`.
+   */
   onDrop(client: Client, code: CloseCode) {
     // Allow up to 30 seconds for mobile reconnect drops
     this.allowReconnection(client, 30).catch(() => {});
   }
-
   onReconnect(client: Client) {
     console.log(`Client ${client.sessionId} reconnected!`);
   }

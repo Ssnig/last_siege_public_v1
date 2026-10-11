@@ -7,6 +7,14 @@ interface LobbyProps {
   onJoinRoom: (room: any, role: string) => void;
 }
 
+/**
+ * Match lobby: nickname gate, live room browser, and room creation.
+ *
+ * @remarks
+ * On name confirm it joins a `lobby` LobbyRoom. The `+` / `-` messages are
+ * Colyseus realtime-listing diffs (room added / removed) — `"rooms"` is the
+ * initial full snapshot. The lobby connection is torn down on unmount.
+ */
 export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
   const [name, setName] = useState<string>('');
   const [isNamed, setIsNamed] = useState<boolean>(false);

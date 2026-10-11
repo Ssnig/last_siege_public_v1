@@ -2,6 +2,13 @@
 import Phaser from "phaser";
 import { Room } from "@colyseus/sdk";
 
+/**
+ * Bare-bones game scene: grabs the shared room and listens for role assignment.
+ *
+ * @remarks
+ * The room isn't injected as a prop — it's pulled from the Phaser registry that
+ * `GameContainer` populates. Only read it in `create()`, never the constructor.
+ */
 export class GameScene extends Phaser.Scene {
   private room!: Room;
 
@@ -18,7 +25,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    console.log("Phaser connected to room:", this.room.id);
+    console.log("Phaser connected to room:", this.room.sessionId);
 
     // Listen for role assignment from the server
     this.room.onMessage("role_assigned", (data: { myRole: string; opponentName: string; opponentRole: string }) => {

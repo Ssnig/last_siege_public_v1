@@ -16,7 +16,12 @@ import { GameRoom } from "./rooms/GameRoom.js";
 const server = defineServer({
 
   /**
-   * Define your room handlers:
+   * Room definitions.
+   *
+   * @remarks
+   * `enableRealtimeListing()` is what pushes the `+` / `-` add/remove diffs the
+   * client Lobby listens to. `lobby` is Colyseus' built-in LobbyRoom, which
+   * lists every room that opts in.
    */
   rooms: {
     game_room: defineRoom(GameRoom).enableRealtimeListing(),

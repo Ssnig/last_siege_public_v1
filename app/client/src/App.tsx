@@ -7,6 +7,13 @@ import { GameContainer } from './componenets/GameContainer';
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
 const colyseusClient = new Client(SERVER_URL);
 
+/**
+ * Root shell. Shows the `Lobby` until a room is joined, then swaps to the game.
+ *
+ * @remarks
+ * Owns the one shared Colyseus `Client` for the whole app (module singleton) —
+ * don't spin up another, or you'll open duplicate connections.
+ */
 export default function App() {
   const [currentRoom, setCurrentRoom] = useState<any>(null);
 

@@ -9,6 +9,14 @@ interface GameContainerProps {
   onLeaveRoom: () => void;
 }
 
+/**
+ * Mounts the Phaser canvas plus a debug HUD for the joined room.
+ *
+ * @remarks
+ * The Room is passed to Phaser through `game.registry` (scenes aren't React
+ * children), so read it in `GameScene.create()`. Unmount destroys the game and
+ * calls `room.leave()` — don't also leave from a parent or you'll double-leave.
+ */
 export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom }) => {
   const gameRef = useRef<HTMLDivElement>(null);
 
