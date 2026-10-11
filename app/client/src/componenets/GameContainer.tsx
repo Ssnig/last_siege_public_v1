@@ -23,6 +23,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   // HUD Connection Testing State
   const [statusText, setStatusText] = useState<string>("Waiting for opponent to join...");
   const [playerInfo, setPlayerInfo] = useState<{
+    myName?: string;
     myRole?: string;
     opponentName?: string;
     opponentRole?: string;
@@ -37,6 +38,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       setPlayerInfo(data);
       setStatusText("Match Ready! Roles Assigned.");
     });
+
+    // Tell the server the HUD is listening so it can safely send the role payload.
+    room.send("ready");
 
     room.onLeave((code : any) => {
       setStatusText("Opponent disconnected or left room.");
@@ -72,6 +76,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
         {playerInfo.myRole && (
           <div className="flex flex-col gap-1 mt-2 text-left bg-slate-800 p-3 rounded border border-slate-700 text-xs">
+            <p>Your Name: <span className="text-white font-bold">{playerInfo.myName}</span></p>
             <p>Your Role: <span className="text-yellow-400 font-bold uppercase">{playerInfo.myRole}</span></p>
             <p>Opponent: <span className="text-white font-bold">{playerInfo.opponentName}</span></p>
             <p>Opponent Role: <span className="text-yellow-400 font-bold uppercase">{playerInfo.opponentRole}</span></p>

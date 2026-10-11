@@ -24,12 +24,17 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
   maxClients = 2;
   state = new MyRoomState();
 
+  // Role payload is only sent once both HUDs are listening (see handleReady)
+  private readyClients = new Set<string>();
+  private matchStarted = false;
+
   plugins = definePlugins({
     idle: new IdleKickPlugin({ timeoutMs: 60_000 }),
   });
 
   messages = {
-    // Message handlers for game actions (placement, spawning waves, etc.)
+    // Client signals its HUD is listening; roles go out only when both did.
+    ready: (client: Client) => this.handleReady(client),
   };
 
   onCreate(options: any) {
@@ -53,19 +58,20 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
     console.log(`Player ${client.sessionId} (${client.userData.playerName}) joined room ${this.roomId}`);
 
     if (this.clients.length === 2) {
-      this.assignRolesAndStart();
+      this.assignRoles();
       await this.lock();
     }
   }
 
   /**
-   * Turns the host's `roleChoice` into concrete roles and tells each player privately.
+   * Resolves the host's `roleChoice` into concrete roles and stores them on each
+   * client. Assignment only — notification is deferred until both players are
+   * `ready` (see {@link handleReady}) so no client misses the one-shot message.
    *
    * @remarks
-   * Uses `client.send` (not `broadcast`) since the two players get different roles.
    * `"any"` = host defends, joiner attacks; `"random"` coin-flips.
    */
-  private assignRolesAndStart() {
+  private assignRoles() {
     const creatorClient = this.clients[0];
     const joinerClient = this.clients[1];
 
@@ -91,15 +97,36 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
       joinerRole = "attacker";
     }
 
-    // Save roles to client instances so they can be referenced easily
-    creatorClient.userData = { role: creatorRole };
-    joinerClient.userData = { role: joinerRole };
-
-    // Notify each client of their assigned role via direct WebSocket messages
-    creatorClient.send("role_assigned", { role: creatorRole });
-    joinerClient.send("role_assigned", { role: joinerRole });
+    // Preserve playerName set on join, attach the resolved role
+    creatorClient.userData = { ...creatorClient.userData, role: creatorRole };
+    joinerClient.userData = { ...joinerClient.userData, role: joinerRole };
 
     console.log(`Roles assigned: Creator = ${creatorRole}, Joiner = ${joinerRole}`);
+  }
+
+  /**
+   * Tracks HUD readiness and, once both players are in, sends each the full
+   * `{ myName, myRole, opponentName, opponentRole }` payload.
+   *
+   * @remarks
+   * A `client.send` inside `onJoin` is flushed *before* the `JOIN_ROOM`
+   * handshake, so a client that registers `onMessage` after joining would drop
+   * it. Waiting for both `ready` signals guarantees the handlers exist first.
+   */
+  private handleReady(client: Client) {
+    this.readyClients.add(client.sessionId);
+    if (this.matchStarted || this.readyClients.size < 2) return;
+    this.matchStarted = true;
+
+    for (const c of this.clients) {
+      const opponent = this.clients.find((o) => o.sessionId !== c.sessionId);
+      c.send("role_assigned", {
+        myName: c.userData.playerName,
+        myRole: c.userData.role,
+        opponentName: opponent?.userData.playerName,
+        opponentRole: opponent?.userData.role,
+      });
+    }
   }
 
   /**

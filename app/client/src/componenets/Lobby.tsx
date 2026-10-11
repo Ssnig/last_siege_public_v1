@@ -1,34 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import type { RoleChoice } from '@root/shared';
-import type { Client, Room } from '@colyseus/sdk';
+import type { Client, Room, RoomAvailable } from '@colyseus/sdk';
 
 interface LobbyProps {
   client: Client;
-  onJoinRoom: (room: any, role: string) => void;
+  onJoinRoom: (room: any) => void;
 }
 
 /**
  * Match lobby: nickname gate, live room browser, and room creation.
  *
  * @remarks
- * On name confirm it joins a `lobby` LobbyRoom. The `+` / `-` messages are
- * Colyseus realtime-listing diffs (room added / removed) — `"rooms"` is the
- * initial full snapshot. The lobby connection is torn down on unmount.
+ * The nickname is persisted in `localStorage` under `player-name`, so the name
+ * prompt is skipped on return visits (the initial state is seeded lazily from
+ * storage — no extra effect). Once past the gate it joins a `lobby` LobbyRoom:
+ * `"rooms"` is the initial snapshot and `+` / `-` are realtime add/remove diffs.
+ * The lobby connection is torn down on unmount.
  */
 export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
-  const [name, setName] = useState<string>('');
-  const [isNamed, setIsNamed] = useState<boolean>(false);
-  const [rooms, setRooms] = useState<any[]>([]);
+  const [name, setName] = useState<string>(() => localStorage.getItem('player-name') ?? '');
+  const [isNamed, setIsNamed] = useState<boolean>(() => !!localStorage.getItem('player-name'));
+  const [rooms, setRooms] = useState<RoomAvailable[]>([]);
   const [selectedRoleChoice, setSelectedRoleChoice] = useState<RoleChoice>("any");
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  /** Trims, persists the nickname, and moves past the name gate. No-op if blank. */
+  const confirmName = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    localStorage.setItem('player-name', trimmed);
+    setName(trimmed);
+    setIsNamed(true);
+  };
 
   useEffect(() => {
     if (!isNamed) return;
 
     let lobbyRoom: Room;
 
-    const connectLobby = async () => {
+    (async () => {
       try {
         lobbyRoom = await client.joinOrCreate("lobby");
 
@@ -36,28 +47,24 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
           setRooms(availableRooms);
         });
 
+        // "+" is an upsert: replace if we already track the room, else append.
         lobbyRoom.onMessage("+", ([roomId, room]) => {
-          setRooms((prevRooms) => {
-            const index = prevRooms.findIndex((r) => r.roomId === roomId);
-            if (index !== -1) {
-              const updated = [...prevRooms];
-              updated[index] = room;
-              return updated;
-            } else {
-              return [...prevRooms, room];
-            }
+          setRooms((prev) => {
+            const index = prev.findIndex((r) => r.roomId === roomId);
+            if (index === -1) return [...prev, room];
+            const updated = [...prev];
+            updated[index] = room;
+            return updated;
           });
         });
 
         lobbyRoom.onMessage("-", (roomId) => {
-          setRooms((prevRooms) => prevRooms.filter((r) => r.roomId !== roomId));
+          setRooms((prev) => prev.filter((r) => r.roomId !== roomId));
         });
       } catch (e) {
         console.error("Failed to join lobby room:", e);
       }
-    };
-
-    connectLobby();
+    })();
 
     return () => {
       if (lobbyRoom) {
@@ -66,6 +73,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
     };
   }, [isNamed]);
 
+  /** Creates a `game_room` with the chosen role preference and hands it to the parent. */
   const handleCreateRoom = async () => {
     setLoading(true);
     setErrorMessage(null);
@@ -74,7 +82,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
         playerName: name,
         roleChoice: selectedRoleChoice,
       });
-      onJoinRoom(room, selectedRoleChoice);
+      onJoinRoom(room);
     } catch (e: any) {
       console.error("Error creating room:", e);
       setErrorMessage(e.message || "Failed to create room.");
@@ -82,6 +90,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
     }
   };
 
+  /** Joins an existing room by id; surfaces an error if it's full or already closed. */
   const handleJoinRoom = async (roomId: string) => {
     setLoading(true);
     setErrorMessage(null);
@@ -89,7 +98,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
       const room = await client.joinById(roomId, {
         playerName: name,
       });
-      onJoinRoom(room, "joined");
+      onJoinRoom(room);
     } catch (e: any) {
       console.error("Error joining room:", e);
       setErrorMessage(e.message || "Failed to join room. It may be full or closed.");
@@ -111,12 +120,12 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
             placeholder="Your Nickname..."
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && name.trim() && setIsNamed(true)}
+            onKeyDown={(e) => e.key === 'Enter' && confirmName()}
             className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
           />
           <button
             disabled={!name.trim()}
-            onClick={() => setIsNamed(true)}
+            onClick={confirmName}
             className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/20"
           >
             Continue to Lobby
@@ -164,7 +173,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
                 onChange={(e) => setSelectedRoleChoice(e.target.value as RoleChoice)}
                 className="px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500 transition"
               >
-                <option value="any">Any (First come)</option>
+                <option value="any">Any</option>
                 <option value="attacker">Attacker</option>
                 <option value="defender">Defender</option>
                 <option value="random">Randomized</option>

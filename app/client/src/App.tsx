@@ -1,5 +1,5 @@
 import { Client } from '@colyseus/sdk';
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import { Lobby } from './componenets/Lobby';
 import { GameContainer } from './componenets/GameContainer';
 
@@ -23,9 +23,8 @@ export default function App() {
 
   const handleLeaveRoom = () => {
     if (currentRoom) {
-      currentRoom.leave();
+      setCurrentRoom(null)
     }
-    setCurrentRoom(null);
   };
 
   return (
