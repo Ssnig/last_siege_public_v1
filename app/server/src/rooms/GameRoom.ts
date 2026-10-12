@@ -1,7 +1,15 @@
-import { Room, Client, CloseCode, definePlugins } from "colyseus";
-import { RoomState, Player, MESSAGES } from "@root/shared";
-import { IdleKickPlugin } from "colyseus/plugins/idle-kick";
 
+import { Room, Client, CloseCode, definePlugins } from "colyseus";
+import { IdleKickPlugin } from "colyseus/plugins/idle-kick";
+import {
+  RoomState,
+  Player,
+  MESSAGES,
+  MOB_TYPES,
+  TOWER_TYPES,
+  DEFAULT_DECK_RULES,
+  type DraftReadyIntent,
+} from "@root/shared";
 
 export type RoleChoice = "attacker" | "defender" | "random";
 export type PlayerRole = "attacker" | "defender";
@@ -12,92 +20,102 @@ export interface GameRoomMetadata {
 }
 
 /**
- * 1v1 tower-defense match room. Roles are only decided once both seats fill.
+ * Owns a 1v1 tower-defense match and its authoritative phase transitions.
  *
  * @remarks
- * - `maxClients = 2`; the room locks on the second join, so late joiners bounce.
- * - `IdleKickPlugin` drops clients idle for 60s.
- * - `update()` is driven by `setTimestep`, not a manual interval.
+ * Drafts remain server-private. Clients submit IDs; the server validates them
+ * and changes the shared phase only after both players confirm valid drafts.
  */
 export class GameRoom extends Room<{ state: RoomState }> {
-  // Enforce 1v1 matches
   maxClients = 2;
   state = new RoomState();
 
   private creatorSessionId?: string;
-  // Role payload is only sent once both HUDs are listening (see handleReady)
   private readyClients = new Set<string>();
   private matchStarted = false;
+
+  /**
+   * Validated draft IDs keyed by session ID.
+   * Kept outside RoomState so one player cannot inspect the opponent's deck.
+   */
+  private acceptedDecks = new Map<string, string[]>();
 
   plugins = definePlugins({
     idle: new IdleKickPlugin({ timeoutMs: 60_000 }),
   });
 
   messages = {
-    // Client signals its HUD is listening; roles go out only when both did.
     [MESSAGES.ready]: (client: Client) => this.handleReady(client),
+
+    [MESSAGES.draftReady]: (
+      client: Client,
+      payload: DraftReadyIntent,
+    ) => this.handleDraftReady(client, payload),
   };
 
   /**
-   * Resolves the host's `roleChoice` into concrete roles and stores them on each
-   * client. Assignment only — notification is deferred until both players are
-   * `ready` (see {@link handleReady}) so no client misses the one-shot message.
-   *
-   * @remarks
-   * `"attacker"`/`"defender"` force the host's role; `"random"` coin-flips.
+   * Resolves the host's role choice and assigns the opposite role to the joiner.
+   * On a reopened room, preserves the surviving player's role.
    */
-  private assignRoles() {
+  private assignRoles(): void {
     const creatorClient = this.clients[0];
     const joinerClient = this.clients[1];
 
-    // Reopened room after a leave: the surviving host keeps the role they
-    // already hold and the fresh joiner takes the opposite. The stale
-    // `roleChoice` metadata is only trusted for the very first assignment.
-    let creatorRole = creatorClient.userData?.role as PlayerRole | undefined;
+    let creatorRole = creatorClient.userData?.role as
+      | PlayerRole
+      | undefined;
+
     if (!creatorRole) {
       const metadata = this.metadata as GameRoomMetadata;
       const choice = metadata?.roleChoice || "random";
 
-      if (choice === "attacker") {
-        creatorRole = "attacker";
-      } else if (choice === "defender") {
-        creatorRole = "defender";
-      } else {
-        // "random" (or an unknown value): coin-flip the host's role
-        creatorRole = Math.random() < 0.5 ? "attacker" : "defender";
-      }
+      creatorRole =
+        choice === "attacker"
+          ? "attacker"
+          : choice === "defender"
+            ? "defender"
+            : Math.random() < 0.5
+              ? "attacker"
+              : "defender";
     }
-    const joinerRole: PlayerRole = creatorRole === "attacker" ? "defender" : "attacker";
 
-    // Preserve playerName set on join, attach the resolved role
-    creatorClient.userData = { ...creatorClient.userData, role: creatorRole };
-    joinerClient.userData = { ...joinerClient.userData, role: joinerRole };
+    const joinerRole: PlayerRole =
+      creatorRole === "attacker" ? "defender" : "attacker";
 
-    // Keep the synced state in step with the authoritative userData roles
+    creatorClient.userData = {
+      ...creatorClient.userData,
+      role: creatorRole,
+    };
+    joinerClient.userData = {
+      ...joinerClient.userData,
+      role: joinerRole,
+    };
+
     const creatorState = this.state.players.get(creatorClient.sessionId);
     const joinerState = this.state.players.get(joinerClient.sessionId);
+
     if (creatorState) creatorState.role = creatorRole;
     if (joinerState) joinerState.role = joinerRole;
 
-    console.log(`Roles assigned: Creator = ${creatorRole}, Joiner = ${joinerRole}`);
+    console.log(
+      `Roles assigned: Creator = ${creatorRole}, Joiner = ${joinerRole}`,
+    );
   }
 
   /**
-   * Tracks HUD readiness and, once both players are in, sends each the full
-   * `{ myName, myRole, opponentName, opponentRole }` payload.
-   *
-   * @remarks
-   * A `client.send` inside `onJoin` is flushed *before* the `JOIN_ROOM`
-   * handshake, so a client that registers `onMessage` after joining would drop
-   * it. Waiting for both `ready` signals guarantees the handlers exist first.
+   * Sends role details after both clients have registered their message handlers.
    */
-  private handleReady(client: Client) {
+  private handleReady(client: Client): void {
     this.readyClients.add(client.sessionId);
+
     if (this.matchStarted || this.readyClients.size < 2) return;
     this.matchStarted = true;
 
     for (const c of this.clients) {
-      const opponent = this.clients.find((o) => o.sessionId !== c.sessionId);
+      const opponent = this.clients.find(
+        (other) => other.sessionId !== c.sessionId,
+      );
+
       c.send(MESSAGES.roleAssigned, {
         myName: c.userData.playerName,
         myRole: c.userData.role,
@@ -107,41 +125,132 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
-  // Room LifeCycle Events
+  /**
+   * Validates and accepts a player's deck, then advances the phase if both
+   * players have confirmed.
+   *
+   * @remarks
+   * Only the role-appropriate catalog is accepted. Invalid submissions do not
+   * mark the player ready. The client cannot choose the next phase.
+   */
+  private handleDraftReady(
+    client: Client,
+    payload: DraftReadyIntent,
+  ): void {
+    if (this.state.phase !== "drafting") return;
 
-  onCreate(options: any) {
-    // 1. Set initial metadata so the LobbyRoom can display host info immediately
+    const player = this.state.players.get(client.sessionId);
+    const role = client.userData?.role as PlayerRole | undefined;
+
+    if (
+      !player ||
+      (role !== "attacker" && role !== "defender")
+    ) {
+      this.rejectDraft(client, "Player role is not assigned.");
+      return;
+    }
+
+    if (player.draftReady) {
+      this.rejectDraft(client, "Your draft is already confirmed.");
+      return;
+    }
+
+    if (
+      !payload ||
+      !Array.isArray(payload.deck) ||
+      !payload.deck.every((id) => typeof id === "string")
+    ) {
+      this.rejectDraft(client, "Invalid deck payload.");
+      return;
+    }
+
+    const catalog = role === "attacker" ? MOB_TYPES : TOWER_TYPES;
+    const deck = payload.deck;
+    const maxDeckSize = Math.min(
+      DEFAULT_DECK_RULES.deckSize,
+      Object.keys(catalog).length,
+    );
+
+    if (deck.length === 0 || deck.length > maxDeckSize) {
+      this.rejectDraft(
+        client,
+        `Choose between 1 and ${maxDeckSize} units.`,
+      );
+      return;
+    }
+
+    if (new Set(deck).size !== deck.length) {
+      this.rejectDraft(client, "Duplicate selections are not allowed.");
+      return;
+    }
+
+    if (!deck.every((id) => Object.hasOwn(catalog, id))) {
+      this.rejectDraft(client, "The deck contains an unknown unit.");
+      return;
+    }
+
+    this.acceptedDecks.set(client.sessionId, [...deck]);
+    player.draftReady = true;
+
+    console.log(
+      `${player.name} confirmed ${role} draft: ${deck.join(", ")}`,
+    );
+
+    const bothReady =
+      this.clients.length === 2 &&
+      this.clients.every((c) => {
+        const currentPlayer = this.state.players.get(c.sessionId);
+
+        return (
+          currentPlayer?.draftReady === true &&
+          this.acceptedDecks.has(c.sessionId)
+        );
+      });
+
+    if (bothReady) {
+      this.state.phase = "building";
+      console.log(`Room ${this.roomId}: drafting -> building`);
+    }
+  }
+
+  /** Sends a private explanation for a rejected draft submission. */
+  private rejectDraft(client: Client, reason: string): void {
+    client.send(MESSAGES.draftRejected, { reason });
+  }
+
+  onCreate(options: any): void {
     this.setMetadata({
       creatorName: options.playerName || "Anonymous",
       roleChoice: options.roleChoice || "random",
     });
 
-    // 2. Seed the synced match state
     this.state.mapId = options.mapId || "sample";
     this.state.phase = "drafting";
 
-    // 3. Server-side tick loop
     this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
   }
 
-  async onJoin(client: Client, options: any) {
-    // Store player name in client userData
+  async onJoin(client: Client, options: any): Promise<void> {
     client.userData = {
       playerName: options.playerName || "Anonymous",
-      role: null
+      role: null,
     };
 
     if (!this.creatorSessionId) {
       this.creatorSessionId = client.sessionId;
     }
 
-    // Mirror the player into synced state; roles are filled in once both seats are taken.
     this.state.players.set(
       client.sessionId,
-      new Player({ name: client.userData.playerName, role: "" })
+      new Player({
+        name: client.userData.playerName,
+        role: "",
+      }),
     );
 
-    console.log(`Player ${client.sessionId} (${client.userData.playerName}) joined room ${this.roomId}`);
+    console.log(
+      `Player ${client.sessionId} (${client.userData.playerName}) joined room ${this.roomId}`,
+    );
 
     if (this.clients.length === 2) {
       this.assignRoles();
@@ -149,55 +258,46 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
-  /**
-   * Holds a dropped player's seat for 60s so flaky/mobile clients can reconnect.
-   *
-   * @remarks
-   * Returning without calling `allowReconnection` would drop them immediately.
-   * If the window lapses, Colyseus fires `onLeave`.
-   */
-  onDrop(client: Client, code: CloseCode) {
-    // Allow up to 60 seconds for mobile reconnect drops
+  /** Allows a dropped client to reconnect for up to 60 seconds. */
+  onDrop(client: Client, code: CloseCode): void {
     this.allowReconnection(client, 60).catch(() => {});
   }
 
-  onReconnect(client: Client) {
+  onReconnect(client: Client): void {
     console.log(`Client ${client.sessionId} reconnected!`);
   }
 
   /**
-   * Permanent leave for a client: explicit `room.leave()`, or `onDrop`'s
-   * reconnection window elapsed. Removes them from synced state and, while one
-   * seat remains, reopens the room so the surviving host can find a new opponent.
-   *
-   * @remarks
-   * - If the **creator** left, the survivor is promoted to host: `creatorName`
-   *   metadata is transferred and the survivor is sent `opponent_left` with
-   *   `youAreHost: true` so its HUD can toast the promotion. A plain joiner
-   *   leaving does not promote anyone.
-   * - `readyClients` / `matchStarted` reset so the next two-player
-   *   `role_assigned` handshake runs again for the incoming joiner.
-   * - With zero clients left the room disposes itself (Colyseus default); we
-   *   don't dispose early while a host is waiting.
-   * - Complements {@link onDrop} (grace window) and {@link onReconnect}.
+   * Removes a departed player and resets the remaining player's match draft
+   * when the room reopens for a replacement opponent.
    */
-  onLeave(client: Client, code: CloseCode) {
+  onLeave(client: Client, code: CloseCode): void {
     console.log(`Client ${client.sessionId} left! Code: ${code}`);
-    // Reconnection window elapsed (or refused): drop them from synced state.
+
     this.state.players.delete(client.sessionId);
+    this.acceptedDecks.delete(client.sessionId);
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 
-    // Both gone -> room disposes on its own. One remains -> reopen for a new player
     if (this.clients.length === 1) {
       const host = this.clients[0];
 
       this.unlock();
       this.readyClients.clear();
       this.matchStarted = false;
+      this.acceptedDecks.clear();
+      this.state.phase = "drafting";
+
+      for (const player of this.state.players.values()) {
+        player.draftReady = false;
+      }
 
       if (wasCreator) {
-        this.setMetadata({ ...this.metadata, creatorName: host.userData.playerName });
+        this.creatorSessionId = host.sessionId;
+        this.setMetadata({
+          ...this.metadata,
+          creatorName: host.userData.playerName,
+        });
       }
 
       host.send(MESSAGES.opponentLeft, {
@@ -207,11 +307,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
-  onDispose() {
+  onDispose(): void {
     console.log(`Room ${this.roomId} disposing...`);
   }
 
-  update(dt: number) {
-    // Game loop tick simulation (updates unit positions, tower cooldowns, etc.)
+  /** Server tick; gameplay simulation will be added in a later phase. */
+  update(dt: number): void {
+    // Intentionally blank for now.
   }
 }

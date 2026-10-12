@@ -86,7 +86,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center bg-slate-950">
       {/* Connection Test HUD Overlay */}
-      <div className="absolute top-6 z-20 bg-slate-900/90 border border-slate-700 p-4 rounded-xl shadow-xl flex flex-col gap-2 min-w-[320px] text-center">
+      <div className="absolute top-6 left-0 z-20 bg-slate-900/90 border border-slate-700 p-4 rounded-xl shadow-xl flex flex-col gap-2 min-w-[320px] text-center">
         <h3 className="font-bold text-lg text-blue-400">Connection & Role Debugger</h3>
         <p className="text-sm text-slate-300">{statusText}</p>
 

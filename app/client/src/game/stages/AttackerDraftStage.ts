@@ -8,6 +8,7 @@ import {
 } from "@root/shared";
 import { MobCard } from "../ui/MobCard";
 
+
 /**
  * Client-side attacker draft UI.
  *
@@ -21,7 +22,14 @@ import { MobCard } from "../ui/MobCard";
  * Confirming a draft currently logs a `DraftReadyIntent` for later server
  * integration. `GameContainer` owns the Colyseus room lifecycle.
  */
-export class AttackerDraftStage {
+export class AttackerDraftStage {/**
+ * Sends the selected mob IDs to the server for validation.
+ *
+ * @remarks
+ * The stage owns the UI; GameScene supplies the network callback.
+ */
+  private readonly onConfirm: (deck: string[]) => void;
+
   private root?: Phaser.GameObjects.Container;
   private cards: MobCard[] = [];
   private selected = new Set<string>();
@@ -45,10 +53,16 @@ export class AttackerDraftStage {
     this.render();
   };
 
-  /**
-   * @param scene - Active Phaser scene that owns this stage's UI.
-   */
-  constructor(private readonly scene: Phaser.Scene) {}
+    /**
+     * @param scene - Active Phaser scene that owns this stage's UI.
+     * @param onConfirm - Sends the selected deck to the server.
+     */
+    constructor(
+    private readonly scene: Phaser.Scene,
+    onConfirm: (deck: string[]) => void,
+    ) {
+    this.onConfirm = onConfirm;
+    }
 
   /**
    * Builds the UI and subscribes to canvas resizing.
@@ -297,6 +311,18 @@ export class AttackerDraftStage {
   }
 
   /**
+ * Unlocks the draft after the server rejects a submission.
+ *
+ * @remarks
+ * Preserves the player's selections so they can correct and retry.
+ */
+rejectDraft(reason: string): void {
+  this.confirmed = false;
+  this.refreshSelection();
+  console.warn("Draft rejected:", reason);
+}
+
+  /**
    * Adds or removes a unique mob type from the local draft.
    *
    * @param mob - Catalog entry the player clicked.
@@ -543,36 +569,42 @@ export class AttackerDraftStage {
     return colors[id] ?? 0xa78bfa;
   }
 
-  /**
-   * Confirms the current local selection.
-   *
-   * @remarks
-   * This is intentionally not connected to Colyseus yet. The logged payload
-   * can later be sent through `MESSAGES.draftReady` once server validation is
-   * implemented.
-   */
-  private confirmDraft(): void {
+ 
+    /**
+     * Submits the current selection to the server.
+     *
+     * @remarks
+     * The server validates the deck and advances the phase only when both
+     * players have confirmed. This stage does not change RoomState directly.
+     */
+    private confirmDraft(): void {
     if (this.confirmed || this.selected.size === 0) {
-      return;
+        return;
     }
 
     const intent: DraftReadyIntent = {
-      deck: [...this.selected],
+        deck: [...this.selected],
     };
 
     this.confirmed = true;
-    console.info("[AttackerDraftStage] Local draft ready:", intent);
     this.refreshSelection();
-  }
 
-  /** Removes resize listeners and releases stage-owned game objects. */
-  destroy(): void {
-    this.scene.scale.off(Phaser.Scale.Events.RESIZE, this.handleResize);
-    this.root?.destroy(true);
-    this.root = undefined;
-    this.detailsOverlay = undefined;
-    this.selectedContainer = undefined;
-    this.cards = [];
-    this.selected.clear();
-  }
+    this.onConfirm(intent.deck);
+    }
+/**
+ * Unsubscribes from resize events and releases stage-owned display objects.
+ */
+destroy(): void {
+  this.scene.scale.off(
+    Phaser.Scale.Events.RESIZE,
+    this.handleResize,
+  );
+
+  this.root?.destroy(true);
+  this.root = undefined;
+  this.detailsOverlay = undefined;
+  this.selectedContainer = undefined;
+  this.cards = [];
+  this.selected.clear();
+}
 }
