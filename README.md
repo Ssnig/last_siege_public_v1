@@ -18,7 +18,7 @@ An asymmetric 1v1 multiplayer strategy tower defense game built with **React**, 
 
 ## 📦 Project Structure
 ```text
-├── apps/
+├── app/
 │   ├── client/         # React frontend + Phaser game canvas & HUD
 │   └── server/         # Colyseus game server & room lifecycle logic
 ├── packages/
