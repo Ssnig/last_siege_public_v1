@@ -1,5 +1,5 @@
-/** Host's role preference. `"any"` = first-come, `"random"` = coin-flip. */
-export type RoleChoice = "attacker" | "defender" | "any" | "random";
+/** Host's role preference. `"random"` coin-flips the host's role. */
+export type RoleChoice = "attacker" | "defender" | "random";
 export type AssignedRole = "attacker" | "defender";
 
 /** Public room info shown in the lobby browser. */

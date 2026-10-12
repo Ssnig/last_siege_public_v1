@@ -1,9 +1,9 @@
 import { Room, Client, CloseCode, definePlugins } from "colyseus";
-import { MyRoomState } from "./schema/MyRoomState.js";
+import { RoomState, Player, MESSAGES } from "@root/shared";
 import { IdleKickPlugin } from "colyseus/plugins/idle-kick";
 
 
-export type RoleChoice = "attacker" | "defender" | "any" | "random";
+export type RoleChoice = "attacker" | "defender" | "random";
 export type PlayerRole = "attacker" | "defender";
 
 export interface GameRoomMetadata {
@@ -19,11 +19,12 @@ export interface GameRoomMetadata {
  * - `IdleKickPlugin` drops clients idle for 60s.
  * - `update()` is driven by `setTimestep`, not a manual interval.
  */
-export class GameRoom extends Room<{ state: MyRoomState }> {
+export class GameRoom extends Room<{ state: RoomState }> {
   // Enforce 1v1 matches
   maxClients = 2;
-  state = new MyRoomState();
+  state = new RoomState();
 
+  private creatorSessionId?: string;
   // Role payload is only sent once both HUDs are listening (see handleReady)
   private readyClients = new Set<string>();
   private matchStarted = false;
@@ -34,34 +35,8 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
 
   messages = {
     // Client signals its HUD is listening; roles go out only when both did.
-    ready: (client: Client) => this.handleReady(client),
+    [MESSAGES.ready]: (client: Client) => this.handleReady(client),
   };
-
-  onCreate(options: any) {
-    // 1. Set initial metadata so the LobbyRoom can display host info immediately
-    this.setMetadata({
-      creatorName: options.playerName || "Anonymous",
-      roleChoice: options.roleChoice || "any",
-    });
-
-    // 2. Server-side tick loop
-    this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
-  }
-
-  async onJoin(client: Client, options: any) {
-    // Store player name in client userData
-    client.userData = {
-      playerName: options.playerName || "Anonymous",
-      role: null
-    };
-
-    console.log(`Player ${client.sessionId} (${client.userData.playerName}) joined room ${this.roomId}`);
-
-    if (this.clients.length === 2) {
-      this.assignRoles();
-      await this.lock();
-    }
-  }
 
   /**
    * Resolves the host's `roleChoice` into concrete roles and stores them on each
@@ -69,37 +44,40 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
    * `ready` (see {@link handleReady}) so no client misses the one-shot message.
    *
    * @remarks
-   * `"any"` = host defends, joiner attacks; `"random"` coin-flips.
+   * `"attacker"`/`"defender"` force the host's role; `"random"` coin-flips.
    */
   private assignRoles() {
     const creatorClient = this.clients[0];
     const joinerClient = this.clients[1];
 
-    const metadata = this.metadata as GameRoomMetadata;
-    const choice = metadata?.roleChoice || "any";
+    // Reopened room after a leave: the surviving host keeps the role they
+    // already hold and the fresh joiner takes the opposite. The stale
+    // `roleChoice` metadata is only trusted for the very first assignment.
+    let creatorRole = creatorClient.userData?.role as PlayerRole | undefined;
+    if (!creatorRole) {
+      const metadata = this.metadata as GameRoomMetadata;
+      const choice = metadata?.roleChoice || "random";
 
-    let creatorRole: PlayerRole;
-    let joinerRole: PlayerRole;
-
-    if (choice === "attacker") {
-      creatorRole = "attacker";
-      joinerRole = "defender";
-    } else if (choice === "defender") {
-      creatorRole = "defender";
-      joinerRole = "attacker";
-    } else if (choice === "random") {
-      const isCreatorAttacker = Math.random() < 0.5;
-      creatorRole = isCreatorAttacker ? "attacker" : "defender";
-      joinerRole = isCreatorAttacker ? "defender" : "attacker";
-    } else {
-      // "any": Creator defaults to defender, Joiner gets attacker
-      creatorRole = "defender";
-      joinerRole = "attacker";
+      if (choice === "attacker") {
+        creatorRole = "attacker";
+      } else if (choice === "defender") {
+        creatorRole = "defender";
+      } else {
+        // "random" (or an unknown value): coin-flip the host's role
+        creatorRole = Math.random() < 0.5 ? "attacker" : "defender";
+      }
     }
+    const joinerRole: PlayerRole = creatorRole === "attacker" ? "defender" : "attacker";
 
     // Preserve playerName set on join, attach the resolved role
     creatorClient.userData = { ...creatorClient.userData, role: creatorRole };
     joinerClient.userData = { ...joinerClient.userData, role: joinerRole };
+
+    // Keep the synced state in step with the authoritative userData roles
+    const creatorState = this.state.players.get(creatorClient.sessionId);
+    const joinerState = this.state.players.get(joinerClient.sessionId);
+    if (creatorState) creatorState.role = creatorRole;
+    if (joinerState) joinerState.role = joinerRole;
 
     console.log(`Roles assigned: Creator = ${creatorRole}, Joiner = ${joinerRole}`);
   }
@@ -120,7 +98,7 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
 
     for (const c of this.clients) {
       const opponent = this.clients.find((o) => o.sessionId !== c.sessionId);
-      c.send("role_assigned", {
+      c.send(MESSAGES.roleAssigned, {
         myName: c.userData.playerName,
         myRole: c.userData.role,
         opponentName: opponent?.userData.playerName,
@@ -129,24 +107,104 @@ export class GameRoom extends Room<{ state: MyRoomState }> {
     }
   }
 
+  // Room LifeCycle Events
+
+  onCreate(options: any) {
+    // 1. Set initial metadata so the LobbyRoom can display host info immediately
+    this.setMetadata({
+      creatorName: options.playerName || "Anonymous",
+      roleChoice: options.roleChoice || "random",
+    });
+
+    // 2. Seed the synced match state
+    this.state.mapId = options.mapId || "sample";
+    this.state.phase = "drafting";
+
+    // 3. Server-side tick loop
+    this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
+  }
+
+  async onJoin(client: Client, options: any) {
+    // Store player name in client userData
+    client.userData = {
+      playerName: options.playerName || "Anonymous",
+      role: null
+    };
+
+    if (!this.creatorSessionId) {
+      this.creatorSessionId = client.sessionId;
+    }
+
+    // Mirror the player into synced state; roles are filled in once both seats are taken.
+    this.state.players.set(
+      client.sessionId,
+      new Player({ name: client.userData.playerName, role: "" })
+    );
+
+    console.log(`Player ${client.sessionId} (${client.userData.playerName}) joined room ${this.roomId}`);
+
+    if (this.clients.length === 2) {
+      this.assignRoles();
+      await this.lock();
+    }
+  }
+
   /**
-   * Holds a dropped player's seat for 30s so flaky/mobile clients can reconnect.
+   * Holds a dropped player's seat for 60s so flaky/mobile clients can reconnect.
    *
    * @remarks
    * Returning without calling `allowReconnection` would drop them immediately.
    * If the window lapses, Colyseus fires `onLeave`.
    */
   onDrop(client: Client, code: CloseCode) {
-    // Allow up to 30 seconds for mobile reconnect drops
-    this.allowReconnection(client, 30).catch(() => {});
+    // Allow up to 60 seconds for mobile reconnect drops
+    this.allowReconnection(client, 60).catch(() => {});
   }
+
   onReconnect(client: Client) {
     console.log(`Client ${client.sessionId} reconnected!`);
   }
 
+  /**
+   * Permanent leave for a client: explicit `room.leave()`, or `onDrop`'s
+   * reconnection window elapsed. Removes them from synced state and, while one
+   * seat remains, reopens the room so the surviving host can find a new opponent.
+   *
+   * @remarks
+   * - If the **creator** left, the survivor is promoted to host: `creatorName`
+   *   metadata is transferred and the survivor is sent `opponent_left` with
+   *   `youAreHost: true` so its HUD can toast the promotion. A plain joiner
+   *   leaving does not promote anyone.
+   * - `readyClients` / `matchStarted` reset so the next two-player
+   *   `role_assigned` handshake runs again for the incoming joiner.
+   * - With zero clients left the room disposes itself (Colyseus default); we
+   *   don't dispose early while a host is waiting.
+   * - Complements {@link onDrop} (grace window) and {@link onReconnect}.
+   */
   onLeave(client: Client, code: CloseCode) {
     console.log(`Client ${client.sessionId} left! Code: ${code}`);
-    // Handle cleanup if game was in progress
+    // Reconnection window elapsed (or refused): drop them from synced state.
+    this.state.players.delete(client.sessionId);
+
+    const wasCreator = client.sessionId === this.creatorSessionId;
+
+    // Both gone -> room disposes on its own. One remains -> reopen for a new player
+    if (this.clients.length === 1) {
+      const host = this.clients[0];
+
+      this.unlock();
+      this.readyClients.clear();
+      this.matchStarted = false;
+
+      if (wasCreator) {
+        this.setMetadata({ ...this.metadata, creatorName: host.userData.playerName });
+      }
+
+      host.send(MESSAGES.opponentLeft, {
+        opponentName: client.userData.playerName,
+        youAreHost: wasCreator,
+      });
+    }
   }
 
   onDispose() {
