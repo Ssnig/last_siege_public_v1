@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { Room } from '@colyseus/sdk';
 import { GameScene } from '../game/GameScene';
-import { MESSAGES, type OpponentLeftPayload } from '@root/shared';
+import { MESSAGES, type OpponentLeftPayload, type RoomState } from '@root/shared';
 
 interface GameContainerProps {
   room: Room;
@@ -31,6 +31,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   }>({});
   const [leaveConfirm, setLeaveConfirm] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [enteredGame, setEnteredGame] = useState(false);
 
   // Mount Effect
   useEffect(() => {
@@ -40,15 +41,26 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     room.onMessage(MESSAGES.roleAssigned, (data) => {
       console.log("Role assigned received:", data);
       setPlayerInfo(data);
-      setStatusText("Match Ready! Roles Assigned.");
+      setEnteredGame(false);
+      setStatusText("Roles assigned — click \"Enter Game\" when you're ready.");
     });
 
     // Tell the server the HUD is listening so it can safely send the role payload.
     room.send(MESSAGES.ready);
 
+    // Draft/combat begin once both players clicked "Enter Game".
+    room.onStateChange(() => {
+      const phase = (room.state as RoomState | undefined)?.phase;
+      if (phase === "drafting") {
+        setEnteredGame(true);
+        setStatusText("Draft phase started — pick your cards!");
+      }
+    });
+
     // opponent-left handler
     room.onMessage(MESSAGES.opponentLeft, (data: OpponentLeftPayload) => {
       setPlayerInfo({});
+      setEnteredGame(false);
 
       setStatusText("Waiting for opponent to join...");
       if (data.youAreHost) {
@@ -97,6 +109,19 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
             <p>Opponent: <span className="text-white font-bold">{playerInfo.opponentName}</span></p>
             <p>Opponent Role: <span className="text-yellow-400 font-bold uppercase">{playerInfo.opponentRole}</span></p>
           </div>
+        )}
+
+{playerInfo.myRole && !enteredGame && (
+          <button
+            onClick={() => {
+              room.send(MESSAGES.enterGame);
+              setEnteredGame(true);
+              setStatusText("You entered — waiting for your opponent...");
+            }}
+            className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-bold transition"
+          >
+            Enter Game
+          </button>
         )}
 
 <button

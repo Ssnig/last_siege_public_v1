@@ -187,14 +187,15 @@ export const MATCH_RULES: MatchRules = {
   roundDurationSec: 90,
 };
 
+/** Canonical room phases, synced to clients via `RoomState.phase`. */
 export const MATCH_PHASES = {
+  waiting: "waiting",
   drafting: "drafting",
   combat: "combat",
   gameover: "gameover",
 } as const;
 
-export type MathPhase = (typeof MATCH_PHASES)[keyof typeof MATCH_PHASES]
-
+export type MatchPhase = (typeof MATCH_PHASES)[keyof typeof MATCH_PHASES];
 
 /** Effective stats at the given level (1-based); `null` past max level. */
 export function tierAt(type: TowerType, level: number): TowerTier | null {

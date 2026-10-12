@@ -12,7 +12,7 @@ import { Projectile } from "./Projectile.js";
  * per-player economy lives in private messages, never here.
  */
 export const RoomState = schema({
-  phase: t.string().default("drafting"),
+  phase: t.string().default("waiting"),
   mapId: t.string().default(""),
   winner: t.string().optional(),
   phaseEndsAt: t.float64().default(0),

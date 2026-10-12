@@ -9,6 +9,8 @@
 export const MESSAGES = {
   /** Client → server: this client's HUD is listening for its role payload. */
   ready: "ready",
+  /** Client → server: both players clicked "Enter Game" — starts the draft. */
+  enterGame: "enter_game",
   /** Server → client (private): role/name handshake once both are ready. */
   roleAssigned: "role_assigned",
   /** Server → client (private): the other player left; `youAreHost` when promoted. */

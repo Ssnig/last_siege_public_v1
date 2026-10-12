@@ -1,6 +1,7 @@
 import { Room, Client, CloseCode, definePlugins } from "colyseus";
-import { RoomState, Player, MESSAGES } from "@root/shared";
+import { RoomState, Player, MESSAGES, MATCH_PHASES } from "@root/shared";
 import { IdleKickPlugin } from "colyseus/plugins/idle-kick";
+import { Phases } from "../game/phases.js";
 
 
 export type RoleChoice = "attacker" | "defender" | "random";
@@ -27,7 +28,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private creatorSessionId?: string;
   // Role payload is only sent once both HUDs are listening (see handleReady)
   private readyClients = new Set<string>();
+  // Both players must click "Enter Game" before the draft starts (see handleEnterGame)
+  private enterClients = new Set<string>();
   private matchStarted = false;
+  private phases!: Phases;
 
   plugins = definePlugins({
     idle: new IdleKickPlugin({ timeoutMs: 60_000 }),
@@ -36,6 +40,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
   messages = {
     // Client signals its HUD is listening; roles go out only when both did.
     [MESSAGES.ready]: (client: Client) => this.handleReady(client),
+    // Both clients clicked "Enter Game": roles were already handed out, so
+    // this only transitions the phase from waiting to a fresh draft.
+    [MESSAGES.enterGame]: (client: Client) => this.handleEnterGame(client),
   };
 
   /**
@@ -90,6 +97,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * A `client.send` inside `onJoin` is flushed *before* the `JOIN_ROOM`
    * handshake, so a client that registers `onMessage` after joining would drop
    * it. Waiting for both `ready` signals guarantees the handlers exist first.
+   * Roles here are *notified only* — the phase stays `waiting` until both
+   * players send {@link MESSAGES.enterGame}.
    */
   private handleReady(client: Client) {
     this.readyClients.add(client.sessionId);
@@ -107,6 +116,23 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
+  /**
+   * Both players clicked "Enter Game" after seeing their roles — starts the
+   * draft with a full, fresh timer via `Phases.beginDraft()`.
+   *
+   * @remarks
+   * Gated on `matchStarted` so an enter click can't fire before the role
+   * handshake (`ready`) had a chance to run. `Phases` enforces the rest
+   * (2 players present, phase still `waiting`).
+   */
+  private handleEnterGame(client: Client) {
+    if (!this.matchStarted) return;
+    this.enterClients.add(client.sessionId);
+    if (this.enterClients.size >= 2) {
+      this.phases.beginDraft();
+    }
+  }
+
   // Room LifeCycle Events
 
   onCreate(options: any) {
@@ -118,9 +144,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     // 2. Seed the synced match state
     this.state.mapId = options.mapId || "sample";
-    this.state.phase = "drafting";
+    this.state.phase = MATCH_PHASES.waiting;
 
-    // 3. Server-side tick loop
+    // 3. Phase state machine drives draft/combat/gameover timers
+    this.phases = new Phases({ state: this.state });
+
+    // 4. Server-side tick loop
     this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
   }
 
@@ -175,8 +204,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
    *   metadata is transferred and the survivor is sent `opponent_left` with
    *   `youAreHost: true` so its HUD can toast the promotion. A plain joiner
    *   leaving does not promote anyone.
-   * - `readyClients` / `matchStarted` reset so the next two-player
-   *   `role_assigned` handshake runs again for the incoming joiner.
+   * - `readyClients` / `enterClients` / `matchStarted` reset so the next
+   *   two-player role/enter handshake runs again for the incoming joiner.
    * - With zero clients left the room disposes itself (Colyseus default); we
    *   don't dispose early while a host is waiting.
    * - Complements {@link onDrop} (grace window) and {@link onReconnect}.
@@ -194,7 +223,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
       this.unlock();
       this.readyClients.clear();
+      this.enterClients.clear();
       this.matchStarted = false;
+      this.phases.reset();
 
       if (wasCreator) {
         this.setMetadata({ ...this.metadata, creatorName: host.userData.playerName });
@@ -212,6 +243,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   update(dt: number) {
-    // Game loop tick simulation (updates unit positions, tower cooldowns, etc.)
+    // Game loop tick: phase countdowns and forced transitions
+    this.phases.update(dt);
   }
 }
