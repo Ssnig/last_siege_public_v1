@@ -21,7 +21,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
   const [name, setName] = useState<string>(() => localStorage.getItem('player-name') ?? '');
   const [isNamed, setIsNamed] = useState<boolean>(() => !!localStorage.getItem('player-name'));
   const [rooms, setRooms] = useState<RoomAvailable[]>([]);
-  const [selectedRoleChoice, setSelectedRoleChoice] = useState<RoleChoice>("any");
+  const [selectedRoleChoice, setSelectedRoleChoice] = useState<RoleChoice>("random");
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -173,7 +173,6 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
                 onChange={(e) => setSelectedRoleChoice(e.target.value as RoleChoice)}
                 className="px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500 transition"
               >
-                <option value="any">Any</option>
                 <option value="attacker">Attacker</option>
                 <option value="defender">Defender</option>
                 <option value="random">Randomized</option>
