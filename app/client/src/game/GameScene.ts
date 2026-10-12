@@ -1,6 +1,8 @@
 // apps/client/src/game/GameScene.ts
 import Phaser from "phaser";
 import { Room } from "@colyseus/sdk";
+import { MESSAGES } from "@root/shared";
+import { AttackerDraftStage } from "./stages/AttackerDraftStage";
 
 /**
  * Bare-bones game scene: grabs the shared room and listens for role assignment.
@@ -9,15 +11,16 @@ import { Room } from "@colyseus/sdk";
  * The room isn't injected as a prop — it's pulled from the Phaser registry that
  * `GameContainer` populates. Only read it in `create()`, never the constructor.
  */
+
 export class GameScene extends Phaser.Scene {
   private room!: Room;
+  private attackerDraft?: AttackerDraftStage;
 
   constructor() {
     super("GameScene");
   }
 
   create() {
-    // ONLY retrieve the existing room passed from React via the registry
     this.room = this.registry.get("room");
 
     if (!this.room) {
@@ -27,9 +30,17 @@ export class GameScene extends Phaser.Scene {
 
     console.log("Phaser connected to room:", this.room.sessionId);
 
-    // Listen for role assignment from the server
-    this.room.onMessage("role_assigned", (data: { myRole: string; opponentName: string; opponentRole: string }) => {
-      console.log("Assigned role in Phaser:", data);
+    this.room.onMessage(MESSAGES.roleAssigned, (data) => {
+      console.log("Role assigned:", data);
+    });
+
+    // Client-only prototype: open the draft immediately.
+    this.attackerDraft = new AttackerDraftStage(this);
+    this.attackerDraft.create();
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.attackerDraft?.destroy();
+      this.attackerDraft = undefined;
     });
   }
 }
