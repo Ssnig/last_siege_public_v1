@@ -1,11 +1,7 @@
-import { Client } from '@colyseus/sdk';
 import  { useState } from 'react';
 import { Lobby } from './componenets/Lobby';
 import { GameContainer } from './componenets/GameContainer';
-
-// Connect to your Colyseus server URL (env or localhost fallback)
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
-const colyseusClient = new Client(SERVER_URL);
+import { client } from './network/client';
 
 /**
  * Root shell. Shows the `Lobby` until a room is joined, then swaps to the game.
@@ -30,7 +26,7 @@ export default function App() {
   return (
     <div className="w-screen h-screen bg-slate-900 text-white overflow-hidden flex items-center justify-center">
       {!currentRoom ? (
-        <Lobby client={colyseusClient} onJoinRoom={handleJoinRoom} />
+        <Lobby client={client} onJoinRoom={handleJoinRoom} />
       ) : (
         <GameContainer room={currentRoom} onLeaveRoom={handleLeaveRoom} />
       )}

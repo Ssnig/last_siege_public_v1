@@ -1,0 +1,4 @@
+import { Client } from '@colyseus/sdk';
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
+export const client = new Client(SERVER_URL);
