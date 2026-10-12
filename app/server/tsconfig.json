@@ -11,10 +11,7 @@
     "experimentalDecorators": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "useDefineForClassFields": false,
-    "paths": {
-      "@root/shared": ["../../packages/shared/src/index.ts"]
-    }
+    "useDefineForClassFields": false
   },
   "include": [
     "src",

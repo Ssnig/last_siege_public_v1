@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { Room } from '@colyseus/sdk';
 import { GameScene } from '../game/GameScene';
+import { MESSAGES, type OpponentLeftPayload } from '@root/shared';
 
 interface GameContainerProps {
   room: Room;
@@ -28,25 +29,40 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     opponentName?: string;
     opponentRole?: string;
   }>({});
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
+  // Mount Effect
   useEffect(() => {
     if (!gameRef.current) return;
 
-    // 1. Listen for Colyseus room messages
-    room.onMessage("role_assigned", (data) => {
+    // Listen for Colyseus room messages
+    room.onMessage(MESSAGES.roleAssigned, (data) => {
       console.log("Role assigned received:", data);
       setPlayerInfo(data);
       setStatusText("Match Ready! Roles Assigned.");
     });
 
     // Tell the server the HUD is listening so it can safely send the role payload.
-    room.send("ready");
+    room.send(MESSAGES.ready);
 
-    room.onLeave((code : any) => {
-      setStatusText("Opponent disconnected or left room.");
+    // opponent-left handler
+    room.onMessage(MESSAGES.opponentLeft, (data: OpponentLeftPayload) => {
+      setPlayerInfo({});
+
+      setStatusText("Waiting for opponent to join...");
+      if (data.youAreHost) {
+        setToast(`You are now the host`);
+        setTimeout(() => setToast(null), 3000);
+      }
+      room.send(MESSAGES.ready);
     });
 
-    // 2. Phaser Game Config
+    room.onLeave(() => {
+      setStatusText("Connection Lost.");
+    });
+
+    // Phaser Game Config
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
       width: 800,
@@ -83,16 +99,46 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           </div>
         )}
 
-        <button
-          onClick={onLeaveRoom}
+<button
+          onClick={() => setLeaveConfirm(true)}
           className="mt-2 px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded text-xs font-bold transition"
         >
-          Leave Room / Back to Lobby
+          Leave Room
         </button>
       </div>
 
       {/* Phaser Canvas Container */}
       <div ref={gameRef} id="phaser-game" className="border border-slate-800 shadow-2xl" />
+
+      {/* Toast */}
+      {toast && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-emerald-600 text-white px-4 py-2 rounded-full text-sm">
+          {toast}
+        </div>
+      )}
+
+      {/* Leave Confirmation */}
+      {leaveConfirm && (
+        <div className="fixed inset-0 z-40 bg-black/70 flex items-center justify-center">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 flex flex-col gap-4 shadow-2xl">
+            <p className="text-sm text-slate-200">Leave the match? This can't be undone.</p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setLeaveConfirm(false)}
+                className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-semibold text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onLeaveRoom}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-semibold text-white transition"
+              >
+                Confirm Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

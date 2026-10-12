@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@colyseus/schema": "^5.0.14",
     "@colyseus/sdk": "^0.18.5",
     "@tailwindcss/vite": "^4.3.3",
     "phaser": "^4.2.1",
