@@ -10,59 +10,84 @@ interface GameContainerProps {
   onLeaveRoom: () => void;
 }
 
+interface PlayerInfo {
+  myName?: string;
+  myRole?: string;
+  opponentName?: string;
+  opponentRole?: string;
+}
+
+type PlayerRole = "attacker" | "defender";
+
+/** True when this client's own role is already authoritative on the schema. */
+function hasOwnRole(room: Room): boolean {
+  const role = room.state?.players?.get(room.sessionId)?.role as
+    | PlayerRole
+    | undefined;
+  return role === "attacker" || role === "defender";
+}
+
 /**
- * Mounts the Phaser canvas plus a debug HUD for the joined room.
+ * Joins lifecycle: the Phaser canvas mounts only once both players are in
+ * the draft pick (`role_assigned` received), so a solo host is never shown a
+ * dead canvas. The room connection, message wiring and the ready handshake
+ * live in their own effect; the Phaser game is created/destroyed in a second
+ * effect keyed on `matchStarted`.
  *
  * @remarks
- * The Room is passed to Phaser through `game.registry` (scenes aren't React
- * children), so read it in `GameScene.create()`. Unmount destroys the game and
- * calls `room.leave()` — don't also leave from a parent or you'll double-leave.
+ * Unmount (leaving to the lobby) destroys the game and calls `room.leave()`.
  */
 export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom }) => {
   const gameRef = useRef<HTMLDivElement>(null);
 
-  // HUD Connection Testing State
-  const [statusText, setStatusText] = useState<string>("Waiting for opponent to join...");
-  const [playerInfo, setPlayerInfo] = useState<{
-    myName?: string;
-    myRole?: string;
-    opponentName?: string;
-    opponentRole?: string;
-  }>({});
+  // Pre-seeded from the snapshot so a joiner into a started room skips the wait.
+  const [matchStarted, setMatchStarted] = useState<boolean>(
+    () => room.state?.players?.size === 2 && hasOwnRole(room),
+  );
+  const [statusText, setStatusText] = useState("Waiting for opponent to join...");
+  const [playerInfo, setPlayerInfo] = useState<PlayerInfo>({});
   const [leaveConfirm, setLeaveConfirm] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
-  // Mount Effect
+  // Room wiring: listeners + the ready handshake. Runs once per room; the
+  // cleanup (including room.leave()) runs only when this component unmounts.
   useEffect(() => {
-    if (!gameRef.current) return;
-
-    // Listen for Colyseus room messages
-    room.onMessage(MESSAGES.roleAssigned, (data) => {
+    const offRoleAssigned = room.onMessage(MESSAGES.roleAssigned, (data) => {
       console.log("Role assigned received:", data);
       setPlayerInfo(data);
+      setMatchStarted(true);
       setStatusText("Match Ready! Roles Assigned.");
     });
 
     // Tell the server the HUD is listening so it can safely send the role payload.
     room.send(MESSAGES.ready);
 
-    // opponent-left handler
-    room.onMessage(MESSAGES.opponentLeft, (data: OpponentLeftPayload) => {
+    const offOpponentLeft = room.onMessage(MESSAGES.opponentLeft, (data: OpponentLeftPayload) => {
       setPlayerInfo({});
-
-      setStatusText("Waiting for opponent to join...");
-      if (data.youAreHost) {
-        setToast(`You are now the host`);
-        setTimeout(() => setToast(null), 3000);
-      }
+      setMatchStarted(false);
+      setStatusText(
+        data.youAreHost
+          ? "Waiting for opponent to join... (you are now the host)"
+          : "Waiting for opponent to join...",
+      );
       room.send(MESSAGES.ready);
     });
 
-    room.onLeave(() => {
+    const offLeave = room.onLeave(() => {
       setStatusText("Connection Lost.");
     });
 
-    // Phaser Game Config
+    return () => {
+      offRoleAssigned();
+      offOpponentLeft();
+      offLeave();
+      room.leave();
+    };
+  }, [room]);
+
+  // Phaser lifecycle, keyed on whether the draft pick has begun.
+  useEffect(() => {
+    if (!matchStarted || !gameRef.current) return;
+
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
       width: 800,
@@ -79,9 +104,27 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
     return () => {
       game.destroy(true);
-      room.leave();
     };
-  }, [room]);
+  }, [room, matchStarted]);
+
+  // Pre-match: no Phaser yet, just a waiting screen.
+  if (!matchStarted) {
+    return (
+      <div className="relative w-full h-full flex flex-col items-center justify-center bg-slate-950 gap-6">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
+          <h2 className="text-xl font-bold text-white">Match Lobby</h2>
+          <p className="text-sm text-slate-400">{statusText}</p>
+        </div>
+        <button
+          onClick={onLeaveRoom}
+          className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-xs font-bold text-white transition"
+        >
+          Leave Room
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center bg-slate-950">
@@ -99,7 +142,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           </div>
         )}
 
-<button
+        <button
           onClick={() => setLeaveConfirm(true)}
           className="mt-2 px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded text-xs font-bold transition"
         >
@@ -109,13 +152,6 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
       {/* Phaser Canvas Container */}
       <div ref={gameRef} id="phaser-game" className="border border-slate-800 shadow-2xl" />
-
-      {/* Toast */}
-      {toast && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-emerald-600 text-white px-4 py-2 rounded-full text-sm">
-          {toast}
-        </div>
-      )}
 
       {/* Leave Confirmation */}
       {leaveConfirm && (
