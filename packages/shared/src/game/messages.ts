@@ -27,6 +27,9 @@ export const MESSAGES = {
   sendMiniWave: "send_mini_wave",
   /** Client → server: this side finished its deck draft. */
   draftReady: "draft_ready",
+
+  draftRejected: "draft_rejected",
+
 } as const;
 
 /** Payload of the `role_assigned` private message. */
