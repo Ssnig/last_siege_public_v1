@@ -34,6 +34,9 @@ function hasOwnRole(room: Room): boolean {
  * live in their own effect; the Phaser game is created/destroyed in a second
  * effect keyed on `matchStarted`.
  *
+ * The canvas fills the whole viewport (mobile-first); the only chrome is a
+ * small floating menu button whose panel opens on tap and closes on backdrop.
+ *
  * @remarks
  * Unmount (leaving to the lobby) destroys the game and calls `room.leave()`.
  */
@@ -46,6 +49,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   );
   const [statusText, setStatusText] = useState("Waiting for opponent to join...");
   const [playerInfo, setPlayerInfo] = useState<PlayerInfo>({});
+  const [menuOpen, setMenuOpen] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   // Room wiring: listeners + the ready handshake. Runs once per room; the
@@ -84,16 +88,22 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     };
   }, [room]);
 
-  // Phaser lifecycle, keyed on whether the draft pick has begun.
+  // Phaser lifecycle, keyed on whether the draft pick has begun. RESIZE mode
+  // makes the canvas track the viewport; the draft stages redeploy on RESIZE.
   useEffect(() => {
     if (!matchStarted || !gameRef.current) return;
 
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
-      width: 800,
-      height: 600,
+      width: window.innerWidth,
+      height: window.innerHeight,
       backgroundColor: '#1e293b',
       parent: gameRef.current,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
       physics: { default: "arcade" },
       pixelArt: true,
       scene: [GameScene],
@@ -127,35 +137,63 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   }
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center bg-slate-950">
-      {/* Connection Test HUD Overlay */}
-      <div className="absolute top-6 left-0 z-20 bg-slate-900/90 border border-slate-700 p-4 rounded-xl shadow-xl flex flex-col gap-2 min-w-[320px] text-center">
-        <h3 className="font-bold text-lg text-blue-400">Connection & Role Debugger</h3>
-        <p className="text-sm text-slate-300">{statusText}</p>
+    <div className="relative w-full h-full overflow-hidden bg-slate-950">
+      {/* Phaser Canvas Container (fullscreen) */}
+      <div ref={gameRef} id="phaser-game" className="absolute inset-0" />
 
-        {playerInfo.myRole && (
-          <div className="flex flex-col gap-1 mt-2 text-left bg-slate-800 p-3 rounded border border-slate-700 text-xs">
-            <p>Your Name: <span className="text-white font-bold">{playerInfo.myName}</span></p>
-            <p>Your Role: <span className="text-yellow-400 font-bold uppercase">{playerInfo.myRole}</span></p>
-            <p>Opponent: <span className="text-white font-bold">{playerInfo.opponentName}</span></p>
-            <p>Opponent Role: <span className="text-yellow-400 font-bold uppercase">{playerInfo.opponentRole}</span></p>
-          </div>
-        )}
+      {/* Floating menu button */}
+      <button
+        onClick={() => setMenuOpen(true)}
+        aria-label="Open game menu"
+        className="absolute top-4 right-4 z-30 w-11 h-11 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-700 text-white text-xl shadow-lg hover:bg-slate-800 active:scale-95 transition"
+      >
+        ☰
+      </button>
 
-        <button
-          onClick={() => setLeaveConfirm(true)}
-          className="mt-2 px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded text-xs font-bold transition"
+      {/* Game menu: opens on tap, closes on backdrop click */}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 flex items-start justify-end p-4"
+          onClick={() => setMenuOpen(false)}
         >
-          Leave Room
-        </button>
-      </div>
+          <div
+            className="w-full max-w-xs bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-white">Game Menu</h3>
+              <button
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close menu"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm transition"
+              >
+                ×
+              </button>
+            </div>
 
-      {/* Phaser Canvas Container */}
-      <div ref={gameRef} id="phaser-game" className="border border-slate-800 shadow-2xl" />
+            {playerInfo.myRole && (
+              <div className="flex flex-col gap-1 text-left bg-slate-800 p-3 rounded border border-slate-700 text-xs">
+                <p>You: <span className="text-yellow-400 font-bold uppercase">{playerInfo.myRole}</span> — <span className="text-white font-bold">{playerInfo.myName}</span></p>
+                <p>Opponent: <span className="text-yellow-400 font-bold uppercase">{playerInfo.opponentRole}</span> — <span className="text-white font-bold">{playerInfo.opponentName}</span></p>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setLeaveConfirm(true);
+              }}
+              className="py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-bold text-white transition"
+            >
+              Leave Room
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Leave Confirmation */}
       {leaveConfirm && (
-        <div className="fixed inset-0 z-40 bg-black/70 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center">
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 flex flex-col gap-4 shadow-2xl">
             <p className="text-sm text-slate-200">Leave the match? This can't be undone.</p>
             <div className="flex gap-2 justify-end">

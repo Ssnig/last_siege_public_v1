@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* The Phaser canvas should sit flush in its fullscreen container. */
+#phaser-game canvas {
+  display: block;
+}
