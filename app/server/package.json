@@ -17,6 +17,9 @@
   },
   "author": "",
   "license": "UNLICENSED",
+  "overrides": {
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#20.52.0"
+  },
   "devDependencies": {
     "@colyseus/loadtest": "^0.18.1",
     "@colyseus/sdk": "^0.18.1",
@@ -31,8 +34,10 @@
   "dependencies": {
     "@colyseus/schema": "^5.0.14",
     "@colyseus/tools": "^0.18.1",
+    "@colyseus/uwebsockets-transport": "^0.18.4",
+    "@colyseus/ws-transport": "^0.18.4",
+    "@root/shared": "*",
     "colyseus": "^0.18.2",
-    "express": "^5.2.1",
-    "@root/shared": "*"
+    "express": "^5.2.1"
   }
 }
