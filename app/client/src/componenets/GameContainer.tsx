@@ -149,11 +149,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
     const game = new Phaser.Game(config);
     game.registry.set('room', room);
+    game.registry.set('assignedRole', playerInfo.myRole);
 
     return () => {
       game.destroy(true);
     };
-  }, [room, matchStarted]);
+  }, [room, matchStarted, playerInfo]);
 
   // Pre-match: no Phaser yet, just a waiting screen.
   if (!matchStarted) {

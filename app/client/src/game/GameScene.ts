@@ -87,10 +87,17 @@ this.unsubscribeRoomListeners.push(
     this.currentPhase = room.state.phase;
 
     // Recover the role from authoritative state if role_assigned
-    // was delivered before this scene registered its listener.
-    const player = room.state.players.get(room.sessionId);
-    if (player?.role === "attacker" || player?.role === "defender") {
-      this.assignedRole = player.role;
+    // was delivered before this scene registered its listener. The Phaser
+    // registry seed (assignments sent together with role_assigned) is
+    // preferred because the schema patch may arrive a tick later.
+    const registryRole = this.registry.get("assignedRole") as PlayerRole | undefined;
+    if (registryRole === "attacker" || registryRole === "defender") {
+      this.assignedRole = registryRole;
+    } else {
+      const player = room.state.players.get(room.sessionId);
+      if (player?.role === "attacker" || player?.role === "defender") {
+        this.assignedRole = player.role;
+      }
     }
 
     this.syncPhase();
