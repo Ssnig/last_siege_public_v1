@@ -13,6 +13,10 @@ export const MESSAGES = {
   roleAssigned: "role_assigned",
   /** Server → client (private): the other player left; `youAreHost` when promoted. */
   opponentLeft: "opponent_left",
+  /** Server → client (private): the match ended and who won, with the reason. */
+  gameOver: "game_over",
+  /** Client → server: this client concedes; the opponent wins. */
+  surrender: "surrender",
   /** Server → client (private): hidden economy snapshot for this player. */
   youEconomy: "you_economy",
   /** Client → server: defender places a tower in a slot. */
@@ -44,6 +48,12 @@ export interface RoleAssignedPayload {
 export interface OpponentLeftPayload {
   opponentName: string;
   youAreHost : boolean
+}
+
+/** Payload of the `game_over` private message. */
+export interface GameOverPayload {
+  winner: "attacker" | "defender";
+  reason: "surrender";
 }
 
 /** Payload of the `you_economy` private message (hidden from the opponent). */

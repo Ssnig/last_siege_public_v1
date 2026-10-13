@@ -9,7 +9,9 @@ import {
   TOWER_TYPES,
   DEFAULT_DECK_RULES,
   type DraftReadyIntent,
+  type GameOverPayload,
 } from "@root/shared";
+import { Phases } from "../game/phases.js";
 
 export type RoleChoice = "attacker" | "defender" | "random";
 export type PlayerRole = "attacker" | "defender";
@@ -40,6 +42,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private acceptedDecks = new Map<string, string[]>();
 
+  /** Authoritative phase + timer state machine. */
+  private phases!: Phases;
+
   plugins = definePlugins({
     idle: new IdleKickPlugin({ timeoutMs: 60_000 }),
   });
@@ -51,6 +56,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       client: Client,
       payload: DraftReadyIntent,
     ) => this.handleDraftReady(client, payload),
+
+    [MESSAGES.surrender]: (client: Client) => this.handleSurrender(client),
   };
 
   /**
@@ -218,6 +225,64 @@ export class GameRoom extends Room<{ state: RoomState }> {
     client.send(MESSAGES.draftRejected, { reason });
   }
 
+  /**
+   * Gives a player who ran out of draft time a valid random deck, matching the
+   * shape the normal confirm path produces. Only reachable when a draft clock
+   * is armed (a non-positive duration never fires).
+   */
+  private autoFillDecks(sessionIds: string[]): void {
+    for (const sessionId of sessionIds) {
+      const role = this.clients.find((c) => c.sessionId === sessionId)
+        ?.userData?.role as PlayerRole | undefined;
+      const catalog =
+        role === "attacker"
+          ? MOB_TYPES
+          : role === "defender"
+            ? TOWER_TYPES
+            : null;
+
+      if (!catalog) continue;
+
+      const ids = Object.keys(catalog);
+      const maxDeckSize = Math.min(DEFAULT_DECK_RULES.deckSize, ids.length);
+      const deck = [...ids].sort(() => Math.random() - 0.5).slice(0, maxDeckSize);
+
+      this.acceptedDecks.set(sessionId, deck);
+      console.log(
+        `Room ${this.roomId}: auto-filled ${role} draft for ${sessionId}: ${deck.join(", ")}`,
+      );
+    }
+  }
+
+  /**
+   * Handles an intentional concession. Once both players are present, any
+   * surrender ends the match immediately: the other player wins and both
+   * clients get a `game_over` push. Clients stay connected and leave via the
+   * game-over screen, so `onLeave` must not reopen the room at this phase.
+   */
+  private handleSurrender(client: Client): void {
+    if (this.state.players.size < 2) return;
+
+    const opponent = this.clients.find(
+      (c) => c.sessionId !== client.sessionId,
+    );
+    const winner = opponent?.userData?.role as PlayerRole | undefined;
+    const loser = client.userData?.role as PlayerRole | undefined;
+
+    if (!winner) return;
+
+    if (!this.phases.declareGameOver(winner)) return;
+
+    console.log(
+      `Room ${this.roomId}: ${client.sessionId} (${loser}) surrendered; ${winner} wins`,
+    );
+
+    const payload: GameOverPayload = { winner, reason: "surrender" };
+    for (const c of this.clients) {
+      c.send(MESSAGES.gameOver, payload);
+    }
+  }
+
   onCreate(options: any): void {
     this.setMetadata({
       creatorName: options.playerName || "Anonymous",
@@ -226,6 +291,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.state.mapId = options.mapId || "sample";
     this.state.phase = "drafting";
+
+    this.phases = new Phases({ state: this.state });
 
     this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
   }
@@ -255,6 +322,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (this.clients.length === 2) {
       this.assignRoles();
       await this.lock();
+      this.phases.beginDraft();
     }
   }
 
@@ -279,7 +347,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 
-    if (this.clients.length === 1) {
+    if (
+      this.clients.length === 1 &&
+      this.state.phase !== "gameover"
+    ) {
       const host = this.clients[0];
 
       this.unlock();
@@ -291,6 +362,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       for (const player of this.state.players.values()) {
         player.draftReady = false;
       }
+
+      this.phases.reset();
 
       if (wasCreator) {
         this.creatorSessionId = host.sessionId;
@@ -311,8 +384,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
     console.log(`Room ${this.roomId} disposing...`);
   }
 
-  /** Server tick; gameplay simulation will be added in a later phase. */
+  /** Server tick: drives the phase/timer machine; no gameplay simulation yet. */
   update(dt: number): void {
-    // Intentionally blank for now.
+    const event = this.phases.update(dt);
+
+    if (event?.type === "building-started" && event.autoCompleted.length > 0) {
+      this.autoFillDecks(event.autoCompleted);
+    }
   }
 }

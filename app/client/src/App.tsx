@@ -1,35 +1,33 @@
 import  { useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import type { Room } from '@colyseus/sdk';
 import { Lobby } from './componenets/Lobby';
-import { GameContainer } from './componenets/GameContainer';
+import { GameRoute } from './componenets/GameRoute';
+import { GameRoomContext, type GameRoomContextValue } from './network/roomContext';
 import { client } from './network/client';
 
 /**
- * Root shell. Shows the `Lobby` until a room is joined, then swaps to the game.
+ * Root shell: route-based. `/lobby` hosts matchmaking and `/game/:roomId` an
+ * active match. `/` will become a landing page later; for now it redirects.
  *
  * @remarks
- * Owns the one shared Colyseus `Client` for the whole app (module singleton) —
- * don't spin up another, or you'll open duplicate connections.
+ * `GameRoomContext` owns the one shared Colyseus room for the whole app
+ * (module singleton `client`) — don't spin up another connection.
  */
 export default function App() {
-  const [currentRoom, setCurrentRoom] = useState<any>(null);
-
-  const handleJoinRoom = (room: any) => {
-    setCurrentRoom(room);
-  };
-
-  const handleLeaveRoom = () => {
-    if (currentRoom) {
-      setCurrentRoom(null)
-    }
-  };
+  const [room, setRoom] = useState<Room | null>(null);
+  const roomContext: GameRoomContextValue = { room, setRoom };
 
   return (
     <div className="w-screen h-screen bg-slate-900 text-white overflow-hidden flex items-center justify-center">
-      {!currentRoom ? (
-        <Lobby client={client} onJoinRoom={handleJoinRoom} />
-      ) : (
-        <GameContainer room={currentRoom} onLeaveRoom={handleLeaveRoom} />
-      )}
+      <GameRoomContext.Provider value={roomContext}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/lobby" replace />} />
+          <Route path="/lobby" element={<Lobby client={client} />} />
+          <Route path="/game/:roomId" element={<GameRoute />} />
+          <Route path="*" element={<Navigate to="/lobby" replace />} />
+        </Routes>
+      </GameRoomContext.Provider>
     </div>
   );
 }

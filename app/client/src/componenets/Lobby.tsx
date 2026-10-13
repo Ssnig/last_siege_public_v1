@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { RoleChoice } from '@root/shared';
 import type { Client, Room, RoomAvailable } from '@colyseus/sdk';
+import { useGameRoom } from '../network/roomContext';
 
 interface LobbyProps {
   client: Client;
-  onJoinRoom: (room: any) => void;
 }
 
 /**
@@ -17,7 +18,9 @@ interface LobbyProps {
  * `"rooms"` is the initial snapshot and `+` / `-` are realtime add/remove diffs.
  * The lobby connection is torn down on unmount.
  */
-export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
+export const Lobby: React.FC<LobbyProps> = ({ client }) => {
+  const { setRoom } = useGameRoom();
+  const navigate = useNavigate();
   const [name, setName] = useState<string>(() => localStorage.getItem('player-name') ?? '');
   const [isNamed, setIsNamed] = useState<boolean>(() => !!localStorage.getItem('player-name'));
   const [rooms, setRooms] = useState<RoomAvailable[]>([]);
@@ -73,7 +76,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
     };
   }, [isNamed]);
 
-  /** Creates a `game_room` with the chosen role preference and hands it to the parent. */
+  /** Creates a `game_room` with the chosen role preference and enters the match. */
   const handleCreateRoom = async () => {
     setLoading(true);
     setErrorMessage(null);
@@ -82,7 +85,8 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
         playerName: name,
         roleChoice: selectedRoleChoice,
       });
-      onJoinRoom(room);
+      setRoom(room);
+      navigate(`/game/${room.roomId}`);
     } catch (e: any) {
       console.error("Error creating room:", e);
       setErrorMessage(e.message || "Failed to create room.");
@@ -98,7 +102,8 @@ export const Lobby: React.FC<LobbyProps> = ({ client, onJoinRoom }) => {
       const room = await client.joinById(roomId, {
         playerName: name,
       });
-      onJoinRoom(room);
+      setRoom(room);
+      navigate(`/game/${room.roomId}`);
     } catch (e: any) {
       console.error("Error joining room:", e);
       setErrorMessage(e.message || "Failed to join room. It may be full or closed.");
