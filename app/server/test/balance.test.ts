@@ -72,7 +72,12 @@ describe("balance.ts shape guards", () => {
     }
     assert.ok(DEFAULT_ECONOMY.bigWaveCount > 0);
     assert.ok(DEFAULT_DECK_RULES.deckSize > 0);
-    for (const n of [MATCH_RULES.coreHp, MATCH_RULES.draftDurationSec, MATCH_RULES.roundDurationSec]) {
+    // A -1 draft duration is the "no countdown" sentinel, so only reject > 0.
+    assert.ok(
+      MATCH_RULES.draftDurationSec === -1 || MATCH_RULES.draftDurationSec > 0,
+      `draftDurationSec must be -1 (no countdown) or > 0, got ${MATCH_RULES.draftDurationSec}`,
+    );
+    for (const n of [MATCH_RULES.coreHp, MATCH_RULES.roundDurationSec]) {
       assert.ok(n > 0, `match rule must be > 0, got ${n}`);
     }
   });

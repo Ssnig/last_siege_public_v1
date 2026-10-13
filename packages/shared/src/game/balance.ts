@@ -183,17 +183,19 @@ export const DEFAULT_DECK_RULES: DeckRules = {
 
 export const MATCH_RULES: MatchRules = {
   coreHp: 10,
-  draftDurationSec: 30,
+  draftDurationSec: -1,
   roundDurationSec: 90,
 };
 
 export const MATCH_PHASES = {
+  waiting: "waiting",
   drafting: "drafting",
+  building: "building",
   combat: "combat",
   gameover: "gameover",
 } as const;
 
-export type MathPhase = (typeof MATCH_PHASES)[keyof typeof MATCH_PHASES]
+export type MatchPhase = (typeof MATCH_PHASES)[keyof typeof MATCH_PHASES]
 
 
 /** Effective stats at the given level (1-based); `null` past max level. */
