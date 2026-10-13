@@ -9,6 +9,7 @@ import {
   TOWER_TYPES,
   DEFAULT_DECK_RULES,
   type DraftReadyIntent,
+  type GameOverPayload,
 } from "@root/shared";
 import { Phases } from "../game/phases.js";
 
@@ -55,6 +56,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       client: Client,
       payload: DraftReadyIntent,
     ) => this.handleDraftReady(client, payload),
+
+    [MESSAGES.surrender]: (client: Client) => this.handleSurrender(client),
   };
 
   /**
@@ -251,6 +254,35 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
+  /**
+   * Handles an intentional concession. Once both players are present, any
+   * surrender ends the match immediately: the other player wins and both
+   * clients get a `game_over` push. Clients stay connected and leave via the
+   * game-over screen, so `onLeave` must not reopen the room at this phase.
+   */
+  private handleSurrender(client: Client): void {
+    if (this.state.players.size < 2) return;
+
+    const opponent = this.clients.find(
+      (c) => c.sessionId !== client.sessionId,
+    );
+    const winner = opponent?.userData?.role as PlayerRole | undefined;
+    const loser = client.userData?.role as PlayerRole | undefined;
+
+    if (!winner) return;
+
+    if (!this.phases.declareGameOver(winner)) return;
+
+    console.log(
+      `Room ${this.roomId}: ${client.sessionId} (${loser}) surrendered; ${winner} wins`,
+    );
+
+    const payload: GameOverPayload = { winner, reason: "surrender" };
+    for (const c of this.clients) {
+      c.send(MESSAGES.gameOver, payload);
+    }
+  }
+
   onCreate(options: any): void {
     this.setMetadata({
       creatorName: options.playerName || "Anonymous",
@@ -315,7 +347,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 
-    if (this.clients.length === 1) {
+    if (
+      this.clients.length === 1 &&
+      this.state.phase !== "gameover"
+    ) {
       const host = this.clients[0];
 
       this.unlock();

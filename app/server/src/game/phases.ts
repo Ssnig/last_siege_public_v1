@@ -159,11 +159,17 @@ export class Phases {
   }
 
   /**
-   * Immediately ends combat with the given winner (e.g. core HP hit zero).
-   * Only meaningful from combat; elsewhere returns `null`.
+   * Immediately ends the match with the given winner, e.g. core HP hit zero or
+   * a surrender. Allowed from any in-match phase (drafting, building, combat);
+   * refused while still waiting for opponents or after the match is already
+   * over.
    */
   declareGameOver(winner: PlayerRole): PhaseEvent | null {
-    if (this.phase !== MATCH_PHASES.combat) return null;
+    this.syncPhase();
+
+    if (this.phase === MATCH_PHASES.waiting || this.phase === MATCH_PHASES.gameover) {
+      return null;
+    }
 
     this.phase = MATCH_PHASES.gameover;
     this.state.phase = this.phase;

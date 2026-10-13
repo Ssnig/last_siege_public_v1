@@ -90,4 +90,68 @@ describe("testing your Colyseus app", () => {
       "a rejected draft must not mark the player ready",
     );
   });
+
+  it("surrender after the draft declares the opponent the winner", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    const mobIds = Object.keys(MOB_TYPES).slice(0, 2);
+    const towerIds = Object.keys(TOWER_TYPES).slice(0, 2);
+
+    attacker.send(MESSAGES.draftReady, { deck: mobIds });
+    defender.send(MESSAGES.draftReady, { deck: towerIds });
+    await waitForPhase(room, "building");
+
+    const loserAck = attacker.waitForMessage(MESSAGES.gameOver);
+    const winnerAck = defender.waitForMessage(MESSAGES.gameOver);
+    attacker.send(MESSAGES.surrender);
+
+    const loserPayload = await loserAck;
+    const winnerPayload = await winnerAck;
+    assert.deepStrictEqual(loserPayload, { winner: "defender", reason: "surrender" });
+    assert.deepStrictEqual(winnerPayload, { winner: "defender", reason: "surrender" });
+
+    await waitForPhase(room, "gameover");
+    assert.strictEqual(room.state.winner, "defender");
+  });
+
+  it("a lone player cannot surrender (no opponent to win)", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const host = await colyseus.connectTo(room);
+
+    host.send(MESSAGES.surrender);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.strictEqual(room.state.phase, "drafting");
+    assert.ok(!room.state.winner, "no winner should be declared in a solo lobby");
+  });
+
+  it("a surrender is not rolled back when the loser leaves", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    const mobIds = Object.keys(MOB_TYPES).slice(0, 2);
+    const towerIds = Object.keys(TOWER_TYPES).slice(0, 2);
+
+    attacker.send(MESSAGES.draftReady, { deck: mobIds });
+    defender.send(MESSAGES.draftReady, { deck: towerIds });
+    await waitForPhase(room, "building");
+
+    attacker.send(MESSAGES.surrender);
+    await waitForPhase(room, "gameover");
+
+    await attacker.leave();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.strictEqual(room.state.phase, "gameover", "onLeave must not reopen the room");
+    assert.strictEqual(room.state.winner, "defender");
+  });
 });

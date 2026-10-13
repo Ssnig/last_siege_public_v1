@@ -122,20 +122,22 @@ describe("Phases", () => {
     for (const p of state.players.values()) assert.strictEqual(p.draftReady, false);
   });
 
-  it("combat/gameover machinery stays dormant until a trigger exists", () => {
+  it("declareGameOver fires from drafting/building/combat but never waiting or gameover", () => {
     const { phases, state } = makeRoom();
-    phases.beginDraft();
+
+    state.phase = MATCH_PHASES.waiting;
+    assert.ok(phases.is(MATCH_PHASES.waiting));
+    assert.strictEqual(phases.declareGameOver("attacker"), null);
+    assert.strictEqual(phases.phase, MATCH_PHASES.waiting);
+
+    state.phase = MATCH_PHASES.drafting;
+    assert.ok(phases.is(MATCH_PHASES.drafting));
+    const event = phases.declareGameOver("defender");
+    assert.deepStrictEqual(event, { type: "gameover", winner: "defender" });
+    assert.strictEqual(phases.phase, MATCH_PHASES.gameover);
+    assert.strictEqual(state.winner, "defender");
 
     assert.strictEqual(phases.declareGameOver("attacker"), null);
-    assert.strictEqual(phases.phase, MATCH_PHASES.drafting);
-
-    state.phase = MATCH_PHASES.combat;
-    assert.ok(phases.is(MATCH_PHASES.combat));
-    assert.strictEqual(phases.update(1), null);
-
-    const event = phases.declareGameOver("attacker");
-    assert.deepStrictEqual(event, { type: "gameover", winner: "attacker" });
-    assert.strictEqual(phases.phase, MATCH_PHASES.gameover);
-    assert.strictEqual(state.winner, "attacker");
+    assert.strictEqual(state.winner, "defender");
   });
 });
