@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 import { Callbacks, Room } from '@colyseus/sdk';
 import { GameScene } from '../game/GameScene';
 import { MESSAGES, type OpponentLeftPayload, type GameOverPayload } from '@root/shared';
+import { useGameRoom } from '../network/roomContext';
 
 interface GameContainerProps {
   room: Room;
@@ -50,6 +51,7 @@ function hasOwnRole(room: Room): boolean {
  * Unmount (leaving to the lobby) destroys the game and calls `room.leave()`.
  */
 export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom }) => {
+  const { setRoom } = useGameRoom();
   const gameRef = useRef<HTMLDivElement>(null);
 
   // Pre-seeded from the snapshot so a joiner into a started room skips the wait.
@@ -123,8 +125,11 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       offGameOver();
       unlistenPhase();
       room.leave();
+      // Drop the finished/left room from context so a later /game/:roomId
+      // visit (e.g. via the browser back/forward) can never reuse it.
+      setRoom((prev) => (prev === room ? null : prev));
     };
-  }, [room]);
+  }, [room, setRoom]);
 
   // Phaser lifecycle, keyed on whether the draft pick has begun. RESIZE mode
   // makes the canvas track the viewport; the draft stages redeploy on RESIZE.
