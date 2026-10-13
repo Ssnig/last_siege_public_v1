@@ -93,9 +93,10 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       room.send(MESSAGES.ready);
     });
 
-    const offLeave = room.onLeave(() => {
+    const handleLeave = () => {
       setStatusText("Connection Lost.");
-    });
+    };
+    const offLeave = room.onLeave(handleLeave);
 
     const offGameOver = room.onMessage(MESSAGES.gameOver, (payload: GameOverPayload) => {
       const myRole = room.state.players.get(room.sessionId)?.role;
@@ -118,7 +119,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     return () => {
       offRoleAssigned();
       offOpponentLeft();
-      offLeave();
+      offLeave.remove(handleLeave);
       offGameOver();
       unlistenPhase();
       room.leave();
