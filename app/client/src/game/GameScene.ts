@@ -115,6 +115,12 @@ this.unsubscribeRoomListeners.push(
         this.showBlankBuildingPhase();
         break;
 
+      case "gameover":
+        this.destroyDraftStages();
+        this.buildingPlaceholder?.destroy();
+        this.buildingPlaceholder = undefined;
+        break;
+
       default:
         break;
     }
