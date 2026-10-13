@@ -28,21 +28,35 @@ An asymmetric 1v1 multiplayer strategy tower defense game built with **React**, 
 ---
 
 ## Installation
-Clone the repository and install all workspace dependencies from the root directory:
+
+Clone the repo, then install all workspace dependencies from the root:
+
 ```bash
 npm install
 ```
 
-Go to the server folder, install dependencies and start server
+Before you can run anything (server, client, or tests), build the shared package once. It's imported from its compiled `dist/` folder, and that folder is gitignored — so a fresh clone has none:
+
 ```bash
-cd app/server
-npm install
-npm start
+npm run build:shared
 ```
 
-Open a separate terminal, go to client folder and install dependencies and then start the client vite server
+Then start the server and client in separate terminals:
+
 ```bash
-cd app/client
-npm install
-npm run dev
+npm run dev:server   # Colyseus server on ws://localhost:2567
+npm run dev:client   # Vite dev server
 ```
+
+For production builds, `npm run build:server` and `npm run build:client` compile the shared package automatically in the process — no manual `build:shared` needed there.
+
+---
+
+## Shared package
+
+`@root/shared` holds the types, schemas, balance values and message keys both apps share. Both the server and client import it from its built `dist/` output, **not** straight from source. So:
+
+- **First clone or a fresh environment?** Run `npm run build:shared` once (or any of the `build:*` scripts above).
+- **Editing something in `packages/shared/src/`?** Rebuild it. Either keep `npm run dev:shared` running in the background (it watches and recompiles on save), or just run `npm run build:shared` after every change. Server tests (`npm test`) read from `dist/` too, so make sure it's up to date before running those.
+
+One gotcha: `tsc` never cleans up old output, so if you rename or delete a shared file, its ghost stays in `dist/`. `rm -rf packages/shared/dist` before rebuilding keeps things tidy.
