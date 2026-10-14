@@ -5,6 +5,5 @@ export * from "./schema/Mob.js";
 export * from "./schema/Projectile.js";
 export * from "./schema/RoomState.js";
 export * from "./game/maps.js";
-export * from "./game/catalog.js";
-export * from "./game/economy.js";
+export * from "./game/balance.js";
 export * from "./game/messages.js";
