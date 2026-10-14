@@ -68,6 +68,8 @@ export interface MatchRules {
   coreHp: number;
   /** Seconds allocated to the draft phase. */
   draftDurationSec: number;
+  /** Seconds allocated to the building phase. */
+  buildingDurationSec: number;
   /** Seconds before an unfinished combat round ends. */
   roundDurationSec: number;
 }
@@ -184,6 +186,7 @@ export const DEFAULT_DECK_RULES: DeckRules = {
 export const MATCH_RULES: MatchRules = {
   coreHp: 10,
   draftDurationSec: -1,
+  buildingDurationSec: -1, // Disabled by default for backward compatibility
   roundDurationSec: 90,
 };
 

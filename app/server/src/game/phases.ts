@@ -25,11 +25,13 @@ export class Phases {
   phase: MatchPhase;
   private state: RoomState;
   private draftDurationSec: number;
+  private buildingDurationSec: number;
   private roundDurationSec: number;
 
   constructor(env: { state: RoomState }, rules: MatchRules = MATCH_RULES) {
     this.state = env.state;
     this.draftDurationSec = rules.draftDurationSec;
+    this.buildingDurationSec = rules.buildingDurationSec;
     this.roundDurationSec = rules.roundDurationSec;
 
     const current = this.state.phase as MatchPhase;
@@ -58,6 +60,10 @@ export class Phases {
    */
   private isDraftArmed(): boolean {
     return this.draftDurationSec > 0;
+  }
+
+  private isBuildingArmed(): boolean {
+    return this.buildingDurationSec > 0;
   }
 
   private isRoundArmed(): boolean {
@@ -117,19 +123,28 @@ export class Phases {
 
     this.phase = MATCH_PHASES.building;
     this.state.phase = this.phase;
-    this.state.phaseEndsAt = 0;
+    this.state.phaseEndsAt = this.isBuildingArmed() ? this.buildingDurationSec : 0;
     return { type: "building-started", autoCompleted };
   }
 
+  /** Advances to `combat`; `autoCompleted` is for future use. */
+  beginCombat(autoCompleted: string[]): PhaseEvent | null {
+    if (this.phase === MATCH_PHASES.gameover) return null;
+
+    this.phase = MATCH_PHASES.combat;
+    this.state.phase = this.phase;
+    this.state.phaseEndsAt = this.isRoundArmed() ? this.roundDurationSec : 0;
+    return { type: "combat-started", autoCompleted };
+  }
+
   /**
-   * Advances the active countdown. `waiting`, `building` and `gameover` are
-   * static; a disarmed (non-positive duration) drafting/combat round never
-   * times out. A drafting timeout ready's the laggards and moves to `building`.
+   * Advances the active countdown. `waiting` and `gameover` are
+   * static; building and combat can have optional timers.
    */
   update(dt: number): PhaseEvent | null {
     this.syncPhase();
 
-    if (this.phase === MATCH_PHASES.waiting || this.phase === MATCH_PHASES.building || this.phase === MATCH_PHASES.gameover) {
+    if (this.phase === MATCH_PHASES.waiting || this.phase === MATCH_PHASES.gameover) {
       return null;
     }
 
@@ -146,6 +161,13 @@ export class Phases {
         }
       }
       return this.beginBuilding(autoCompleted);
+    }
+
+    if (this.phase === MATCH_PHASES.building) {
+      if (!this.isBuildingArmed() || this.state.phaseEndsAt <= 0) return null;
+      this.state.phaseEndsAt = Math.max(0, this.state.phaseEndsAt - dt);
+      if (this.state.phaseEndsAt > 0) return null;
+      return this.beginCombat([]);
     }
 
     if (this.phase === MATCH_PHASES.combat) {

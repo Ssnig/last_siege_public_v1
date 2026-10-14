@@ -3,9 +3,12 @@ import { Room, Callbacks } from "@colyseus/sdk";
 import {
   MESSAGES,
   type RoleAssignedPayload,
+  KONBAUNG_MAP,
+  type YouEconomyPayload,
 } from "@root/shared";
 import { AttackerDraftStage } from "./stages/AttackerDraftStage";
 import { DefenderDraftStage } from "./stages/DefenderDraftStage";
+import { GameplayStage } from "./stages/GameplayStage";
 
 type PlayerRole = "attacker" | "defender";
 
@@ -20,15 +23,24 @@ export class GameScene extends Phaser.Scene {
   private room!: Room;
   private attackerDraft?: AttackerDraftStage;
   private defenderDraft?: DefenderDraftStage;
+  private gameplayStage?: GameplayStage;
 
   private currentPhase?: string;
   private assignedRole?: PlayerRole;
   private buildingPlaceholder?: Phaser.GameObjects.Text;
+  private defenderDeck?: string[];
 
   private unsubscribeRoomListeners: Array<() => void> = [];
 
   constructor() {
     super("GameScene");
+  }
+
+  preload(): void {
+    this.load.image("konbaung", "/assets/maps/konbaung.jpg");
+    this.load.image("tower_archer", "/assets/sprites/tower_archer.png");
+    this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
+    this.load.image("base_castle", "/assets/sprites/base_castle.png");
   }
 
   create(): void {
@@ -51,7 +63,7 @@ export class GameScene extends Phaser.Scene {
       room.onMessage(
         MESSAGES.roleAssigned,
         (payload: RoleAssignedPayload) => {
-          this.assignedRole = payload.myRole;
+          this.assignedRole = payload.myRole as PlayerRole;
           this.syncPhase();
         },
       ),
@@ -63,6 +75,16 @@ export class GameScene extends Phaser.Scene {
         (payload: { reason: string }) => {
           this.attackerDraft?.rejectDraft(payload.reason);
           this.defenderDraft?.rejectDraft(payload.reason);
+        },
+      ),
+    );
+
+    this.unsubscribeRoomListeners.push(
+      room.onMessage(
+        MESSAGES.youEconomy,
+        (payload: YouEconomyPayload) => {
+          console.log("Economy received:", payload);
+          this.defenderDeck = payload.deck;
         },
       ),
     );
@@ -119,7 +141,11 @@ this.unsubscribeRoomListeners.push(
 
       case "building":
         this.destroyDraftStages();
-        this.showBlankBuildingPhase();
+        this.startGameplay();
+        break;
+
+      case "combat":
+        this.startCombat();
         break;
 
       case "gameover":
@@ -172,28 +198,18 @@ this.unsubscribeRoomListeners.push(
     this.defenderDraft = undefined;
   }
 
-  /**
-   * Displays the temporary building-phase screen.
-   *
-   * @remarks
-   * Reuses the existing placeholder to avoid duplicate text objects.
-   */
-  private showBlankBuildingPhase(): void {
-    if (this.buildingPlaceholder) return;
+  private startGameplay(): void {
+    if (this.gameplayStage) return;
 
-    this.buildingPlaceholder = this.add
-      .text(
-        this.scale.width / 2,
-        this.scale.height / 2,
-        "Preparing battlefield...",
-        {
-          fontSize: "24px",
-          color: "#ffffff",
-        },
-      )
-      .setOrigin(0.5);
+    // Use konbaung map for testing (in production, read from room.state.mapId)
+    const map = KONBAUNG_MAP;
+    this.gameplayStage = new GameplayStage(this, map, this.defenderDeck, this.room, 200, this.assignedRole); // Starting gold
+    this.gameplayStage.create();
+  }
 
-    console.log("[GameScene] Entered building phase.");
+  private startCombat(): void {
+    if (!this.gameplayStage) return;
+    this.gameplayStage.startCombat();
   }
 
   /**
@@ -201,6 +217,8 @@ this.unsubscribeRoomListeners.push(
    */
   private cleanup(): void {
     this.destroyDraftStages();
+    this.gameplayStage?.destroy();
+    this.gameplayStage = undefined;
 
     this.buildingPlaceholder?.destroy();
     this.buildingPlaceholder = undefined;
