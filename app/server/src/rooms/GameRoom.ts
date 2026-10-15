@@ -10,6 +10,10 @@ import {
   DEFAULT_DECK_RULES,
   type DraftReadyIntent,
   type GameOverPayload,
+  type PlaceTowerIntent,
+  type YouEconomyPayload,
+  type StartCombatIntent,
+  buildCost,
 } from "@root/shared";
 import { Phases } from "../game/phases.js";
 
@@ -58,6 +62,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
     ) => this.handleDraftReady(client, payload),
 
     [MESSAGES.surrender]: (client: Client) => this.handleSurrender(client),
+
+    [MESSAGES.placeTower]: (
+      client: Client,
+      payload: PlaceTowerIntent,
+    ) => this.handlePlaceTower(client, payload),
+
+    [MESSAGES.startCombat]: (
+      client: Client,
+      payload: StartCombatIntent,
+    ) => this.handleStartCombat(client),
   };
 
   /**
@@ -217,12 +231,103 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (bothReady) {
       this.state.phase = "building";
       console.log(`Room ${this.roomId}: drafting -> building`);
+
+      // Send defender's deck to the defender player
+      for (const c of this.clients) {
+        const role = c.userData?.role as PlayerRole | undefined;
+        if (role === "defender") {
+          const deck = this.acceptedDecks.get(c.sessionId);
+          if (deck) {
+            const economy: YouEconomyPayload = {
+              gold: 200, // Starting gold for defender
+              deck,
+              bigWavesRemaining: 0, // Defender doesn't have waves
+            };
+            c.send(MESSAGES.youEconomy, economy);
+          }
+        }
+      }
     }
   }
 
   /** Sends a private explanation for a rejected draft submission. */
   private rejectDraft(client: Client, reason: string): void {
     client.send(MESSAGES.draftRejected, { reason });
+  }
+
+  /**
+   * Handles tower placement during the building phase.
+   *
+   * @remarks
+   * Only the defender can place towers. The tower type must be in their deck
+   * and they must have enough gold.
+   */
+  private handlePlaceTower(client: Client, payload: PlaceTowerIntent): void {
+    if (this.state.phase !== "building" && this.state.phase !== "combat") return;
+
+    const role = client.userData?.role as PlayerRole | undefined;
+    if (role !== "defender") {
+      console.log(`Only defender can place towers. Client role: ${role}`);
+      return;
+    }
+
+    const deck = this.acceptedDecks.get(client.sessionId);
+    if (!deck || !deck.includes(payload.typeId)) {
+      console.log(`Tower ${payload.typeId} not in defender's deck`);
+      return;
+    }
+
+    // Check if slot is already occupied
+    const slotOccupied = Array.from(this.state.towers.values()).some(
+      t => t.slotIndex === payload.slotIndex
+    );
+    if (slotOccupied) {
+      console.log(`Slot ${payload.slotIndex} is already occupied`);
+      return;
+    }
+
+    // Check gold (for now, use a simple counter - full economy system later)
+    const towerType = TOWER_TYPES[payload.typeId];
+    if (!towerType) return;
+
+    const cost = buildCost(towerType);
+    // For now, just place the tower without gold deduction
+    // Full economy system will be implemented separately
+
+    // Create tower in state
+    const towerId = `${client.sessionId}-${payload.slotIndex}`;
+    this.state.towers.set(towerId, {
+      ownerId: client.sessionId,
+      typeId: payload.typeId,
+      slotIndex: payload.slotIndex,
+      level: 1,
+      cooldown: 0,
+    });
+
+    console.log(`Defender placed tower ${payload.typeId} at slot ${payload.slotIndex}`);
+  }
+
+  /**
+   * Handles manual start of combat phase.
+   *
+   * @remarks
+   * Allows the defender to manually start combat instead of waiting for timer.
+   */
+  private handleStartCombat(client: Client, payload: StartCombatIntent): void {
+    if (this.state.phase !== "building") return;
+
+    const role = client.userData?.role as PlayerRole | undefined;
+    if (role !== "defender") {
+      console.log(`Only defender can start combat. Client role: ${role}`);
+      return;
+    }
+
+    if (!this.phases.beginCombat([])) {
+      console.log("Failed to start combat");
+      return;
+    }
+
+    console.log(`Room ${this.roomId}: building -> combat (manual start)`);
   }
 
   /**
@@ -390,6 +495,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (event?.type === "building-started" && event.autoCompleted.length > 0) {
       this.autoFillDecks(event.autoCompleted);
+    }
+
+    if (event?.type === "combat-started") {
+      console.log(`Room ${this.roomId}: combat started`);
     }
   }
 }

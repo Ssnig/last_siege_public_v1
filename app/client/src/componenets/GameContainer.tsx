@@ -131,21 +131,22 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     };
   }, [room, setRoom]);
 
-  // Phaser lifecycle, keyed on whether the draft pick has begun. RESIZE mode
-  // makes the canvas track the viewport; the draft stages redeploy on RESIZE.
+  // Phaser lifecycle, keyed on whether the draft pick has begun. FIT scale mode
+  // maintains 1280x720 logical resolution while scaling to fit the viewport.
   useEffect(() => {
     if (!matchStarted || !gameRef.current) return;
 
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
-      width: window.innerWidth,
-      height: window.innerHeight,
+      width: 1280,
+      height: 720,
       backgroundColor: '#1e293b',
       parent: gameRef.current,
       scale: {
-        mode: Phaser.Scale.RESIZE,
-        width: window.innerWidth,
-        height: window.innerHeight,
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 1280,
+        height: 720,
       },
       physics: { default: "arcade" },
       pixelArt: true,

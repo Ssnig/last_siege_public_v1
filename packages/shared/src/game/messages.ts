@@ -31,6 +31,8 @@ export const MESSAGES = {
   sendMiniWave: "send_mini_wave",
   /** Client → server: this side finished its deck draft. */
   draftReady: "draft_ready",
+  /** Client → server: start combat phase manually. */
+  startCombat: "start_combat",
 
   draftRejected: "draft_rejected",
 
@@ -86,4 +88,8 @@ export interface SendMiniWaveIntent {
 
 export interface DraftReadyIntent {
   deck: string[];
+}
+
+export interface StartCombatIntent {
+  // No payload needed for now
 }

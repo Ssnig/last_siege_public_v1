@@ -18,13 +18,21 @@ export interface TowerSlot {
  * `path` is the ordered list of waypoints mobs walk; `checkpoints` are indices
  * into it that mark progression milestones. `slots` are the only legal tower
  * positions. `base` is the defender's core location.
+ * `paths` (optional) supports multiple named paths for advanced maps.
+ * `width`/`height` (optional) define the virtual coordinate system size.
  */
 export interface MapDefinition {
   id: string;
   path: Vec2[];
+  paths?: {
+    top?: Vec2[];
+    bottom?: Vec2[];
+  };
   slots: TowerSlot[];
   checkpoints: number[];
   base: Vec2;
+  width?: number;
+  height?: number;
 }
 
 export const SAMPLE_MAP: MapDefinition = {
@@ -49,6 +57,52 @@ export const SAMPLE_MAP: MapDefinition = {
   base: { x: 780, y: 500 },
 };
 
+export const KONBAUNG_MAP: MapDefinition = {
+  id: "konbaung",
+  width: 1280,
+  height: 720,
+  path: [],
+  paths: {
+    top: [
+      { x: 0, y: 112 },
+      { x: 256, y: 112 },
+      { x: 317, y: 158 },
+      { x: 342, y: 274 },
+      { x: 602, y: 274 },
+      { x: 688, y: 194 },
+      { x: 749, y: 158 },
+      { x: 816, y: 184 },
+      { x: 842, y: 266 },
+      { x: 858, y: 349 },
+      { x: 960, y: 374 },
+      { x: 1005, y: 375 }
+    ],
+    bottom: [
+      { x: 0, y: 583 },
+      { x: 243, y: 583 },
+      { x: 288, y: 518 },
+      { x: 317, y: 443 },
+      { x: 474, y: 443 },
+      { x: 525, y: 526 },
+      { x: 614, y: 590 },
+      { x: 730, y: 623 },
+      { x: 1062, y: 623 },
+      { x: 1114, y: 562 },
+      { x: 1095, y: 485 }
+    ]
+  },
+  slots: [
+    { slotIndex: 0, x: 246, y: 184 },
+    { slotIndex: 1, x: 394, y: 218 },
+    { slotIndex: 2, x: 756, y: 218 },
+    { slotIndex: 3, x: 394, y: 500 },
+    { slotIndex: 4, x: 1034, y: 539 }
+  ],
+  checkpoints: [1, 3],
+  base: { x: 1105, y: 410 }
+};
+
 export const MAPS: Record<string, MapDefinition> = {
   [SAMPLE_MAP.id]: SAMPLE_MAP,
+  [KONBAUNG_MAP.id]: KONBAUNG_MAP,
 };
