@@ -28,6 +28,7 @@ export class DefenderDraftStage {
  * The stage owns UI state, not the Colyseus connection.
  */
 private readonly onConfirm: (deck: string[]) => void;
+  private readonly scene: Phaser.Scene;
   private root?: Phaser.GameObjects.Container;
   private cards: TowerCard[] = [];
   private selected = new Set<string>();
@@ -54,10 +55,8 @@ private readonly onConfirm: (deck: string[]) => void;
  * @param scene - Active Phaser scene that owns the draft UI.
  * @param onConfirm - Callback for submitting the selected tower deck.
  */
-constructor(
-  private readonly scene: Phaser.Scene,
-  onConfirm: (deck: string[]) => void,
-) {
+constructor(scene: Phaser.Scene, onConfirm: (deck: string[]) => void) {
+  this.scene = scene;
   this.onConfirm = onConfirm;
 }
 
@@ -423,15 +422,16 @@ constructor(
       { fontSize: "24px", fontStyle: "bold", color: "#f8fafc" },
     );
 
+    const tier = tower.tiers[0];
     const stats = this.scene.add.text(
       panelX + 22,
       panelY + 78,
       [
-        `COST                 ${tower.cost} gold`,
-        `RANGE               ${tower.range}`,
-        `DAMAGE             ${tower.damage}`,
-        `FIRE RATE           ${tower.fireRate}/sec`,
-        `PROJECTILE SPEED   ${tower.projectileSpeed}`,
+        `COST                 ${tier.cost} gold`,
+        `RANGE               ${tier.range}`,
+        `DAMAGE             ${tier.damage}`,
+        `FIRE RATE           ${tier.fireRate}/sec`,
+        `PROJECTILE SPEED   ${tier.projectileSpeed}`,
       ].join("\n\n"),
       { fontSize: "14px", color: "#cbd5e1", lineSpacing: 5 },
     );
