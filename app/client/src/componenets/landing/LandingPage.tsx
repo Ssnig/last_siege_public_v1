@@ -6,7 +6,13 @@ import { SocialModal } from './SocialModal';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const [playerName, setPlayerName] = useState<string>(() => localStorage.getItem('player-name') || '');
+  const [playerName, setPlayerName] = useState<string>(() => {
+    try {
+      return localStorage.getItem('player-name') || '';
+    } catch {
+      return '';
+    }
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isSocialOpen, setIsSocialOpen] = useState<boolean>(false);
   const [showNamePrompt, setShowNamePrompt] = useState<boolean>(false);
@@ -25,7 +31,10 @@ export const LandingPage: React.FC = () => {
 
   const handleStartClick = () => {
     soundEffects.playClick();
-    const storedName = localStorage.getItem('player-name');
+    let storedName = '';
+    try {
+      storedName = localStorage.getItem('player-name') || '';
+    } catch {}
     if (!storedName || !storedName.trim()) {
       setShowNamePrompt(true);
     } else {
@@ -38,11 +47,14 @@ export const LandingPage: React.FC = () => {
     const trimmed = nameInput.trim();
     if (!trimmed) return;
     soundEffects.playClick();
-    localStorage.setItem('player-name', trimmed);
+    try {
+      localStorage.setItem('player-name', trimmed);
+    } catch {}
     setPlayerName(trimmed);
     setShowNamePrompt(false);
     navigate('/lobby');
   };
+
 
   return (
     <div className="relative w-screen h-screen bg-slate-950 flex items-center justify-center overflow-hidden select-none">
@@ -50,8 +62,9 @@ export const LandingPage: React.FC = () => {
       <div className="relative w-full max-w-[2752px] aspect-[2752/1536] max-h-screen overflow-hidden shadow-2xl bg-black">
         {/* Layer 1: Base Landscape */}
         <img
-          src="/assets/ui/bg.png"
+          src="/assets/ui/bg.jpg"
           alt="Battlefield Landscape"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
         />
 
@@ -82,7 +95,7 @@ export const LandingPage: React.FC = () => {
             setIsSocialOpen(true);
           }}
           onMouseEnter={() => soundEffects.playHover()}
-          className="absolute top-[3.5%] left-[2.2%] z-20 w-[4.5%] aspect-square flex items-center justify-center rounded-xl bg-slate-950/20 hover:bg-slate-950/40 backdrop-blur-xs border border-white/10 hover:border-cyan-400/60 shadow-lg hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all duration-200 cursor-pointer group active:scale-95"
+          className="absolute top-[3.5%] left-[2.2%] z-20 w-[4.5%] min-w-[36px] max-w-[60px] aspect-square flex items-center justify-center rounded-xl bg-slate-950/20 hover:bg-slate-950/40 backdrop-blur-xs border border-white/10 hover:border-cyan-400/60 shadow-lg hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all duration-200 cursor-pointer group active:scale-95"
           title="Warrior Profile & Friends"
           aria-label="Friends and Profile"
         >
@@ -109,7 +122,7 @@ export const LandingPage: React.FC = () => {
             setIsSettingsOpen(true);
           }}
           onMouseEnter={() => soundEffects.playHover()}
-          className="absolute top-[3.5%] right-[2.2%] z-20 w-[4.5%] aspect-square flex items-center justify-center rounded-xl bg-slate-950/20 hover:bg-slate-950/40 backdrop-blur-xs border border-white/10 hover:border-amber-400/60 shadow-lg hover:shadow-[0_0_20px_rgba(251,146,60,0.4)] transition-all duration-200 cursor-pointer group active:scale-95"
+          className="absolute top-[3.5%] right-[2.2%] z-20 w-[4.5%] min-w-[36px] max-w-[60px] aspect-square flex items-center justify-center rounded-xl bg-slate-950/20 hover:bg-slate-950/40 backdrop-blur-xs border border-white/10 hover:border-amber-400/60 shadow-lg hover:shadow-[0_0_20px_rgba(251,146,60,0.4)] transition-all duration-200 cursor-pointer group active:scale-95"
           title="Game Settings"
           aria-label="Settings"
         >
@@ -129,7 +142,7 @@ export const LandingPage: React.FC = () => {
 
         {/* Center Interactive START Button */}
         <div
-          className="absolute z-20 left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2 w-[23.5%] h-[9.5%] flex items-center justify-center cursor-pointer"
+          className="absolute z-20 left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2 w-[23.5%] min-w-[170px] max-w-[340px] h-[9.5%] min-h-[50px] flex items-center justify-center cursor-pointer"
           onMouseEnter={() => {
             setIsButtonHovered(true);
             soundEffects.playHover();

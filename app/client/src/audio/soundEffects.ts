@@ -10,21 +10,27 @@ class SoundEffectsManager {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      const savedVolume = localStorage.getItem('game-volume');
-      if (savedVolume !== null) {
-        this.volume = parseFloat(savedVolume);
+      try {
+        const savedVolume = localStorage.getItem('game-volume');
+        if (savedVolume !== null) {
+          this.volume = parseFloat(savedVolume);
+        }
+        this.isMuted = localStorage.getItem('game-muted') === 'true';
+      } catch {
+        // Fallback to default volume if localStorage is restricted
       }
-      this.isMuted = localStorage.getItem('game-muted') === 'true';
     }
   }
 
   private getAudioContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
+      try {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+        }
+      } catch {}
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
@@ -39,7 +45,9 @@ class SoundEffectsManager {
   public setVolume(vol: number): void {
     this.volume = Math.max(0, Math.min(1, vol));
     if (typeof window !== 'undefined') {
-      localStorage.setItem('game-volume', this.volume.toString());
+      try {
+        localStorage.setItem('game-volume', this.volume.toString());
+      } catch {}
     }
   }
 
@@ -50,9 +58,12 @@ class SoundEffectsManager {
   public setMuted(muted: boolean): void {
     this.isMuted = muted;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('game-muted', muted ? 'true' : 'false');
+      try {
+        localStorage.setItem('game-muted', muted ? 'true' : 'false');
+      } catch {}
     }
   }
+
 
   /** Short high-tech/8-bit hover tick */
   public playHover(): void {

@@ -5,6 +5,7 @@ import { Callbacks, Room } from '@colyseus/sdk';
 import { GameScene } from '../game/GameScene';
 import { MESSAGES, type OpponentLeftPayload, type GameOverPayload } from '@root/shared';
 import { useGameRoom } from '../network/roomContext';
+import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 
 interface GameContainerProps {
   room: Room;
@@ -162,24 +163,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     };
   }, [room, matchStarted, playerInfo]);
 
-  // Pre-match: no Phaser yet, just a waiting screen.
+  // Pre-match: no Phaser yet, render royal match waiting screen
   if (!matchStarted) {
     return (
-      <div className="relative w-full h-full flex flex-col items-center justify-center bg-slate-950 gap-6">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
-          <h2 className="text-xl font-bold text-white">Match Lobby</h2>
-          <p className="text-sm text-slate-400">{statusText}</p>
-        </div>
-        <button
-          onClick={onLeaveRoom}
-          className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-xs font-bold text-white transition"
-        >
-          Leave Room
-        </button>
-      </div>
+      <MatchLoadingScreen
+        room={room}
+        statusText={statusText}
+        onLeaveRoom={onLeaveRoom}
+      />
     );
   }
+
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex items-center justify-center">
@@ -256,6 +250,21 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
                 <p>Opponent: <span className="text-yellow-400 font-bold uppercase">{playerInfo.opponentRole}</span> — <span className="text-white font-bold">{playerInfo.opponentName}</span></p>
               </div>
             )}
+
+            <button
+              onClick={() => {
+                try {
+                  if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                  } else {
+                    document.exitFullscreen();
+                  }
+                } catch {}
+              }}
+              className="py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm font-semibold text-slate-200 transition flex items-center justify-center gap-2"
+            >
+              <span>⛶</span> Toggle Fullscreen
+            </button>
 
             <button
               onClick={() => {
