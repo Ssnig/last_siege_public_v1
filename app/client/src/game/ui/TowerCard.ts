@@ -48,10 +48,7 @@ export class TowerCard {
       .rectangle(0, 0, width, height, 0x172033)
       .setOrigin(0, 0)
       .setStrokeStyle(2, 0x334155)
-      .setInteractive(
-        new Phaser.Geom.Rectangle(0, 0, width, height),
-        Phaser.Geom.Rectangle.Contains,
-      );
+      .setInteractive();
 
     this.background.on("pointerover", () => {
       if (!this.selected) this.background.setStrokeStyle(2, 0x818cf8);
@@ -68,10 +65,7 @@ export class TowerCard {
     const infoCircle = scene.add
       .circle(infoX, infoY, infoRadius, 0x334155)
       .setStrokeStyle(1, 0x94a3b8)
-      .setInteractive(
-        new Phaser.Geom.Circle(0, 0, infoRadius + 5),
-        Phaser.Geom.Circle.Contains,
-      );
+      .setInteractive();
 
     const infoLabel = scene.add
       .text(infoX, infoY - 1, "i", {
@@ -104,7 +98,7 @@ export class TowerCard {
 
     this.container.add(frame);
 
-    const textureKey = `tower-${tower.id}`;
+    const textureKey = 'tower_archer';
 
     if (scene.textures.exists(textureKey)) {
       const sprite = scene.add
@@ -164,6 +158,9 @@ export class TowerCard {
       .setOrigin(0.5);
 
     this.container.add([nameText, this.statusText]);
+      // Keep the info button above the portrait sprite and other card elements.
+    this.container.bringToTop(infoCircle);
+    this.container.bringToTop(infoLabel);
   }
 
   /**

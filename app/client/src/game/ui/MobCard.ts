@@ -51,10 +51,7 @@ export class MobCard {
       .setOrigin(0, 0)
       .setStrokeStyle(2, 0x334155);
 
-    this.background.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, width, height),
-      Phaser.Geom.Rectangle.Contains,
-    );
+    this.background.setInteractive();
 
     this.background.on("pointerover", () => {
       if (!this.selected) {
@@ -77,10 +74,7 @@ export class MobCard {
     const infoCircle = scene.add
       .circle(infoX, infoY, infoRadius, 0x334155)
       .setStrokeStyle(1, 0x94a3b8)
-      .setInteractive(
-        new Phaser.Geom.Circle(0, 0, infoRadius + 5),
-        Phaser.Geom.Circle.Contains,
-      );
+      .setInteractive();
 
     const infoLabel = scene.add
       .text(infoX, infoY - 1, "i", {
@@ -114,7 +108,8 @@ export class MobCard {
 
     this.container.add(portraitFrame);
 
-    const textureKey = `mob-${mob.id}`;
+    
+    const textureKey = "unit_warrior";
 
     if (scene.textures.exists(textureKey)) {
       const sprite = scene.add
@@ -123,7 +118,8 @@ export class MobCard {
 
       this.container.add(sprite);
     } else {
-      // Placeholder artwork; replace with the loaded mob texture when ready.
+      console.warn(`Mob sprite texture "${textureKey}" is not loaded.`);
+
       const color = this.getColor(mob.id);
       const headRadius = Math.min(portraitWidth, portraitHeight) * 0.16;
 
@@ -145,6 +141,7 @@ export class MobCard {
       this.container.add([body, head]);
     }
 
+
     const nameText = scene.add
       .text(width / 2, height - 36, mob.name, {
         fontSize: `${Math.max(12, Math.min(18, width * 0.11))}px`,
@@ -165,6 +162,9 @@ export class MobCard {
       .setOrigin(0.5);
 
     this.container.add([nameText, this.statusText]);
+    // Keep the info button above the portrait sprite and other card elements.
+    this.container.bringToTop(infoCircle);
+    this.container.bringToTop(infoLabel);
   }
 
   /**

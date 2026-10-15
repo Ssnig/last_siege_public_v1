@@ -272,15 +272,7 @@ export class AttackerDraftStage {/**
         0x4f46e5,
       )
       .setStrokeStyle(1, 0x818cf8)
-      .setInteractive(
-        new Phaser.Geom.Rectangle(
-          -buttonWidth / 2,
-          -buttonHeight / 2,
-          buttonWidth,
-          buttonHeight,
-        ),
-        Phaser.Geom.Rectangle.Contains,
-      );
+      .setInteractive();
 
     this.confirmText = this.scene.add
       .text(buttonX + buttonWidth / 2, buttonY, "CONFIRM", {
@@ -328,7 +320,7 @@ rejectDraft(reason: string): void {
    */
   private toggleMob(mob: MobType): void {
     if (this.confirmed) {
-      this.confirmed = false;
+      return;
     }
 
     if (this.selected.has(mob.id)) {
@@ -351,7 +343,9 @@ rejectDraft(reason: string): void {
       card.setSelected(this.selected.has(card.mob.id));
     }
 
-    this.countText?.setText(`${this.selected.size}/${this.maxSelections} SELECTED`);
+    this.countText?.setText(
+      `${this.selected.size}/${this.maxSelections} SELECTED`,
+    );
 
     this.selectedContainer?.removeAll(true);
 
@@ -359,68 +353,125 @@ rejectDraft(reason: string): void {
     const rosterHeight = Math.floor(this.scene.scale.height * 0.7);
     const deckHeight = this.scene.scale.height - rosterHeight;
     const compact = width < 440;
-    const maxStripWidth = Math.max(40, width - (compact ? 148 : 196));
+
+    const maxStripWidth = Math.max(
+      40,
+      width - (compact ? 148 : 196),
+    );
+
     const gap = 8;
+
     const slotWidth = Math.max(
       42,
-      Math.min(76, (maxStripWidth - gap * Math.max(0, this.maxSelections - 1)) /
-        Math.max(1, this.maxSelections)),
+      Math.min(
+        76,
+        (maxStripWidth - gap * Math.max(0, this.maxSelections - 1)) /
+          Math.max(1, this.maxSelections),
+      ),
     );
-    const slotHeight = Math.max(42, Math.min(70, deckHeight - 52));
-    const selectedMobs = this.mobs.filter((mob) => this.selected.has(mob.id));
+
+    const slotHeight = Math.max(
+      42,
+      Math.min(70, deckHeight - 52),
+    );
+
+    const selectedMobs = this.mobs.filter((mob) =>
+      this.selected.has(mob.id),
+    );
 
     selectedMobs.forEach((mob, index) => {
       const x = index * (slotWidth + gap);
 
+      // 1. Background tile (rendered first)
       const tile = this.scene.add
         .rectangle(x, 0, slotWidth, slotHeight, 0x1e293b)
         .setOrigin(0, 0)
         .setStrokeStyle(1, 0x4ade80);
 
-      const textureKey = `mob-${mob.id}`;
+      this.selectedContainer?.add(tile);
+
+      // 2. Warrior sprite (rendered above background)
+      const textureKey = "unit_warrior";
 
       if (this.scene.textures.exists(textureKey)) {
-        const sprite = this.scene.add
-          .image(x + slotWidth / 2, slotHeight * 0.38, textureKey)
-          .setDisplaySize(slotWidth * 0.56, slotHeight * 0.48);
+        const sprite = this.scene.add.image(
+          x + slotWidth / 2,
+          slotHeight * 0.38,
+          textureKey,
+        );
+
+        // Preserve aspect ratio
+        const scale = Math.min(
+          (slotWidth * 0.7) / sprite.width,
+          (slotHeight * 0.6) / sprite.height,
+        );
+
+        sprite.setScale(scale);
 
         this.selectedContainer?.add(sprite);
       } else {
-        const color = this.getMobColor(mob.id);
+        // Fallback if texture hasn't loaded
         const icon = this.scene.add.circle(
           x + slotWidth / 2,
           slotHeight * 0.38,
           Math.max(7, Math.min(15, slotWidth * 0.18)),
-          color,
+          this.getMobColor(mob.id),
         );
 
         this.selectedContainer?.add(icon);
       }
 
-      const label = this.scene.add.text(
-        x + slotWidth / 2,
-        slotHeight - 9,
-        mob.name,
-        {
-          fontSize: `${Math.max(8, Math.min(11, slotWidth * 0.15))}px`,
-          color: "#e2e8f0",
-          align: "center",
-          wordWrap: { width: slotWidth - 4 },
-        },
-      ).setOrigin(0.5);
+      // 3. Mob name (rendered above sprite)
+      const label = this.scene.add
+        .text(
+          x + slotWidth / 2,
+          slotHeight - 9,
+          mob.name,
+          {
+            fontSize: `${Math.max(
+              8,
+              Math.min(11, slotWidth * 0.15),
+            )}px`,
+            color: "#e2e8f0",
+            align: "center",
+            wordWrap: { width: slotWidth - 4 },
+          },
+        )
+        .setOrigin(0.5);
 
-      this.selectedContainer?.add([tile, label]);
+      this.selectedContainer?.add(label);
     });
 
-    const canConfirm = this.selected.size > 0 && !this.confirmed;
+    // 4. Confirm button state
+    const canConfirm =
+      this.selected.size > 0 && !this.confirmed;
 
     this.confirmBackground
-      ?.setFillStyle(canConfirm ? 0x4f46e5 : 0x334155)
-      .setStrokeStyle(1, canConfirm ? 0x818cf8 : 0x475569);
+      ?.setFillStyle(
+        this.confirmed
+          ? 0x059669
+          : canConfirm
+            ? 0x4f46e5
+            : 0x334155,
+      )
+      .setStrokeStyle(
+        1,
+        this.confirmed
+          ? 0x34d399
+          : canConfirm
+            ? 0x818cf8
+            : 0x475569,
+      );
 
-    this.confirmText?.setText(
-      this.confirmed ? "CONFIRMED" : "CONFIRM",
-    ).setColor(canConfirm || this.confirmed ? "#ffffff" : "#94a3b8");
+    this.confirmText
+      ?.setText(
+        this.confirmed ? "CONFIRMED" : "CONFIRM",
+      )
+      .setColor(
+        canConfirm || this.confirmed
+          ? "#ffffff"
+          : "#94a3b8",
+      );
   }
 
   /**
@@ -462,15 +513,7 @@ rejectDraft(reason: string): void {
         0x172033,
       )
       .setStrokeStyle(2, 0x6366f1)
-      .setInteractive(
-        new Phaser.Geom.Rectangle(
-          -panelWidth / 2,
-          -panelHeight / 2,
-          panelWidth,
-          panelHeight,
-        ),
-        Phaser.Geom.Rectangle.Contains,
-      );
+      .setInteractive();
 
     // Keep clicks inside the panel from reaching the backdrop.
     panel.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Event) => {
