@@ -15,6 +15,7 @@ import type { MobType } from "@root/shared";
  */
 export class MobCard {
   readonly container: Phaser.GameObjects.Container;
+  readonly mob: MobType;
 
   private readonly background: Phaser.GameObjects.Rectangle;
   private readonly statusText: Phaser.GameObjects.Text;
@@ -38,10 +39,11 @@ export class MobCard {
     y: number,
     width: number,
     height: number,
-    readonly mob: MobType,
+    mob: MobType,
     onSelect: (mob: MobType) => void,
     onInfo: (mob: MobType) => void,
   ) {
+    this.mob = mob;
     this.container = scene.add.container(x, y);
 
     this.background = scene.add

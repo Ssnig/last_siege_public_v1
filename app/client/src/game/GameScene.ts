@@ -2,8 +2,9 @@ import Phaser from "phaser";
 import { Room, Callbacks } from "@colyseus/sdk";
 import {
   MESSAGES,
+  MAPS,
+  SAMPLE_MAP,
   type RoleAssignedPayload,
-  KONBAUNG_MAP,
   type YouEconomyPayload,
 } from "@root/shared";
 import { AttackerDraftStage } from "./stages/AttackerDraftStage";
@@ -28,7 +29,7 @@ export class GameScene extends Phaser.Scene {
   private currentPhase?: string;
   private assignedRole?: PlayerRole;
   private buildingPlaceholder?: Phaser.GameObjects.Text;
-  private defenderDeck?: string[];
+  private myEconomy?: YouEconomyPayload;
 
   private unsubscribeRoomListeners: Array<() => void> = [];
 
@@ -83,8 +84,8 @@ export class GameScene extends Phaser.Scene {
       room.onMessage(
         MESSAGES.youEconomy,
         (payload: YouEconomyPayload) => {
-          console.log("Economy received:", payload);
-          this.defenderDeck = payload.deck;
+          this.myEconomy = payload;
+          this.gameplayStage?.applyEconomy(payload);
         },
       ),
     );
@@ -201,9 +202,13 @@ this.unsubscribeRoomListeners.push(
   private startGameplay(): void {
     if (this.gameplayStage) return;
 
-    // Use konbaung map for testing (in production, read from room.state.mapId)
-    const map = KONBAUNG_MAP;
-    this.gameplayStage = new GameplayStage(this, map, this.defenderDeck, this.room, 200, this.assignedRole); // Starting gold
+    const map = MAPS[this.room.state.mapId] ?? SAMPLE_MAP;
+    this.gameplayStage = new GameplayStage(this, {
+      room: this.room,
+      map,
+      role: this.assignedRole ?? "defender",
+      economy: this.myEconomy,
+    });
     this.gameplayStage.create();
   }
 

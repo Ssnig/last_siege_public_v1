@@ -29,6 +29,7 @@ export class AttackerDraftStage {/**
  * The stage owns the UI; GameScene supplies the network callback.
  */
   private readonly onConfirm: (deck: string[]) => void;
+  private readonly scene: Phaser.Scene;
 
   private root?: Phaser.GameObjects.Container;
   private cards: MobCard[] = [];
@@ -57,12 +58,10 @@ export class AttackerDraftStage {/**
      * @param scene - Active Phaser scene that owns this stage's UI.
      * @param onConfirm - Sends the selected deck to the server.
      */
-    constructor(
-    private readonly scene: Phaser.Scene,
-    onConfirm: (deck: string[]) => void,
-    ) {
+  constructor(scene: Phaser.Scene, onConfirm: (deck: string[]) => void) {
+    this.scene = scene;
     this.onConfirm = onConfirm;
-    }
+  }
 
   /**
    * Builds the UI and subscribes to canvas resizing.

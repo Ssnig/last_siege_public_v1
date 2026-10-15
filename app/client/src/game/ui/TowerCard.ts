@@ -15,6 +15,7 @@ import type { TowerType } from "@root/shared";
  */
 export class TowerCard {
   readonly container: Phaser.GameObjects.Container;
+  readonly tower: TowerType;
 
   private readonly background: Phaser.GameObjects.Rectangle;
   private readonly statusText: Phaser.GameObjects.Text;
@@ -36,10 +37,11 @@ export class TowerCard {
     y: number,
     width: number,
     height: number,
-    readonly tower: TowerType,
+    tower: TowerType,
     onSelect: (tower: TowerType) => void,
     onInfo: (tower: TowerType) => void,
   ) {
+    this.tower = tower;
     this.container = scene.add.container(x, y);
 
     this.background = scene.add
