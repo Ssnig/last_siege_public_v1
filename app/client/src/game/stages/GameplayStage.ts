@@ -7,6 +7,15 @@ import {
   type YouEconomyPayload,
   TOWER_TYPES,
 } from "@root/shared";
+import { UIButton } from "../ui/UIButton";
+import { TowerCard } from "../ui/TowerCard";
+import {
+  UI_ASPECT,
+  UI_BG_ASPECT,
+  UI_BG_FRAMES,
+  UI_BG_TEXTURE_KEY,
+  UI_TEXTURE_KEY,
+} from "../ui/uiAtlas";
 
 /** Render order for the gameplay layers. */
 export const DEPTH = {
@@ -44,6 +53,7 @@ export class GameplayStage {
   private role: "attacker" | "defender";
 
   private root?: Phaser.GameObjects.Container;
+  private uiRoot?: Phaser.GameObjects.Container;
   private paths: Phaser.Curves.Path[] = [];
   private topPath?: Phaser.Curves.Path;
   private bottomPath?: Phaser.Curves.Path;
@@ -57,12 +67,14 @@ export class GameplayStage {
   private deck: string[] = [];
   private selectedTowerType?: string;
 
-  private deckCards: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private deckCards: Map<string, TowerCard> = new Map();
   private deckObjects: Phaser.GameObjects.GameObject[] = [];
+  private deckLayoutWidth = 0;
   private ghostTower?: Phaser.GameObjects.Sprite;
   private phaseBanner?: Phaser.GameObjects.Container;
   private goldText?: Phaser.GameObjects.Text;
-  private startButton?: Phaser.GameObjects.Container;
+  private goldFrame?: Phaser.GameObjects.Image;
+  private startButton?: UIButton;
   private topPortal?: Phaser.GameObjects.Sprite;
   private bottomPortal?: Phaser.GameObjects.Sprite;
 
@@ -111,12 +123,19 @@ export class GameplayStage {
 
   create(): void {
     this.render();
+
+    // A dedicated top-level container keeps every HUD element above the world
+    // (map, units, towers). Child depth inside a single container is ignored,
+    // so a separate container with a higher scene depth is required.
+    this.uiRoot = this.scene.add.container(0, 0).setDepth(DEPTH.UI_LAYER);
+
     this.setupPortals();
     this.setupDebugControls();
 
     if (this.role === "defender") {
       this.renderTowerDeck();
       this.renderStartButton();
+      this.renderGoldIndicator();
     }
     this.renderPhaseBanner();
     this.setupTowerSync();
@@ -155,7 +174,7 @@ export class GameplayStage {
 
   private refreshGold(): void {
     if (this.goldText) {
-      this.goldText.setText(`GOLD: ${this.gold}g`);
+      this.goldText.setText(`${this.gold}`);
     }
   }
 
@@ -387,121 +406,119 @@ export class GameplayStage {
     this.deckCards.clear();
 
     const deckX = 24;
-    const deckY = 665;
-    const cardWidth = 84;
-    const cardHeight = 84;
+    const cardWidth = 64;
+    const cardHeight = cardWidth / 0.72;
     const gap = 12;
-
-    this.goldText?.destroy();
-    this.goldText = this.scene.add
-      .text(deckX, deckY - 50, `GOLD: ${this.gold}g`, {
-        fontSize: "15px",
-        color: "#fbbf24",
-        fontStyle: "bold",
-      })
-      .setOrigin(0, 0.5)
-      .setDepth(DEPTH.UI_LAYER);
-    this.root?.add(this.goldText);
-    this.deckObjects.push(this.goldText);
+    const topY = 616;
 
     if (!this.selectedTowerType && this.deck.length > 0) {
       this.selectedTowerType = this.deck[0];
     }
 
-    this.deck.forEach((towerId, index) => {
+    let placed = 0;
+    this.deck.forEach((towerId) => {
       const tower = TOWER_TYPES[towerId];
       if (!tower) return;
 
-      const x = deckX + index * (cardWidth + gap);
-      const isSelected = this.selectedTowerType === towerId;
-
-      const card = this.scene.add
-        .rectangle(x, deckY, cardWidth, cardHeight, 0x1e293b)
-        .setStrokeStyle(2, isSelected ? 0x4ade80 : 0x475569)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(DEPTH.UI_LAYER);
-
-      this.deckCards.set(towerId, card);
-      this.deckObjects.push(card);
-
-      card.on("pointerover", () => {
-        if (this.selectedTowerType !== towerId) {
-          card.setStrokeStyle(2, 0x6366f1);
-        }
-      });
-      card.on("pointerout", () => {
-        card.setStrokeStyle(
-          2,
-          this.selectedTowerType === towerId ? 0x4ade80 : 0x475569,
-        );
-      });
-      card.on("pointerdown", () => {
-        this.selectedTowerType = towerId;
-        this.updateDeckCardStyles();
-      });
-
-      const label = this.scene.add
-        .text(x, deckY - 26, tower.name.substring(0, 10), {
-          fontSize: "11px",
-          color: "#f8fafc",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5)
-        .setDepth(DEPTH.UI_LAYER);
+      const x = deckX + placed * (cardWidth + gap);
 
       const tierCost = tower.tiers[0]?.cost ?? 0;
-      const costLabel = this.scene.add
-        .text(x, deckY + 28, `${tierCost}g`, {
-          fontSize: "12px",
-          color: "#fbbf24",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5)
-        .setDepth(DEPTH.UI_LAYER);
+      const card = new TowerCard(
+        this.scene,
+        x,
+        topY,
+        cardWidth,
+        cardHeight,
+        tower,
+        (selected) => this.selectDeckTower(selected.id),
+        undefined,
+        { label: `${tierCost}g` },
+      );
 
-      this.deckObjects.push(label, costLabel);
-      this.root?.add([card, label, costLabel]);
+      this.deckCards.set(towerId, card);
+      this.deckObjects.push(card.container);
+      this.uiRoot?.add(card.container);
+
+      placed += 1;
     });
+
+    this.deckLayoutWidth = placed * cardWidth + Math.max(0, placed - 1) * gap;
+    this.updateDeckCardStyles();
+    this.layoutGoldIndicator();
+  }
+
+  private selectDeckTower(towerId: string): void {
+    this.selectedTowerType = towerId;
+    this.updateDeckCardStyles();
   }
 
   private renderStartButton(): void {
-    const buttonX = 1150;
-    const buttonY = 35;
-    const buttonWidth = 140;
-    const buttonHeight = 44;
+    const buttonWidth = 150;
+    const buttonHeight = buttonWidth / UI_ASPECT.button;
 
-    this.startButton = this.scene.add.container(buttonX, buttonY);
-
-    const bg = this.scene.add
-      .rectangle(0, 0, buttonWidth, buttonHeight, 0x10b981)
-      .setStrokeStyle(2, 0x34d399)
-      .setInteractive({ useHandCursor: true });
-
-    const text = this.scene.add
-      .text(0, 0, "START GAME ▶", {
-        fontSize: "14px",
-        color: "#ffffff",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-
-    bg.on("pointerover", () => bg.setFillStyle(0x059669));
-    bg.on("pointerout", () => bg.setFillStyle(0x10b981));
-    bg.on("pointerdown", () => {
-      this.room.send(MESSAGES.startCombat, {});
+    this.startButton = new UIButton({
+      scene: this.scene,
+      x: 1150,
+      y: 48,
+      width: buttonWidth,
+      height: buttonHeight,
+      label: "START GAME",
+      fontSize: 15,
+      onClick: () => this.room.send(MESSAGES.startCombat, {}),
     });
 
-    this.startButton.add([bg, text]);
-    this.startButton.setDepth(DEPTH.UI_LAYER);
-    this.root?.add(this.startButton);
+    this.startButton.container.setDepth(DEPTH.UI_LAYER);
+    this.uiRoot?.add(this.startButton.container);
+  }
+
+  /**
+   * Renders the defender's gold readout, placed beside the tower deck.
+   *
+   * @remarks The coin emblem sits on the left of the frame, so the numeric
+   * label is centered on the remaining width.
+   */
+  private renderGoldIndicator(): void {
+    const width = 190;
+    const height = width / UI_ASPECT.gold;
+
+    this.goldFrame = this.scene.add
+      .image(0, 0, UI_TEXTURE_KEY, "gold")
+      .setDisplaySize(width, height)
+      .setDepth(DEPTH.UI_LAYER);
+
+    this.goldText = this.scene.add
+      .text(0, 0, `${this.gold}`, {
+        fontSize: "15px",
+        color: "#fde68a",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.UI_LAYER);
+
+    this.uiRoot?.add([this.goldFrame, this.goldText]);
+    this.layoutGoldIndicator();
+  }
+
+  /**
+   * Anchors the gold readout to the right of the tower deck.
+   *
+   * @remarks Called again whenever the deck is (re)built so the indicator
+   * tracks a deck that arrives after creation.
+   */
+  private layoutGoldIndicator(): void {
+    if (!this.goldFrame || !this.goldText) return;
+
+    const width = this.goldFrame.displayWidth;
+    const x = 24 + this.deckLayoutWidth + 24 + width / 2;
+    const y = 660;
+
+    this.goldFrame.setPosition(x, y);
+    this.goldText.setPosition(x + width * 0.08, y);
   }
 
   private updateDeckCardStyles(): void {
     this.deckCards.forEach((card, towerId) => {
-      card.setStrokeStyle(
-        2,
-        this.selectedTowerType === towerId ? 0x4ade80 : 0x475569,
-      );
+      card.setSelected(this.selectedTowerType === towerId);
     });
   }
 
@@ -526,30 +543,34 @@ export class GameplayStage {
 
   private renderPhaseBanner(): void {
     const bannerX = 640;
-    const bannerY = 35;
-
-    this.phaseBanner = this.scene.add.container(bannerX, bannerY);
-
-    const bg = this.scene.add
-      .rectangle(0, 0, 460, 46, 0x1e293b, 0.9)
-      .setStrokeStyle(2, 0x6366f1);
+    const bannerY = 108;
+    const bannerWidth = 360;
+    const bannerHeight = bannerWidth / UI_BG_ASPECT.notification1;
 
     const bannerText =
       this.role === "defender"
         ? "BUILDING PHASE — Place Your Towers"
         : "BUILDING PHASE — Defender is setting up defenses";
 
+    this.phaseBanner = this.scene.add.container(bannerX, bannerY);
+
+    const bg = this.scene.add
+      .image(0, 0, UI_BG_TEXTURE_KEY, UI_BG_FRAMES.notification1)
+      .setDisplaySize(bannerWidth, bannerHeight);
+
     const text = this.scene.add
-      .text(0, 0, bannerText, {
-        fontSize: "15px",
-        color: "#ffffff",
+      .text(0, 4, bannerText, {
+        fontSize: "14px",
+        color: "#3a2412",
         fontStyle: "bold",
+        align: "center",
+        wordWrap: { width: bannerWidth * 0.72 },
       })
       .setOrigin(0.5);
 
     this.phaseBanner.add([bg, text]);
     this.phaseBanner.setDepth(DEPTH.UI_LAYER);
-    this.root?.add(this.phaseBanner);
+    this.uiRoot?.add(this.phaseBanner);
   }
 
   /**
@@ -604,20 +625,24 @@ export class GameplayStage {
     this.startButton = undefined;
 
     // Show combat alert banner
-    const banner = this.scene.add.container(640, 35);
+    const bannerWidth = 400;
+    const bannerHeight = bannerWidth / UI_BG_ASPECT.notification2;
+    const banner = this.scene.add.container(640, 108);
     const bg = this.scene.add
-      .rectangle(0, 0, 420, 46, 0x7f1d1d, 0.9)
-      .setStrokeStyle(2, 0xef4444);
+      .image(0, 0, UI_BG_TEXTURE_KEY, UI_BG_FRAMES.notification2)
+      .setDisplaySize(bannerWidth, bannerHeight);
     const txt = this.scene.add
-      .text(0, 0, "⚔️ COMBAT PHASE — Units Advancing!", {
-        fontSize: "15px",
-        color: "#fef2f2",
+      .text(0, 4, "⚔️ COMBAT PHASE — Units Advancing!", {
+        fontSize: "14px",
+        color: "#f8fafc",
         fontStyle: "bold",
+        align: "center",
+        wordWrap: { width: bannerWidth * 0.72 },
       })
       .setOrigin(0.5);
     banner.add([bg, txt]);
     banner.setDepth(DEPTH.UI_LAYER);
-    this.root?.add(banner);
+    this.uiRoot?.add(banner);
 
     this.scene.time.delayedCall(4000, () => {
       banner.destroy();
@@ -754,9 +779,14 @@ export class GameplayStage {
     this.bottomPortal?.destroy();
     this.phaseBanner?.destroy();
     this.startButton?.destroy();
+    this.goldFrame = undefined;
+    this.goldText = undefined;
 
     for (const obj of this.deckObjects) obj.destroy();
     this.deckObjects = [];
+
+    this.uiRoot?.destroy(true);
+    this.uiRoot = undefined;
 
     this.root?.destroy(true);
     this.root = undefined;
