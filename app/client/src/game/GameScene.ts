@@ -34,7 +34,7 @@ export class GameScene extends Phaser.Scene {
   private gold?: number;
 =======
   private myEconomy?: YouEconomyPayload;
->>>>>>> main
+>>>>>>>>> Temporary merge branch 2
 
   private unsubscribeRoomListeners: Array<() => void> = [];
 
@@ -106,7 +106,7 @@ export class GameScene extends Phaser.Scene {
 =======
           this.myEconomy = payload;
           this.gameplayStage?.applyEconomy(payload);
->>>>>>> main
+>>>>>>>>> Temporary merge branch 2
         },
       ),
     );
@@ -239,7 +239,7 @@ export class GameScene extends Phaser.Scene {
       role: this.assignedRole ?? "defender",
       economy: this.myEconomy,
     });
->>>>>>> main
+>>>>>>>>> Temporary merge branch 2
     this.gameplayStage.create();
   }
 

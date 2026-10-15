@@ -50,15 +50,21 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private acceptedDecks = new Map<string, string[]>();
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   /** Private player gold balances keyed by session ID. */
   private playerGold = new Map<string, number>();
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   /**
    * Hidden gold per session ID. Mirrors `acceptedDecks`: kept off `RoomState`
    * and pushed to the owner via private `you_economy` messages only.
    */
   private economies = new Map<string, number>();
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
   /** Authoritative phase + timer state machine. */
   private phases!: Phases;
@@ -83,6 +89,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     ) => this.handlePlaceTower(client, payload),
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     [MESSAGES.startCombat]: (
       client: Client,
       payload: StartCombatIntent,
@@ -90,6 +97,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
 =======
     [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
 >>>>>>> main
+=======
+    [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   };
 
   /**
@@ -274,6 +284,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       console.log(`Room ${this.roomId}: drafting -> building`);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
       // Initialize economy and send private payloads to each player
       for (const c of this.clients) {
         const role = c.userData?.role as PlayerRole | undefined;
@@ -302,6 +313,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       for (const c of this.clients) {
         this.sendEconomy(c);
 >>>>>>> main
+=======
+      // Push each player their own (now populated) economy snapshot.
+      for (const c of this.clients) {
+        this.sendEconomy(c);
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       }
     }
   }
@@ -353,6 +369,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     // Check tower type and gold cost
     const towerType = TOWER_TYPES[payload.typeId];
     if (!towerType) return;
@@ -368,6 +385,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const newGold = currentGold - cost;
     this.playerGold.set(client.sessionId, newGold);
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     const cost = buildCost(towerType);
     const gold = this.economies.get(client.sessionId) ?? 0;
     if (gold < cost) {
@@ -378,6 +397,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
 
     this.economies.set(client.sessionId, gold - cost);
+<<<<<<< HEAD
 >>>>>>> main
 
     const towerId = `${client.sessionId}-${payload.slotIndex}`;
@@ -400,6 +420,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     console.log(`Defender placed tower ${payload.typeId} at slot ${payload.slotIndex} (cost: ${cost}, remaining gold: ${newGold})`);
 =======
+=======
+
+    const towerId = `${client.sessionId}-${payload.slotIndex}`;
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.state.towers.set(
       towerId,
       new Tower({
@@ -416,7 +440,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     console.log(
       `Defender placed tower ${payload.typeId} at slot ${payload.slotIndex} (-${cost}g)`,
     );
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   }
 
   /**
@@ -569,10 +596,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.players.delete(client.sessionId);
     this.acceptedDecks.delete(client.sessionId);
 <<<<<<< HEAD
+<<<<<<< HEAD
     this.playerGold.delete(client.sessionId);
 =======
     this.economies.delete(client.sessionId);
 >>>>>>> main
+=======
+    this.economies.delete(client.sessionId);
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 

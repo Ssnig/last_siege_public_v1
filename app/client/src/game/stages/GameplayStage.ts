@@ -1,7 +1,10 @@
 import Phaser from "phaser";
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { type MapDefinition, TOWER_TYPES, MESSAGES } from "@root/shared";
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 import { Callbacks, Room } from "@colyseus/sdk";
 import {
   MESSAGES,
@@ -10,7 +13,10 @@ import {
   type YouEconomyPayload,
   TOWER_TYPES,
 } from "@root/shared";
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
 /** Render order for the gameplay layers. */
 export const DEPTH = {
@@ -54,23 +60,30 @@ export class GameplayStage {
   private towers: Map<number, Phaser.GameObjects.Sprite> = new Map();
   private units: Phaser.GameObjects.Sprite[] = [];
 <<<<<<< HEAD
+<<<<<<< HEAD
   private spawnEvents: Phaser.Time.TimerEvent[] = [];
   private spawnTimeouts: Phaser.Time.TimerEvent[] = [];
   private topPath?: Phaser.Curves.Path;
   private bottomPath?: Phaser.Curves.Path;
   private defenderDeck?: string[];
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   private unitTweenTargets: Array<{ t: number }> = [];
 
   private gold = 0;
   private deck: string[] = [];
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   private selectedTowerType?: string;
 
   private deckCards: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private deckObjects: Phaser.GameObjects.GameObject[] = [];
   private ghostTower?: Phaser.GameObjects.Sprite;
   private phaseBanner?: Phaser.GameObjects.Container;
+<<<<<<< HEAD
 <<<<<<< HEAD
   private goldText?: Phaser.GameObjects.Text;
   private gold: number;
@@ -98,6 +111,8 @@ export class GameplayStage {
     if (this.defenderDeck && this.defenderDeck.length > 0) {
       this.selectedTowerType = this.defenderDeck[0];
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   private startButton?: Phaser.GameObjects.Container;
   private goldText?: Phaser.GameObjects.Text;
 
@@ -120,18 +135,24 @@ export class GameplayStage {
     if (options.economy) {
       this.gold = options.economy.gold;
       this.deck = options.economy.deck;
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     }
   }
 
   create(): void {
     this.render();
 <<<<<<< HEAD
+<<<<<<< HEAD
     this.setupPortals();
     this.setupDebugControls();
 
     if (this.myRole === "defender") {
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
     if (import.meta.env.DEV) {
       this.setupDebugControls();
@@ -139,13 +160,17 @@ export class GameplayStage {
 
     if (this.role === "defender") {
       this.renderGoldText();
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       this.renderTowerDeck();
       this.renderStartButton();
     }
 
     this.renderPhaseBanner();
     this.setupTowerSync();
+<<<<<<< HEAD
 <<<<<<< HEAD
   }
 
@@ -201,6 +226,8 @@ export class GameplayStage {
       .play("portal_spin");
     this.root?.add(this.bottomPortal);
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     // Units only spawn once the server advances to combat.
   }
 
@@ -217,7 +244,10 @@ export class GameplayStage {
     if (deckChanged && this.role === "defender") {
       this.renderTowerDeck();
     }
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   }
 
   private render(): void {
@@ -244,6 +274,7 @@ export class GameplayStage {
       );
     }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     // Create path curves from map data
     if (this.map.paths?.top && this.map.paths.top.length > 0) {
@@ -274,6 +305,8 @@ export class GameplayStage {
             this.showGhostTower(slot);
           }
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.buildPaths();
 
     this.map.slots.forEach((slot) => {
@@ -286,7 +319,10 @@ export class GameplayStage {
         placeholder.on("pointerover", () => {
           placeholder.setFillStyle(0xd2691e, 0.7);
           this.showGhostTower(slot);
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
         });
         placeholder.on("pointerout", () => {
           placeholder.setFillStyle(0x8b4513, 0.5);
@@ -299,6 +335,7 @@ export class GameplayStage {
     });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     // Render base castle and floating HP bar
     if (this.map.base && this.map.id === "konbaung") {
       const baseCastle = this.scene.add.sprite(
@@ -307,6 +344,8 @@ export class GameplayStage {
         "base_castle"
       )
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.renderBase();
   }
 
@@ -337,12 +376,16 @@ export class GameplayStage {
     if (this.scene.textures.exists("base_castle")) {
       const baseCastle = this.scene
         .add.sprite(this.map.base.x, this.map.base.y, "base_castle")
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
         .setOrigin(0.5, 0.62)
         .setDisplaySize(310, 310)
         .setDepth(DEPTH.BASE_LAYER);
       this.root?.add(baseCastle);
 
+<<<<<<< HEAD
 <<<<<<< HEAD
       // Render floating base HP bar above castle
       const hpBarWidth = 120;
@@ -374,6 +417,8 @@ export class GameplayStage {
       ).setDepth(DEPTH.BASE_LAYER);
       this.root.add(base);
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       const hpBarWidth = 100;
       const hpBarHeight = 8;
       const barX = this.map.base.x;
@@ -403,16 +448,23 @@ export class GameplayStage {
           .circle(this.map.base.x, this.map.base.y, 50, 0xff0000, 0.3)
           .setDepth(DEPTH.BASE_LAYER),
       );
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     }
   }
 
   private setupDebugControls(): void {
 <<<<<<< HEAD
+<<<<<<< HEAD
     this.scene.input.keyboard?.on("keydown-D", () => {
 =======
     this.onKeyDown = () => {
 >>>>>>> main
+=======
+    this.onKeyDown = () => {
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       this.showDebug = !this.showDebug;
       this.toggleDebugGraphics();
     };
@@ -432,6 +484,7 @@ export class GameplayStage {
 
     if (!this.showDebug) return;
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     this.debugGraphics = this.scene.add.graphics();
     this.debugGraphics.setDepth(DEPTH.PATH_LAYER);
@@ -455,6 +508,8 @@ export class GameplayStage {
       return;
     }
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.debugGraphics = this.scene.add.graphics().setDepth(DEPTH.PATH_LAYER);
     this.debugGraphics.lineStyle(3, 0x00ff00, 0.5);
     for (const path of this.paths) {
@@ -466,11 +521,15 @@ export class GameplayStage {
     // Occupied slots are reserved for a future upgrade flow.
     if (this.towers.has(slot.slotIndex)) return;
 
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     if (!this.selectedTowerType) {
       console.log("No tower type selected");
       return;
     }
+<<<<<<< HEAD
 <<<<<<< HEAD
 
     const towerType = TOWER_TYPES[this.selectedTowerType];
@@ -490,6 +549,8 @@ export class GameplayStage {
       });
     }
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
     this.hideGhostTower();
     this.room.send(MESSAGES.placeTower, {
@@ -508,7 +569,10 @@ export class GameplayStage {
       .setOrigin(0, 0.5)
       .setDepth(DEPTH.UI_LAYER);
     this.root?.add(this.goldText);
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   }
 
   private renderTowerDeck(): void {
@@ -528,6 +592,7 @@ export class GameplayStage {
     const gap = 12;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     // Render gold display
     this.goldText?.destroy();
     this.goldText = this.scene.add.text(
@@ -540,10 +605,14 @@ export class GameplayStage {
 =======
     this.deck.forEach((towerId, index) => {
 >>>>>>> main
+=======
+    this.deck.forEach((towerId, index) => {
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       const tower = TOWER_TYPES[towerId];
       if (!tower) return;
 
       const x = deckX + index * (cardWidth + gap);
+<<<<<<< HEAD
 <<<<<<< HEAD
       const isSelected = this.selectedTowerType === towerId;
 
@@ -552,11 +621,16 @@ export class GameplayStage {
       ).setStrokeStyle(2, isSelected ? 0x4ade80 : 0x475569)
         .setInteractive({ useHandCursor: true })
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       const card = this.scene.add
         .rectangle(x, deckY, cardWidth, cardHeight, 0x1e293b)
         .setStrokeStyle(2, this.selectedTowerType === towerId ? 0x4ade80 : 0x475569)
         .setInteractive()
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
         .setDepth(DEPTH.UI_LAYER);
 
       this.deckCards.set(towerId, card);
@@ -575,6 +649,7 @@ export class GameplayStage {
       });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
       const label = this.scene.add.text(
         x, deckY - 26, tower.name.substring(0, 10),
         { fontSize: "11px", color: "#f8fafc", fontStyle: "bold" }
@@ -586,6 +661,8 @@ export class GameplayStage {
         { fontSize: "12px", color: "#fbbf24", fontStyle: "bold" }
       ).setOrigin(0.5).setDepth(DEPTH.UI_LAYER);
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       const label = this.scene.add
         .text(x, deckY - 30, tower.name.substring(0, 8), {
           fontSize: "10px",
@@ -601,7 +678,10 @@ export class GameplayStage {
         })
         .setOrigin(0.5)
         .setDepth(DEPTH.UI_LAYER);
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
       this.deckObjects.push(card, label, costLabel);
       this.root?.add([card, label, costLabel]);
@@ -617,6 +697,7 @@ export class GameplayStage {
     this.startButton = this.scene.add.container(buttonX, buttonY);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     const bg = this.scene.add.rectangle(0, 0, buttonWidth, buttonHeight, 0x10b981)
       .setStrokeStyle(2, 0x34d399)
       .setInteractive({ useHandCursor: true });
@@ -627,6 +708,8 @@ export class GameplayStage {
       fontStyle: "bold"
     }).setOrigin(0.5);
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     const bg = this.scene.add
       .rectangle(0, 0, buttonWidth, buttonHeight, 0x4ade80)
       .setStrokeStyle(2, 0x6366f1)
@@ -639,11 +722,15 @@ export class GameplayStage {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
     bg.on("pointerover", () => bg.setFillStyle(0x059669));
     bg.on("pointerout", () => bg.setFillStyle(0x10b981));
     bg.on("pointerdown", () => {
+<<<<<<< HEAD
 <<<<<<< HEAD
       if (this.room) {
         this.room.send(MESSAGES.startCombat, {});
@@ -651,6 +738,9 @@ export class GameplayStage {
 =======
       this.room.send(MESSAGES.startCombat, {});
 >>>>>>> main
+=======
+      this.room.send(MESSAGES.startCombat, {});
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     });
 
     this.startButton.add([bg, text]);
@@ -665,6 +755,7 @@ export class GameplayStage {
   }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   private showGhostTower(slot: { slotIndex: number; x: number; y: number }): void {
     if (!this.selectedTowerType) return;
 =======
@@ -672,6 +763,11 @@ export class GameplayStage {
     if (!this.selectedTowerType || this.towers.has(slot.slotIndex)) return;
 
 >>>>>>> main
+=======
+  private showGhostTower(slot: TowerSlot): void {
+    if (!this.selectedTowerType || this.towers.has(slot.slotIndex)) return;
+
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.hideGhostTower();
 
     this.ghostTower = this.scene.add
@@ -696,11 +792,16 @@ export class GameplayStage {
     this.phaseBanner = this.scene.add.container(bannerX, bannerY);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     const bg = this.scene.add.rectangle(0, 0, 460, 46, 0x1e293b, 0.9)
 =======
     const bg = this.scene.add
       .rectangle(0, 0, 400, 50, 0x1e293b, 0.9)
 >>>>>>> main
+=======
+    const bg = this.scene.add
+      .rectangle(0, 0, 400, 50, 0x1e293b, 0.9)
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       .setStrokeStyle(2, 0x6366f1);
 
     const bannerText =
@@ -709,12 +810,15 @@ export class GameplayStage {
         : "BUILDING PHASE — Defender is setting up defenses";
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     const text = this.scene.add.text(0, 0, bannerText, {
       fontSize: "15px",
       color: "#ffffff",
       fontStyle: "bold"
     }).setOrigin(0.5);
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     const text = this.scene.add
       .text(0, 0, bannerText, {
         fontSize: "16px",
@@ -722,7 +826,10 @@ export class GameplayStage {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
     this.phaseBanner.add([bg, text]);
     this.phaseBanner.setDepth(DEPTH.UI_LAYER);
@@ -734,6 +841,7 @@ export class GameplayStage {
    * only writer, so the client never renders an optimistic local tower.
    */
   private setupTowerSync(): void {
+<<<<<<< HEAD
 <<<<<<< HEAD
     if (!this.room?.state?.towers) return;
 
@@ -773,6 +881,8 @@ export class GameplayStage {
 
     const sprite = this.scene.add.sprite(slot.x, slot.y, "tower_archer")
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     const callbacks = Callbacks.get(this.room);
 
     const onAdd = (value: unknown): void => {
@@ -798,7 +908,10 @@ export class GameplayStage {
 
     const sprite = this.scene.add
       .sprite(slot.x, slot.y, "tower_archer")
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       .setOrigin(0.5, 0.82)
       .setDisplaySize(135, 135)
       .setDepth(DEPTH.TOWERS_LAYER + slot.y * 0.001);
@@ -809,18 +922,24 @@ export class GameplayStage {
 
   startCombat(): void {
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (this.isCombat) return;
     this.isCombat = true;
 =======
     if (this.combatStarted || this.destroyed) return;
     this.combatStarted = true;
 >>>>>>> main
+=======
+    if (this.combatStarted || this.destroyed) return;
+    this.combatStarted = true;
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
     this.phaseBanner?.destroy();
     this.phaseBanner = undefined;
     this.startButton?.destroy();
     this.startButton = undefined;
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     // Show combat alert banner
     const banner = this.scene.add.container(640, 35);
@@ -914,6 +1033,8 @@ export class GameplayStage {
       },
       loop: true,
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.startSpawner();
   }
 
@@ -966,12 +1087,16 @@ export class GameplayStage {
         this.unitTweenTargets = this.unitTweenTargets.filter((target) => target !== progress);
         tween.remove();
       },
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     });
     this.spawnEvents.push(loopEvent);
   }
 
   destroy(): void {
+<<<<<<< HEAD
 <<<<<<< HEAD
     this.isCombat = false;
     this.spawnEvents.forEach(e => e.remove(false));
@@ -981,6 +1106,8 @@ export class GameplayStage {
 
     this.root?.destroy(true);
 =======
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.destroyed = true;
 
     for (const unsubscribe of this.unsubscribers) unsubscribe();
@@ -999,7 +1126,10 @@ export class GameplayStage {
     this.onKeyDown = undefined;
     this.onPointerDown = undefined;
 
+<<<<<<< HEAD
 >>>>>>> main
+=======
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.debugGraphics?.destroy();
     this.debugGraphics = undefined;
 
@@ -1010,6 +1140,7 @@ export class GameplayStage {
     this.units = [];
     this.deckCards.clear();
 <<<<<<< HEAD
+<<<<<<< HEAD
     this.topPortal?.destroy();
     this.bottomPortal?.destroy();
     this.phaseBanner?.destroy();
@@ -1017,5 +1148,8 @@ export class GameplayStage {
 =======
     this.deckObjects = [];
 >>>>>>> main
+=======
+    this.deckObjects = [];
+>>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   }
 }
