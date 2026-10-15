@@ -54,10 +54,10 @@ export class AttackerDraftStage {/**
     this.render();
   };
 
-    /**
-     * @param scene - Active Phaser scene that owns this stage's UI.
-     * @param onConfirm - Sends the selected deck to the server.
-     */
+  /**
+   * @param scene - Active Phaser scene that owns this stage's UI.
+   * @param onConfirm - Sends the selected deck to the server.
+   */
   constructor(scene: Phaser.Scene, onConfirm: (deck: string[]) => void) {
     this.scene = scene;
     this.onConfirm = onConfirm;

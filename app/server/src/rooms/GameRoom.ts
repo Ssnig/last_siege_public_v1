@@ -431,7 +431,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       roleChoice: options.roleChoice || "random",
     });
 
-    this.state.mapId = options.mapId || "sample";
+    this.state.mapId = options.mapId || "konbaung";
     this.state.phase = "drafting";
 
     this.phases = new Phases({ state: this.state });

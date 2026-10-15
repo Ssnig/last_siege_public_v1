@@ -182,9 +182,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-slate-950">
+    <div className="relative w-screen h-screen overflow-hidden bg-black flex items-center justify-center">
       {/* Phaser Canvas Container (fullscreen) */}
-      <div ref={gameRef} id="phaser-game" className="absolute inset-0" />
+      <div ref={gameRef} id="phaser-game" className="w-full h-full flex items-center justify-center" />
 
       {/* Game-over screen (layered above the canvas) */}
       {gameOver && (

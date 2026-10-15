@@ -3,7 +3,7 @@ import { Room, Callbacks } from "@colyseus/sdk";
 import {
   MESSAGES,
   MAPS,
-  SAMPLE_MAP,
+  KONBAUNG_MAP,
   type RoleAssignedPayload,
   type YouEconomyPayload,
 } from "@root/shared";
@@ -29,6 +29,8 @@ export class GameScene extends Phaser.Scene {
   private currentPhase?: string;
   private assignedRole?: PlayerRole;
   private buildingPlaceholder?: Phaser.GameObjects.Text;
+  private defenderDeck?: string[];
+  private gold?: number;
   private myEconomy?: YouEconomyPayload;
 
   private unsubscribeRoomListeners: Array<() => void> = [];
@@ -39,9 +41,16 @@ export class GameScene extends Phaser.Scene {
 
   preload(): void {
     this.load.image("konbaung", "/assets/maps/konbaung.jpg");
+    this.load.image("base_castle", "/assets/sprites/base_castle.png");
     this.load.image("tower_archer", "/assets/sprites/tower_archer.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
-    this.load.image("base_castle", "/assets/sprites/base_castle.png");
+    this.load.image("arrow_proj", "/assets/sprites/arrow.png");
+    this.load.image("spawn_1", "/assets/sprites/spawn1.png");
+    this.load.image("spawn_2", "/assets/sprites/spawn2.png");
+    this.load.image("spawn_3", "/assets/sprites/spawn3.png");
+    this.load.image("spawn_4", "/assets/sprites/spawn4.png");
+    this.load.image("spawn_5", "/assets/sprites/spawn5.png");
+    this.load.image("spawn_6", "/assets/sprites/spawn6.png");
   }
 
   create(): void {
@@ -84,20 +93,25 @@ export class GameScene extends Phaser.Scene {
       room.onMessage(
         MESSAGES.youEconomy,
         (payload: YouEconomyPayload) => {
+          console.log("Economy received:", payload);
+          this.defenderDeck = payload.deck;
+          this.gold = payload.gold;
           this.myEconomy = payload;
-          this.gameplayStage?.applyEconomy(payload);
+          if (this.gameplayStage) {
+            this.gameplayStage.applyEconomy(payload);
+          }
         },
       ),
     );
 
-const callbacks = Callbacks.get(room);
+    const callbacks = Callbacks.get(room);
 
-this.unsubscribeRoomListeners.push(
-  callbacks.listen("phase", (phase: string) => {
-    this.currentPhase = phase;
-    this.syncPhase();
-  }),
-);
+    this.unsubscribeRoomListeners.push(
+      callbacks.listen("phase", (phase: string) => {
+        this.currentPhase = phase;
+        this.syncPhase();
+      }),
+    );
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.cleanup();
@@ -146,6 +160,10 @@ this.unsubscribeRoomListeners.push(
         break;
 
       case "combat":
+        this.destroyDraftStages();
+        if (!this.gameplayStage) {
+          this.startGameplay();
+        }
         this.startCombat();
         break;
 
@@ -202,12 +220,14 @@ this.unsubscribeRoomListeners.push(
   private startGameplay(): void {
     if (this.gameplayStage) return;
 
-    const map = MAPS[this.room.state.mapId] ?? SAMPLE_MAP;
+    const map = MAPS[this.room.state.mapId] ?? KONBAUNG_MAP;
     this.gameplayStage = new GameplayStage(this, {
       room: this.room,
       map,
       role: this.assignedRole ?? "defender",
       economy: this.myEconomy,
+      gold: this.gold,
+      deck: this.defenderDeck,
     });
     this.gameplayStage.create();
   }
