@@ -48,8 +48,11 @@ private readonly onConfirm: (deck: string[]) => void;
   /** Stable callback reference for removing the resize listener. */
   private readonly handleResize = (): void => this.render();
 
+  private readonly scene: Phaser.Scene;
+
   /**
    * @param scene - Active Phaser scene that owns the draft UI.
+   * @param onConfirm - Callback for submitting the selected tower deck.
    */
 /**
  * @param scene - Active Phaser scene that owns the draft UI.

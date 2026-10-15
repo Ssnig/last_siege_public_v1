@@ -13,9 +13,11 @@ export const DEPTH = {
   MAP_BG: 0,
   PATH_LAYER: 1,
   SLOTS_LAYER: 2,
+  PORTAL_LAYER: 4,
   BASE_LAYER: 5,
   UNITS_LAYER: 10,
   TOWERS_LAYER: 15,
+  PROJECTILES_LAYER: 20,
   UI_LAYER: 30,
 } as const;
 
@@ -292,11 +294,14 @@ export class GameplayStage {
 
     if (this.deck.length === 0) return;
 
-    const deckX = 20;
-    const deckY = 680;
-    const cardWidth = 80;
-    const cardHeight = 80;
-    const gap = 10;
+    // Clean up previous deck elements if any
+    this.deckCards.clear();
+
+    const deckX = 24;
+    const deckY = 665;
+    const cardWidth = 84;
+    const cardHeight = 84;
+    const gap = 12;
 
     this.deck.forEach((towerId, index) => {
       const tower = TOWER_TYPES[towerId];
@@ -311,7 +316,11 @@ export class GameplayStage {
 
       this.deckCards.set(towerId, card);
 
-      card.on("pointerover", () => card.setStrokeStyle(2, 0x6366f1));
+      card.on("pointerover", () => {
+        if (this.selectedTowerType !== towerId) {
+          card.setStrokeStyle(2, 0x6366f1);
+        }
+      });
       card.on("pointerout", () => {
         card.setStrokeStyle(2, this.selectedTowerType === towerId ? 0x4ade80 : 0x475569);
       });
@@ -343,9 +352,9 @@ export class GameplayStage {
 
   private renderStartButton(): void {
     const buttonX = 1150;
-    const buttonY = 30;
-    const buttonWidth = 120;
-    const buttonHeight = 40;
+    const buttonY = 35;
+    const buttonWidth = 140;
+    const buttonHeight = 44;
 
     this.startButton = this.scene.add.container(buttonX, buttonY);
 
@@ -362,8 +371,8 @@ export class GameplayStage {
       })
       .setOrigin(0.5);
 
-    bg.on("pointerover", () => bg.setFillStyle(0x6366f1));
-    bg.on("pointerout", () => bg.setFillStyle(0x4ade80));
+    bg.on("pointerover", () => bg.setFillStyle(0x059669));
+    bg.on("pointerout", () => bg.setFillStyle(0x10b981));
     bg.on("pointerdown", () => {
       this.room.send(MESSAGES.startCombat, {});
     });
@@ -401,7 +410,7 @@ export class GameplayStage {
 
   private renderPhaseBanner(): void {
     const bannerX = 640;
-    const bannerY = 30;
+    const bannerY = 35;
 
     this.phaseBanner = this.scene.add.container(bannerX, bannerY);
 
@@ -527,6 +536,7 @@ export class GameplayStage {
         tween.remove();
       },
     });
+    this.spawnEvents.push(loopEvent);
   }
 
   destroy(): void {

@@ -64,7 +64,7 @@ export const KONBAUNG_MAP: MapDefinition = {
   path: [],
   paths: {
     top: [
-      { x: 0, y: 112 },
+      { x: 52, y: 112 },
       { x: 256, y: 112 },
       { x: 317, y: 158 },
       { x: 342, y: 274 },
@@ -74,11 +74,10 @@ export const KONBAUNG_MAP: MapDefinition = {
       { x: 816, y: 184 },
       { x: 842, y: 266 },
       { x: 858, y: 349 },
-      { x: 960, y: 374 },
       { x: 1005, y: 375 }
     ],
     bottom: [
-      { x: 0, y: 583 },
+      { x: 52, y: 583 },
       { x: 243, y: 583 },
       { x: 288, y: 518 },
       { x: 317, y: 443 },
