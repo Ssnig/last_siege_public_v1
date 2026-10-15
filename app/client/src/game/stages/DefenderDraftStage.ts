@@ -47,19 +47,19 @@ private readonly onConfirm: (deck: string[]) => void;
   /** Stable callback reference for removing the resize listener. */
   private readonly handleResize = (): void => this.render();
 
+  private readonly scene: Phaser.Scene;
+
   /**
    * @param scene - Active Phaser scene that owns the draft UI.
+   * @param onConfirm - Callback for submitting the selected tower deck.
    */
-/**
- * @param scene - Active Phaser scene that owns the draft UI.
- * @param onConfirm - Callback for submitting the selected tower deck.
- */
-constructor(
-  private readonly scene: Phaser.Scene,
-  onConfirm: (deck: string[]) => void,
-) {
-  this.onConfirm = onConfirm;
-}
+  constructor(
+    scene: Phaser.Scene,
+    onConfirm: (deck: string[]) => void,
+  ) {
+    this.scene = scene;
+    this.onConfirm = onConfirm;
+  }
 
   /** Creates the draft UI and registers responsive layout handling. */
   create(): void {
@@ -423,15 +423,16 @@ constructor(
       { fontSize: "24px", fontStyle: "bold", color: "#f8fafc" },
     );
 
+    const tier = tower.tiers[0];
     const stats = this.scene.add.text(
       panelX + 22,
       panelY + 78,
       [
-        `COST                 ${tower.cost} gold`,
-        `RANGE               ${tower.range}`,
-        `DAMAGE             ${tower.damage}`,
-        `FIRE RATE           ${tower.fireRate}/sec`,
-        `PROJECTILE SPEED   ${tower.projectileSpeed}`,
+        `COST                 ${tier?.cost ?? 0} gold`,
+        `RANGE               ${tier?.range ?? 0}`,
+        `DAMAGE             ${tier?.damage ?? 0}`,
+        `FIRE RATE           ${tier?.fireRate ?? 0}/sec`,
+        `PROJECTILE SPEED   ${tier?.projectileSpeed ?? 0}`,
       ].join("\n\n"),
       { fontSize: "14px", color: "#cbd5e1", lineSpacing: 5 },
     );

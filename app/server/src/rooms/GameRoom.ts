@@ -4,10 +4,12 @@ import { IdleKickPlugin } from "colyseus/plugins/idle-kick";
 import {
   RoomState,
   Player,
+  Tower,
   MESSAGES,
   MOB_TYPES,
   TOWER_TYPES,
   DEFAULT_DECK_RULES,
+  DEFAULT_ECONOMY,
   type DraftReadyIntent,
   type GameOverPayload,
   type PlaceTowerIntent,
@@ -46,6 +48,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private acceptedDecks = new Map<string, string[]>();
 
+  /** Private player gold balances keyed by session ID. */
+  private playerGold = new Map<string, number>();
+
   /** Authoritative phase + timer state machine. */
   private phases!: Phases;
 
@@ -71,7 +76,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     [MESSAGES.startCombat]: (
       client: Client,
       payload: StartCombatIntent,
-    ) => this.handleStartCombat(client),
+    ) => this.handleStartCombat(client, payload),
   };
 
   /**
@@ -232,19 +237,28 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.state.phase = "building";
       console.log(`Room ${this.roomId}: drafting -> building`);
 
-      // Send defender's deck to the defender player
+      // Initialize economy and send private payloads to each player
       for (const c of this.clients) {
         const role = c.userData?.role as PlayerRole | undefined;
+        const deck = this.acceptedDecks.get(c.sessionId) || [];
         if (role === "defender") {
-          const deck = this.acceptedDecks.get(c.sessionId);
-          if (deck) {
-            const economy: YouEconomyPayload = {
-              gold: 200, // Starting gold for defender
-              deck,
-              bigWavesRemaining: 0, // Defender doesn't have waves
-            };
-            c.send(MESSAGES.youEconomy, economy);
-          }
+          const gold = DEFAULT_ECONOMY.defenderStartingGold;
+          this.playerGold.set(c.sessionId, gold);
+          const economy: YouEconomyPayload = {
+            gold,
+            deck,
+            bigWavesRemaining: 0,
+          };
+          c.send(MESSAGES.youEconomy, economy);
+        } else if (role === "attacker") {
+          const gold = DEFAULT_ECONOMY.attackerStartingGold;
+          this.playerGold.set(c.sessionId, gold);
+          const economy: YouEconomyPayload = {
+            gold,
+            deck,
+            bigWavesRemaining: DEFAULT_ECONOMY.bigWaveCount,
+          };
+          c.send(MESSAGES.youEconomy, economy);
         }
       }
     }
@@ -286,25 +300,40 @@ export class GameRoom extends Room<{ state: RoomState }> {
       return;
     }
 
-    // Check gold (for now, use a simple counter - full economy system later)
+    // Check tower type and gold cost
     const towerType = TOWER_TYPES[payload.typeId];
     if (!towerType) return;
 
     const cost = buildCost(towerType);
-    // For now, just place the tower without gold deduction
-    // Full economy system will be implemented separately
+    const currentGold = this.playerGold.get(client.sessionId) ?? DEFAULT_ECONOMY.defenderStartingGold;
+    if (currentGold < cost) {
+      console.log(`Not enough gold to build tower ${payload.typeId}: need ${cost}, have ${currentGold}`);
+      return;
+    }
+
+    // Deduct gold
+    const newGold = currentGold - cost;
+    this.playerGold.set(client.sessionId, newGold);
 
     // Create tower in state
     const towerId = `${client.sessionId}-${payload.slotIndex}`;
-    this.state.towers.set(towerId, {
+    this.state.towers.set(towerId, new Tower({
       ownerId: client.sessionId,
       typeId: payload.typeId,
       slotIndex: payload.slotIndex,
       level: 1,
       cooldown: 0,
-    });
+    }));
 
-    console.log(`Defender placed tower ${payload.typeId} at slot ${payload.slotIndex}`);
+    // Send updated economy to defender
+    const economy: YouEconomyPayload = {
+      gold: newGold,
+      deck,
+      bigWavesRemaining: 0,
+    };
+    client.send(MESSAGES.youEconomy, economy);
+
+    console.log(`Defender placed tower ${payload.typeId} at slot ${payload.slotIndex} (cost: ${cost}, remaining gold: ${newGold})`);
   }
 
   /**
@@ -449,6 +478,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.state.players.delete(client.sessionId);
     this.acceptedDecks.delete(client.sessionId);
+    this.playerGold.delete(client.sessionId);
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 

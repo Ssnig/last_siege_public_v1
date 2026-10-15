@@ -29,6 +29,7 @@ export class GameScene extends Phaser.Scene {
   private assignedRole?: PlayerRole;
   private buildingPlaceholder?: Phaser.GameObjects.Text;
   private defenderDeck?: string[];
+  private gold?: number;
 
   private unsubscribeRoomListeners: Array<() => void> = [];
 
@@ -38,9 +39,16 @@ export class GameScene extends Phaser.Scene {
 
   preload(): void {
     this.load.image("konbaung", "/assets/maps/konbaung.jpg");
+    this.load.image("base_castle", "/assets/sprites/base_castle.png");
     this.load.image("tower_archer", "/assets/sprites/tower_archer.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
-    this.load.image("base_castle", "/assets/sprites/base_castle.png");
+    this.load.image("arrow_proj", "/assets/sprites/arrow.png");
+    this.load.image("spawn_1", "/assets/sprites/spawn1.png");
+    this.load.image("spawn_2", "/assets/sprites/spawn2.png");
+    this.load.image("spawn_3", "/assets/sprites/spawn3.png");
+    this.load.image("spawn_4", "/assets/sprites/spawn4.png");
+    this.load.image("spawn_5", "/assets/sprites/spawn5.png");
+    this.load.image("spawn_6", "/assets/sprites/spawn6.png");
   }
 
   create(): void {
@@ -85,18 +93,22 @@ export class GameScene extends Phaser.Scene {
         (payload: YouEconomyPayload) => {
           console.log("Economy received:", payload);
           this.defenderDeck = payload.deck;
+          this.gold = payload.gold;
+          if (this.gameplayStage) {
+            this.gameplayStage.updateEconomy(payload.gold, payload.deck);
+          }
         },
       ),
     );
 
-const callbacks = Callbacks.get(room);
+    const callbacks = Callbacks.get(room);
 
-this.unsubscribeRoomListeners.push(
-  callbacks.listen("phase", (phase: string) => {
-    this.currentPhase = phase;
-    this.syncPhase();
-  }),
-);
+    this.unsubscribeRoomListeners.push(
+      callbacks.listen("phase", (phase: string) => {
+        this.currentPhase = phase;
+        this.syncPhase();
+      }),
+    );
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.cleanup();
@@ -145,6 +157,10 @@ this.unsubscribeRoomListeners.push(
         break;
 
       case "combat":
+        this.destroyDraftStages();
+        if (!this.gameplayStage) {
+          this.startGameplay();
+        }
         this.startCombat();
         break;
 
@@ -203,7 +219,7 @@ this.unsubscribeRoomListeners.push(
 
     // Use konbaung map for testing (in production, read from room.state.mapId)
     const map = KONBAUNG_MAP;
-    this.gameplayStage = new GameplayStage(this, map, this.defenderDeck, this.room, 200, this.assignedRole); // Starting gold
+    this.gameplayStage = new GameplayStage(this, map, this.defenderDeck, this.room, this.gold ?? 200, this.assignedRole);
     this.gameplayStage.create();
   }
 
