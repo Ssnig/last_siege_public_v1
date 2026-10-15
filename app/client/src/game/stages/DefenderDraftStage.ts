@@ -28,6 +28,7 @@ export class DefenderDraftStage {
  * The stage owns UI state, not the Colyseus connection.
  */
 private readonly onConfirm: (deck: string[]) => void;
+  private readonly scene: Phaser.Scene;
   private root?: Phaser.GameObjects.Container;
   private cards: TowerCard[] = [];
   private selected = new Set<string>();
@@ -53,6 +54,7 @@ private readonly onConfirm: (deck: string[]) => void;
    * @param scene - Active Phaser scene that owns the draft UI.
    * @param onConfirm - Callback for submitting the selected tower deck.
    */
+<<<<<<< HEAD
   constructor(
     scene: Phaser.Scene,
     onConfirm: (deck: string[]) => void,
@@ -60,6 +62,16 @@ private readonly onConfirm: (deck: string[]) => void;
     this.scene = scene;
     this.onConfirm = onConfirm;
   }
+=======
+/**
+ * @param scene - Active Phaser scene that owns the draft UI.
+ * @param onConfirm - Callback for submitting the selected tower deck.
+ */
+constructor(scene: Phaser.Scene, onConfirm: (deck: string[]) => void) {
+  this.scene = scene;
+  this.onConfirm = onConfirm;
+}
+>>>>>>> main
 
   /** Creates the draft UI and registers responsive layout handling. */
   create(): void {
@@ -428,11 +440,19 @@ private readonly onConfirm: (deck: string[]) => void;
       panelX + 22,
       panelY + 78,
       [
+<<<<<<< HEAD
         `COST                 ${tier?.cost ?? 0} gold`,
         `RANGE               ${tier?.range ?? 0}`,
         `DAMAGE             ${tier?.damage ?? 0}`,
         `FIRE RATE           ${tier?.fireRate ?? 0}/sec`,
         `PROJECTILE SPEED   ${tier?.projectileSpeed ?? 0}`,
+=======
+        `COST                 ${tier.cost} gold`,
+        `RANGE               ${tier.range}`,
+        `DAMAGE             ${tier.damage}`,
+        `FIRE RATE           ${tier.fireRate}/sec`,
+        `PROJECTILE SPEED   ${tier.projectileSpeed}`,
+>>>>>>> main
       ].join("\n\n"),
       { fontSize: "14px", color: "#cbd5e1", lineSpacing: 5 },
     );

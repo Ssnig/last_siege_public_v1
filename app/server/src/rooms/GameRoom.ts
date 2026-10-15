@@ -6,6 +6,8 @@ import {
   Player,
   Tower,
   MESSAGES,
+  MAPS,
+  SAMPLE_MAP,
   MOB_TYPES,
   TOWER_TYPES,
   DEFAULT_DECK_RULES,
@@ -14,7 +16,6 @@ import {
   type GameOverPayload,
   type PlaceTowerIntent,
   type YouEconomyPayload,
-  type StartCombatIntent,
   buildCost,
 } from "@root/shared";
 import { Phases } from "../game/phases.js";
@@ -48,8 +49,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private acceptedDecks = new Map<string, string[]>();
 
+<<<<<<< HEAD
   /** Private player gold balances keyed by session ID. */
   private playerGold = new Map<string, number>();
+=======
+  /**
+   * Hidden gold per session ID. Mirrors `acceptedDecks`: kept off `RoomState`
+   * and pushed to the owner via private `you_economy` messages only.
+   */
+  private economies = new Map<string, number>();
+>>>>>>> main
 
   /** Authoritative phase + timer state machine. */
   private phases!: Phases;
@@ -73,10 +82,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
       payload: PlaceTowerIntent,
     ) => this.handlePlaceTower(client, payload),
 
+<<<<<<< HEAD
     [MESSAGES.startCombat]: (
       client: Client,
       payload: StartCombatIntent,
     ) => this.handleStartCombat(client, payload),
+=======
+    [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
+>>>>>>> main
   };
 
   /**
@@ -123,9 +136,32 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (creatorState) creatorState.role = creatorRole;
     if (joinerState) joinerState.role = joinerRole;
 
+    this.economies.set(creatorClient.sessionId, this.startingGold(creatorRole));
+    this.economies.set(joinerClient.sessionId, this.startingGold(joinerRole));
+
     console.log(
       `Roles assigned: Creator = ${creatorRole}, Joiner = ${joinerRole}`,
     );
+  }
+
+  private startingGold(role: PlayerRole): number {
+    return role === "defender"
+      ? DEFAULT_ECONOMY.defenderStartingGold
+      : DEFAULT_ECONOMY.attackerStartingGold;
+  }
+
+  /**
+   * Pushes a player's private economy snapshot. Safe to call at any time; the
+   * deck may be empty before the draft is confirmed.
+   */
+  private sendEconomy(client: Client): void {
+    const role = client.userData?.role as PlayerRole | undefined;
+    const economy: YouEconomyPayload = {
+      gold: this.economies.get(client.sessionId) ?? 0,
+      deck: this.acceptedDecks.get(client.sessionId) ?? [],
+      bigWavesRemaining: role === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
+    };
+    client.send(MESSAGES.youEconomy, economy);
   }
 
   /**
@@ -234,9 +270,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
       });
 
     if (bothReady) {
-      this.state.phase = "building";
+      this.phases.beginBuilding([]);
       console.log(`Room ${this.roomId}: drafting -> building`);
 
+<<<<<<< HEAD
       // Initialize economy and send private payloads to each player
       for (const c of this.clients) {
         const role = c.userData?.role as PlayerRole | undefined;
@@ -260,6 +297,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
           };
           c.send(MESSAGES.youEconomy, economy);
         }
+=======
+      // Push each player their own (now populated) economy snapshot.
+      for (const c of this.clients) {
+        this.sendEconomy(c);
+>>>>>>> main
       }
     }
   }
@@ -277,7 +319,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * and they must have enough gold.
    */
   private handlePlaceTower(client: Client, payload: PlaceTowerIntent): void {
-    if (this.state.phase !== "building" && this.state.phase !== "combat") return;
+    if (this.state.phase !== "building") return;
 
     const role = client.userData?.role as PlayerRole | undefined;
     if (role !== "defender") {
@@ -285,21 +327,32 @@ export class GameRoom extends Room<{ state: RoomState }> {
       return;
     }
 
+    const towerType = TOWER_TYPES[payload.typeId];
+    if (!towerType) return;
+
     const deck = this.acceptedDecks.get(client.sessionId);
     if (!deck || !deck.includes(payload.typeId)) {
       console.log(`Tower ${payload.typeId} not in defender's deck`);
       return;
     }
 
-    // Check if slot is already occupied
+    // The slot must exist on this room's map.
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const slot = map.slots.find((s) => s.slotIndex === payload.slotIndex);
+    if (!slot) {
+      console.log(`Slot ${payload.slotIndex} does not exist on map ${map.id}`);
+      return;
+    }
+
     const slotOccupied = Array.from(this.state.towers.values()).some(
-      t => t.slotIndex === payload.slotIndex
+      (t) => t.slotIndex === payload.slotIndex,
     );
     if (slotOccupied) {
       console.log(`Slot ${payload.slotIndex} is already occupied`);
       return;
     }
 
+<<<<<<< HEAD
     // Check tower type and gold cost
     const towerType = TOWER_TYPES[payload.typeId];
     if (!towerType) return;
@@ -314,9 +367,21 @@ export class GameRoom extends Room<{ state: RoomState }> {
     // Deduct gold
     const newGold = currentGold - cost;
     this.playerGold.set(client.sessionId, newGold);
+=======
+    const cost = buildCost(towerType);
+    const gold = this.economies.get(client.sessionId) ?? 0;
+    if (gold < cost) {
+      console.log(
+        `Not enough gold to build ${payload.typeId} (${gold}/${cost})`,
+      );
+      return;
+    }
 
-    // Create tower in state
+    this.economies.set(client.sessionId, gold - cost);
+>>>>>>> main
+
     const towerId = `${client.sessionId}-${payload.slotIndex}`;
+<<<<<<< HEAD
     this.state.towers.set(towerId, new Tower({
       ownerId: client.sessionId,
       typeId: payload.typeId,
@@ -334,6 +399,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
     client.send(MESSAGES.youEconomy, economy);
 
     console.log(`Defender placed tower ${payload.typeId} at slot ${payload.slotIndex} (cost: ${cost}, remaining gold: ${newGold})`);
+=======
+    this.state.towers.set(
+      towerId,
+      new Tower({
+        ownerId: client.sessionId,
+        typeId: payload.typeId,
+        slotIndex: payload.slotIndex,
+        level: 1,
+        cooldown: 0,
+      }),
+    );
+
+    this.sendEconomy(client);
+
+    console.log(
+      `Defender placed tower ${payload.typeId} at slot ${payload.slotIndex} (-${cost}g)`,
+    );
+>>>>>>> main
   }
 
   /**
@@ -342,7 +425,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * @remarks
    * Allows the defender to manually start combat instead of waiting for timer.
    */
-  private handleStartCombat(client: Client, payload: StartCombatIntent): void {
+  private handleStartCombat(client: Client): void {
     if (this.state.phase !== "building") return;
 
     const role = client.userData?.role as PlayerRole | undefined;
@@ -457,6 +540,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.assignRoles();
       await this.lock();
       this.phases.beginDraft();
+
+      // Seed each client with its private economy so the HUD is correct even
+      // before the draft is confirmed (deck arrives in a later push).
+      for (const c of this.clients) {
+        this.sendEconomy(c);
+      }
     }
   }
 
@@ -467,6 +556,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   onReconnect(client: Client): void {
     console.log(`Client ${client.sessionId} reconnected!`);
+    this.sendEconomy(client);
   }
 
   /**
@@ -478,7 +568,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.state.players.delete(client.sessionId);
     this.acceptedDecks.delete(client.sessionId);
+<<<<<<< HEAD
     this.playerGold.delete(client.sessionId);
+=======
+    this.economies.delete(client.sessionId);
+>>>>>>> main
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 
@@ -499,6 +593,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
       }
 
       this.phases.reset();
+
+      const hostRole = host.userData?.role as PlayerRole | undefined;
+      this.economies.set(host.sessionId, this.startingGold(hostRole ?? "defender"));
+      this.sendEconomy(host);
 
       if (wasCreator) {
         this.creatorSessionId = host.sessionId;

@@ -1,6 +1,18 @@
 import Phaser from "phaser";
+<<<<<<< HEAD
 import { type MapDefinition, TOWER_TYPES, MESSAGES } from "@root/shared";
+=======
+import { Callbacks, Room } from "@colyseus/sdk";
+import {
+  MESSAGES,
+  type MapDefinition,
+  type Tower,
+  type YouEconomyPayload,
+  TOWER_TYPES,
+} from "@root/shared";
+>>>>>>> main
 
+/** Render order for the gameplay layers. */
 export const DEPTH = {
   MAP_BG: 0,
   PATH_LAYER: 1,
@@ -13,24 +25,53 @@ export const DEPTH = {
   UI_LAYER: 30,
 } as const;
 
+export interface GameplayStageOptions {
+  room: Room;
+  map: MapDefinition;
+  role: "attacker" | "defender";
+  economy?: YouEconomyPayload;
+}
+
+type TowerSlot = { slotIndex: number; x: number; y: number };
+
+/**
+ * Renders the map (background, mob paths, tower slots, base) once the draft
+ * ends, plus the defender's build UI. `RoomState.towers` is the single source
+ * of truth: placements round-trip through the server and render on `onAdd`.
+ *
+ * @remarks
+ * Owned by `GameScene`; call `destroy()` on scene shutdown to release listeners,
+ * timers and tweens.
+ */
 export class GameplayStage {
   private scene: Phaser.Scene;
+  private room: Room;
   private map: MapDefinition;
+  private role: "attacker" | "defender";
+
   private root?: Phaser.GameObjects.Container;
-  private debugGraphics?: Phaser.GameObjects.Graphics;
-  private showDebug = false;
+  private paths: Phaser.Curves.Path[] = [];
   private towers: Map<number, Phaser.GameObjects.Sprite> = new Map();
   private units: Phaser.GameObjects.Sprite[] = [];
+<<<<<<< HEAD
   private spawnEvents: Phaser.Time.TimerEvent[] = [];
   private spawnTimeouts: Phaser.Time.TimerEvent[] = [];
   private topPath?: Phaser.Curves.Path;
   private bottomPath?: Phaser.Curves.Path;
   private defenderDeck?: string[];
+=======
+  private unitTweenTargets: Array<{ t: number }> = [];
+
+  private gold = 0;
+  private deck: string[] = [];
+>>>>>>> main
   private selectedTowerType?: string;
-  private room?: any; // Colyseus Room
+
   private deckCards: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private deckObjects: Phaser.GameObjects.GameObject[] = [];
   private ghostTower?: Phaser.GameObjects.Sprite;
   private phaseBanner?: Phaser.GameObjects.Container;
+<<<<<<< HEAD
   private goldText?: Phaser.GameObjects.Text;
   private gold: number;
   private myRole?: "attacker" | "defender";
@@ -56,20 +97,56 @@ export class GameplayStage {
 
     if (this.defenderDeck && this.defenderDeck.length > 0) {
       this.selectedTowerType = this.defenderDeck[0];
+=======
+  private startButton?: Phaser.GameObjects.Container;
+  private goldText?: Phaser.GameObjects.Text;
+
+  private spawnTimer?: Phaser.Time.TimerEvent;
+  private combatStarted = false;
+  private destroyed = false;
+
+  private unsubscribers: Array<() => void> = [];
+  private debugGraphics?: Phaser.GameObjects.Graphics;
+  private showDebug = false;
+  private onKeyDown?: (event: KeyboardEvent) => void;
+  private onPointerDown?: (pointer: Phaser.Input.Pointer) => void;
+
+  constructor(scene: Phaser.Scene, options: GameplayStageOptions) {
+    this.scene = scene;
+    this.room = options.room;
+    this.map = options.map;
+    this.role = options.role;
+
+    if (options.economy) {
+      this.gold = options.economy.gold;
+      this.deck = options.economy.deck;
+>>>>>>> main
     }
   }
 
   create(): void {
     this.render();
+<<<<<<< HEAD
     this.setupPortals();
     this.setupDebugControls();
 
     if (this.myRole === "defender") {
+=======
+
+    if (import.meta.env.DEV) {
+      this.setupDebugControls();
+    }
+
+    if (this.role === "defender") {
+      this.renderGoldText();
+>>>>>>> main
       this.renderTowerDeck();
       this.renderStartButton();
     }
+
     this.renderPhaseBanner();
     this.setupTowerSync();
+<<<<<<< HEAD
   }
 
   updateEconomy(gold: number, deck?: string[]): void {
@@ -123,21 +200,51 @@ export class GameplayStage {
       .setDepth(DEPTH.PORTAL_LAYER + 583 * 0.001)
       .play("portal_spin");
     this.root?.add(this.bottomPortal);
+=======
+    // Units only spawn once the server advances to combat.
+  }
+
+  /** Applies a server economy push (gold + deck), even if it arrives late. */
+  applyEconomy(economy: YouEconomyPayload): void {
+    if (this.destroyed) return;
+
+    const deckChanged = economy.deck.join(",") !== this.deck.join(",");
+    this.gold = economy.gold;
+    this.deck = economy.deck;
+
+    this.goldText?.setText(`Gold: ${this.gold}`);
+
+    if (deckChanged && this.role === "defender") {
+      this.renderTowerDeck();
+    }
+>>>>>>> main
   }
 
   private render(): void {
     this.root?.destroy(true);
     this.root = this.scene.add.container(0, 0);
 
-    // Load and render map background
-    if (this.map.id === "konbaung") {
-      const bg = this.scene.add.image(0, 0, "konbaung")
+    const width = this.map.width ?? 1280;
+    const height = this.map.height ?? 720;
+
+    // Background image (only maps that ship one).
+    if (this.scene.textures.exists(this.map.id)) {
+      const bg = this.scene
+        .add.image(0, 0, this.map.id)
         .setOrigin(0, 0)
-        .setDisplaySize(this.map.width || 1280, this.map.height || 720)
+        .setDisplaySize(width, height)
         .setDepth(DEPTH.MAP_BG);
       this.root.add(bg);
+    } else {
+      this.root.add(
+        this.scene.add
+          .rectangle(0, 0, width, height, 0x0f172a)
+          .setOrigin(0, 0)
+          .setDepth(DEPTH.MAP_BG),
+      );
     }
 
+<<<<<<< HEAD
     // Create path curves from map data
     if (this.map.paths?.top && this.map.paths.top.length > 0) {
       this.topPath = new Phaser.Curves.Path(this.map.paths.top[0].x, this.map.paths.top[0].y);
@@ -166,6 +273,20 @@ export class GameplayStage {
             placeholder.setFillStyle(0xd2691e, 0.7);
             this.showGhostTower(slot);
           }
+=======
+    this.buildPaths();
+
+    this.map.slots.forEach((slot) => {
+      const placeholder = this.scene
+        .add.circle(slot.x, slot.y, 36, 0x8b4513, 0.5)
+        .setDepth(DEPTH.SLOTS_LAYER);
+
+      if (this.role === "defender") {
+        placeholder.setInteractive();
+        placeholder.on("pointerover", () => {
+          placeholder.setFillStyle(0xd2691e, 0.7);
+          this.showGhostTower(slot);
+>>>>>>> main
         });
         placeholder.on("pointerout", () => {
           placeholder.setFillStyle(0x8b4513, 0.5);
@@ -177,6 +298,7 @@ export class GameplayStage {
       this.root?.add(placeholder);
     });
 
+<<<<<<< HEAD
     // Render base castle and floating HP bar
     if (this.map.base && this.map.id === "konbaung") {
       const baseCastle = this.scene.add.sprite(
@@ -184,11 +306,44 @@ export class GameplayStage {
         this.map.base.y,
         "base_castle"
       )
+=======
+    this.renderBase();
+  }
+
+  /** Builds walkable curves from either the single `path` or named `paths`. */
+  private buildPaths(): void {
+    this.paths = [];
+
+    const named = this.map.paths;
+    if (named?.top?.length) this.paths.push(this.curveFrom(named.top));
+    if (named?.bottom?.length) this.paths.push(this.curveFrom(named.bottom));
+
+    if (this.paths.length === 0 && this.map.path.length > 0) {
+      this.paths.push(this.curveFrom(this.map.path));
+    }
+  }
+
+  private curveFrom(points: { x: number; y: number }[]): Phaser.Curves.Path {
+    const path = new Phaser.Curves.Path(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      path.lineTo(points[i].x, points[i].y);
+    }
+    return path;
+  }
+
+  private renderBase(): void {
+    if (!this.map.base) return;
+
+    if (this.scene.textures.exists("base_castle")) {
+      const baseCastle = this.scene
+        .add.sprite(this.map.base.x, this.map.base.y, "base_castle")
+>>>>>>> main
         .setOrigin(0.5, 0.62)
         .setDisplaySize(310, 310)
         .setDepth(DEPTH.BASE_LAYER);
-      this.root.add(baseCastle);
+      this.root?.add(baseCastle);
 
+<<<<<<< HEAD
       // Render floating base HP bar above castle
       const hpBarWidth = 120;
       const hpBarHeight = 10;
@@ -218,20 +373,57 @@ export class GameplayStage {
         this.map.base.x, this.map.base.y, 50, 0xff0000, 0.3
       ).setDepth(DEPTH.BASE_LAYER);
       this.root.add(base);
+=======
+      const hpBarWidth = 100;
+      const hpBarHeight = 8;
+      const barX = this.map.base.x;
+      const barY = this.map.base.y - 175;
+
+      this.root?.add(
+        this.scene.add
+          .rectangle(barX, barY, hpBarWidth, hpBarHeight, 0x1e293b)
+          .setOrigin(0.5)
+          .setDepth(DEPTH.BASE_LAYER),
+      );
+      this.root?.add(
+        this.scene.add
+          .rectangle(barX - hpBarWidth / 2, barY, hpBarWidth, hpBarHeight, 0x4ade80)
+          .setOrigin(0, 0.5)
+          .setDepth(DEPTH.BASE_LAYER),
+      );
+      this.root?.add(
+        this.scene.add
+          .text(barX, barY - 12, "10/10 HP", { fontSize: "12px", color: "#ffffff" })
+          .setOrigin(0.5)
+          .setDepth(DEPTH.BASE_LAYER),
+      );
+    } else {
+      this.root?.add(
+        this.scene.add
+          .circle(this.map.base.x, this.map.base.y, 50, 0xff0000, 0.3)
+          .setDepth(DEPTH.BASE_LAYER),
+      );
+>>>>>>> main
     }
   }
 
   private setupDebugControls(): void {
+<<<<<<< HEAD
     this.scene.input.keyboard?.on("keydown-D", () => {
+=======
+    this.onKeyDown = () => {
+>>>>>>> main
       this.showDebug = !this.showDebug;
       this.toggleDebugGraphics();
-    });
+    };
+    this.scene.input.keyboard?.on("keydown-D", this.onKeyDown);
 
-    this.scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+    this.onPointerDown = (pointer: Phaser.Input.Pointer) => {
       if (this.showDebug) {
         console.log(`{ x: ${Math.round(pointer.worldX)}, y: ${Math.round(pointer.worldY)} }`);
       }
-    });
+    };
+    this.scene.input.on("pointerdown", this.onPointerDown);
   }
 
   private toggleDebugGraphics(): void {
@@ -240,6 +432,7 @@ export class GameplayStage {
 
     if (!this.showDebug) return;
 
+<<<<<<< HEAD
     this.debugGraphics = this.scene.add.graphics();
     this.debugGraphics.setDepth(DEPTH.PATH_LAYER);
 
@@ -261,10 +454,24 @@ export class GameplayStage {
       console.log(`Slot ${slot.slotIndex} already occupied`);
       return;
     }
+=======
+    this.debugGraphics = this.scene.add.graphics().setDepth(DEPTH.PATH_LAYER);
+    this.debugGraphics.lineStyle(3, 0x00ff00, 0.5);
+    for (const path of this.paths) {
+      path.draw(this.debugGraphics);
+    }
+  }
+
+  private handleSlotClick(slot: TowerSlot): void {
+    // Occupied slots are reserved for a future upgrade flow.
+    if (this.towers.has(slot.slotIndex)) return;
+
+>>>>>>> main
     if (!this.selectedTowerType) {
       console.log("No tower type selected");
       return;
     }
+<<<<<<< HEAD
 
     const towerType = TOWER_TYPES[this.selectedTowerType];
     const cost = towerType?.tiers[0]?.cost ?? 0;
@@ -282,10 +489,34 @@ export class GameplayStage {
         slotIndex: slot.slotIndex,
       });
     }
+=======
+
+    this.hideGhostTower();
+    this.room.send(MESSAGES.placeTower, {
+      typeId: this.selectedTowerType,
+      slotIndex: slot.slotIndex,
+    });
+  }
+
+  private renderGoldText(): void {
+    this.goldText = this.scene.add
+      .text(20, 640, `Gold: ${this.gold}`, {
+        fontSize: "14px",
+        color: "#fbbf24",
+        fontStyle: "bold",
+      })
+      .setOrigin(0, 0.5)
+      .setDepth(DEPTH.UI_LAYER);
+    this.root?.add(this.goldText);
+>>>>>>> main
   }
 
   private renderTowerDeck(): void {
-    if (!this.defenderDeck || this.defenderDeck.length === 0) return;
+    for (const obj of this.deckObjects) obj.destroy();
+    this.deckObjects = [];
+    this.deckCards.clear();
+
+    if (this.deck.length === 0) return;
 
     // Clean up previous deck elements if any
     this.deckCards.clear();
@@ -296,6 +527,7 @@ export class GameplayStage {
     const cardHeight = 84;
     const gap = 12;
 
+<<<<<<< HEAD
     // Render gold display
     this.goldText?.destroy();
     this.goldText = this.scene.add.text(
@@ -305,16 +537,26 @@ export class GameplayStage {
     this.root?.add(this.goldText);
 
     this.defenderDeck.forEach((towerId, index) => {
+=======
+    this.deck.forEach((towerId, index) => {
+>>>>>>> main
       const tower = TOWER_TYPES[towerId];
       if (!tower) return;
 
       const x = deckX + index * (cardWidth + gap);
+<<<<<<< HEAD
       const isSelected = this.selectedTowerType === towerId;
 
       const card = this.scene.add.rectangle(
         x, deckY, cardWidth, cardHeight, 0x1e293b
       ).setStrokeStyle(2, isSelected ? 0x4ade80 : 0x475569)
         .setInteractive({ useHandCursor: true })
+=======
+      const card = this.scene.add
+        .rectangle(x, deckY, cardWidth, cardHeight, 0x1e293b)
+        .setStrokeStyle(2, this.selectedTowerType === towerId ? 0x4ade80 : 0x475569)
+        .setInteractive()
+>>>>>>> main
         .setDepth(DEPTH.UI_LAYER);
 
       this.deckCards.set(towerId, card);
@@ -332,6 +574,7 @@ export class GameplayStage {
         this.updateDeckCardStyles();
       });
 
+<<<<<<< HEAD
       const label = this.scene.add.text(
         x, deckY - 26, tower.name.substring(0, 10),
         { fontSize: "11px", color: "#f8fafc", fontStyle: "bold" }
@@ -342,7 +585,25 @@ export class GameplayStage {
         x, deckY + 28, `${tierCost}g`,
         { fontSize: "12px", color: "#fbbf24", fontStyle: "bold" }
       ).setOrigin(0.5).setDepth(DEPTH.UI_LAYER);
+=======
+      const label = this.scene.add
+        .text(x, deckY - 30, tower.name.substring(0, 8), {
+          fontSize: "10px",
+          color: "#ffffff",
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH.UI_LAYER);
 
+      const costLabel = this.scene.add
+        .text(x, deckY + 35, `${tower.tiers[0].cost}g`, {
+          fontSize: "10px",
+          color: "#fbbf24",
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH.UI_LAYER);
+>>>>>>> main
+
+      this.deckObjects.push(card, label, costLabel);
       this.root?.add([card, label, costLabel]);
     });
   }
@@ -355,6 +616,7 @@ export class GameplayStage {
 
     this.startButton = this.scene.add.container(buttonX, buttonY);
 
+<<<<<<< HEAD
     const bg = this.scene.add.rectangle(0, 0, buttonWidth, buttonHeight, 0x10b981)
       .setStrokeStyle(2, 0x34d399)
       .setInteractive({ useHandCursor: true });
@@ -364,13 +626,31 @@ export class GameplayStage {
       color: "#ffffff",
       fontStyle: "bold"
     }).setOrigin(0.5);
+=======
+    const bg = this.scene.add
+      .rectangle(0, 0, buttonWidth, buttonHeight, 0x4ade80)
+      .setStrokeStyle(2, 0x6366f1)
+      .setInteractive();
+
+    const text = this.scene.add
+      .text(0, 0, "START GAME", {
+        fontSize: "14px",
+        color: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+>>>>>>> main
 
     bg.on("pointerover", () => bg.setFillStyle(0x059669));
     bg.on("pointerout", () => bg.setFillStyle(0x10b981));
     bg.on("pointerdown", () => {
+<<<<<<< HEAD
       if (this.room) {
         this.room.send(MESSAGES.startCombat, {});
       }
+=======
+      this.room.send(MESSAGES.startCombat, {});
+>>>>>>> main
     });
 
     this.startButton.add([bg, text]);
@@ -384,11 +664,18 @@ export class GameplayStage {
     });
   }
 
+<<<<<<< HEAD
   private showGhostTower(slot: { slotIndex: number; x: number; y: number }): void {
     if (!this.selectedTowerType) return;
+=======
+  private showGhostTower(slot: TowerSlot): void {
+    if (!this.selectedTowerType || this.towers.has(slot.slotIndex)) return;
+
+>>>>>>> main
     this.hideGhostTower();
 
-    this.ghostTower = this.scene.add.sprite(slot.x, slot.y, "tower_archer")
+    this.ghostTower = this.scene.add
+      .sprite(slot.x, slot.y, "tower_archer")
       .setOrigin(0.5, 0.82)
       .setDisplaySize(135, 135)
       .setAlpha(0.5)
@@ -408,25 +695,46 @@ export class GameplayStage {
 
     this.phaseBanner = this.scene.add.container(bannerX, bannerY);
 
+<<<<<<< HEAD
     const bg = this.scene.add.rectangle(0, 0, 460, 46, 0x1e293b, 0.9)
+=======
+    const bg = this.scene.add
+      .rectangle(0, 0, 400, 50, 0x1e293b, 0.9)
+>>>>>>> main
       .setStrokeStyle(2, 0x6366f1);
 
-    const bannerText = this.myRole === "defender"
-      ? "BUILDING PHASE — Place Your Towers"
-      : "BUILDING PHASE — Defender is setting up defenses";
+    const bannerText =
+      this.role === "defender"
+        ? "BUILDING PHASE — Place Your Towers"
+        : "BUILDING PHASE — Defender is setting up defenses";
 
+<<<<<<< HEAD
     const text = this.scene.add.text(0, 0, bannerText, {
       fontSize: "15px",
       color: "#ffffff",
       fontStyle: "bold"
     }).setOrigin(0.5);
+=======
+    const text = this.scene.add
+      .text(0, 0, bannerText, {
+        fontSize: "16px",
+        color: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+>>>>>>> main
 
     this.phaseBanner.add([bg, text]);
     this.phaseBanner.setDepth(DEPTH.UI_LAYER);
     this.root?.add(this.phaseBanner);
   }
 
+  /**
+   * Mirrors `RoomState.towers` into sprites for both players. The server is the
+   * only writer, so the client never renders an optimistic local tower.
+   */
   private setupTowerSync(): void {
+<<<<<<< HEAD
     if (!this.room?.state?.towers) return;
 
     // Sync any pre-existing towers in state
@@ -464,6 +772,33 @@ export class GameplayStage {
     if (this.towers.has(slot.slotIndex)) return;
 
     const sprite = this.scene.add.sprite(slot.x, slot.y, "tower_archer")
+=======
+    const callbacks = Callbacks.get(this.room);
+
+    const onAdd = (value: unknown): void => {
+      const tower = value as Tower;
+      const slot = this.map.slots.find((s) => s.slotIndex === tower.slotIndex);
+      if (slot) this.renderTower(slot);
+    };
+
+    const onRemove = (value: unknown): void => {
+      const tower = value as Tower;
+      const slot = this.map.slots.find((s) => s.slotIndex === tower.slotIndex);
+      if (!slot) return;
+      this.towers.get(slot.slotIndex)?.destroy();
+      this.towers.delete(slot.slotIndex);
+    };
+
+    this.unsubscribers.push(callbacks.onAdd("towers", onAdd, true));
+    this.unsubscribers.push(callbacks.onRemove("towers", onRemove));
+  }
+
+  private renderTower(slot: TowerSlot): void {
+    if (this.towers.has(slot.slotIndex)) return;
+
+    const sprite = this.scene.add
+      .sprite(slot.x, slot.y, "tower_archer")
+>>>>>>> main
       .setOrigin(0.5, 0.82)
       .setDisplaySize(135, 135)
       .setDepth(DEPTH.TOWERS_LAYER + slot.y * 0.001);
@@ -473,14 +808,20 @@ export class GameplayStage {
   }
 
   startCombat(): void {
+<<<<<<< HEAD
     if (this.isCombat) return;
     this.isCombat = true;
+=======
+    if (this.combatStarted || this.destroyed) return;
+    this.combatStarted = true;
+>>>>>>> main
 
     this.phaseBanner?.destroy();
     this.phaseBanner = undefined;
     this.startButton?.destroy();
     this.startButton = undefined;
 
+<<<<<<< HEAD
     // Show combat alert banner
     const banner = this.scene.add.container(640, 35);
     const bg = this.scene.add.rectangle(0, 0, 420, 46, 0x7f1d1d, 0.9)
@@ -572,11 +913,66 @@ export class GameplayStage {
         if (this.bottomPath) spawnUnit(this.bottomPath, 1200);
       },
       loop: true,
+=======
+    this.startSpawner();
+  }
+
+  private startSpawner(): void {
+    const spawnAll = (): void => {
+      if (this.destroyed) return;
+      for (const path of this.paths) this.spawnUnit(path);
+    };
+
+    this.scene.time.delayedCall(500, spawnAll);
+    this.spawnTimer = this.scene.time.addEvent({
+      delay: 3000,
+      loop: true,
+      callback: spawnAll,
+    });
+  }
+
+  private spawnUnit(path: Phaser.Curves.Path): void {
+    const start = path.getPoint(0);
+    const unit = this.scene.add
+      .sprite(start.x, start.y, "unit_warrior")
+      .setOrigin(0.5, 0.78)
+      .setDisplaySize(64, 64)
+      .setDepth(DEPTH.UNITS_LAYER + start.y * 0.001);
+
+    this.units.push(unit);
+    this.root?.add(unit);
+
+    const progress = { t: 0 };
+    this.unitTweenTargets.push(progress);
+    const tween = this.scene.tweens.add({
+      targets: progress,
+      t: 1,
+      duration: 8000,
+      onUpdate: () => {
+        if (this.destroyed || !unit.active) return;
+
+        const point = path.getPoint(progress.t);
+        // Bob is recomputed from the curve each frame, never accumulated.
+        const bob = Math.sin(progress.t * Math.PI * 10) * 2;
+        unit.setPosition(point.x, point.y + bob);
+        unit.setDepth(DEPTH.UNITS_LAYER + point.y * 0.001);
+
+        const prev = path.getPoint(Math.max(0, progress.t - 0.01));
+        unit.setFlipX(point.x < prev.x);
+      },
+      onComplete: () => {
+        unit.destroy();
+        this.units = this.units.filter((u) => u !== unit);
+        this.unitTweenTargets = this.unitTweenTargets.filter((target) => target !== progress);
+        tween.remove();
+      },
+>>>>>>> main
     });
     this.spawnEvents.push(loopEvent);
   }
 
   destroy(): void {
+<<<<<<< HEAD
     this.isCombat = false;
     this.spawnEvents.forEach(e => e.remove(false));
     this.spawnEvents = [];
@@ -584,14 +980,42 @@ export class GameplayStage {
     this.spawnTimeouts = [];
 
     this.root?.destroy(true);
+=======
+    this.destroyed = true;
+
+    for (const unsubscribe of this.unsubscribers) unsubscribe();
+    this.unsubscribers = [];
+
+    this.spawnTimer?.remove();
+    this.spawnTimer = undefined;
+
+    for (const target of this.unitTweenTargets) {
+      this.scene.tweens.killTweensOf(target);
+    }
+    this.unitTweenTargets = [];
+
+    if (this.onKeyDown) this.scene.input.keyboard?.off("keydown-D", this.onKeyDown);
+    if (this.onPointerDown) this.scene.input.off("pointerdown", this.onPointerDown);
+    this.onKeyDown = undefined;
+    this.onPointerDown = undefined;
+
+>>>>>>> main
     this.debugGraphics?.destroy();
+    this.debugGraphics = undefined;
+
+    this.root?.destroy(true);
+    this.root = undefined;
+
     this.towers.clear();
-    this.units.forEach(u => u.destroy());
     this.units = [];
     this.deckCards.clear();
+<<<<<<< HEAD
     this.topPortal?.destroy();
     this.bottomPortal?.destroy();
     this.phaseBanner?.destroy();
     this.startButton?.destroy();
+=======
+    this.deckObjects = [];
+>>>>>>> main
   }
 }
