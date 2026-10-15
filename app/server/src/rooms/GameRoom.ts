@@ -49,22 +49,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private acceptedDecks = new Map<string, string[]>();
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-  /** Private player gold balances keyed by session ID. */
-  private playerGold = new Map<string, number>();
-=======
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   /**
    * Hidden gold per session ID. Mirrors `acceptedDecks`: kept off `RoomState`
    * and pushed to the owner via private `you_economy` messages only.
    */
   private economies = new Map<string, number>();
-<<<<<<< HEAD
->>>>>>> main
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
   /** Authoritative phase + timer state machine. */
   private phases!: Phases;
@@ -88,18 +77,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       payload: PlaceTowerIntent,
     ) => this.handlePlaceTower(client, payload),
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    [MESSAGES.startCombat]: (
-      client: Client,
-      payload: StartCombatIntent,
-    ) => this.handleStartCombat(client, payload),
-=======
     [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
->>>>>>> main
-=======
-    [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   };
 
   /**
@@ -283,41 +261,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.phases.beginBuilding([]);
       console.log(`Room ${this.roomId}: drafting -> building`);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-      // Initialize economy and send private payloads to each player
-      for (const c of this.clients) {
-        const role = c.userData?.role as PlayerRole | undefined;
-        const deck = this.acceptedDecks.get(c.sessionId) || [];
-        if (role === "defender") {
-          const gold = DEFAULT_ECONOMY.defenderStartingGold;
-          this.playerGold.set(c.sessionId, gold);
-          const economy: YouEconomyPayload = {
-            gold,
-            deck,
-            bigWavesRemaining: 0,
-          };
-          c.send(MESSAGES.youEconomy, economy);
-        } else if (role === "attacker") {
-          const gold = DEFAULT_ECONOMY.attackerStartingGold;
-          this.playerGold.set(c.sessionId, gold);
-          const economy: YouEconomyPayload = {
-            gold,
-            deck,
-            bigWavesRemaining: DEFAULT_ECONOMY.bigWaveCount,
-          };
-          c.send(MESSAGES.youEconomy, economy);
-        }
-=======
       // Push each player their own (now populated) economy snapshot.
       for (const c of this.clients) {
         this.sendEconomy(c);
->>>>>>> main
-=======
-      // Push each player their own (now populated) economy snapshot.
-      for (const c of this.clients) {
-        this.sendEconomy(c);
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       }
     }
   }
@@ -368,25 +314,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
       return;
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    // Check tower type and gold cost
-    const towerType = TOWER_TYPES[payload.typeId];
-    if (!towerType) return;
-
-    const cost = buildCost(towerType);
-    const currentGold = this.playerGold.get(client.sessionId) ?? DEFAULT_ECONOMY.defenderStartingGold;
-    if (currentGold < cost) {
-      console.log(`Not enough gold to build tower ${payload.typeId}: need ${cost}, have ${currentGold}`);
-      return;
-    }
-
-    // Deduct gold
-    const newGold = currentGold - cost;
-    this.playerGold.set(client.sessionId, newGold);
-=======
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     const cost = buildCost(towerType);
     const gold = this.economies.get(client.sessionId) ?? 0;
     if (gold < cost) {
@@ -397,33 +324,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
 
     this.economies.set(client.sessionId, gold - cost);
-<<<<<<< HEAD
->>>>>>> main
 
     const towerId = `${client.sessionId}-${payload.slotIndex}`;
-<<<<<<< HEAD
-    this.state.towers.set(towerId, new Tower({
-      ownerId: client.sessionId,
-      typeId: payload.typeId,
-      slotIndex: payload.slotIndex,
-      level: 1,
-      cooldown: 0,
-    }));
-
-    // Send updated economy to defender
-    const economy: YouEconomyPayload = {
-      gold: newGold,
-      deck,
-      bigWavesRemaining: 0,
-    };
-    client.send(MESSAGES.youEconomy, economy);
-
-    console.log(`Defender placed tower ${payload.typeId} at slot ${payload.slotIndex} (cost: ${cost}, remaining gold: ${newGold})`);
-=======
-=======
-
-    const towerId = `${client.sessionId}-${payload.slotIndex}`;
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.state.towers.set(
       towerId,
       new Tower({
@@ -440,10 +342,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
     console.log(
       `Defender placed tower ${payload.typeId} at slot ${payload.slotIndex} (-${cost}g)`,
     );
-<<<<<<< HEAD
->>>>>>> main
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
   }
 
   /**
@@ -533,7 +431,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       roleChoice: options.roleChoice || "random",
     });
 
-    this.state.mapId = options.mapId || "sample";
+    this.state.mapId = options.mapId || "konbaung";
     this.state.phase = "drafting";
 
     this.phases = new Phases({ state: this.state });
@@ -595,15 +493,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.state.players.delete(client.sessionId);
     this.acceptedDecks.delete(client.sessionId);
-<<<<<<< HEAD
-<<<<<<< HEAD
-    this.playerGold.delete(client.sessionId);
-=======
     this.economies.delete(client.sessionId);
->>>>>>> main
-=======
-    this.economies.delete(client.sessionId);
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 

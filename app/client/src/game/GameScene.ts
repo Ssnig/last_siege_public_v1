@@ -3,7 +3,7 @@ import { Room, Callbacks } from "@colyseus/sdk";
 import {
   MESSAGES,
   MAPS,
-  SAMPLE_MAP,
+  KONBAUNG_MAP,
   type RoleAssignedPayload,
   type YouEconomyPayload,
 } from "@root/shared";
@@ -29,12 +29,9 @@ export class GameScene extends Phaser.Scene {
   private currentPhase?: string;
   private assignedRole?: PlayerRole;
   private buildingPlaceholder?: Phaser.GameObjects.Text;
-<<<<<<< HEAD
   private defenderDeck?: string[];
   private gold?: number;
-=======
   private myEconomy?: YouEconomyPayload;
->>>>>>>>> Temporary merge branch 2
 
   private unsubscribeRoomListeners: Array<() => void> = [];
 
@@ -96,17 +93,13 @@ export class GameScene extends Phaser.Scene {
       room.onMessage(
         MESSAGES.youEconomy,
         (payload: YouEconomyPayload) => {
-<<<<<<< HEAD
           console.log("Economy received:", payload);
           this.defenderDeck = payload.deck;
           this.gold = payload.gold;
-          if (this.gameplayStage) {
-            this.gameplayStage.updateEconomy(payload.gold, payload.deck);
-          }
-=======
           this.myEconomy = payload;
-          this.gameplayStage?.applyEconomy(payload);
->>>>>>>>> Temporary merge branch 2
+          if (this.gameplayStage) {
+            this.gameplayStage.applyEconomy(payload);
+          }
         },
       ),
     );
@@ -227,19 +220,15 @@ export class GameScene extends Phaser.Scene {
   private startGameplay(): void {
     if (this.gameplayStage) return;
 
-<<<<<<< HEAD
-    // Use konbaung map for testing (in production, read from room.state.mapId)
-    const map = KONBAUNG_MAP;
-    this.gameplayStage = new GameplayStage(this, map, this.defenderDeck, this.room, this.gold ?? 200, this.assignedRole);
-=======
-    const map = MAPS[this.room.state.mapId] ?? SAMPLE_MAP;
+    const map = MAPS[this.room.state.mapId] ?? KONBAUNG_MAP;
     this.gameplayStage = new GameplayStage(this, {
       room: this.room,
       map,
       role: this.assignedRole ?? "defender",
       economy: this.myEconomy,
+      gold: this.gold,
+      deck: this.defenderDeck,
     });
->>>>>>>>> Temporary merge branch 2
     this.gameplayStage.create();
   }
 

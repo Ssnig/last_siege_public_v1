@@ -54,30 +54,11 @@ export class AttackerDraftStage {/**
     this.render();
   };
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-  private readonly scene: Phaser.Scene;
-
   /**
    * @param scene - Active Phaser scene that owns this stage's UI.
    * @param onConfirm - Sends the selected deck to the server.
    */
-  constructor(
-    scene: Phaser.Scene,
-    onConfirm: (deck: string[]) => void,
-  ) {
-=======
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
-    /**
-     * @param scene - Active Phaser scene that owns this stage's UI.
-     * @param onConfirm - Sends the selected deck to the server.
-     */
   constructor(scene: Phaser.Scene, onConfirm: (deck: string[]) => void) {
-<<<<<<< HEAD
->>>>>>> main
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
     this.scene = scene;
     this.onConfirm = onConfirm;
   }

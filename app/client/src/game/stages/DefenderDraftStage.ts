@@ -48,36 +48,15 @@ private readonly onConfirm: (deck: string[]) => void;
   /** Stable callback reference for removing the resize listener. */
   private readonly handleResize = (): void => this.render();
 
-  private readonly scene: Phaser.Scene;
 
   /**
    * @param scene - Active Phaser scene that owns the draft UI.
    * @param onConfirm - Callback for submitting the selected tower deck.
    */
-<<<<<<< HEAD
-<<<<<<< HEAD
-  constructor(
-    scene: Phaser.Scene,
-    onConfirm: (deck: string[]) => void,
-  ) {
+  constructor(scene: Phaser.Scene, onConfirm: (deck: string[]) => void) {
     this.scene = scene;
     this.onConfirm = onConfirm;
   }
-=======
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
-/**
- * @param scene - Active Phaser scene that owns the draft UI.
- * @param onConfirm - Callback for submitting the selected tower deck.
- */
-constructor(scene: Phaser.Scene, onConfirm: (deck: string[]) => void) {
-  this.scene = scene;
-  this.onConfirm = onConfirm;
-}
-<<<<<<< HEAD
->>>>>>> main
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
 
   /** Creates the draft UI and registers responsive layout handling. */
   create(): void {
@@ -446,25 +425,11 @@ constructor(scene: Phaser.Scene, onConfirm: (deck: string[]) => void) {
       panelX + 22,
       panelY + 78,
       [
-<<<<<<< HEAD
-<<<<<<< HEAD
         `COST                 ${tier?.cost ?? 0} gold`,
         `RANGE               ${tier?.range ?? 0}`,
         `DAMAGE             ${tier?.damage ?? 0}`,
         `FIRE RATE           ${tier?.fireRate ?? 0}/sec`,
         `PROJECTILE SPEED   ${tier?.projectileSpeed ?? 0}`,
-=======
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
-        `COST                 ${tier.cost} gold`,
-        `RANGE               ${tier.range}`,
-        `DAMAGE             ${tier.damage}`,
-        `FIRE RATE           ${tier.fireRate}/sec`,
-        `PROJECTILE SPEED   ${tier.projectileSpeed}`,
-<<<<<<< HEAD
->>>>>>> main
-=======
->>>>>>> 31de2bbd2f34d3fa883f7c0f1186810461423940
       ].join("\n\n"),
       { fontSize: "14px", color: "#cbd5e1", lineSpacing: 5 },
     );
