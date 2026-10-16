@@ -3,7 +3,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { Callbacks, Room } from '@colyseus/sdk';
 import { GameScene } from '../game/GameScene';
-import { MESSAGES, type OpponentLeftPayload, type GameOverPayload, type YouEconomyPayload } from '@root/shared';
+import {
+  MESSAGES,
+  MATCH_RULES,
+  type OpponentLeftPayload,
+  type GameOverPayload,
+  type YouEconomyPayload,
+} from '@root/shared';
 import { useGameRoom } from '../network/roomContext';
 import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
@@ -69,6 +75,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
   // Gameplay HUD state
   const [gold, setGold] = useState<number>(200);
+  const [incomeRate, setIncomeRate] = useState<number>(5);
+  const [castleHp, setCastleHp] = useState<number>(() => room.state?.coreHp ?? MATCH_RULES.coreHp);
   const [deck, setDeck] = useState<string[]>([]);
   const [selectedTowerType, setSelectedTowerType] = useState<string>('basic');
   const [phase, setPhase] = useState<string>(() => room.state?.phase || 'drafting');
@@ -101,6 +109,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     const offEconomy = room.onMessage(MESSAGES.youEconomy, (data: YouEconomyPayload) => {
       console.log("GameContainer economy received:", data);
       setGold(data.gold);
+      if (data.incomeRate !== undefined) {
+        setIncomeRate(data.incomeRate);
+      }
       if (data.deck && data.deck.length > 0) {
         setDeck(data.deck);
       }
@@ -148,6 +159,10 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       setPhaseEndsAt(endsAt);
     });
 
+    const unlistenCoreHp = Callbacks.get(room).listen("coreHp", (hp: number) => {
+      setCastleHp(hp);
+    });
+
     return () => {
       offRoleAssigned();
       offEconomy();
@@ -156,6 +171,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       offGameOver();
       unlistenPhase();
       unlistenPhaseEndsAt();
+      unlistenCoreHp();
       room.leave();
       // Drop the finished/left room from context so a later /game/:roomId
       // visit (e.g. via the browser back/forward) can never reuse it.
@@ -218,6 +234,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       {matchStarted && phase !== 'drafting' && (
         <GameHUD
           gold={gold}
+          incomeRate={incomeRate}
+          castleHp={castleHp}
+          maxCastleHp={MATCH_RULES.coreHp}
           deck={deck}
           selectedTowerType={selectedTowerType}
           onSelectTower={handleSelectTower}

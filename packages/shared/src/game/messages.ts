@@ -84,6 +84,8 @@ export interface YouEconomyPayload {
   gold: number;
   deck: string[];
   bigWavesRemaining: number;
+  /** Current passive gold earned per second. */
+  incomeRate?: number;
 }
 
 /** One path's staged army inside an `attacker_army` push. */

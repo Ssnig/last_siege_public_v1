@@ -90,10 +90,7 @@ export class MobCard {
       const infoCircle = scene.add
         .circle(infoX, infoY, infoRadius, 0x334155)
         .setStrokeStyle(1, 0x94a3b8)
-        .setInteractive(
-          new Phaser.Geom.Circle(0, 0, infoRadius + 5),
-          Phaser.Geom.Circle.Contains,
-        );
+        .setInteractive();
 
       const infoLabel = scene.add
         .text(infoX, infoY - 1, "i", {

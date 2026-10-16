@@ -93,6 +93,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private economies = new Map<string, number>();
 
+  /** Dynamic passive income rate per player session ID, in gold per second. */
+  private incomeRates = new Map<string, number>();
+
   /**
    * Attacker-only staged armies, keyed by session id then by path id.
    *
@@ -236,6 +239,18 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.economies.set(creatorClient.sessionId, this.startingGold(creatorRole));
     this.economies.set(joinerClient.sessionId, this.startingGold(joinerRole));
+    this.incomeRates.set(
+      creatorClient.sessionId,
+      creatorRole === "attacker"
+        ? DEFAULT_ECONOMY.attackerBaseIncome
+        : DEFAULT_ECONOMY.defenderBaseIncome,
+    );
+    this.incomeRates.set(
+      joinerClient.sessionId,
+      joinerRole === "attacker"
+        ? DEFAULT_ECONOMY.attackerBaseIncome
+        : DEFAULT_ECONOMY.defenderBaseIncome,
+    );
     this.bigWavesRemaining.set(
       creatorClient.sessionId,
       creatorRole === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
@@ -270,10 +285,18 @@ export class GameRoom extends Room<{ state: RoomState }> {
         deck = Object.keys(MOB_TYPES).slice(0, 4);
       }
     }
+    const defaultIncome =
+      role === "attacker"
+        ? DEFAULT_ECONOMY.attackerBaseIncome
+        : DEFAULT_ECONOMY.defenderBaseIncome;
+    const incomeRate =
+      Math.round((this.incomeRates.get(client.sessionId) ?? defaultIncome) * 10) / 10;
+
     const economy: YouEconomyPayload = {
       gold: Math.floor(this.economies.get(client.sessionId) ?? 0),
       deck: deck ?? [],
       bigWavesRemaining: this.bigWavesRemaining.get(client.sessionId) ?? 0,
+      incomeRate,
     };
     client.send(MESSAGES.youEconomy, economy);
   }
@@ -304,9 +327,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
       };
     });
 
+    const currentIncome =
+      this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
+
     const payload: AttackerArmyPayload = {
       gold: Math.floor(this.economies.get(sessionId) ?? 0),
-      goldPerSecond: DEFAULT_ECONOMY.goldPerSecond,
+      goldPerSecond: Math.round(currentIncome * 10) / 10,
       incomeExpired: this.incomeExpired,
       bigWavesRemaining: this.bigWavesRemaining.get(sessionId) ?? 0,
       availableTroops: [...availableTroops],
@@ -866,6 +892,26 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.economies.set(sessionId, gold - totalCost);
     this.bigWavesRemaining.set(sessionId, budget - bigWaves);
 
+    // Boost attacker passive income based on units' cost
+    const unitCostTotal = toRelease.reduce(
+      (total, wave) =>
+        total +
+        wave.batches.reduce(
+          (bTotal, b) => bTotal + (MOB_TYPES[b.typeId]?.cost ?? 0) * b.count,
+          0,
+        ),
+      0,
+    );
+    const incomeBoost = unitCostTotal * DEFAULT_ECONOMY.attackerIncomeGainRate;
+    if (incomeBoost > 0) {
+      const currentRate =
+        this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
+      this.incomeRates.set(sessionId, currentRate + incomeBoost);
+      console.log(
+        `Room ${this.roomId}: attacker income boosted by +${incomeBoost.toFixed(1)}g/s to ${(currentRate + incomeBoost).toFixed(1)}g/s`,
+      );
+    }
+
     const interval = DEFAULT_WAVE_RULES.batchIntervalSec;
     let offset = 0;
     for (const wave of toRelease) {
@@ -1037,6 +1083,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.players.delete(client.sessionId);
     this.acceptedDecks.delete(client.sessionId);
     this.economies.delete(client.sessionId);
+    this.incomeRates.delete(client.sessionId);
     this.stagedWaves.delete(client.sessionId);
     this.bigWavesRemaining.delete(client.sessionId);
 
@@ -1066,6 +1113,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
       const hostRole = host.userData?.role as PlayerRole | undefined;
       this.economies.set(host.sessionId, this.startingGold(hostRole ?? "defender"));
+      this.incomeRates.set(
+        host.sessionId,
+        (hostRole ?? "defender") === "attacker"
+          ? DEFAULT_ECONOMY.attackerBaseIncome
+          : DEFAULT_ECONOMY.defenderBaseIncome,
+      );
       this.bigWavesRemaining.set(
         host.sessionId,
         (hostRole ?? "defender") === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
@@ -1287,15 +1340,27 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * is accumulated as a float and floored on push so the HUD shows whole numbers.
    */
   private accrueIncome(dt: number): void {
-    if (this.incomeExpired) return;
-
     for (const client of this.clients) {
-      if (client.userData?.role !== "attacker") continue;
       const sessionId = client.sessionId;
-      this.economies.set(
-        sessionId,
-        (this.economies.get(sessionId) ?? 0) + DEFAULT_ECONOMY.goldPerSecond * dt,
-      );
+      const role = client.userData?.role as PlayerRole | undefined;
+
+      if (role === "attacker") {
+        if (!this.incomeExpired) {
+          const rate =
+            this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
+          this.economies.set(
+            sessionId,
+            (this.economies.get(sessionId) ?? 0) + rate * dt,
+          );
+        }
+      } else if (role === "defender") {
+        const rate =
+          this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.defenderBaseIncome;
+        this.economies.set(
+          sessionId,
+          (this.economies.get(sessionId) ?? 0) + rate * dt,
+        );
+      }
     }
   }
 
@@ -1306,7 +1371,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.incomePushAccumulator = 0;
 
     for (const client of this.clients) {
-      if (client.userData?.role === "attacker") this.sendEconomy(client);
+      this.sendEconomy(client);
     }
   }
 
@@ -1424,7 +1489,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
       mob.progress += (mob.speed / total) * dt;
 
       if (mob.progress >= 1) {
-        this.leakToCore(MOB_TYPES[mob.typeId]?.leakDamage ?? 0);
+        const mobType = MOB_TYPES[mob.typeId];
+        this.leakToCore(mobType?.leakDamage ?? 0);
+
+        // Leak pity refund: defender receives a portion of bounty so leaks don't cause starvation
+        if (mobType && mobType.bounty > 0) {
+          const pityBounty = Math.floor(
+            mobType.bounty * (DEFAULT_ECONOMY.leakPityRate ?? 0.3),
+          );
+          if (pityBounty > 0) {
+            const defender = this.clients.find(
+              (c) => c.userData?.role === "defender",
+            );
+            if (defender) {
+              this.awardBounty(defender.sessionId, pityBounty);
+            }
+          }
+        }
+
         finished.push(id);
       }
     }

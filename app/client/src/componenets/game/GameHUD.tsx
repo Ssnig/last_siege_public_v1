@@ -14,6 +14,7 @@ interface GameHUDProps {
   isUIHidden?: boolean;
   castleHp?: number;
   maxCastleHp?: number;
+  incomeRate?: number;
   attackerArmy?: AttackerArmyPayload | null;
   onAddBatch?: (pathId: string, typeId: string, count: number) => void;
   onReleaseWave?: (pathIds?: string[]) => void;
@@ -93,8 +94,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   phaseEndsAt = 30,
   role = 'defender',
   isUIHidden = false,
-  castleHp = 10,
-  maxCastleHp = 10,
+  castleHp = 30,
+  maxCastleHp = 30,
+  incomeRate,
   attackerArmy = null,
   onAddBatch,
   onReleaseWave,
@@ -185,9 +187,16 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               backgroundRepeat: 'no-repeat',
             }}
           >
-            <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-base tracking-wide font-['Almendra',serif]">
-              GOLD: {gold}g
-            </span>
+            <div className="flex flex-col items-end justify-center leading-none">
+              <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-base tracking-wide font-['Almendra',serif]">
+                GOLD: {gold}g
+              </span>
+              {incomeRate !== undefined && (
+                <span className="text-emerald-300 font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] text-[9px] md:text-[11px] tracking-tight font-sans">
+                  +{incomeRate}g/s
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Top-Center: Exactly Centered Wave & Timer Banner with Pixel-Perfect Plaque Alignment */}
