@@ -7,6 +7,9 @@ import { GameRoomContext, type GameRoomContextValue } from './network/roomContex
 import { client } from './network/client';
 
 import { LandingPage } from './componenets/landing/LandingPage';
+import { OrientationPrompt } from './componenets/mobile/OrientationPrompt';
+import { MobileFullscreenGate } from './componenets/mobile/MobileFullscreenGate';
+import { InitialLoadingScreen } from './componenets/common/InitialLoadingScreen';
 
 /**
  * Root shell: route-based. `/` hosts the game welcome/landing page,
@@ -22,6 +25,9 @@ export default function App() {
 
   return (
     <div className="w-screen h-screen bg-slate-900 text-white overflow-hidden flex items-center justify-center">
+      <InitialLoadingScreen />
+      <MobileFullscreenGate />
+      <OrientationPrompt />
       <GameRoomContext.Provider value={roomContext}>
         <Routes>
           <Route path="/" element={<LandingPage />} />

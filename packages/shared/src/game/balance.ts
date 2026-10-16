@@ -243,7 +243,7 @@ export const DEFAULT_DECK_RULES: DeckRules = {
 export const MATCH_RULES: MatchRules = {
   coreHp: 10,
   draftDurationSec: -1,
-  buildingDurationSec: -1, // Disabled by default for backward compatibility
+  buildingDurationSec: 30, // 30-second building countdown
   roundDurationSec: 90,
 };
 

@@ -49,6 +49,51 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload(): void {
+    const centerX = 640;
+    const centerY = 360;
+
+    const progressBox = this.add.graphics();
+    const progressBar = this.add.graphics();
+
+    progressBox.fillStyle(0x1e1b18, 0.85);
+    progressBox.lineStyle(2, 0xc59b27, 1);
+    progressBox.strokeRect(centerX - 180, centerY - 14, 360, 28);
+    progressBox.fillRect(centerX - 180, centerY - 14, 360, 28);
+
+    const titleText = this.make.text({
+      x: centerX,
+      y: centerY - 45,
+      text: "Entering Royal Battlefield...",
+      style: {
+        font: "18px 'MedievalSharp', serif",
+        color: "#fbbf24",
+      },
+    }).setOrigin(0.5, 0.5);
+
+    const percentText = this.make.text({
+      x: centerX,
+      y: centerY + 36,
+      text: "0%",
+      style: {
+        font: "13px 'Almendra', serif",
+        color: "#fef3c7",
+      },
+    }).setOrigin(0.5, 0.5);
+
+    this.load.on("progress", (value: number) => {
+      percentText.setText(`${Math.round(value * 100)}%`);
+      progressBar.clear();
+      progressBar.fillStyle(0x10b981, 1);
+      progressBar.fillRect(centerX - 176, centerY - 10, 352 * value, 20);
+    });
+
+    this.load.on("complete", () => {
+      progressBar.destroy();
+      progressBox.destroy();
+      titleText.destroy();
+      percentText.destroy();
+    });
+
     this.load.image("konbaung", "/assets/maps/konbaung.jpg");
     this.load.image("base_castle", "/assets/sprites/base_castle.png");
     this.load.image("tower_archer", "/assets/sprites/tower_archer.png");
@@ -63,6 +108,7 @@ export class GameScene extends Phaser.Scene {
     this.load.image(UI_TEXTURE_KEY, UI_TEXTURE_URL);
     this.load.atlas(UI_BG_TEXTURE_KEY, UI_BG_TEXTURE_URL, UI_BG_ATLAS_URL);
   }
+
 
   create(): void {
     registerUIFrames(this);
@@ -269,5 +315,9 @@ export class GameScene extends Phaser.Scene {
     this.unsubscribeRoomListeners = [];
     this.currentPhase = undefined;
     this.assignedRole = undefined;
+  }
+
+  override update(time: number, delta: number): void {
+    this.gameplayStage?.update(time, delta);
   }
 }
