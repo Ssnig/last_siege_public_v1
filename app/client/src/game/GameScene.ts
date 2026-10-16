@@ -16,7 +16,6 @@ import {
   UI_TEXTURE_KEY,
   UI_TEXTURE_URL,
   UI_BG_TEXTURE_KEY,
-  UI_BG_TEXTURE_URL,
   UI_BG_ATLAS_URL,
 } from "./ui/uiAtlas";
 
@@ -106,7 +105,9 @@ export class GameScene extends Phaser.Scene {
     this.load.image("spawn_5", "/assets/sprites/spawn5.png");
     this.load.image("spawn_6", "/assets/sprites/spawn6.png");
     this.load.image(UI_TEXTURE_KEY, UI_TEXTURE_URL);
-    this.load.atlas(UI_BG_TEXTURE_KEY, UI_BG_TEXTURE_URL, UI_BG_ATLAS_URL);
+    // UI_bg.json is a TexturePacker multi-pack ("textures" array format);
+    // multiatlas() handles that format and resolves the spritesheet from the base path.
+    this.load.multiatlas(UI_BG_TEXTURE_KEY, UI_BG_ATLAS_URL, "/assets/ui");
   }
 
 
