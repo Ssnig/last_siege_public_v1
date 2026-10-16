@@ -5,6 +5,7 @@ import {
   RoomState,
   Player,
   Tower,
+  Mob,
   MESSAGES,
   MAPS,
   SAMPLE_MAP,
@@ -12,9 +13,14 @@ import {
   TOWER_TYPES,
   DEFAULT_DECK_RULES,
   DEFAULT_ECONOMY,
+  MOB_SPEED_JITTER,
+  pathLength,
   type DraftReadyIntent,
   type GameOverPayload,
+  type MapDefinition,
+  type MobType,
   type PlaceTowerIntent,
+  type Vec2,
   type YouEconomyPayload,
   buildCost,
 } from "@root/shared";
@@ -57,6 +63,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   /** Authoritative phase + timer state machine. */
   private phases!: Phases;
+
+  /** Previous tick's phase, used to detect the exact tick combat begins. */
+  private lastPhase = "";
 
   plugins = definePlugins({
     idle: new IdleKickPlugin({ timeoutMs: 60_000 }),
@@ -435,6 +444,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.phase = "drafting";
 
     this.phases = new Phases({ state: this.state });
+    this.lastPhase = this.state.phase;
 
     this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
   }
@@ -508,6 +518,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.matchStarted = false;
       this.acceptedDecks.clear();
       this.state.phase = "drafting";
+      this.clearMobs();
 
       for (const player of this.state.players.values()) {
         player.draftReady = false;
@@ -538,7 +549,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
     console.log(`Room ${this.roomId} disposing...`);
   }
 
-  /** Server tick: drives the phase/timer machine; no gameplay simulation yet. */
+  /**
+   * Server tick: drives the phase/timer machine and the mob simulation.
+   *
+   * @remarks
+   * Combat is detected by an edge (previous tick was not `combat`), so it fires
+   * for both the manual START button and the optional build timer without either
+   * path needing to remember to spawn.
+   */
   update(dt: number): void {
     const event = this.phases.update(dt);
 
@@ -546,8 +564,132 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.autoFillDecks(event.autoCompleted);
     }
 
-    if (event?.type === "combat-started") {
-      console.log(`Room ${this.roomId}: combat started`);
+    const phase = this.state.phase;
+
+    if (phase === "combat" && this.lastPhase !== "combat") {
+      this.spawnTestWave();
     }
+
+    if (phase === "combat") {
+      this.simulateMobs(dt);
+    } else if (this.lastPhase === "combat") {
+      this.clearMobs();
+    }
+
+    this.lastPhase = phase;
+  }
+
+  /**
+   * Spawns the placeholder combat wave used to validate mob movement.
+   *
+   * @remarks Temporary stand-in for the real attacker wave economy. It splits
+   * evenly across the map's named paths (so both tracks can be eyeballed) and
+   * falls back to the single `path` for maps without `paths`.
+   */
+  private spawnTestWave(): void {
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const type = MOB_TYPES["grunt"];
+    if (!type) return;
+
+    const batchId = this.state.waveIndex + 1;
+    const perPath = 4;
+
+    let spawned = 0;
+    const top = map.paths?.top;
+    const bottom = map.paths?.bottom;
+
+    if (top && top.length >= 2) {
+      spawned += this.spawnMobsOnPath(top, "top", type, perPath, batchId);
+    }
+    if (bottom && bottom.length >= 2) {
+      spawned += this.spawnMobsOnPath(bottom, "bottom", type, perPath, batchId);
+    }
+    if (spawned === 0 && map.path.length >= 2) {
+      spawned += this.spawnMobsOnPath(map.path, "main", type, perPath * 2, batchId);
+    }
+
+    this.state.waveIndex = batchId;
+    console.log(
+      `Room ${this.roomId}: spawned test wave ${batchId} (${spawned} mobs, type ${type.id})`,
+    );
+  }
+
+  /**
+   * Creates `count` mobs of one type at the start of a path.
+   *
+   * @returns The number of mobs spawned.
+   */
+  private spawnMobsOnPath(
+    path: Vec2[],
+    pathId: string,
+    type: MobType,
+    count: number,
+    batchId: number,
+  ): number {
+    for (let i = 0; i < count; i++) {
+      const seed = (Math.random() * 0xffffffff) >>> 0;
+      const jitter = 1 + (Math.random() * 2 - 1) * MOB_SPEED_JITTER;
+      const id = `mob-${batchId}-${pathId}-${i}`;
+
+      this.state.mobs.set(
+        id,
+        new Mob({
+          ownerId: "",
+          typeId: type.id,
+          batchId,
+          progress: 0,
+          hp: type.maxHp,
+          maxHp: type.maxHp,
+          speed: type.speed * jitter,
+          bounty: type.bounty,
+          checkpoint: 0,
+          state: "moving",
+          seed,
+          pathId,
+        }),
+      );
+    }
+
+    return count;
+  }
+
+  /** Advances every mob along its path and despawns those that reach the base. */
+  private simulateMobs(dt: number): void {
+    if (this.state.mobs.size === 0) return;
+
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const finished: string[] = [];
+
+    for (const [id, mob] of this.state.mobs) {
+      const path = this.pathFor(map, mob.pathId);
+      const total = path ? pathLength(path) : 0;
+
+      if (!path || total <= 0) {
+        finished.push(id);
+        continue;
+      }
+
+      mob.progress += (mob.speed / total) * dt;
+
+      if (mob.progress >= 1) {
+        // Leak damage is not wired yet; for now a breach simply despawns.
+        finished.push(id);
+      }
+    }
+
+    for (const id of finished) {
+      this.state.mobs.delete(id);
+    }
+  }
+
+  /** Resolves a mob's `pathId` against the map's tracks. */
+  private pathFor(map: MapDefinition, pathId: string): Vec2[] | undefined {
+    if (pathId === "top") return map.paths?.top;
+    if (pathId === "bottom") return map.paths?.bottom;
+    return map.path;
+  }
+
+  private clearMobs(): void {
+    if (this.state.mobs.size > 0) this.state.mobs.clear();
   }
 }

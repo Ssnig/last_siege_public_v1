@@ -24,6 +24,15 @@ function waitForPhase(room: { state: RoomState }, phase: string, timeoutMs = 200
   });
 }
 
+async function waitFor(predicate: () => boolean, timeoutMs = 2000, intervalMs = 20): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error("condition not met within timeout");
+}
+
 describe("testing your Colyseus app", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
 
@@ -153,5 +162,65 @@ describe("testing your Colyseus app", () => {
 
     assert.strictEqual(room.state.phase, "gameover", "onLeave must not reopen the room");
     assert.strictEqual(room.state.winner, "defender");
+  });
+
+  it("spawns a test wave split across both paths when combat begins", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    const mobIds = Object.keys(MOB_TYPES).slice(0, 2);
+    const towerIds = Object.keys(TOWER_TYPES).slice(0, 2);
+
+    attacker.send(MESSAGES.draftReady, { deck: mobIds });
+    defender.send(MESSAGES.draftReady, { deck: towerIds });
+    await waitForPhase(room, "building");
+
+    attacker.send(MESSAGES.startCombat);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.strictEqual(room.state.phase, "building", "only the defender may start combat");
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+    await waitFor(() => room.state.mobs.size > 0);
+
+    assert.strictEqual(room.state.mobs.size, 8, "four mobs on each of the two paths");
+
+    const pathIds = new Set<string>();
+    for (const mob of room.state.mobs.values()) {
+      pathIds.add(mob.pathId);
+      assert.strictEqual(mob.typeId, "grunt");
+      assert.ok(mob.speed > 0, "each mob carries a jittered speed");
+    }
+    assert.deepStrictEqual([...pathIds].sort(), ["bottom", "top"], "both tracks are used");
+  });
+
+  it("advances spawned mobs along their path", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: Object.keys(MOB_TYPES).slice(0, 2) });
+    defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+    await waitFor(() => room.state.mobs.size > 0);
+
+    await waitFor(() => {
+      for (const mob of room.state.mobs.values()) {
+        if (mob.progress > 0) return true;
+      }
+      return false;
+    });
+
+    // Progress must stay in the normalised 0..1 range while advancing.
+    for (const mob of room.state.mobs.values()) {
+      assert.ok(mob.progress > 0 && mob.progress < 1, `progress ${mob.progress} in range`);
+    }
   });
 });

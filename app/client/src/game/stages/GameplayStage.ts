@@ -2,8 +2,12 @@ import Phaser from "phaser";
 import { Callbacks, Room } from "@colyseus/sdk";
 import {
   MESSAGES,
+  samplePath,
+  samplePathWithLateral,
   type MapDefinition,
+  type Mob,
   type Tower,
+  type Vec2,
   type YouEconomyPayload,
   TOWER_TYPES,
 } from "@root/shared";
@@ -58,10 +62,7 @@ export class GameplayStage {
   private topPath?: Phaser.Curves.Path;
   private bottomPath?: Phaser.Curves.Path;
   private towers: Map<number, Phaser.GameObjects.Sprite> = new Map();
-  private units: Phaser.GameObjects.Sprite[] = [];
-  private unitTweenTargets: Array<{ t: number }> = [];
-  private spawnEvents: Phaser.Time.TimerEvent[] = [];
-  private spawnTimeouts: Phaser.Time.TimerEvent[] = [];
+  private mobSprites: Map<Mob, Phaser.GameObjects.Sprite> = new Map();
 
   private gold = 200;
   private deck: string[] = [];
@@ -86,6 +87,11 @@ export class GameplayStage {
   private unsubscribers: Array<() => void> = [];
   private combatStarted = false;
   private destroyed = false;
+
+  /** Re-positions every mob sprite from authoritative `progress` each frame. */
+  private onSceneUpdate = (): void => {
+    this.updateMobs();
+  };
 
   constructor(
     scene: Phaser.Scene,
@@ -139,6 +145,8 @@ export class GameplayStage {
     }
     this.renderPhaseBanner();
     this.setupTowerSync();
+    this.setupMobSync();
+    this.scene.events.on(Phaser.Scenes.Events.UPDATE, this.onSceneUpdate);
   }
 
   /**
@@ -647,121 +655,86 @@ export class GameplayStage {
     this.scene.time.delayedCall(4000, () => {
       banner.destroy();
     });
-
-    this.startSpawner();
   }
 
-  private startSpawner(): void {
-    const spawnUnitOnPath = (path: Phaser.Curves.Path, delay: number): void => {
-      const timer = this.scene.time.delayedCall(delay, () => {
-        if (this.destroyed || !this.combatStarted || !this.root) return;
-        this.spawnUnit(path);
-      });
-      this.spawnTimeouts.push(timer);
+  /**
+   * Mirrors `RoomState.mobs` into sprites using Colyseus Callbacks.
+   *
+   * @remarks Positions are not synced; each frame the sprite is placed from the
+   * mob's authoritative `progress` via {@link updateMobSprite}, so the server
+   * stays the single source of truth for movement.
+   */
+  private setupMobSync(): void {
+    if (!this.room) return;
+
+    const callbacks = Callbacks.get(this.room);
+
+    const onAdd = (value: unknown): void => {
+      const mob = value as Mob;
+      const sprite = this.scene.add
+        .sprite(0, 0, "unit_warrior")
+        .setOrigin(0.5, 0.78)
+        .setDisplaySize(64, 64)
+        .setDepth(DEPTH.UNITS_LAYER);
+
+      this.mobSprites.set(mob, sprite);
+      this.root?.add(sprite);
+      this.updateMobSprite(mob, sprite);
     };
 
-    // Spawn initial waves from both portals
-    if (this.topPath) {
-      spawnUnitOnPath(this.topPath, 400);
-      spawnUnitOnPath(this.topPath, 1800);
-    }
-    if (this.bottomPath) {
-      spawnUnitOnPath(this.bottomPath, 1100);
-      spawnUnitOnPath(this.bottomPath, 2500);
-    }
-    if (this.paths.length === 1) {
-      spawnUnitOnPath(this.paths[0], 500);
-    }
+    const onRemove = (value: unknown): void => {
+      const sprite = this.mobSprites.get(value as Mob);
+      if (!sprite) return;
+      sprite.destroy();
+      this.mobSprites.delete(value as Mob);
+    };
 
-    // Continuously spawn units every 3.5 seconds
-    const loopEvent = this.scene.time.addEvent({
-      delay: 3500,
-      loop: true,
-      callback: () => {
-        if (this.destroyed || !this.combatStarted) return;
-        if (this.topPath) this.spawnUnit(this.topPath);
-        if (this.bottomPath) {
-          const t = this.scene.time.delayedCall(1200, () => {
-            if (this.destroyed || !this.combatStarted || !this.bottomPath) return;
-            this.spawnUnit(this.bottomPath);
-          });
-          this.spawnTimeouts.push(t);
-        }
-        if (this.paths.length === 1) {
-          this.spawnUnit(this.paths[0]);
-        }
-      },
-    });
-    this.spawnEvents.push(loopEvent);
+    // Third parameter `true` immediately renders mobs already present in state.
+    this.unsubscribers.push(callbacks.onAdd("mobs", onAdd, true));
+    this.unsubscribers.push(callbacks.onRemove("mobs", onRemove));
   }
 
-  private spawnUnit(path: Phaser.Curves.Path): void {
-    const startPoint = path.getPoint(0);
-    const unit = this.scene.add
-      .sprite(startPoint.x, startPoint.y, "unit_warrior")
-      .setOrigin(0.5, 0.78)
-      .setDisplaySize(0, 0)
-      .setDepth(DEPTH.UNITS_LAYER + startPoint.y * 0.001);
+  /** Per-frame pass repositioning every tracked mob sprite. */
+  private updateMobs(): void {
+    if (this.destroyed || this.mobSprites.size === 0) return;
+    this.mobSprites.forEach((sprite, mob) => this.updateMobSprite(mob, sprite));
+  }
 
-    this.units.push(unit);
-    this.root?.add(unit);
+  /** Places one sprite on the wavy path position derived from its progress. */
+  private updateMobSprite(mob: Mob, sprite: Phaser.GameObjects.Sprite): void {
+    const path = this.pathFor(mob.pathId);
+    if (!path || path.length < 2) return;
 
-    // Quick scale-in tween as unit emerges from portal wormhole
-    this.scene.tweens.add({
-      targets: unit,
-      displayWidth: 64,
-      displayHeight: 64,
-      duration: 350,
-      ease: "Back.easeOut",
-    });
+    const halfWidth = this.map.pathHalfWidth ?? 0;
+    const point = samplePathWithLateral(path, mob.progress, mob.seed, halfWidth);
 
-    const progress = { t: 0 };
-    this.unitTweenTargets.push(progress);
+    sprite.setPosition(point.x, point.y);
+    sprite.setDepth(DEPTH.UNITS_LAYER + point.y * 0.001);
 
-    const tween = this.scene.tweens.add({
-      targets: progress,
-      t: 1,
-      duration: 10000,
-      onUpdate: () => {
-        if (this.destroyed || !unit.active) return;
-        const currentPoint = path.getPoint(progress.t);
-        const bob = Math.sin(progress.t * Math.PI * 16) * 1.5;
-        unit.setPosition(currentPoint.x, currentPoint.y + bob);
-        unit.setDepth(DEPTH.UNITS_LAYER + currentPoint.y * 0.001);
+    // Face the direction of travel (art is a side-view sprite, so flip, not rotate).
+    const ahead = samplePath(path, Math.min(1, mob.progress + 0.02));
+    const dx = ahead.x - point.x;
+    if (Math.abs(dx) > 0.5) sprite.setFlipX(dx < 0);
+  }
 
-        const prevPoint = path.getPoint(Math.max(0, progress.t - 0.005));
-        if (Math.abs(currentPoint.x - prevPoint.x) > 0.05) {
-          unit.setFlipX(currentPoint.x < prevPoint.x);
-        }
-      },
-      onComplete: () => {
-        unit.destroy();
-        this.units = this.units.filter((u) => u !== unit);
-        this.unitTweenTargets = this.unitTweenTargets.filter(
-          (target) => target !== progress,
-        );
-        tween.remove();
-      },
-    });
+  /** Resolves a mob's `pathId` against the map's tracks. */
+  private pathFor(pathId: string): Vec2[] | undefined {
+    if (pathId === "top") return this.map.paths?.top;
+    if (pathId === "bottom") return this.map.paths?.bottom;
+    return this.map.path;
   }
 
   destroy(): void {
     this.destroyed = true;
     this.combatStarted = false;
 
+    this.scene.events.off(Phaser.Scenes.Events.UPDATE, this.onSceneUpdate);
+
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.unsubscribers = [];
 
-    for (const event of this.spawnEvents) event.remove(false);
-    this.spawnEvents = [];
-
-    for (const timeout of this.spawnTimeouts) timeout.remove(false);
-    this.spawnTimeouts = [];
-
-    for (const target of this.unitTweenTargets) {
-      this.scene.tweens.killTweensOf(target);
-    }
-    this.unitTweenTargets = [];
+    for (const sprite of this.mobSprites.values()) sprite.destroy();
+    this.mobSprites.clear();
 
     if (this.onKeyDown) {
       this.scene.input.keyboard?.off("keydown-D", this.onKeyDown);
@@ -792,7 +765,6 @@ export class GameplayStage {
     this.root = undefined;
 
     this.towers.clear();
-    this.units = [];
     this.deckCards.clear();
   }
 }
