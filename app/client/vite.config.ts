@@ -2,9 +2,24 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 
+// Plugin ensuring case-resilient asset loading (e.g. /assets/UI/ -> /assets/ui/)
+function caseInsensitiveAssetsPlugin() {
+  return {
+    name: 'case-insensitive-assets',
+    configureServer(server: any) {
+      server.middlewares.use((req: any, _res: any, next: any) => {
+        if (req.url && req.url.startsWith('/assets/UI/')) {
+          req.url = req.url.replace(/^\/assets\/UI\//, '/assets/ui/');
+        }
+        next();
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), caseInsensitiveAssetsPlugin()],
   server: {
     host: '0.0.0.0', // Listen on all network interfaces (LAN/Wi-Fi)
     port: 5173,

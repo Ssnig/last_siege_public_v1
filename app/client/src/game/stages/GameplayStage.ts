@@ -104,7 +104,6 @@ export class GameplayStage {
   private goldText?: Phaser.GameObjects.Text;
   private goldFrame?: Phaser.GameObjects.Image;
   private startButton?: UIButton;
-  private ghostTower?: Phaser.GameObjects.Sprite;
   private topPortal?: Phaser.GameObjects.Sprite;
   private bottomPortal?: Phaser.GameObjects.Sprite;
   private combatBanner?: Phaser.GameObjects.Container;
@@ -180,6 +179,8 @@ export class GameplayStage {
 
     if (this.deck.length > 0) {
       this.selectedTowerType = this.deck[0];
+    } else {
+      this.selectedTowerType = "basic";
     }
   }
 
@@ -206,6 +207,9 @@ export class GameplayStage {
     this.setupProjectileSync();
     this.setupBaseHpSync();
     this.scene.events.on(Phaser.Scenes.Events.UPDATE, this.onSceneUpdate);
+
+    // Canvas UI is kept for fallback, but hidden while React GameHUD is mounted
+    this.uiRoot.setVisible(false);
   }
 
   /**
@@ -213,6 +217,7 @@ export class GameplayStage {
    */
   applyEconomy(payload: YouEconomyPayload): void {
     this.gold = payload.gold;
+    this.refreshGold();
     if (payload.deck && payload.deck.length > 0) {
       this.deck = payload.deck;
       if (!this.selectedTowerType) {
@@ -359,10 +364,19 @@ export class GameplayStage {
           placeholder.setFillStyle(0x8b4513, 0.5);
           this.hideGhostTower();
         });
-        placeholder.on("pointerdown", () => {
-          this.isTouchingSlot = true;
-          this.handleSlotClick(slot);
-        });
+        placeholder.on(
+          "pointerdown",
+          (
+            _pointer: Phaser.Input.Pointer,
+            _localX: number,
+            _localY: number,
+            event: Phaser.Types.Input.EventData,
+          ) => {
+            event?.stopPropagation();
+            this.isTouchingSlot = true;
+            this.handleSlotClick(slot);
+          },
+        );
         placeholder.on("pointerup", () => {
           this.isTouchingSlot = false;
         });
@@ -459,7 +473,8 @@ export class GameplayStage {
   private getActiveTowerType(): string | undefined {
     return (
       (this.scene.game.registry.get("selectedTowerType") as string | undefined) ||
-      this.selectedTowerType
+      this.selectedTowerType ||
+      (this.deck.length > 0 ? this.deck[0] : "basic")
     );
   }
 
@@ -469,6 +484,13 @@ export class GameplayStage {
       this.selectTower(slot, existing);
       return;
     }
+
+    // Tapping the already highlighted/pending slot confirms build directly
+    if (this.pendingBuild?.slotIndex === slot.slotIndex) {
+      this.confirmBuild();
+      return;
+    }
+
     const typeId = this.getActiveTowerType();
     if (!typeId) {
       console.log("No tower type selected");
@@ -488,9 +510,8 @@ export class GameplayStage {
   /**
    * Arms a pending build on an empty slot and shows a confirm button.
    *
-   * @remarks Nothing is sent to the server yet; the defender must click the
-   * tick. Any other click cancels via {@link clearSelection}, which guards
-   * against misclicks.
+   * @remarks Tapping the ✓ BUILD button or tapping the slot a second time confirms.
+   * Clicking elsewhere deselects via clearSelection.
    */
   private requestBuild(slot: TowerSlot): void {
     this.clearSelection();
@@ -502,20 +523,29 @@ export class GameplayStage {
       .setStrokeStyle(3, 0x22c55e, 0.9);
     this.root?.add(this.buildHighlight);
 
-    this.actionButton = this.createActionButton(slot, "✓ BUILD", true, () =>
-      this.confirmBuild(),
+    const typeId = this.getActiveTowerType();
+    const towerType = typeId ? TOWER_TYPES[typeId] : undefined;
+    const cost = towerType?.tiers[0]?.cost ?? 50;
+
+    this.actionButton = this.createActionButton(
+      slot,
+      `✓ BUILD ${cost}g`,
+      true,
+      () => this.confirmBuild(),
     );
   }
 
   /** Sends the pending placement once the defender confirms it. */
   private confirmBuild(): void {
     const slot = this.pendingBuild;
-    if (!slot || !this.selectedTowerType) {
+    const typeId =
+      this.getActiveTowerType() || this.selectedTowerType || "basic";
+    if (!slot || !typeId) {
       this.clearSelection();
       return;
     }
 
-    const towerType = TOWER_TYPES[this.selectedTowerType];
+    const towerType = TOWER_TYPES[typeId];
     const cost = towerType?.tiers[0]?.cost ?? 0;
     if (!towerType || this.gold < cost) {
       console.log("Build cancelled: type unavailable or insufficient gold");
@@ -737,10 +767,13 @@ export class GameplayStage {
       label,
       fontSize: confirm ? 16 : 14,
       labelColor: confirm ? "#4ade80" : "#ffffff",
-      onClick,
+      onClick: () => {
+        this.isTouchingSlot = true;
+        onClick();
+      },
     });
     button.container.setDepth(DEPTH.UI_LAYER);
-    this.uiRoot?.add(button.container);
+    this.root?.add(button.container);
 
     return button;
   }
@@ -854,9 +887,22 @@ export class GameplayStage {
 
     if (this.role === "defender") {
       sprite.setInteractive({ useHandCursor: true });
-      sprite.on("pointerdown", () => {
-        const record = this.towers.get(slot.slotIndex);
-        if (record) this.selectTower(slot, record);
+      sprite.on(
+        "pointerdown",
+        (
+          _pointer: Phaser.Input.Pointer,
+          _localX: number,
+          _localY: number,
+          event: Phaser.Types.Input.EventData,
+        ) => {
+          event?.stopPropagation();
+          this.isTouchingSlot = true;
+          const record = this.towers.get(slot.slotIndex);
+          if (record) this.selectTower(slot, record);
+        },
+      );
+      sprite.on("pointerup", () => {
+        this.isTouchingSlot = false;
       });
     }
 
@@ -873,12 +919,10 @@ export class GameplayStage {
     this.startButton?.destroy();
     this.startButton = undefined;
 
-    // Show combat alert banner
+    // Show combat alert banner fixed to camera screen space
     const bannerWidth = 400;
     const bannerHeight = bannerWidth / UI_BG_ASPECT.notification2;
-    const banner = this.scene.add.container(640, 108);
-    // Show combat alert banner fixed to camera screen space
-    this.combatBanner = this.scene.add.container(640, 35).setScrollFactor(0);
+    this.combatBanner = this.scene.add.container(640, 45).setScrollFactor(0);
     const bg = this.scene.add
       .image(0, 0, UI_BG_TEXTURE_KEY, UI_BG_FRAMES.notification2)
       .setDisplaySize(bannerWidth, bannerHeight);
@@ -891,9 +935,6 @@ export class GameplayStage {
         wordWrap: { width: bannerWidth * 0.72 },
       })
       .setOrigin(0.5);
-    banner.add([bg, txt]);
-    banner.setDepth(DEPTH.UI_LAYER);
-    this.uiRoot?.add(banner);
     this.combatBanner.add([bg, txt]);
     this.combatBanner.setDepth(DEPTH.UI_LAYER);
 
@@ -1083,6 +1124,9 @@ export class GameplayStage {
     if (pathId === "top") return this.map.paths?.top;
     if (pathId === "bottom") return this.map.paths?.bottom;
     return this.map.path;
+  }
+
+  /**
    * Clamps camera scroll position so visible bounds remain within the 1280x720 map.
    */
   private clampCameraScroll(): void {
@@ -1284,6 +1328,5 @@ export class GameplayStage {
 
     this.towers.clear();
     this.deckCards.clear();
-    this.units = [];
   }
 }

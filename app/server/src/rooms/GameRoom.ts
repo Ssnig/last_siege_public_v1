@@ -413,17 +413,23 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * Handles manual start of combat phase.
    *
    * @remarks
-   * Allows either player (attacker or defender) to start combat instead of waiting for timer.
+   * Allows the defender to manually start combat instead of waiting for timer.
    */
   private handleStartCombat(client: Client): void {
     if (this.state.phase !== "building") return;
+
+    const role = client.userData?.role as PlayerRole | undefined;
+    if (role !== "defender") {
+      console.log(`Only defender can manually start combat. Client role: ${role}`);
+      return;
+    }
 
     if (!this.phases.beginCombat([])) {
       console.log("Failed to start combat");
       return;
     }
 
-    console.log(`Room ${this.roomId}: building -> combat (manual start by ${client.sessionId})`);
+    console.log(`Room ${this.roomId}: building -> combat (manual start by defender ${client.sessionId})`);
   }
 
   /**
