@@ -122,6 +122,31 @@ describe("Phases", () => {
     for (const p of state.players.values()) assert.strictEqual(p.draftReady, false);
   });
 
+  it("the combat timer expires income without ending the match", () => {
+    const { phases, state } = makeRoom(["a", "b"], {
+      ...MATCH_RULES,
+      roundDurationSec: 3,
+    });
+    phases.beginDraft();
+    phases.onDraftReady("a");
+    phases.onDraftReady("b");
+    phases.beginCombat([]);
+    assert.strictEqual(state.phaseEndsAt, 3);
+
+    assert.strictEqual(phases.update(1), null);
+    assert.strictEqual(state.phaseEndsAt, 2);
+
+    state.phaseEndsAt = 0.1;
+    assert.deepStrictEqual(phases.update(0.5), { type: "round-expired" });
+    assert.strictEqual(phases.phase, MATCH_PHASES.combat, "the timer does not end the match");
+    assert.strictEqual(state.winner, "", "the timer declares no winner");
+    assert.strictEqual(state.phaseEndsAt, 0);
+
+    // Once spent, the clock stays silent and the phase machine is inert.
+    assert.strictEqual(phases.update(5), null);
+    assert.strictEqual(phases.phase, MATCH_PHASES.combat);
+  });
+
   it("declareGameOver fires from drafting/building/combat but never waiting or gameover", () => {
     const { phases, state } = makeRoom();
 

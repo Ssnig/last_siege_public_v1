@@ -9,6 +9,7 @@ export type PhaseEvent =
   | { type: "draft-started" }
   | { type: "building-started"; autoCompleted: string[] }
   | { type: "combat-started"; autoCompleted: string[] }
+  | { type: "round-expired" }
   | { type: "gameover"; winner: PlayerRole };
 
 /**
@@ -174,7 +175,9 @@ export class Phases {
       if (!this.isRoundArmed() || this.state.phaseEndsAt <= 0) return null;
       this.state.phaseEndsAt = Math.max(0, this.state.phaseEndsAt - dt);
       if (this.state.phaseEndsAt > 0) return null;
-      return this.declareGameOver("defender");
+      // The round timer only closes the income window; GameRoom decides when the
+      // attacker is truly out (no units left) and declares the winner.
+      return { type: "round-expired" };
     }
 
     return null;

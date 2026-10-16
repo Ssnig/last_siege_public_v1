@@ -4,6 +4,7 @@ import {
   TOWER_TYPES,
   DEFAULT_ECONOMY,
   DEFAULT_DECK_RULES,
+  DEFAULT_WAVE_RULES,
   MATCH_RULES,
   buildCost,
   upgradeCost,
@@ -68,9 +69,8 @@ describe("balance.ts shape guards", () => {
   });
 
   it("economy, deck and match rules are positive and present", () => {
-    const { defenderStartingGold, attackerStartingGold, goldPerSecond, bigWaveCost, miniWaveCost } =
-      DEFAULT_ECONOMY;
-    for (const n of [defenderStartingGold, attackerStartingGold, goldPerSecond, bigWaveCost, miniWaveCost]) {
+    const { defenderStartingGold, attackerStartingGold, goldPerSecond } = DEFAULT_ECONOMY;
+    for (const n of [defenderStartingGold, attackerStartingGold, goldPerSecond]) {
       assert.ok(n > 0, `economy value must be > 0, got ${n}`);
     }
     assert.ok(DEFAULT_ECONOMY.bigWaveCount > 0);
@@ -83,6 +83,27 @@ describe("balance.ts shape guards", () => {
     for (const n of [MATCH_RULES.coreHp, MATCH_RULES.roundDurationSec]) {
       assert.ok(n > 0, `match rule must be > 0, got ${n}`);
     }
+  });
+
+  it("wave rules define sane, ordered caps and fees for both sizes", () => {
+    assert.ok(DEFAULT_WAVE_RULES.batchIntervalSec > 0, "batches must be spaced apart");
+
+    const { small, big } = DEFAULT_WAVE_RULES.sizes;
+    for (const [size, rules] of Object.entries(DEFAULT_WAVE_RULES.sizes)) {
+      assert.ok(rules.batchLimit > 0, `${size}: batchLimit must be > 0`);
+      assert.ok(rules.maxBatches > 0, `${size}: maxBatches must be > 0`);
+      assert.ok(
+        rules.waveLimit >= rules.batchLimit,
+        `${size}: a wave must hold at least one full batch`,
+      );
+      assert.ok(rules.fee >= 0, `${size}: fee must not be negative`);
+    }
+
+    // A big wave is strictly the more permissive (and pricier) option.
+    assert.ok(big.batchLimit >= small.batchLimit);
+    assert.ok(big.waveLimit >= small.waveLimit);
+    assert.ok(big.maxBatches >= small.maxBatches);
+    assert.ok(big.fee >= small.fee);
   });
 
   it("totalInvested sums build plus upgrades and sellRefund refunds a fraction", () => {
@@ -101,10 +122,11 @@ describe("balance.ts shape guards", () => {
     }
   });
 
-  it("every mob has a defined leakDamage greater than 0", () => {
+  it("every mob has a defined leakDamage and cost greater than 0", () => {
     for (const mob of Object.values(MOB_TYPES)) {
       assert.ok(mob.leakDamage > 0, `${mob.id} needs leakDamage > 0`);
       assert.ok(mob.bounty >= 0, `${mob.id} bounty must be >= 0`);
+      assert.ok(mob.cost > 0, `${mob.id} needs cost > 0`);
       assert.ok(mob.maxHp > 0 && mob.speed > 0, `${mob.id} maxHp/speed must be > 0`);
     }
   });

@@ -6,6 +6,9 @@
  * client; the intent keys are client → server. Keeping the keys here prevents
  * typos drifting between the two apps.
  */
+import type { WaveSize, WaveSizeRules } from "./balance.js";
+import type { StagedBatch } from "./waves.js";
+
 export const MESSAGES = {
   /** Client → server: this client's HUD is listening for its role payload. */
   ready: "ready",
@@ -19,16 +22,30 @@ export const MESSAGES = {
   surrender: "surrender",
   /** Server → client (private): hidden economy snapshot for this player. */
   youEconomy: "you_economy",
+  /** Server → client (private): the attacker's staged army + wave rules. */
+  attackerArmy: "attacker_army",
+  /** Server → client (private): a wave intent was refused, with a reason. */
+  waveRejected: "wave_rejected",
   /** Client → server: defender places a tower in a slot. */
   placeTower: "place_tower",
   /** Client → server: defender upgrades a tower. */
   upgradeTower: "upgrade_tower",
   /** Client → server: defender sells a tower. */
   sellTower: "sell_tower",
-  /** Client → server: attacker commits one big wave. */
-  sendBigWave: "send_big_wave",
-  /** Client → server: attacker sends a cheap mini wave. */
-  sendMiniWave: "send_mini_wave",
+  /** Client → server: attacker stages one batch of units on a path. */
+  waveAddBatch: "wave_add_batch",
+  /** Client → server: attacker changes a staged batch's unit count. */
+  waveSetCount: "wave_set_count",
+  /** Client → server: attacker removes a staged batch. */
+  waveRemoveBatch: "wave_remove_batch",
+  /** Client → server: attacker reorders a staged batch within its path. */
+  waveReorder: "wave_reorder",
+  /** Client → server: attacker switches a path's wave between big and small. */
+  waveSetSize: "wave_set_size",
+  /** Client → server: attacker clears all staged batches on a path. */
+  waveClear: "wave_clear",
+  /** Client → server: attacker releases staged waves (all, or the listed paths). */
+  waveRelease: "wave_release",
   /** Client → server: this side finished its deck draft. */
   draftReady: "draft_ready",
   /** Client → server: start combat phase manually. */
@@ -55,8 +72,11 @@ export interface OpponentLeftPayload {
 /** Payload of the `game_over` private message. */
 export interface GameOverPayload {
   winner: "attacker" | "defender";
-  /** `core` = the defender's base was destroyed; `surrender` = a concession. */
-  reason: "surrender" | "core";
+  /**
+   * `core` = the defender's base was destroyed; `surrender` = a concession;
+   * `time` = the round timer expired and the attacker had no units left.
+   */
+  reason: "surrender" | "core" | "time";
 }
 
 /** Payload of the `you_economy` private message (hidden from the opponent). */
@@ -64,6 +84,42 @@ export interface YouEconomyPayload {
   gold: number;
   deck: string[];
   bigWavesRemaining: number;
+}
+
+/** One path's staged army inside an `attacker_army` push. */
+export interface AttackerArmyPath {
+  pathId: string;
+  size: WaveSize;
+  batches: StagedBatch[];
+  /** Total gold to send this wave (units + fee). */
+  goldCost: number;
+  troopCount: number;
+}
+
+/**
+ * Payload of the `attacker_army` private message.
+ *
+ * @remarks Carries everything the attacker's army-management UI needs: their
+ * current gold, the per-size limits, per-unit costs and the staged composition
+ * per path. Sent only to the attacker; the defender sees none of it.
+ */
+export interface AttackerArmyPayload {
+  gold: number;
+  goldPerSecond: number;
+  /** `true` once the round timer expired and passive income stopped. */
+  incomeExpired: boolean;
+  bigWavesRemaining: number;
+  /** The attacker's drafted unit ids (their legal choices). */
+  availableTroops: string[];
+  limits: Record<WaveSize, WaveSizeRules>;
+  /** Gold cost per unit id, mirroring `MOB_TYPES`. */
+  mobCosts: Record<string, number>;
+  paths: AttackerArmyPath[];
+}
+
+/** Payload of the `wave_rejected` private message. */
+export interface WaveRejectedPayload {
+  reason: string;
 }
 
 export interface PlaceTowerIntent {
@@ -79,12 +135,41 @@ export interface SellTowerIntent {
   towerId: string;
 }
 
-export interface SendBigWaveIntent {
-  mobTypeIds: string[];
+export interface WaveAddBatchIntent {
+  pathId: string;
+  typeId: string;
+  count: number;
 }
 
-export interface SendMiniWaveIntent {
-  mobTypeIds: string[];
+export interface WaveSetCountIntent {
+  pathId: string;
+  batchId: string;
+  count: number;
+}
+
+export interface WaveRemoveBatchIntent {
+  pathId: string;
+  batchId: string;
+}
+
+export interface WaveReorderIntent {
+  pathId: string;
+  batchId: string;
+  toIndex: number;
+}
+
+export interface WaveSetSizeIntent {
+  pathId: string;
+  size: WaveSize;
+}
+
+export interface WaveClearIntent {
+  pathId: string;
+}
+
+export interface WaveReleaseIntent {
+  /** Paths to release; omit to release every non-empty staged path. */
+  pathIds?: string[];
 }
 
 export interface DraftReadyIntent {
