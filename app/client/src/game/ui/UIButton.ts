@@ -41,10 +41,7 @@ export class UIButton {
 
     const hit = scene.add
       .rectangle(0, 0, width, height, 0x000000, 0)
-      .setInteractive(
-        new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height),
-        Phaser.Geom.Rectangle.Contains,
-      );
+      .setInteractive({ useHandCursor: true });
 
     this.label = scene.add
       .text(0, 0, label, {
@@ -58,9 +55,18 @@ export class UIButton {
       if (this.enabled) this.image.setTint(0xcfe0ff);
     });
     hit.on("pointerout", () => this.applyState());
-    hit.on("pointerdown", () => {
-      if (this.enabled) this.onClick();
-    });
+    hit.on(
+      "pointerdown",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event?.stopPropagation();
+        if (this.enabled) this.onClick();
+      },
+    );
 
     this.container.add([this.image, hit, this.label]);
   }

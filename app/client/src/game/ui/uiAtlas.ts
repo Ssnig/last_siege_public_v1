@@ -4,16 +4,16 @@ import Phaser from "phaser";
 export const UI_TEXTURE_KEY = "ui";
 
 /** Load path for the UI atlas. */
-export const UI_TEXTURE_URL = "/assets/UI/UI.png";
+export const UI_TEXTURE_URL = "/assets/ui/UI.png";
 
-/** Texture key for the background/notification atlas (`public/assets/UI/UI_bg.png`). */
+/** Texture key for the background/notification atlas (`public/assets/ui/UI_bg.png`). */
 export const UI_BG_TEXTURE_KEY = "ui_bg";
 
 /** Load path for the background/notification atlas image. */
-export const UI_BG_TEXTURE_URL = "/assets/UI/UI_bg.png";
+export const UI_BG_TEXTURE_URL = "/assets/ui/UI_bg.png";
 
 /** Load path for the background/notification atlas descriptor. */
-export const UI_BG_ATLAS_URL = "/assets/UI/UI_bg.json";
+export const UI_BG_ATLAS_URL = "/assets/ui/UI_bg.json";
 
 /**
  * Named frames inside the background/notification atlas.

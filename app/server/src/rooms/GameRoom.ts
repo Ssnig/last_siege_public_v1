@@ -261,9 +261,18 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * deck may be empty before the draft is confirmed.
    */
   private sendEconomy(client: Client): void {
+    const role = client.userData?.role as PlayerRole | undefined;
+    let deck = this.acceptedDecks.get(client.sessionId);
+    if (!deck || deck.length === 0) {
+      if (role === "defender") {
+        deck = Object.keys(TOWER_TYPES).slice(0, 6);
+      } else if (role === "attacker") {
+        deck = Object.keys(MOB_TYPES).slice(0, 4);
+      }
+    }
     const economy: YouEconomyPayload = {
       gold: Math.floor(this.economies.get(client.sessionId) ?? 0),
-      deck: this.acceptedDecks.get(client.sessionId) ?? [],
+      deck: deck ?? [],
       bigWavesRemaining: this.bigWavesRemaining.get(client.sessionId) ?? 0,
     };
     client.send(MESSAGES.youEconomy, economy);
@@ -279,6 +288,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
     const deck = this.acceptedDecks.get(sessionId) ?? [];
+    const availableTroops =
+      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
     const staged = this.stagedWaves.get(sessionId) ?? new Map<string, StagedWave>();
 
     const paths: AttackerArmyPath[] = this.pathIdsFor(map).map((pathId) => {
@@ -298,7 +309,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       goldPerSecond: DEFAULT_ECONOMY.goldPerSecond,
       incomeExpired: this.incomeExpired,
       bigWavesRemaining: this.bigWavesRemaining.get(sessionId) ?? 0,
-      availableTroops: [...deck],
+      availableTroops: [...availableTroops],
       limits: DEFAULT_WAVE_RULES.sizes,
       mobCosts: Object.fromEntries(
         Object.entries(MOB_TYPES).map(([id, type]) => [id, type.cost]),
@@ -463,7 +474,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (!towerType) return;
 
     const deck = this.acceptedDecks.get(client.sessionId);
-    if (!deck || !deck.includes(payload.typeId)) {
+    const allowedDeck =
+      deck && deck.length > 0 ? deck : Object.keys(TOWER_TYPES).slice(0, 6);
+    if (!allowedDeck.includes(payload.typeId)) {
       console.log(`Tower ${payload.typeId} not in defender's deck`);
       return;
     }
@@ -636,7 +649,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const sessionId = client.sessionId;
     const deck = this.acceptedDecks.get(sessionId) ?? [];
-    if (!deck.includes(payload.typeId)) {
+    const allowedDeck =
+      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
+    if (!allowedDeck.includes(payload.typeId)) {
       return void this.rejectWave(client, `${payload.typeId} is not in your deck.`);
     }
 
@@ -788,39 +803,45 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * @remarks Batches launch `batchIntervalSec` apart in path order, so waves
    * staged on several paths come out one after another rather than as one blob.
    */
-  private handleWaveRelease(client: Client, payload: WaveReleaseIntent): void {
-    if (client.userData?.role !== "attacker") {
-      return void this.rejectWave(client, "Only the attacker can release a wave.");
-    }
-    if (this.state.phase !== "combat") {
-      return void this.rejectWave(client, "Waves can only be released during combat.");
-    }
-
+  /**
+   * Core logic to release staged waves for an attacker client.
+   * Returns true if waves were successfully scheduled, or an error message if failed.
+   */
+  private executeWaveRelease(
+    client: Client,
+    pathIds?: string[],
+  ): { success: boolean; error?: string } {
     const sessionId = client.sessionId;
     const staged = this.stagedWaves.get(sessionId);
     const deck = this.acceptedDecks.get(sessionId) ?? [];
+    const allowedDeck =
+      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
 
     const requested =
-      payload?.pathIds && payload.pathIds.length > 0
-        ? payload.pathIds
+      pathIds && pathIds.length > 0
+        ? pathIds
         : [...(staged?.keys() ?? [])];
 
     if (requested.length === 0) {
-      return void this.rejectWave(client, "Nothing staged to send.");
+      return { success: false, error: "Nothing staged to send." };
     }
 
     const toRelease: StagedWave[] = [];
     for (const pathId of requested) {
       if (!this.pathIdIsValid(pathId)) {
-        return void this.rejectWave(client, `No such path: ${pathId}.`);
+        return { success: false, error: `No such path: ${pathId}.` };
       }
       const wave = staged?.get(pathId);
       if (!wave || wave.batches.length === 0) {
-        return void this.rejectWave(client, `No army staged on path ${pathId}.`);
+        continue;
       }
-      const error = validateWave(wave, deck);
-      if (error) return void this.rejectWave(client, error);
+      const error = validateWave(wave, allowedDeck);
+      if (error) return { success: false, error };
       toRelease.push(wave);
+    }
+
+    if (toRelease.length === 0) {
+      return { success: false, error: "No army staged on requested paths." };
     }
 
     const totalCost = toRelease.reduce(
@@ -829,16 +850,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
     );
     const gold = this.economies.get(sessionId) ?? 0;
     if (gold < totalCost) {
-      return void this.rejectWave(client, "Not enough gold.");
+      return { success: false, error: "Not enough gold." };
     }
 
     const bigWaves = toRelease.filter((wave) => wave.size === "big").length;
     const budget = this.bigWavesRemaining.get(sessionId) ?? 0;
     if (bigWaves > budget) {
-      return void this.rejectWave(
-        client,
-        `Only ${budget} big wave(s) left this match.`,
-      );
+      return {
+        success: false,
+        error: `Only ${budget} big wave(s) left this match.`,
+      };
     }
 
     // Commit: charge gold, spend big-wave budget, then schedule the spawns.
@@ -866,6 +887,25 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.sendEconomy(client);
     this.sendAttackerArmy(client);
+    return { success: true };
+  }
+
+  /**
+   * Releases staged waves: validates cost and budget, deducts gold, then queues
+   * every batch to spawn in sequence.
+   */
+  private handleWaveRelease(client: Client, payload: WaveReleaseIntent): void {
+    if (client.userData?.role !== "attacker") {
+      return void this.rejectWave(client, "Only the attacker can release a wave.");
+    }
+    if (this.state.phase !== "combat") {
+      return void this.rejectWave(client, "Waves can only be released during combat.");
+    }
+
+    const outcome = this.executeWaveRelease(client, payload?.pathIds);
+    if (!outcome.success && outcome.error) {
+      return void this.rejectWave(client, outcome.error);
+    }
   }
 
   /**
@@ -1066,6 +1106,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.autoFillDecks(event.autoCompleted);
     }
 
+    if (event?.type === "combat-started") {
+      this.onBuildingTimerExpired();
+    }
+
     if (event?.type === "round-expired") {
       this.onRoundExpired();
     }
@@ -1102,20 +1146,85 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
+   * Called when the building countdown timer runs down to 0 and transitions to combat.
+   * Ensures attacker units are set on the field (either by releasing whatever the attacker staged,
+   * or by auto-staging and releasing an affordable wave if nothing was staged).
+   */
+  private onBuildingTimerExpired(): void {
+    console.log(`Room ${this.roomId}: building timer expired -> launching waves for combat`);
+    const attackerClient = this.clients.find(
+      (c) => c.userData?.role === "attacker",
+    );
+
+    if (attackerClient) {
+      const sessionId = attackerClient.sessionId;
+      const staged = this.stagedWaves.get(sessionId);
+      const hasStaged =
+        staged && Array.from(staged.values()).some((w) => w.batches.length > 0);
+
+      if (hasStaged) {
+        // Attacker staged waves during preparation: release them immediately!
+        this.executeWaveRelease(attackerClient);
+      } else {
+        // Attacker did not stage any wave before timer ran out: auto-stage starter wave and release
+        this.autoStageAndRelease(attackerClient);
+      }
+    } else {
+      // Solo defender match: spawn baseline wave directly onto map paths
+      this.spawnBaselineWave();
+    }
+  }
+
+  /**
+   * Auto-stages and releases a basic wave when the preparation timer runs out.
+   */
+  private autoStageAndRelease(client: Client): void {
+    const sessionId = client.sessionId;
+    const deck = this.acceptedDecks.get(sessionId) ?? [];
+    const availableTroops =
+      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
+    const mobId = availableTroops[0] || "grunt";
+
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const pathIds = this.pathIdsFor(map);
+
+    for (const pathId of pathIds) {
+      const wave = this.ensureStagedWave(sessionId, pathId);
+      wave.batches = [
+        {
+          batchId: `batch-${++this.batchSeq}`,
+          typeId: mobId,
+          count: 4,
+        },
+      ];
+    }
+
+    this.executeWaveRelease(client, pathIds);
+  }
+
+  /**
+   * Spawns baseline mobs for solo testing when no attacker client is connected.
+   */
+  private spawnBaselineWave(): void {
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const pathIds = this.pathIdsFor(map);
+    const interval = DEFAULT_WAVE_RULES.batchIntervalSec;
+    let offset = 0;
+
+    for (const pathId of pathIds) {
+      this.releaseQueue.push({
+        atMatchTime: this.matchTime + offset * interval,
+        pathId,
+        typeId: "grunt",
+        count: 4,
+      });
+      offset++;
+    }
+    console.log(`Room ${this.roomId}: spawned baseline wave on ${pathIds.join(", ")}`);
+  }
+
+  /**
    * Resets per-match income state the moment combat begins.
-   *
-   * @remarks Nothing is spawned here: any army staged during `building` stays
-   * staged and waits for the attacker's explicit `wave_release` intent, so the
-   * first wave is only ever sent when the attacker chooses.
-   *
-   * `matchTime` and `releaseQueue` are deliberately **not** touched. A
-   * `start_combat` followed by an immediate `wave_release` can both be handled
-   * before this edge runs; zeroing the clock or dropping the queue here would
-   * silently swallow the attacker's first wave (the release is scheduled against
-   * the same clock `drainReleaseQueue` reads). The clock is monotonic for the
-   * room's lifetime and only used to space scheduled batches, so carrying it
-   * across a combat boundary is harmless. Stale batches are dropped when combat
-   * ends (see the update loop) and on a room reopen (`resetWaveRuntime`).
    */
   private beginCombatSim(): void {
     this.incomeExpired = false;
@@ -1230,7 +1339,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.waveIndex = batchId;
 
     if (spawned > 0) {
-      console.log(
+    console.log(
         `Room ${this.roomId}: released batch ${batchId} (${scheduled.count}x ${type.id} on ${scheduled.pathId})`,
       );
     }

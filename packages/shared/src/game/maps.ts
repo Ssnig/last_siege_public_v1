@@ -100,8 +100,7 @@ export const KONBAUNG_MAP: MapDefinition = {
     { slotIndex: 4, x: 1034, y: 539 }
   ],
   checkpoints: [1, 3],
-  base: { x: 1108, y: 360 },
-  pathHalfWidth: 20,
+  base: { x: 1108, y: 360 }
 };
 
 export const MAPS: Record<string, MapDefinition> = {
