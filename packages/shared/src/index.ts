@@ -7,4 +7,5 @@ export * from "./schema/RoomState.js";
 export * from "./game/maps.js";
 export * from "./game/path.js";
 export * from "./game/balance.js";
+export * from "./game/waves.js";
 export * from "./game/messages.js";

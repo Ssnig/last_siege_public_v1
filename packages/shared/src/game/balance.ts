@@ -18,6 +18,8 @@ export interface MobType {
   bounty: number;
   /** Core HP the defender loses when this mob reaches the base. */
   leakDamage: number;
+  /** Gold the attacker spends to field one of these in a wave. */
+  cost: number;
 }
 
 /** One level of a tower: full stats *and* the gold cost to reach it. */
@@ -50,11 +52,46 @@ export interface TowerType {
 export interface EconomyConfig {
   defenderStartingGold: number;
   attackerStartingGold: number;
+  /**
+   * Passive gold per second the attacker accrues during building and combat.
+   *
+   * @remarks Stops for the attacker once the round timer (`roundDurationSec`)
+   * expires; the defender is bounty-funded and never receives this.
+   */
   goldPerSecond: number;
   /** Total big waves the attacker has for the whole match. */
   bigWaveCount: number;
-  bigWaveCost: number;
-  miniWaveCost: number;
+}
+
+/**
+ * Which size of wave the attacker is staging. `big` waves allow more units per
+ * batch/wave but cost a larger flat fee and consume the limited big-wave pool.
+ */
+export type WaveSize = "big" | "small";
+
+/** Per-size caps and flat fee for a staged wave. */
+export interface WaveSizeRules {
+  /** Maximum units in a single batch. */
+  batchLimit: number;
+  /** Maximum total units across every batch in one wave. */
+  waveLimit: number;
+  /** Maximum number of batches in one wave. */
+  maxBatches: number;
+  /** Flat gold fee added on top of the sum of the units' costs. */
+  fee: number;
+}
+
+/**
+ * Rules for staging and releasing attacker waves.
+ *
+ * @remarks Grouped here so all wave tunables live with the rest of the balance
+ * numbers; the client reuses these exact values to preview cost/limits.
+ */
+export interface WaveRules {
+  /** Seconds between consecutive batches when a wave (or several) is released. */
+  batchIntervalSec: number;
+  /** Caps and fees keyed by wave size. */
+  sizes: Record<WaveSize, WaveSizeRules>;
 }
 
 /** Draft rules: how many cards each side picks before the match. */
@@ -127,21 +164,27 @@ export interface MatchRules {
   draftDurationSec: number;
   /** Seconds allocated to the building phase. */
   buildingDurationSec: number;
-  /** Seconds before an unfinished combat round ends. */
+  /**
+   * Seconds of attacker passive income in combat.
+   *
+   * @remarks Reaching zero does **not** end the match: the attacker simply stops
+   * earning. The defender then wins once the attacker has no units left on the
+   * field and none queued to spawn.
+   */
   roundDurationSec: number;
 }
 
 export const MOB_TYPES: Record<string, MobType> = {
-  grunt:      { id: "grunt", name: "Grunt",       maxHp: 100, speed: 60,  bounty: 5,  leakDamage: 1 },
-  runner:     { id: "runner", name: "Runner",     maxHp: 60,  speed: 110, bounty: 7,  leakDamage: 1 },
-  brute:      { id: "brute", name: "Brute",       maxHp: 400, speed: 40,  bounty: 25, leakDamage: 3 },
-  shade:      { id: "shade", name: "Shade",       maxHp: 130, speed: 95,  bounty: 9,  leakDamage: 1 },
-  spider:     { id: "spider", name: "Spider",     maxHp: 45,  speed: 130, bounty: 6,  leakDamage: 1 },
-  orc:        { id: "orc", name: "Orc",           maxHp: 160, speed: 55,  bounty: 10, leakDamage: 1 },
-  gargoyle:   { id: "gargoyle", name: "Gargoyle", maxHp: 220, speed: 85,  bounty: 14, leakDamage: 2 },
-  sapper:     { id: "sapper", name: "Sapper",     maxHp: 180, speed: 75,  bounty: 12, leakDamage: 2 },
-  necromancer:{ id: "necromancer", name: "Necromancer", maxHp: 320, speed: 70, bounty: 22, leakDamage: 2 },
-  ogre:       { id: "ogre", name: "Ogre",         maxHp: 700, speed: 30,  bounty: 60, leakDamage: 5 },
+  grunt:      { id: "grunt", name: "Grunt",       maxHp: 100, speed: 60,  bounty: 5,  leakDamage: 1, cost: 10 },
+  runner:     { id: "runner", name: "Runner",     maxHp: 60,  speed: 110, bounty: 7,  leakDamage: 1, cost: 12 },
+  brute:      { id: "brute", name: "Brute",       maxHp: 400, speed: 40,  bounty: 25, leakDamage: 3, cost: 40 },
+  shade:      { id: "shade", name: "Shade",       maxHp: 130, speed: 95,  bounty: 9,  leakDamage: 1, cost: 14 },
+  spider:     { id: "spider", name: "Spider",     maxHp: 45,  speed: 130, bounty: 6,  leakDamage: 1, cost: 8 },
+  orc:        { id: "orc", name: "Orc",           maxHp: 160, speed: 55,  bounty: 10, leakDamage: 1, cost: 16 },
+  gargoyle:   { id: "gargoyle", name: "Gargoyle", maxHp: 220, speed: 85,  bounty: 14, leakDamage: 2, cost: 22 },
+  sapper:     { id: "sapper", name: "Sapper",     maxHp: 180, speed: 75,  bounty: 12, leakDamage: 2, cost: 18 },
+  necromancer:{ id: "necromancer", name: "Necromancer", maxHp: 320, speed: 70, bounty: 22, leakDamage: 2, cost: 30 },
+  ogre:       { id: "ogre", name: "Ogre",         maxHp: 700, speed: 30,  bounty: 60, leakDamage: 5, cost: 60 },
 };
 
 export const TOWER_TYPES: Record<string, TowerType> = {
@@ -230,10 +273,16 @@ export const TOWER_TYPES: Record<string, TowerType> = {
 export const DEFAULT_ECONOMY: EconomyConfig = {
   defenderStartingGold: 200,
   attackerStartingGold: 150,
-  goldPerSecond: 5,
+  goldPerSecond: 20,
   bigWaveCount: 5,
-  bigWaveCost: 40,
-  miniWaveCost: 10,
+};
+
+export const DEFAULT_WAVE_RULES: WaveRules = {
+  batchIntervalSec: 2,
+  sizes: {
+    small: { batchLimit: 10, waveLimit: 30, maxBatches: 5, fee: 10 },
+    big:   { batchLimit: 15, waveLimit: 45, maxBatches: 8, fee: 40 },
+  },
 };
 
 export const DEFAULT_DECK_RULES: DeckRules = {
