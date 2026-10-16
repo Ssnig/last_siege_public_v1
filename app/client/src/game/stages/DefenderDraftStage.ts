@@ -233,15 +233,7 @@ private readonly onConfirm: (deck: string[]) => void;
         0x4f46e5,
       )
       .setStrokeStyle(1, 0x818cf8)
-      .setInteractive(
-        new Phaser.Geom.Rectangle(
-          -buttonWidth / 2,
-          -buttonHeight / 2,
-          buttonWidth,
-          buttonHeight,
-        ),
-        Phaser.Geom.Rectangle.Contains,
-      );
+      .setInteractive();
 
     this.confirmText = this.scene.add.text(
       buttonX + buttonWidth / 2,
