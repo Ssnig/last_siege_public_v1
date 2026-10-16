@@ -6,9 +6,11 @@ import { GameRoute } from './componenets/GameRoute';
 import { GameRoomContext, type GameRoomContextValue } from './network/roomContext';
 import { client } from './network/client';
 
+import { LandingPage } from './componenets/landing/LandingPage';
+
 /**
- * Root shell: route-based. `/lobby` hosts matchmaking and `/game/:roomId` an
- * active match. `/` will become a landing page later; for now it redirects.
+ * Root shell: route-based. `/` hosts the game welcome/landing page,
+ * `/lobby` hosts matchmaking, and `/game/:roomId` an active match.
  *
  * @remarks
  * `GameRoomContext` owns the one shared Colyseus room for the whole app
@@ -22,7 +24,7 @@ export default function App() {
     <div className="w-screen h-screen bg-slate-900 text-white overflow-hidden flex items-center justify-center">
       <GameRoomContext.Provider value={roomContext}>
         <Routes>
-          <Route path="/" element={<Navigate to="/lobby" replace />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/lobby" element={<Lobby client={client} />} />
           <Route path="/game/:roomId" element={<GameRoute />} />
           <Route path="*" element={<Navigate to="/lobby" replace />} />
