@@ -66,17 +66,18 @@ describe("Phases", () => {
     const event = phases.onDraftReady("b");
     assert.deepStrictEqual(event, { type: "building-started", autoCompleted: [] });
     assert.strictEqual(phases.phase, MATCH_PHASES.building);
-    assert.strictEqual(state.phaseEndsAt, 0);
+    assert.strictEqual(state.phaseEndsAt, 180);
   });
 
-  it("building is static: no clock runs while it's open", () => {
+  it("building has countdown: clock runs and updates phaseEndsAt while open", () => {
     const { phases, state } = makeRoom();
     phases.beginDraft();
     phases.onDraftReady("a");
     phases.onDraftReady("b");
 
+    assert.strictEqual(state.phaseEndsAt, 180);
     assert.strictEqual(phases.update(5), null);
-    assert.strictEqual(state.phaseEndsAt, 0);
+    assert.strictEqual(state.phaseEndsAt, 175);
   });
 
   it("when armed, a draft timeout auto-completes the laggard into building", () => {

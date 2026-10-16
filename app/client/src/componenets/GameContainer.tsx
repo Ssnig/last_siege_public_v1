@@ -3,9 +3,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { Callbacks, Room } from '@colyseus/sdk';
 import { GameScene } from '../game/GameScene';
-import { MESSAGES, type OpponentLeftPayload, type GameOverPayload } from '@root/shared';
+import { MESSAGES, type OpponentLeftPayload, type GameOverPayload, type YouEconomyPayload } from '@root/shared';
 import { useGameRoom } from '../network/roomContext';
 import { MatchLoadingScreen } from './match/MatchLoadingScreen';
+import { GameHUD } from './game/GameHUD';
 
 interface GameContainerProps {
   room: Room;
@@ -54,6 +55,7 @@ function hasOwnRole(room: Room): boolean {
 export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom }) => {
   const { setRoom } = useGameRoom();
   const gameRef = useRef<HTMLDivElement>(null);
+  const gameInstanceRef = useRef<Phaser.Game | null>(null);
 
   // Pre-seeded from the snapshot so a joiner into a started room skips the wait.
   const [matchStarted, setMatchStarted] = useState<boolean>(
@@ -64,6 +66,20 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [menuOpen, setMenuOpen] = useState(false);
   const [surrenderConfirm, setSurrenderConfirm] = useState(false);
   const [gameOver, setGameOver] = useState<GameOverInfo | null>(null);
+
+  // Gameplay HUD state
+  const [gold, setGold] = useState<number>(200);
+  const [deck, setDeck] = useState<string[]>([]);
+  const [selectedTowerType, setSelectedTowerType] = useState<string>('basic');
+  const [phase, setPhase] = useState<string>(() => room.state?.phase || 'drafting');
+  const [phaseEndsAt, setPhaseEndsAt] = useState<number>(() => room.state?.phaseEndsAt || 180);
+
+  const handleSelectTower = (id: string) => {
+    setSelectedTowerType(id);
+    if (gameInstanceRef.current) {
+      gameInstanceRef.current.registry.set('selectedTowerType', id);
+    }
+  };
 
   // AFK fallback: if a finished match is left idle, return to the lobby.
   useEffect(() => {
@@ -80,6 +96,14 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       setPlayerInfo(data);
       setMatchStarted(true);
       setStatusText("Match Ready! Roles Assigned.");
+    });
+
+    const offEconomy = room.onMessage(MESSAGES.youEconomy, (data: YouEconomyPayload) => {
+      console.log("GameContainer economy received:", data);
+      setGold(data.gold);
+      if (data.deck && data.deck.length > 0) {
+        setDeck(data.deck);
+      }
     });
 
     // Tell the server the HUD is listening so it can safely send the role payload.
@@ -110,21 +134,28 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       });
     });
 
-    // Fallback: the authoritative phase patch also opens the game-over screen.
-    const unlistenPhase = Callbacks.get(room).listen("phase", (phase: string) => {
-      if (phase !== "gameover") return;
+    // Authoritative phase updates
+    const unlistenPhase = Callbacks.get(room).listen("phase", (p: string) => {
+      setPhase(p);
+      if (p !== "gameover") return;
       const winner = room.state.winner as "attacker" | "defender" | undefined;
       if (!winner) return;
       const myRole = room.state.players.get(room.sessionId)?.role;
       setGameOver((prev) => prev ?? { winner, reason: "surrender", youWin: winner === myRole });
     });
 
+    const unlistenPhaseEndsAt = Callbacks.get(room).listen("phaseEndsAt", (endsAt: number) => {
+      setPhaseEndsAt(endsAt);
+    });
+
     return () => {
       offRoleAssigned();
+      offEconomy();
       offOpponentLeft();
       offLeave.remove(handleLeave);
       offGameOver();
       unlistenPhase();
+      unlistenPhaseEndsAt();
       room.leave();
       // Drop the finished/left room from context so a later /game/:roomId
       // visit (e.g. via the browser back/forward) can never reuse it.
@@ -132,8 +163,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     };
   }, [room, setRoom]);
 
-  // Phaser lifecycle, keyed on whether the draft pick has begun. FIT scale mode
-  // maintains 1280x720 logical resolution while scaling to fit the viewport.
+  // Phaser lifecycle, keyed on whether the draft pick has begun.
+  // ENVELOP scale mode fills widescreen displays edge-to-edge with no black bars.
   useEffect(() => {
     if (!matchStarted || !gameRef.current) return;
 
@@ -141,10 +172,10 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       type: Phaser.AUTO,
       width: 1280,
       height: 720,
-      backgroundColor: '#1e293b',
+      backgroundColor: '#020617',
       parent: gameRef.current,
       scale: {
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.ENVELOP,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 1280,
         height: 720,
@@ -157,9 +188,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     const game = new Phaser.Game(config);
     game.registry.set('room', room);
     game.registry.set('assignedRole', playerInfo.myRole);
+    game.registry.set('selectedTowerType', selectedTowerType);
+    gameInstanceRef.current = game;
 
     return () => {
       game.destroy(true);
+      gameInstanceRef.current = null;
     };
   }, [room, matchStarted, playerInfo]);
 
@@ -176,9 +210,23 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black flex items-center justify-center">
-      {/* Phaser Canvas Container (fullscreen) */}
-      <div ref={gameRef} id="phaser-game" className="w-full h-full flex items-center justify-center" />
+    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#020617] flex items-center justify-center">
+      {/* Phaser Canvas Container (fullscreen ENVELOP) */}
+      <div ref={gameRef} id="phaser-game" className="w-full h-full flex items-center justify-center overflow-hidden" />
+
+      {/* Royal Game HUD Overlay */}
+      {matchStarted && phase !== 'drafting' && (
+        <GameHUD
+          gold={gold}
+          deck={deck}
+          selectedTowerType={selectedTowerType}
+          onSelectTower={handleSelectTower}
+          onOpenMenu={() => setMenuOpen(true)}
+          phase={phase}
+          phaseEndsAt={phaseEndsAt}
+          role={playerInfo.myRole as 'attacker' | 'defender'}
+        />
+      )}
 
       {/* Game-over screen (layered above the canvas) */}
       {gameOver && (
@@ -212,8 +260,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         </div>
       )}
 
-      {/* Floating menu button */}
-      {!gameOver && (
+      {/* Floating menu button (only during drafting phase before GameHUD takes over) */}
+      {!gameOver && phase === 'drafting' && (
         <button
           onClick={() => setMenuOpen(true)}
           aria-label="Open game menu"
@@ -249,6 +297,18 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
                 <p>You: <span className="text-yellow-400 font-bold uppercase">{playerInfo.myRole}</span> — <span className="text-white font-bold">{playerInfo.myName}</span></p>
                 <p>Opponent: <span className="text-yellow-400 font-bold uppercase">{playerInfo.opponentRole}</span> — <span className="text-white font-bold">{playerInfo.opponentName}</span></p>
               </div>
+            )}
+
+            {phase === 'building' && playerInfo.myRole === 'defender' && (
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  room.send(MESSAGES.startCombat, {});
+                }}
+                className="py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-bold text-white transition flex items-center justify-center gap-2"
+              >
+                <span>⚔️</span> Start Combat Now
+              </button>
             )}
 
             <button

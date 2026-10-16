@@ -302,4 +302,8 @@ export class GameScene extends Phaser.Scene {
     this.currentPhase = undefined;
     this.assignedRole = undefined;
   }
+
+  override update(time: number, delta: number): void {
+    this.gameplayStage?.update(time, delta);
+  }
 }

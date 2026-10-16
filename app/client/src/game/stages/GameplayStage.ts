@@ -57,12 +57,7 @@ export class GameplayStage {
   private deck: string[] = [];
   private selectedTowerType?: string;
 
-  private deckCards: Map<string, Phaser.GameObjects.Rectangle> = new Map();
-  private deckObjects: Phaser.GameObjects.GameObject[] = [];
   private ghostTower?: Phaser.GameObjects.Sprite;
-  private phaseBanner?: Phaser.GameObjects.Container;
-  private goldText?: Phaser.GameObjects.Text;
-  private startButton?: Phaser.GameObjects.Container;
   private topPortal?: Phaser.GameObjects.Sprite;
   private bottomPortal?: Phaser.GameObjects.Sprite;
 
@@ -70,6 +65,18 @@ export class GameplayStage {
   private showDebug = false;
   private onKeyDown?: (event: KeyboardEvent) => void;
   private onPointerDown?: (pointer: Phaser.Input.Pointer) => void;
+
+  // Camera Drag & Momentum Properties
+  private isDragging = false;
+  private lastPointerX = 0;
+  private lastPointerY = 0;
+  private cameraVelocityX = 0;
+  private cameraVelocityY = 0;
+  private isTouchingSlot = false;
+  private onCameraPointerDown?: (pointer: Phaser.Input.Pointer) => void;
+  private onCameraPointerMove?: (pointer: Phaser.Input.Pointer) => void;
+  private onCameraPointerUp?: () => void;
+  private onCameraWheel?: (pointer: any, gameObjects: any, deltaX: number, deltaY: number) => void;
 
   private unsubscribers: Array<() => void> = [];
   private combatStarted = false;
@@ -112,13 +119,8 @@ export class GameplayStage {
   create(): void {
     this.render();
     this.setupPortals();
+    this.setupCameraControls();
     this.setupDebugControls();
-
-    if (this.role === "defender") {
-      this.renderTowerDeck();
-      this.renderStartButton();
-    }
-    this.renderPhaseBanner();
     this.setupTowerSync();
   }
 
@@ -133,16 +135,6 @@ export class GameplayStage {
         this.selectedTowerType = this.deck[0];
       }
     }
-
-    this.refreshGold();
-
-    if (
-      this.role === "defender" &&
-      this.deckCards.size === 0 &&
-      this.deck.length > 0
-    ) {
-      this.renderTowerDeck();
-    }
   }
 
   updateEconomy(gold: number, deck?: string[]): void {
@@ -151,12 +143,6 @@ export class GameplayStage {
       deck: deck ?? this.deck,
       bigWavesRemaining: 0,
     });
-  }
-
-  private refreshGold(): void {
-    if (this.goldText) {
-      this.goldText.setText(`GOLD: ${this.gold}g`);
-    }
   }
 
   private setupPortals(): void {
@@ -264,13 +250,19 @@ export class GameplayStage {
           placeholder.setFillStyle(0x8b4513, 0.5);
           this.hideGhostTower();
         });
-        placeholder.on("pointerdown", () => this.handleSlotClick(slot));
+        placeholder.on("pointerdown", () => {
+          this.isTouchingSlot = true;
+          this.handleSlotClick(slot);
+        });
+        placeholder.on("pointerup", () => {
+          this.isTouchingSlot = false;
+        });
       }
 
       this.root?.add(placeholder);
     });
 
-    // Render base castle and floating HP bar
+    // Render base castle sprite (HP is integrated into React HUD)
     if (this.map.base && this.map.id === "konbaung") {
       const baseCastle = this.scene.add
         .sprite(this.map.base.x, this.map.base.y, "base_castle")
@@ -278,39 +270,6 @@ export class GameplayStage {
         .setDisplaySize(280, 280)
         .setDepth(DEPTH.BASE_LAYER);
       this.root.add(baseCastle);
-
-      // Floating HP bar above castle
-      const hpBarWidth = 120;
-      const hpBarHeight = 10;
-      const hpBarX = this.map.base.x;
-      const hpBarY = this.map.base.y - 150;
-
-      const hpBarBorder = this.scene.add
-        .rectangle(hpBarX, hpBarY, hpBarWidth + 4, hpBarHeight + 4, 0x0f172a, 0.8)
-        .setOrigin(0.5)
-        .setStrokeStyle(1, 0x334155)
-        .setDepth(DEPTH.BASE_LAYER + 0.1);
-
-      const hpBarBg = this.scene.add
-        .rectangle(hpBarX, hpBarY, hpBarWidth, hpBarHeight, 0x1e293b)
-        .setOrigin(0.5)
-        .setDepth(DEPTH.BASE_LAYER + 0.2);
-
-      const hpBarFill = this.scene.add
-        .rectangle(hpBarX - hpBarWidth / 2, hpBarY, hpBarWidth, hpBarHeight, 0x22c55e)
-        .setOrigin(0, 0.5)
-        .setDepth(DEPTH.BASE_LAYER + 0.3);
-
-      const hpText = this.scene.add
-        .text(hpBarX, hpBarY - 14, "BASE CASTLE: 10/10 HP", {
-          fontSize: "11px",
-          color: "#f8fafc",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5)
-        .setDepth(DEPTH.BASE_LAYER + 0.4);
-
-      this.root.add([hpBarBorder, hpBarBg, hpBarFill, hpText]);
     } else if (this.map.base) {
       const base = this.scene.add
         .circle(this.map.base.x, this.map.base.y, 50, 0xff0000, 0.3)
@@ -351,17 +310,25 @@ export class GameplayStage {
     }
   }
 
+  private getActiveTowerType(): string | undefined {
+    return (
+      (this.scene.game.registry.get("selectedTowerType") as string | undefined) ||
+      this.selectedTowerType
+    );
+  }
+
   private handleSlotClick(slot: TowerSlot): void {
     if (this.towers.has(slot.slotIndex)) {
       console.log(`Slot ${slot.slotIndex} already occupied`);
       return;
     }
-    if (!this.selectedTowerType) {
+    const typeId = this.getActiveTowerType();
+    if (!typeId) {
       console.log("No tower type selected");
       return;
     }
 
-    const towerType = TOWER_TYPES[this.selectedTowerType];
+    const towerType = TOWER_TYPES[typeId];
     const cost = towerType?.tiers[0]?.cost ?? 0;
     if (this.gold < cost) {
       console.log(`Not enough gold: need ${cost}, have ${this.gold}`);
@@ -371,142 +338,19 @@ export class GameplayStage {
     this.hideGhostTower();
 
     console.log(
-      `Sending place_tower for slot ${slot.slotIndex}, type: ${this.selectedTowerType}`,
+      `Sending place_tower for slot ${slot.slotIndex}, type: ${typeId}`,
     );
     this.room.send(MESSAGES.placeTower, {
-      typeId: this.selectedTowerType,
+      typeId,
       slotIndex: slot.slotIndex,
     });
   }
 
-  private renderTowerDeck(): void {
-    if (!this.deck || this.deck.length === 0) return;
 
-    for (const obj of this.deckObjects) obj.destroy();
-    this.deckObjects = [];
-    this.deckCards.clear();
-
-    const deckX = 24;
-    const deckY = 665;
-    const cardWidth = 84;
-    const cardHeight = 84;
-    const gap = 12;
-
-    this.goldText?.destroy();
-    this.goldText = this.scene.add
-      .text(deckX, deckY - 50, `GOLD: ${this.gold}g`, {
-        fontSize: "15px",
-        color: "#fbbf24",
-        fontStyle: "bold",
-      })
-      .setOrigin(0, 0.5)
-      .setDepth(DEPTH.UI_LAYER);
-    this.root?.add(this.goldText);
-    this.deckObjects.push(this.goldText);
-
-    if (!this.selectedTowerType && this.deck.length > 0) {
-      this.selectedTowerType = this.deck[0];
-    }
-
-    this.deck.forEach((towerId, index) => {
-      const tower = TOWER_TYPES[towerId];
-      if (!tower) return;
-
-      const x = deckX + index * (cardWidth + gap);
-      const isSelected = this.selectedTowerType === towerId;
-
-      const card = this.scene.add
-        .rectangle(x, deckY, cardWidth, cardHeight, 0x1e293b)
-        .setStrokeStyle(2, isSelected ? 0x4ade80 : 0x475569)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(DEPTH.UI_LAYER);
-
-      this.deckCards.set(towerId, card);
-      this.deckObjects.push(card);
-
-      card.on("pointerover", () => {
-        if (this.selectedTowerType !== towerId) {
-          card.setStrokeStyle(2, 0x6366f1);
-        }
-      });
-      card.on("pointerout", () => {
-        card.setStrokeStyle(
-          2,
-          this.selectedTowerType === towerId ? 0x4ade80 : 0x475569,
-        );
-      });
-      card.on("pointerdown", () => {
-        this.selectedTowerType = towerId;
-        this.updateDeckCardStyles();
-      });
-
-      const label = this.scene.add
-        .text(x, deckY - 26, tower.name.substring(0, 10), {
-          fontSize: "11px",
-          color: "#f8fafc",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5)
-        .setDepth(DEPTH.UI_LAYER);
-
-      const tierCost = tower.tiers[0]?.cost ?? 0;
-      const costLabel = this.scene.add
-        .text(x, deckY + 28, `${tierCost}g`, {
-          fontSize: "12px",
-          color: "#fbbf24",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5)
-        .setDepth(DEPTH.UI_LAYER);
-
-      this.deckObjects.push(label, costLabel);
-      this.root?.add([card, label, costLabel]);
-    });
-  }
-
-  private renderStartButton(): void {
-    const buttonX = 1150;
-    const buttonY = 35;
-    const buttonWidth = 140;
-    const buttonHeight = 44;
-
-    this.startButton = this.scene.add.container(buttonX, buttonY);
-
-    const bg = this.scene.add
-      .rectangle(0, 0, buttonWidth, buttonHeight, 0x10b981)
-      .setStrokeStyle(2, 0x34d399)
-      .setInteractive({ useHandCursor: true });
-
-    const text = this.scene.add
-      .text(0, 0, "START GAME ▶", {
-        fontSize: "14px",
-        color: "#ffffff",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-
-    bg.on("pointerover", () => bg.setFillStyle(0x059669));
-    bg.on("pointerout", () => bg.setFillStyle(0x10b981));
-    bg.on("pointerdown", () => {
-      this.room.send(MESSAGES.startCombat, {});
-    });
-
-    this.startButton.add([bg, text]);
-    this.startButton.setDepth(DEPTH.UI_LAYER);
-    this.root?.add(this.startButton);
-  }
-
-  private updateDeckCardStyles(): void {
-    this.deckCards.forEach((card, towerId) => {
-      card.setStrokeStyle(
-        2,
-        this.selectedTowerType === towerId ? 0x4ade80 : 0x475569,
-      );
-    });
-  }
 
   private showGhostTower(slot: TowerSlot): void {
-    if (!this.selectedTowerType) return;
+    const typeId = this.getActiveTowerType();
+    if (!typeId) return;
     this.hideGhostTower();
 
     this.ghostTower = this.scene.add
@@ -524,33 +368,7 @@ export class GameplayStage {
     this.ghostTower = undefined;
   }
 
-  private renderPhaseBanner(): void {
-    const bannerX = 640;
-    const bannerY = 35;
 
-    this.phaseBanner = this.scene.add.container(bannerX, bannerY);
-
-    const bg = this.scene.add
-      .rectangle(0, 0, 460, 46, 0x1e293b, 0.9)
-      .setStrokeStyle(2, 0x6366f1);
-
-    const bannerText =
-      this.role === "defender"
-        ? "BUILDING PHASE — Place Your Towers"
-        : "BUILDING PHASE — Defender is setting up defenses";
-
-    const text = this.scene.add
-      .text(0, 0, bannerText, {
-        fontSize: "15px",
-        color: "#ffffff",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-
-    this.phaseBanner.add([bg, text]);
-    this.phaseBanner.setDepth(DEPTH.UI_LAYER);
-    this.root?.add(this.phaseBanner);
-  }
 
   /**
    * Mirrors `RoomState.towers` into sprites for both players using Colyseus Callbacks.
@@ -597,11 +415,6 @@ export class GameplayStage {
   startCombat(): void {
     if (this.combatStarted || this.destroyed) return;
     this.combatStarted = true;
-
-    this.phaseBanner?.destroy();
-    this.phaseBanner = undefined;
-    this.startButton?.destroy();
-    this.startButton = undefined;
 
     // Show combat alert banner
     const banner = this.scene.add.container(640, 35);
@@ -720,6 +533,65 @@ export class GameplayStage {
     });
   }
 
+  /**
+   * Initializes drag & pan camera controls with boundary clamping and momentum friction.
+   */
+  private setupCameraControls(): void {
+    const cam = this.scene.cameras.main;
+    const mapW = this.map.width || 1280;
+    const mapH = this.map.height || 720;
+    cam.setBounds(0, 0, mapW, mapH);
+
+    this.onCameraPointerDown = (pointer: Phaser.Input.Pointer) => {
+      if (this.isTouchingSlot) return;
+      this.isDragging = true;
+      this.lastPointerX = pointer.x;
+      this.lastPointerY = pointer.y;
+      this.cameraVelocityX = 0;
+      this.cameraVelocityY = 0;
+    };
+
+    this.onCameraPointerMove = (pointer: Phaser.Input.Pointer) => {
+      if (!this.isDragging || !pointer.isDown || this.isTouchingSlot) return;
+      const dx = pointer.x - this.lastPointerX;
+      const dy = pointer.y - this.lastPointerY;
+      cam.scrollX -= dx / cam.zoom;
+      cam.scrollY -= dy / cam.zoom;
+      this.cameraVelocityX = -dx / cam.zoom;
+      this.cameraVelocityY = -dy / cam.zoom;
+      this.lastPointerX = pointer.x;
+      this.lastPointerY = pointer.y;
+    };
+
+    this.onCameraPointerUp = () => {
+      this.isDragging = false;
+      this.isTouchingSlot = false;
+    };
+
+    this.onCameraWheel = (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
+      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, 0.8, 1.5);
+      cam.setZoom(newZoom);
+    };
+
+    this.scene.input.on("pointerdown", this.onCameraPointerDown);
+    this.scene.input.on("pointermove", this.onCameraPointerMove);
+    this.scene.input.on("pointerup", this.onCameraPointerUp);
+    this.scene.input.on("wheel", this.onCameraWheel);
+  }
+
+  /**
+   * Per-frame update for camera glide physics (friction: 0.1 decay).
+   */
+  update(_time: number, _delta: number): void {
+    if (!this.isDragging && (Math.abs(this.cameraVelocityX) > 0.05 || Math.abs(this.cameraVelocityY) > 0.05)) {
+      const cam = this.scene.cameras.main;
+      cam.scrollX += this.cameraVelocityX;
+      cam.scrollY += this.cameraVelocityY;
+      this.cameraVelocityX *= 0.9; // friction 0.1 decay factor
+      this.cameraVelocityY *= 0.9;
+    }
+  }
+
   destroy(): void {
     this.destroyed = true;
     this.combatStarted = false;
@@ -747,22 +619,33 @@ export class GameplayStage {
     this.onKeyDown = undefined;
     this.onPointerDown = undefined;
 
+    if (this.onCameraPointerDown) {
+      this.scene.input.off("pointerdown", this.onCameraPointerDown);
+    }
+    if (this.onCameraPointerMove) {
+      this.scene.input.off("pointermove", this.onCameraPointerMove);
+    }
+    if (this.onCameraPointerUp) {
+      this.scene.input.off("pointerup", this.onCameraPointerUp);
+    }
+    if (this.onCameraWheel) {
+      this.scene.input.off("wheel", this.onCameraWheel);
+    }
+    this.onCameraPointerDown = undefined;
+    this.onCameraPointerMove = undefined;
+    this.onCameraPointerUp = undefined;
+    this.onCameraWheel = undefined;
+
     this.debugGraphics?.destroy();
     this.debugGraphics = undefined;
 
     this.topPortal?.destroy();
     this.bottomPortal?.destroy();
-    this.phaseBanner?.destroy();
-    this.startButton?.destroy();
-
-    for (const obj of this.deckObjects) obj.destroy();
-    this.deckObjects = [];
 
     this.root?.destroy(true);
     this.root = undefined;
 
     this.towers.clear();
     this.units = [];
-    this.deckCards.clear();
   }
 }
