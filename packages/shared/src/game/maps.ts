@@ -20,6 +20,8 @@ export interface TowerSlot {
  * positions. `base` is the defender's core location.
  * `paths` (optional) supports multiple named paths for advanced maps.
  * `width`/`height` (optional) define the virtual coordinate system size.
+ * `pathHalfWidth` is how far (px) a mob may drift either side of the centreline
+ * to give the wavy, crowd-like movement; see `lateralOffset`.
  */
 export interface MapDefinition {
   id: string;
@@ -33,6 +35,7 @@ export interface MapDefinition {
   base: Vec2;
   width?: number;
   height?: number;
+  pathHalfWidth?: number;
 }
 
 export const SAMPLE_MAP: MapDefinition = {
@@ -55,6 +58,7 @@ export const SAMPLE_MAP: MapDefinition = {
   ],
   checkpoints: [1, 3],
   base: { x: 780, y: 500 },
+  pathHalfWidth: 20,
 };
 
 export const KONBAUNG_MAP: MapDefinition = {
@@ -98,7 +102,8 @@ export const KONBAUNG_MAP: MapDefinition = {
     { slotIndex: 4, x: 1034, y: 539 }
   ],
   checkpoints: [1, 3],
-  base: { x: 1108, y: 360 }
+  base: { x: 1108, y: 360 },
+  pathHalfWidth: 20,
 };
 
 export const MAPS: Record<string, MapDefinition> = {
