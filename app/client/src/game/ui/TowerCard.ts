@@ -1,6 +1,7 @@
 
 import Phaser from "phaser";
 import type { TowerType } from "@root/shared";
+import { UI_TEXTURE_KEY } from "./uiAtlas";
 
 /**
  * Selectable portrait card for one defender tower archetype.
@@ -10,15 +11,28 @@ import type { TowerType } from "@root/shared";
  * The card body and info button use independent hit areas to prevent an info
  * click from accidentally selecting the tower.
  *
- * A texture named `tower-${tower.id}` is used when loaded; otherwise, a
+ * The background art comes from the shared UI atlas: `card` normally and
+ * `cardSelected` (gold border) while selected. A texture named
+ * `tower-${tower.id}` is used as the portrait when loaded; otherwise, a
  * colored placeholder keeps the card usable while artwork is being created.
  */
+export interface TowerCardOptions {
+  /**
+   * Replaces the tower name with this text and hides the available/selected
+   * status line. Used by the gameplay deck to show only the gold cost.
+   */
+  label?: string;
+}
+
 export class TowerCard {
   readonly container: Phaser.GameObjects.Container;
   readonly tower: TowerType;
 
-  private readonly background: Phaser.GameObjects.Rectangle;
-  private readonly statusText: Phaser.GameObjects.Text;
+  private readonly background: Phaser.GameObjects.Image;
+  private readonly hitArea: Phaser.GameObjects.Zone;
+  private readonly statusText?: Phaser.GameObjects.Text;
+  private readonly cardWidth: number;
+  private readonly cardHeight: number;
   private selected = false;
 
   /**
@@ -29,7 +43,9 @@ export class TowerCard {
    * @param height - Card height in pixels.
    * @param tower - Immutable tower catalog entry.
    * @param onSelect - Called when the card body is clicked.
-   * @param onInfo - Called when its info button is clicked.
+   * @param onInfo - Called when its info button is clicked. When omitted, the
+   * info button is not rendered (for read-only card strips).
+   * @param options - Optional label override (see {@link TowerCardOptions}).
    */
   constructor(
     scene: Phaser.Scene,
@@ -39,66 +55,69 @@ export class TowerCard {
     height: number,
     tower: TowerType,
     onSelect: (tower: TowerType) => void,
-    onInfo: (tower: TowerType) => void,
+    onInfo?: (tower: TowerType) => void,
+    options?: TowerCardOptions,
   ) {
     this.tower = tower;
+    this.cardWidth = width;
+    this.cardHeight = height;
     this.container = scene.add.container(x, y);
 
     this.background = scene.add
-      .rectangle(0, 0, width, height, 0x172033)
+      .image(0, 0, UI_TEXTURE_KEY, "card")
       .setOrigin(0, 0)
-      .setStrokeStyle(2, 0x334155)
-      .setInteractive();
+      .setDisplaySize(width, height);
 
-    this.background.on("pointerover", () => {
-      if (!this.selected) this.background.setStrokeStyle(2, 0x818cf8);
+    this.hitArea = scene.add
+      .zone(0, 0, width, height)
+      .setOrigin(0, 0)
+      .setInteractive(
+        new Phaser.Geom.Rectangle(0, 0, width, height),
+        Phaser.Geom.Rectangle.Contains,
+      );
+
+    this.hitArea.on("pointerover", () => {
+      if (!this.selected) this.background.setTint(0xdfe6ff);
     });
-    this.background.on("pointerout", () => this.refresh());
-    this.background.on("pointerdown", () => onSelect(this.tower));
+    this.hitArea.on("pointerout", () => this.refresh());
+    this.hitArea.on("pointerdown", () => onSelect(this.tower));
 
-    this.container.add(this.background);
+    this.container.add([this.background, this.hitArea]);
 
-    const infoRadius = Math.max(11, Math.min(15, width * 0.09));
-    const infoX = width - infoRadius - 10;
-    const infoY = infoRadius + 10;
+    if (onInfo) {
+      const infoRadius = Math.max(11, Math.min(15, width * 0.09));
+      const infoX = width - infoRadius - 10;
+      const infoY = infoRadius + 10;
 
-    const infoCircle = scene.add
-      .circle(infoX, infoY, infoRadius, 0x334155)
-      .setStrokeStyle(1, 0x94a3b8)
-      .setInteractive();
+      const infoCircle = scene.add
+        .circle(infoX, infoY, infoRadius, 0x334155)
+        .setStrokeStyle(1, 0x94a3b8)
+        .setInteractive(
+          new Phaser.Geom.Circle(0, 0, infoRadius + 5),
+          Phaser.Geom.Circle.Contains,
+        );
 
-    const infoLabel = scene.add
-      .text(infoX, infoY - 1, "i", {
-        fontSize: `${Math.max(13, infoRadius + 3)}px`,
-        fontStyle: "bold",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+      const infoLabel = scene.add
+        .text(infoX, infoY - 1, "i", {
+          fontSize: `${Math.max(13, infoRadius + 3)}px`,
+          fontStyle: "bold",
+          color: "#ffffff",
+        })
+        .setOrigin(0.5);
 
-    infoCircle.on("pointerover", () => infoCircle.setFillStyle(0x6366f1));
-    infoCircle.on("pointerout", () => infoCircle.setFillStyle(0x334155));
-    infoCircle.on("pointerdown", () => onInfo(this.tower));
+      infoCircle.on("pointerover", () => infoCircle.setFillStyle(0x6366f1));
+      infoCircle.on("pointerout", () => infoCircle.setFillStyle(0x334155));
+      infoCircle.on("pointerdown", () => onInfo(this.tower));
 
-    this.container.add([infoCircle, infoLabel]);
+      this.container.add([infoCircle, infoLabel]);
+    }
 
-    const portraitHeight = Math.max(30, height * 0.58);
-    const portraitWidth = Math.min(width * 0.72, portraitHeight * 0.9);
+    const portraitHeight = Math.max(30, height * 0.46);
+    const portraitWidth = Math.min(width * 0.66, portraitHeight * 0.9);
     const portraitX = width / 2;
-    const portraitY = Math.max(12, height * 0.08) + portraitHeight / 2;
+    const portraitY = Math.max(12, height * 0.1) + portraitHeight / 2;
 
-    const frame = scene.add
-      .rectangle(
-        portraitX,
-        portraitY,
-        portraitWidth,
-        portraitHeight,
-        0x222f45,
-      )
-      .setStrokeStyle(1, 0x3b4b65);
-
-    this.container.add(frame);
-
-    const textureKey = 'tower_archer';
+    const textureKey = `tower-${tower.id}`;
 
     if (scene.textures.exists(textureKey)) {
       const sprite = scene.add
@@ -138,29 +157,31 @@ export class TowerCard {
       this.container.add([base, body, roof]);
     }
 
+    const showStatus = options?.label === undefined;
     const nameText = scene.add
-      .text(width / 2, height - 36, tower.name, {
+      .text(width / 2, height * (showStatus ? 0.72 : 0.76), options?.label ?? tower.name, {
         fontSize: `${Math.max(12, Math.min(18, width * 0.11))}px`,
         fontStyle: "bold",
-        color: "#f8fafc",
+        color: "#2b1a08",
         align: "center",
         wordWrap: { width: width - 12 },
       })
       .setOrigin(0.5);
 
-    this.statusText = scene.add
-      .text(width / 2, height - 14, "AVAILABLE", {
-        fontSize: `${Math.max(9, Math.min(11, width * 0.07))}px`,
-        fontStyle: "bold",
-        color: "#94a3b8",
-        align: "center",
-      })
-      .setOrigin(0.5);
+    this.container.add(nameText);
 
-    this.container.add([nameText, this.statusText]);
-      // Keep the info button above the portrait sprite and other card elements.
-    this.container.bringToTop(infoCircle);
-    this.container.bringToTop(infoLabel);
+    if (showStatus) {
+      this.statusText = scene.add
+        .text(width / 2, height * 0.84, "AVAILABLE", {
+          fontSize: `${Math.max(9, Math.min(11, width * 0.07))}px`,
+          fontStyle: "bold",
+          color: "#5f3f22",
+          align: "center",
+        })
+        .setOrigin(0.5);
+
+      this.container.add(this.statusText);
+    }
   }
 
   /**
@@ -176,15 +197,13 @@ export class TowerCard {
   /** Synchronizes card colors and label with the current selection state. */
   private refresh(): void {
     this.background
-      .setFillStyle(this.selected ? 0x173b35 : 0x172033)
-      .setStrokeStyle(
-        this.selected ? 3 : 2,
-        this.selected ? 0x4ade80 : 0x334155,
-      );
+      .setTexture(UI_TEXTURE_KEY, this.selected ? "cardSelected" : "card")
+      .setDisplaySize(this.cardWidth, this.cardHeight)
+      .clearTint();
 
     this.statusText
-      .setText(this.selected ? "SELECTED" : "AVAILABLE")
-      .setColor(this.selected ? "#4ade80" : "#94a3b8");
+      ?.setText(this.selected ? "SELECTED" : "AVAILABLE")
+      .setColor(this.selected ? "#14532d" : "#5f3f22");
   }
 
   /**

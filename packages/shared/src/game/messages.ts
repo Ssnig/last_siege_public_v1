@@ -55,7 +55,8 @@ export interface OpponentLeftPayload {
 /** Payload of the `game_over` private message. */
 export interface GameOverPayload {
   winner: "attacker" | "defender";
-  reason: "surrender";
+  /** `core` = the defender's base was destroyed; `surrender` = a concession. */
+  reason: "surrender" | "core";
 }
 
 /** Payload of the `you_economy` private message (hidden from the opponent). */

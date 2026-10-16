@@ -62,6 +62,63 @@ export interface DeckRules {
   deckSize: number;
 }
 
+/**
+ * Tuning for the wavy, Kingdom-Rush-style lateral drift of mobs.
+ *
+ * @remarks All values are fractions of a path's half-width so the same numbers
+ * look consistent on corridors of different sizes. The asymmetry between
+ * `laneSpread` (large, fixed per mob) and the `wobble*` band (small, animated)
+ * is what produces a loose column that gently drifts rather than a random walk.
+ */
+export interface WanderConfig {
+  /** Fixed per-mob lane offset as a fraction of half-width (0..1). Spreads a wave across the corridor. */
+  laneSpread: number;
+  /** Minimum animated wobble amplitude as a fraction of half-width. */
+  wobbleMin: number;
+  /** Maximum animated wobble amplitude as a fraction of half-width. */
+  wobbleMax: number;
+  /** Minimum wobble cycles completed across the full path length. */
+  cyclesMin: number;
+  /** Maximum wobble cycles completed across the full path length. */
+  cyclesMax: number;
+}
+
+export const DEFAULT_WANDER: WanderConfig = {
+  laneSpread: 0.65,
+  wobbleMin: 0.08,
+  wobbleMax: 0.22,
+  cyclesMin: 1.5,
+  cyclesMax: 3.5,
+};
+
+/** Server simulation rate, in steps per second. */
+export const SIM_TICK_HZ = 20;
+
+/**
+ * Duration of a single simulation step, in seconds.
+ *
+ * @remarks Derived from {@link SIM_TICK_HZ}; the server advances mob `progress`
+ * by `speed / pathLength * SIM_STEP_SEC` each step.
+ */
+export const SIM_STEP_SEC = 1 / SIM_TICK_HZ;
+
+/**
+ * Per-mob speed variation as a fraction (0.1 = ±10%).
+ *
+ * @remarks Applied once at spawn so otherwise-identical mobs spread out and
+ * bunch over time, which reads as an organic crowd.
+ */
+export const MOB_SPEED_JITTER = 0.1;
+
+/**
+ * Extra slack, in px, added to a projectile's per-tick travel distance when
+ * deciding whether it has reached its target.
+ *
+ * @remarks Keeps fast projectiles from overshooting a mob between ticks; a
+ * larger value lands hits slightly "early" but never misses.
+ */
+export const PROJECTILE_HIT_RADIUS = 12;
+
 /** Match-wide rules driven by the server tick. */
 export interface MatchRules {
   /** Core HP before the defender loses. */
@@ -215,4 +272,26 @@ export function buildCost(type: TowerType): number {
 export function upgradeCost(type: TowerType, fromLevel: number): number | null {
   const tier = type.tiers[fromLevel];
   return tier ? tier.cost : null;
+}
+
+/** Fraction of a tower's total invested gold refunded when it is sold (70%). */
+export const SELL_REFUND_RATE = 0.7;
+
+/** Total gold invested into a tower at `level`: build cost plus every upgrade. */
+export function totalInvested(type: TowerType, level: number): number {
+  let total = 0;
+  for (let i = 0; i < level && i < type.tiers.length; i++) {
+    total += type.tiers[i].cost;
+  }
+  return total;
+}
+
+/**
+ * Gold refunded for a tower whose total invested gold is `invested`.
+ *
+ * @remarks Floored to a whole number so the client's predicted refund always
+ * matches the server's, and never exceeds what was invested.
+ */
+export function sellRefund(invested: number): number {
+  return Math.floor(invested * SELL_REFUND_RATE);
 }

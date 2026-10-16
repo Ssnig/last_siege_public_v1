@@ -1,24 +1,30 @@
 
 import Phaser from "phaser";
 import type { MobType } from "@root/shared";
+import { UI_TEXTURE_KEY } from "./uiAtlas";
 
 /**
  * Portrait card for one attacker archetype.
  *
  * @remarks
  * The parent stage owns selection state; this card only renders it.
- * The card background and info button have separate hit areas so inspecting
+ * The card body and info button have separate hit areas so inspecting
  * a mob never accidentally selects or deselects it.
  *
- * If a texture named `mob-${mob.id}` has been loaded, it is displayed as the
- * portrait. Until then, a simple colored placeholder is used.
+ * The background art comes from the shared UI atlas: `card` normally and
+ * `cardSelected` (gold border) while selected. If a texture named
+ * `mob-${mob.id}` has been loaded, it is displayed as the portrait. Until
+ * then, a simple colored placeholder is used.
  */
 export class MobCard {
   readonly container: Phaser.GameObjects.Container;
   readonly mob: MobType;
 
-  private readonly background: Phaser.GameObjects.Rectangle;
+  private readonly background: Phaser.GameObjects.Image;
+  private readonly hitArea: Phaser.GameObjects.Zone;
   private readonly statusText: Phaser.GameObjects.Text;
+  private readonly cardWidth: number;
+  private readonly cardHeight: number;
   private selected = false;
 
   /**
@@ -31,7 +37,8 @@ export class MobCard {
    * @param height - Card height in pixels.
    * @param mob - Immutable catalog entry represented by this card.
    * @param onSelect - Called when the card body is clicked.
-   * @param onInfo - Called when the separate info button is clicked.
+   * @param onInfo - Called when the separate info button is clicked. When
+   * omitted, the info button is not rendered (for read-only card strips).
    */
   constructor(
     scene: Phaser.Scene,
@@ -41,75 +48,75 @@ export class MobCard {
     height: number,
     mob: MobType,
     onSelect: (mob: MobType) => void,
-    onInfo: (mob: MobType) => void,
+    onInfo?: (mob: MobType) => void,
   ) {
     this.mob = mob;
+    this.cardWidth = width;
+    this.cardHeight = height;
     this.container = scene.add.container(x, y);
 
     this.background = scene.add
-      .rectangle(0, 0, width, height, 0x172033)
+      .image(0, 0, UI_TEXTURE_KEY, "card")
       .setOrigin(0, 0)
-      .setStrokeStyle(2, 0x334155);
+      .setDisplaySize(width, height);
 
-    this.background.setInteractive();
+    this.hitArea = scene.add
+      .zone(0, 0, width, height)
+      .setOrigin(0, 0)
+      .setInteractive(
+        new Phaser.Geom.Rectangle(0, 0, width, height),
+        Phaser.Geom.Rectangle.Contains,
+      );
 
-    this.background.on("pointerover", () => {
+    this.hitArea.on("pointerover", () => {
       if (!this.selected) {
-        this.background.setStrokeStyle(2, 0x818cf8);
+        this.background.setTint(0xdfe6ff);
       }
     });
 
-    this.background.on("pointerout", () => this.refresh());
+    this.hitArea.on("pointerout", () => this.refresh());
 
-    this.background.on("pointerdown", () => {
+    this.hitArea.on("pointerdown", () => {
       onSelect(this.mob);
     });
 
-    this.container.add(this.background);
+    this.container.add([this.background, this.hitArea]);
 
-    const infoRadius = Math.max(11, Math.min(15, width * 0.09));
-    const infoX = width - infoRadius - 10;
-    const infoY = infoRadius + 10;
+    if (onInfo) {
+      const infoRadius = Math.max(11, Math.min(15, width * 0.09));
+      const infoX = width - infoRadius - 10;
+      const infoY = infoRadius + 10;
 
-    const infoCircle = scene.add
-      .circle(infoX, infoY, infoRadius, 0x334155)
-      .setStrokeStyle(1, 0x94a3b8)
-      .setInteractive();
+      const infoCircle = scene.add
+        .circle(infoX, infoY, infoRadius, 0x334155)
+        .setStrokeStyle(1, 0x94a3b8)
+        .setInteractive(
+          new Phaser.Geom.Circle(0, 0, infoRadius + 5),
+          Phaser.Geom.Circle.Contains,
+        );
 
-    const infoLabel = scene.add
-      .text(infoX, infoY - 1, "i", {
-        fontSize: `${Math.max(13, infoRadius + 3)}px`,
-        fontStyle: "bold",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+      const infoLabel = scene.add
+        .text(infoX, infoY - 1, "i", {
+          fontSize: `${Math.max(13, infoRadius + 3)}px`,
+          fontStyle: "bold",
+          color: "#ffffff",
+        })
+        .setOrigin(0.5);
 
-    infoCircle.on("pointerover", () => infoCircle.setFillStyle(0x6366f1));
-    infoCircle.on("pointerout", () => infoCircle.setFillStyle(0x334155));
-    infoCircle.on("pointerdown", () => onInfo(this.mob));
+      infoCircle.on("pointerover", () => infoCircle.setFillStyle(0x6366f1));
+      infoCircle.on("pointerout", () => infoCircle.setFillStyle(0x334155));
+      infoCircle.on("pointerdown", () => onInfo(this.mob));
 
-    this.container.add([infoCircle, infoLabel]);
+      this.container.add([infoCircle, infoLabel]);
+    }
 
-    const portraitTop = Math.max(12, height * 0.08);
-    const portraitHeight = Math.max(30, height * 0.58);
-    const portraitWidth = Math.min(width * 0.72, portraitHeight * 0.9);
+    const portraitTop = Math.max(12, height * 0.1);
+    const portraitHeight = Math.max(30, height * 0.46);
+    const portraitWidth = Math.min(width * 0.66, portraitHeight * 0.9);
     const portraitX = width / 2;
     const portraitY = portraitTop + portraitHeight / 2;
 
-    const portraitFrame = scene.add
-      .rectangle(
-        portraitX,
-        portraitY,
-        portraitWidth,
-        portraitHeight,
-        0x222f45,
-      )
-      .setStrokeStyle(1, 0x3b4b65);
-
-    this.container.add(portraitFrame);
-
-    
-    const textureKey = "unit_warrior";
+    const textureKey = `mob-${mob.id}`;
 
     if (scene.textures.exists(textureKey)) {
       const sprite = scene.add
@@ -118,8 +125,7 @@ export class MobCard {
 
       this.container.add(sprite);
     } else {
-      console.warn(`Mob sprite texture "${textureKey}" is not loaded.`);
-
+      // Placeholder artwork; replace with the loaded mob texture when ready.
       const color = this.getColor(mob.id);
       const headRadius = Math.min(portraitWidth, portraitHeight) * 0.16;
 
@@ -141,30 +147,26 @@ export class MobCard {
       this.container.add([body, head]);
     }
 
-
     const nameText = scene.add
-      .text(width / 2, height - 36, mob.name, {
+      .text(width / 2, height * 0.72, mob.name, {
         fontSize: `${Math.max(12, Math.min(18, width * 0.11))}px`,
         fontStyle: "bold",
-        color: "#f8fafc",
+        color: "#2b1a08",
         align: "center",
         wordWrap: { width: width - 16 },
       })
       .setOrigin(0.5);
 
     this.statusText = scene.add
-      .text(width / 2, height - 14, "AVAILABLE", {
+      .text(width / 2, height * 0.84, "AVAILABLE", {
         fontSize: `${Math.max(9, Math.min(11, width * 0.07))}px`,
         fontStyle: "bold",
-        color: "#94a3b8",
+        color: "#5f3f22",
         align: "center",
       })
       .setOrigin(0.5);
 
     this.container.add([nameText, this.statusText]);
-    // Keep the info button above the portrait sprite and other card elements.
-    this.container.bringToTop(infoCircle);
-    this.container.bringToTop(infoLabel);
   }
 
   /**
@@ -179,15 +181,14 @@ export class MobCard {
 
   /** Applies selection styling without changing the parent's selection data. */
   private refresh(): void {
-    this.background.setFillStyle(this.selected ? 0x173b35 : 0x172033);
-    this.background.setStrokeStyle(
-      this.selected ? 3 : 2,
-      this.selected ? 0x4ade80 : 0x334155,
-    );
+    this.background
+      .setTexture(UI_TEXTURE_KEY, this.selected ? "cardSelected" : "card")
+      .setDisplaySize(this.cardWidth, this.cardHeight)
+      .clearTint();
 
     this.statusText
       .setText(this.selected ? "SELECTED" : "AVAILABLE")
-      .setColor(this.selected ? "#4ade80" : "#94a3b8");
+      .setColor(this.selected ? "#14532d" : "#5f3f22");
   }
 
   /**

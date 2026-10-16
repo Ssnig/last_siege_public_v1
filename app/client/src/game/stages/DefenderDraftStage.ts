@@ -7,6 +7,12 @@ import {
   type TowerType,
 } from "@root/shared";
 import { TowerCard } from "../ui/TowerCard";
+import { UIButton } from "../ui/UIButton";
+import {
+  UI_BG_FRAMES,
+  UI_BG_TEXTURE_KEY,
+  UI_TEXTURE_KEY,
+} from "../ui/uiAtlas";
 
 /**
  * Client-side draft UI for the defender's tower deck.
@@ -34,8 +40,7 @@ private readonly onConfirm: (deck: string[]) => void;
   private selected = new Set<string>();
   private selectedContainer?: Phaser.GameObjects.Container;
   private countText?: Phaser.GameObjects.Text;
-  private confirmBackground?: Phaser.GameObjects.Rectangle;
-  private confirmText?: Phaser.GameObjects.Text;
+  private confirmButton?: UIButton;
   private detailsOverlay?: Phaser.GameObjects.Container;
   private confirmed = false;
 
@@ -82,15 +87,17 @@ private readonly onConfirm: (deck: string[]) => void;
     this.root = this.scene.add.container(0, 0);
 
     this.root.add([
-      this.scene.add.rectangle(0, 0, width, height, 0x0b1120).setOrigin(0),
-      this.scene.add.rectangle(0, 0, width, rosterHeight, 0x111827).setOrigin(0),
-      this.scene.add.rectangle(
-        0,
-        rosterHeight,
-        width,
-        deckHeight,
-        0x0f172a,
-      ).setOrigin(0).setStrokeStyle(1, 0x334155),
+      // Flat dark fill sits behind the art so its transparent margins never
+      // expose the canvas clear colour.
+      this.scene.add.rectangle(0, 0, width, height, 0x3e2723).setOrigin(0),
+      this.scene.add
+        .image(0, 0, UI_BG_TEXTURE_KEY, UI_BG_FRAMES.bg1)
+        .setOrigin(0, 0)
+        .setDisplaySize(width, height),
+      this.scene.add
+        .rectangle(0, rosterHeight, width, deckHeight, 0x0b1120, 0.4)
+        .setOrigin(0)
+        .setStrokeStyle(1, 0x334155),
     ]);
 
     this.createRoster(width, rosterHeight);
@@ -106,6 +113,18 @@ private readonly onConfirm: (deck: string[]) => void;
    */
   private createRoster(width: number, rosterHeight: number): void {
     const padding = Math.max(12, Math.min(24, width * 0.03));
+
+    // Opaque header strip keeps the roster heading legible over the bg art.
+    const headerHeight = Math.max(44, Math.min(58, rosterHeight * 0.12));
+    const headerBar = this.scene.add
+      .rectangle(0, 0, width, headerHeight, 0x0b1120, 0.8)
+      .setOrigin(0, 0);
+    const headerRule = this.scene.add
+      .rectangle(0, headerHeight, width, 2, 0x475569, 0.9)
+      .setOrigin(0, 0);
+
+    this.root!.add([headerBar, headerRule]);
+
     const title = this.scene.add.text(padding, 24, "DEFENDER TOWERS", {
       fontSize: `${Math.max(17, Math.min(24, width * 0.035))}px`,
       fontStyle: "bold",
@@ -216,50 +235,27 @@ private readonly onConfirm: (deck: string[]) => void;
       { fontSize: "12px", color: "#94a3b8" },
     ).setOrigin(0, 0.5);
 
-    this.selectedContainer = this.scene.add.container(
-      padding,
-      rosterHeight + Math.max(42, deckHeight * 0.36),
-    );
+    this.selectedContainer = this.scene.add.container(padding, rosterHeight + 50);
 
     const buttonX = width - padding - buttonWidth;
     const buttonY = rosterHeight + deckHeight / 2 + 8;
 
-    this.confirmBackground = this.scene.add
-      .rectangle(
-        buttonX + buttonWidth / 2,
-        buttonY,
-        buttonWidth,
-        buttonHeight,
-        0x4f46e5,
-      )
-      .setStrokeStyle(1, 0x818cf8)
-      .setInteractive();
-
-    this.confirmText = this.scene.add.text(
-      buttonX + buttonWidth / 2,
-      buttonY,
-      "CONFIRM",
-      {
-        fontSize: compact ? "11px" : "13px",
-        fontStyle: "bold",
-        color: "#ffffff",
-      },
-    ).setOrigin(0.5);
-
-    this.confirmBackground.on("pointerover", () => {
-      if (!this.confirmed && this.selected.size > 0) {
-        this.confirmBackground?.setFillStyle(0x6366f1);
-      }
+    this.confirmButton = new UIButton({
+      scene: this.scene,
+      x: buttonX + buttonWidth / 2,
+      y: buttonY,
+      width: buttonWidth,
+      height: buttonHeight,
+      label: "CONFIRM",
+      fontSize: compact ? 11 : 13,
+      onClick: () => this.confirmDraft(),
     });
-    this.confirmBackground.on("pointerout", () => this.refreshSelection());
-    this.confirmBackground.on("pointerdown", () => this.confirmDraft());
 
     this.root!.add([
       heading,
       this.countText,
       this.selectedContainer,
-      this.confirmBackground,
-      this.confirmText,
+      this.confirmButton.container,
     ]);
   }
 
@@ -294,84 +290,41 @@ private readonly onConfirm: (deck: string[]) => void;
     this.selectedContainer?.removeAll(true);
 
     const width = this.scene.scale.width;
-    const deckHeight = this.scene.scale.height -
-      Math.floor(this.scene.scale.height * 0.7);
-    const compact = width < 440;
-    const maxStripWidth = Math.max(40, width - (compact ? 148 : 196));
-    const gap = 8;
-    const slotWidth = Math.max(
-      42,
-      Math.min(
-        76,
-        (maxStripWidth - gap * Math.max(0, this.maxSelections - 1)) /
-          Math.max(1, this.maxSelections),
-      ),
+    const rosterHeight = Math.floor(this.scene.scale.height * 0.7);
+    const deckHeight = this.scene.scale.height - rosterHeight;
+    const padding = Math.max(12, Math.min(24, width * 0.03));
+    const maxStripWidth = Math.max(40, width - padding * 2 - 168);
+    const gap = 10;
+    const cardHeight = Math.max(60, Math.min(150, deckHeight - 72));
+    const cardWidth = Math.min(
+      cardHeight * 0.72,
+      (maxStripWidth - gap * Math.max(0, this.maxSelections - 1)) /
+        Math.max(1, this.maxSelections),
     );
-    const slotHeight = Math.max(42, Math.min(70, deckHeight - 52));
 
     const selectedTowers = this.towers.filter((tower) =>
       this.selected.has(tower.id),
     );
 
     selectedTowers.forEach((tower, index) => {
-      const x = index * (slotWidth + gap);
-
-      const tile = this.scene.add.rectangle(
-        x,
+      const card = new TowerCard(
+        this.scene,
+        index * (cardWidth + gap),
         0,
-        slotWidth,
-        slotHeight,
-        0x1e293b,
-      ).setOrigin(0, 0).setStrokeStyle(1, 0x4ade80);
-
-      this.selectedContainer?.add(tile);
-
-      const textureKey = `tower-${tower.id}`;
-
-      if (this.scene.textures.exists(textureKey)) {
-        this.selectedContainer?.add(
-          this.scene.add.image(
-            x + slotWidth / 2,
-            slotHeight * 0.38,
-            textureKey,
-          ).setDisplaySize(slotWidth * 0.56, slotHeight * 0.48),
-        );
-      } else {
-        this.selectedContainer?.add(
-          this.scene.add.rectangle(
-            x + slotWidth / 2,
-            slotHeight * 0.38,
-            slotWidth * 0.36,
-            slotHeight * 0.36,
-            this.getColor(tower.id),
-          ),
-        );
-      }
-
-      this.selectedContainer?.add(
-        this.scene.add.text(
-          x + slotWidth / 2,
-          slotHeight - 9,
-          tower.name,
-          {
-            fontSize: `${Math.max(8, Math.min(11, slotWidth * 0.15))}px`,
-            color: "#e2e8f0",
-            align: "center",
-            wordWrap: { width: slotWidth - 4 },
-          },
-        ).setOrigin(0.5),
+        cardWidth,
+        cardHeight,
+        tower,
+        (selectedTower) => this.toggleTower(selectedTower),
       );
+
+      card.setSelected(true);
+      this.selectedContainer?.add(card.container);
     });
 
     const canConfirm = this.selected.size > 0 && !this.confirmed;
 
-    this.confirmBackground
-      ?.setFillStyle(canConfirm ? 0x4f46e5 : 0x334155)
-      .setStrokeStyle(1, canConfirm ? 0x818cf8 : 0x475569);
-
-    this.confirmText?.setText(
-      this.confirmed ? "CONFIRMED" : "CONFIRM",
-    );
+    this.confirmButton?.setEnabled(canConfirm);
+    this.confirmButton?.setLabel(this.confirmed ? "CONFIRMED" : "CONFIRM");
   }
 
   /**
@@ -397,46 +350,45 @@ private readonly onConfirm: (deck: string[]) => void;
 
     backdrop.on("pointerdown", () => this.closeDetails());
 
-    const panel = this.scene.add.rectangle(
-      width / 2,
-      height / 2,
-      panelWidth,
-      panelHeight,
-      0x172033,
-    ).setStrokeStyle(2, 0x6366f1);
+    const panel = this.scene.add
+      .image(width / 2, height / 2, UI_TEXTURE_KEY, "panel")
+      .setDisplaySize(panelWidth, panelHeight);
 
-    const title = this.scene.add.text(
-      panelX + 22,
-      panelY + 28,
-      tower.name,
-      { fontSize: "24px", fontStyle: "bold", color: "#f8fafc" },
-    );
+    const marginX = panelX + panelWidth * 0.09;
+    const titleY = panelY + panelHeight * 0.15;
+    const closeX = panelX + panelWidth * 0.88;
+
+    const title = this.scene.add.text(marginX, titleY, tower.name, {
+      fontSize: "24px",
+      fontStyle: "bold",
+      color: "#2b1a08",
+    });
 
     const tier = tower.tiers[0];
     const stats = this.scene.add.text(
-      panelX + 22,
-      panelY + 78,
+      marginX,
+      panelY + panelHeight * 0.42,
       [
         `COST                 ${tier?.cost ?? 0} gold`,
         `RANGE               ${tier?.range ?? 0}`,
         `DAMAGE             ${tier?.damage ?? 0}`,
         `FIRE RATE           ${tier?.fireRate ?? 0}/sec`,
         `PROJECTILE SPEED   ${tier?.projectileSpeed ?? 0}`,
-      ].join("\n\n"),
-      { fontSize: "14px", color: "#cbd5e1", lineSpacing: 5 },
+      ].join("\n"),
+      { fontSize: "14px", color: "#3d2a16", lineSpacing: 8 },
     );
 
     const closeButton = this.scene.add.rectangle(
-      panelX + panelWidth - 30,
-      panelY + 28,
+      closeX,
+      titleY + 14,
       32,
       32,
       0x334155,
     ).setInteractive();
 
     const closeLabel = this.scene.add.text(
-      panelX + panelWidth - 30,
-      panelY + 28,
+      closeX,
+      titleY + 14,
       "×",
       { fontSize: "22px", color: "#ffffff" },
     ).setOrigin(0.5);
@@ -459,21 +411,6 @@ private readonly onConfirm: (deck: string[]) => void;
   private closeDetails(): void {
     this.detailsOverlay?.destroy(true);
     this.detailsOverlay = undefined;
-  }
-
-  /**
-   * Provides fallback artwork colors for the current tower catalog.
-   *
-   * @param id - Stable tower catalog ID.
-   * @returns Hexadecimal placeholder color.
-   */
-  private getColor(id: string): number {
-    const colors: Record<string, number> = {
-      basic: 0x60a5fa,
-      cannon: 0xf97316,
-    };
-
-    return colors[id] ?? 0xa78bfa;
   }
 
 
