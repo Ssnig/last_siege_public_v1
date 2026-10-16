@@ -4,9 +4,15 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config.js";
 import {
   type RoomState,
+  type YouEconomyPayload,
   MESSAGES,
   MOB_TYPES,
   TOWER_TYPES,
+  MAPS,
+  DEFAULT_ECONOMY,
+  MATCH_RULES,
+  buildCost,
+  sellRefund,
 } from "@root/shared";
 
 function waitForPhase(room: { state: RoomState }, phase: string, timeoutMs = 2000): Promise<void> {
@@ -31,6 +37,34 @@ async function waitFor(predicate: () => boolean, timeoutMs = 2000, intervalMs = 
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   throw new Error("condition not met within timeout");
+}
+
+/**
+ * Resolves the first `you_economy` push whose gold satisfies `predicate`.
+ *
+ * @remarks A room can push economy several times (seed on join, draft ready,
+ * placements), so tests filter by the value they expect rather than trusting
+ * the next message to be the one under test.
+ */
+function waitForEconomy(
+  client: { onMessage: (type: string, cb: (payload: YouEconomyPayload) => void) => () => void },
+  predicate: (gold: number) => boolean,
+  timeoutMs = 2000,
+): Promise<YouEconomyPayload> {
+  return new Promise((resolve, reject) => {
+    const unsubscribe = client.onMessage(MESSAGES.youEconomy, (payload) => {
+      if (predicate(payload.gold)) {
+        clearInterval(timer);
+        unsubscribe();
+        resolve(payload);
+      }
+    });
+    const timer = setInterval(() => {
+      clearInterval(timer);
+      unsubscribe();
+      reject(new Error("economy condition not met within timeout"));
+    }, timeoutMs);
+  });
 }
 
 describe("testing your Colyseus app", () => {
@@ -222,5 +256,143 @@ describe("testing your Colyseus app", () => {
     for (const mob of room.state.mobs.values()) {
       assert.ok(mob.progress > 0 && mob.progress < 1, `progress ${mob.progress} in range`);
     }
+  });
+
+  it("sells a defender tower for a partial refund", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: Object.keys(MOB_TYPES).slice(0, 2) });
+    defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
+    await waitForPhase(room, "building");
+
+    const towerTypeId = Object.keys(TOWER_TYPES)[0];
+    const towerType = TOWER_TYPES[towerTypeId];
+    const slotIndex = MAPS[room.state.mapId].slots[0].slotIndex;
+    const startGold = DEFAULT_ECONOMY.defenderStartingGold;
+    const afterBuild = startGold - buildCost(towerType);
+    const afterSell = afterBuild + sellRefund(buildCost(towerType));
+
+    const built = waitForEconomy(defender, (gold) => gold === afterBuild);
+    defender.send(MESSAGES.placeTower, { typeId: towerTypeId, slotIndex });
+    await built;
+
+    const towerId = `${defender.sessionId}-${slotIndex}`;
+    await waitFor(() => room.state.towers.has(towerId));
+    assert.strictEqual(
+      room.state.towers.get(towerId).invested,
+      buildCost(towerType),
+      "a fresh tower records its build cost as invested gold",
+    );
+
+    const sold = waitForEconomy(defender, (gold) => gold === afterSell);
+    defender.send(MESSAGES.sellTower, { towerId });
+    await sold;
+
+    await waitFor(() => !room.state.towers.has(towerId));
+    assert.ok(!room.state.towers.has(towerId), "the sold tower leaves the shared state");
+  });
+
+  it("towers fire at mobs in range, damage them, and pay a bounty on kill", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: Object.keys(MOB_TYPES).slice(0, 2) });
+    defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
+    await waitForPhase(room, "building");
+
+    // Spend the whole defence budget on four basic towers so their combined DPS
+    // is enough to kill a grunt well within the timeout. Two cover each path.
+    const slots = MAPS[room.state.mapId].slots;
+    const buildSlots = [slots[0], slots[1], slots[3], slots[4]].map(
+      (slot) => slot.slotIndex,
+    );
+
+    const drained = waitForEconomy(defender, (gold) => gold === 0);
+    for (const slotIndex of buildSlots) {
+      defender.send(MESSAGES.placeTower, { typeId: "basic", slotIndex });
+    }
+    await drained;
+    await waitFor(() => room.state.towers.size === buildSlots.length);
+
+    // Gold is zero now, so the next positive push can only be a kill bounty.
+    const bounty = waitForEconomy(defender, (gold) => gold > 0, 13000);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+    await waitFor(() => room.state.mobs.size > 0);
+
+    await waitFor(() => room.state.projectiles.size > 0, 6000);
+
+    const payload = await bounty;
+    assert.ok(payload.gold >= 5, `kill bounty credited (gold ${payload.gold})`);
+
+    // A kill removes a mob; within the window none can have reached the base.
+    assert.ok(
+      room.state.mobs.size < 8,
+      "at least one mob was killed by tower fire",
+    );
+  });
+
+  it("subtracts core HP when mobs breach the base", async function () {
+    // Slow by nature: with no towers the wave must walk the whole path (~20s).
+    this.timeout(35000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: Object.keys(MOB_TYPES).slice(0, 2) });
+    defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
+    await waitForPhase(room, "building");
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+    await waitFor(() => room.state.mobs.size > 0);
+    assert.strictEqual(room.state.coreHp, MATCH_RULES.coreHp, "core starts full");
+
+    // No towers are built, so all eight grunts eventually reach the base and
+    // leak exactly 1 each.
+    await waitFor(() => room.state.mobs.size === 0, 30000, 100);
+    assert.strictEqual(
+      room.state.coreHp,
+      MATCH_RULES.coreHp - 8,
+      "each breaching grunt subtracts its leakDamage",
+    );
+  });
+
+  it("lets the defender build towers during the combat phase", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: Object.keys(MOB_TYPES).slice(0, 2) });
+    defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
+    await waitForPhase(room, "building");
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    const towerTypeId = Object.keys(TOWER_TYPES)[0];
+    const slotIndex = MAPS[room.state.mapId].slots[0].slotIndex;
+    const towerId = `${defender.sessionId}-${slotIndex}`;
+
+    defender.send(MESSAGES.placeTower, { typeId: towerTypeId, slotIndex });
+    await waitFor(() => room.state.towers.has(towerId));
+
+    assert.ok(
+      room.state.towers.has(towerId),
+      "towers can be placed after combat begins",
+    );
   });
 });

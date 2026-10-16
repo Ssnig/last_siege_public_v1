@@ -110,6 +110,15 @@ export const SIM_STEP_SEC = 1 / SIM_TICK_HZ;
  */
 export const MOB_SPEED_JITTER = 0.1;
 
+/**
+ * Extra slack, in px, added to a projectile's per-tick travel distance when
+ * deciding whether it has reached its target.
+ *
+ * @remarks Keeps fast projectiles from overshooting a mob between ticks; a
+ * larger value lands hits slightly "early" but never misses.
+ */
+export const PROJECTILE_HIT_RADIUS = 12;
+
 /** Match-wide rules driven by the server tick. */
 export interface MatchRules {
   /** Core HP before the defender loses. */
@@ -263,4 +272,26 @@ export function buildCost(type: TowerType): number {
 export function upgradeCost(type: TowerType, fromLevel: number): number | null {
   const tier = type.tiers[fromLevel];
   return tier ? tier.cost : null;
+}
+
+/** Fraction of a tower's total invested gold refunded when it is sold (70%). */
+export const SELL_REFUND_RATE = 0.7;
+
+/** Total gold invested into a tower at `level`: build cost plus every upgrade. */
+export function totalInvested(type: TowerType, level: number): number {
+  let total = 0;
+  for (let i = 0; i < level && i < type.tiers.length; i++) {
+    total += type.tiers[i].cost;
+  }
+  return total;
+}
+
+/**
+ * Gold refunded for a tower whose total invested gold is `invested`.
+ *
+ * @remarks Floored to a whole number so the client's predicted refund always
+ * matches the server's, and never exceeds what was invested.
+ */
+export function sellRefund(invested: number): number {
+  return Math.floor(invested * SELL_REFUND_RATE);
 }

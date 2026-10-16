@@ -6,10 +6,13 @@ import {
   samplePathWithLateral,
   type MapDefinition,
   type Mob,
+  type Projectile,
   type Tower,
   type Vec2,
   type YouEconomyPayload,
   TOWER_TYPES,
+  MATCH_RULES,
+  sellRefund,
 } from "@root/shared";
 import { UIButton } from "../ui/UIButton";
 import { TowerCard } from "../ui/TowerCard";
@@ -45,6 +48,27 @@ export interface GameplayStageOptions {
 
 type TowerSlot = { slotIndex: number; x: number; y: number };
 
+/** A placed tower: its server id, schema record, and rendered sprite. */
+type TowerRecord = {
+  id: string;
+  tower: Tower;
+  sprite: Phaser.GameObjects.Sprite;
+};
+
+/** A mob and the sprites that render it: body plus its health bar. */
+type MobRecord = {
+  sprite: Phaser.GameObjects.Sprite;
+  hpBg: Phaser.GameObjects.Rectangle;
+  hpFill: Phaser.GameObjects.Rectangle;
+};
+
+/** Mob health-bar geometry, in world px. */
+const MOB_HP_BAR = {
+  width: 44,
+  height: 6,
+  offsetY: -46,
+} as const;
+
 /**
  * Renders the map (background, mob paths, tower slots, base, portals) once the draft
  * ends, plus the defender's build UI. `RoomState.towers` is the single source
@@ -61,8 +85,9 @@ export class GameplayStage {
   private paths: Phaser.Curves.Path[] = [];
   private topPath?: Phaser.Curves.Path;
   private bottomPath?: Phaser.Curves.Path;
-  private towers: Map<number, Phaser.GameObjects.Sprite> = new Map();
-  private mobSprites: Map<Mob, Phaser.GameObjects.Sprite> = new Map();
+  private towers: Map<number, TowerRecord> = new Map();
+  private mobSprites: Map<Mob, MobRecord> = new Map();
+  private projectileSprites: Map<Projectile, Phaser.GameObjects.Sprite> = new Map();
 
   private gold = 200;
   private deck: string[] = [];
@@ -79,6 +104,16 @@ export class GameplayStage {
   private topPortal?: Phaser.GameObjects.Sprite;
   private bottomPortal?: Phaser.GameObjects.Sprite;
 
+  private baseHpFill?: Phaser.GameObjects.Rectangle;
+  private baseHpText?: Phaser.GameObjects.Text;
+  private baseHpBarWidth = 120;
+
+  private selectedSlotIndex?: number;
+  private rangeCircle?: Phaser.GameObjects.Arc;
+  private actionButton?: UIButton;
+  private pendingBuild?: TowerSlot;
+  private buildHighlight?: Phaser.GameObjects.Arc;
+
   private debugGraphics?: Phaser.GameObjects.Graphics;
   private showDebug = false;
   private onKeyDown?: (event: KeyboardEvent) => void;
@@ -88,9 +123,10 @@ export class GameplayStage {
   private combatStarted = false;
   private destroyed = false;
 
-  /** Re-positions every mob sprite from authoritative `progress` each frame. */
+  /** Re-positions every mob and projectile sprite from authoritative state. */
   private onSceneUpdate = (): void => {
     this.updateMobs();
+    this.updateProjectiles();
   };
 
   constructor(
@@ -146,6 +182,8 @@ export class GameplayStage {
     this.renderPhaseBanner();
     this.setupTowerSync();
     this.setupMobSync();
+    this.setupProjectileSync();
+    this.setupBaseHpSync();
     this.scene.events.on(Phaser.Scenes.Events.UPDATE, this.onSceneUpdate);
   }
 
@@ -225,6 +263,24 @@ export class GameplayStage {
   private render(): void {
     this.root?.destroy(true);
     this.root = this.scene.add.container(0, 0);
+
+    // A full-map hit area behind everything clears the current selection and
+    // cancels any pending build/sale when the defender clicks empty ground.
+    // Interactive objects added later (slots, towers, HUD) sit above it and win
+    // Phaser's top-only hit test.
+    if (this.role === "defender") {
+      const zoneWidth = this.map.width || 1280;
+      const zoneHeight = this.map.height || 720;
+      const deselectZone = this.scene.add
+        .zone(0, 0, zoneWidth, zoneHeight)
+        .setOrigin(0, 0)
+        .setInteractive(
+          new Phaser.Geom.Rectangle(0, 0, zoneWidth, zoneHeight),
+          Phaser.Geom.Rectangle.Contains,
+        );
+      deselectZone.on("pointerdown", () => this.clearSelection());
+      this.root.add(deselectZone);
+    }
 
     // Load and render map background
     if (this.map.id === "konbaung") {
@@ -329,13 +385,17 @@ export class GameplayStage {
         .setDepth(DEPTH.BASE_LAYER + 0.3);
 
       const hpText = this.scene.add
-        .text(hpBarX, hpBarY - 14, "BASE CASTLE: 10/10 HP", {
+        .text(hpBarX, hpBarY - 14, `BASE CASTLE: ${MATCH_RULES.coreHp}/${MATCH_RULES.coreHp} HP`, {
           fontSize: "11px",
           color: "#f8fafc",
           fontStyle: "bold",
         })
         .setOrigin(0.5)
         .setDepth(DEPTH.BASE_LAYER + 0.4);
+
+      this.baseHpFill = hpBarFill;
+      this.baseHpText = hpText;
+      this.baseHpBarWidth = hpBarWidth;
 
       this.root.add([hpBarBorder, hpBarBg, hpBarFill, hpText]);
     } else if (this.map.base) {
@@ -379,8 +439,9 @@ export class GameplayStage {
   }
 
   private handleSlotClick(slot: TowerSlot): void {
-    if (this.towers.has(slot.slotIndex)) {
-      console.log(`Slot ${slot.slotIndex} already occupied`);
+    const existing = this.towers.get(slot.slotIndex);
+    if (existing) {
+      this.selectTower(slot, existing);
       return;
     }
     if (!this.selectedTowerType) {
@@ -390,12 +451,51 @@ export class GameplayStage {
 
     const towerType = TOWER_TYPES[this.selectedTowerType];
     const cost = towerType?.tiers[0]?.cost ?? 0;
-    if (this.gold < cost) {
+    if (!towerType || this.gold < cost) {
       console.log(`Not enough gold: need ${cost}, have ${this.gold}`);
       return;
     }
 
+    this.requestBuild(slot);
+  }
+
+  /**
+   * Arms a pending build on an empty slot and shows a confirm button.
+   *
+   * @remarks Nothing is sent to the server yet; the defender must click the
+   * tick. Any other click cancels via {@link clearSelection}, which guards
+   * against misclicks.
+   */
+  private requestBuild(slot: TowerSlot): void {
+    this.clearSelection();
     this.hideGhostTower();
+    this.pendingBuild = slot;
+
+    this.buildHighlight = this.scene.add
+      .circle(slot.x, slot.y, 40, 0x22c55e, 0.15)
+      .setStrokeStyle(3, 0x22c55e, 0.9);
+    this.root?.add(this.buildHighlight);
+
+    this.actionButton = this.createActionButton(slot, "✓ BUILD", true, () =>
+      this.confirmBuild(),
+    );
+  }
+
+  /** Sends the pending placement once the defender confirms it. */
+  private confirmBuild(): void {
+    const slot = this.pendingBuild;
+    if (!slot || !this.selectedTowerType) {
+      this.clearSelection();
+      return;
+    }
+
+    const towerType = TOWER_TYPES[this.selectedTowerType];
+    const cost = towerType?.tiers[0]?.cost ?? 0;
+    if (!towerType || this.gold < cost) {
+      console.log("Build cancelled: type unavailable or insufficient gold");
+      this.clearSelection();
+      return;
+    }
 
     console.log(
       `Sending place_tower for slot ${slot.slotIndex}, type: ${this.selectedTowerType}`,
@@ -404,6 +504,7 @@ export class GameplayStage {
       typeId: this.selectedTowerType,
       slotIndex: slot.slotIndex,
     });
+    this.clearSelection();
   }
 
   private renderTowerDeck(): void {
@@ -549,6 +650,105 @@ export class GameplayStage {
     this.ghostTower = undefined;
   }
 
+  /**
+   * Selects a placed tower: draws its range and shows a sell button.
+   *
+   * @remarks Clicking the same tower again dismisses the selection. The range
+   * radius and refund come from the same shared balance data the server uses,
+   * so what the defender sees matches the authoritative sale. Selling is a
+   * two-step confirm: the sell button turns into a tick.
+   */
+  private selectTower(slot: TowerSlot, record: TowerRecord): void {
+    if (this.selectedSlotIndex === slot.slotIndex) {
+      this.clearSelection();
+      return;
+    }
+
+    this.clearSelection();
+    this.selectedSlotIndex = slot.slotIndex;
+
+    const towerType = TOWER_TYPES[record.tower.typeId];
+    const range = towerType?.tiers[record.tower.level - 1]?.range ?? 0;
+    if (range > 0) {
+      this.rangeCircle = this.scene.add
+        .circle(slot.x, slot.y, range, 0x38bdf8, 0.12)
+        .setStrokeStyle(2, 0x38bdf8, 0.6);
+      this.root?.add(this.rangeCircle);
+    }
+
+    const refund = towerType ? sellRefund(record.tower.invested) : 0;
+    this.actionButton = this.createActionButton(
+      slot,
+      `SELL +${refund}g`,
+      false,
+      () => this.requestSell(record),
+    );
+  }
+
+  /**
+   * Creates the floating action button above a slot.
+   *
+   * @remarks Confirm buttons spell out the action (`✓ BUILD` / `✓ SELL`) and
+   * use a green caption so a second, deliberate click reads differently from
+   * the primary action.
+   */
+  private createActionButton(
+    slot: TowerSlot,
+    label: string,
+    confirm: boolean,
+    onClick: () => void,
+  ): UIButton {
+    const buttonWidth = 130;
+
+    const button = new UIButton({
+      scene: this.scene,
+      x: slot.x,
+      y: slot.y - 90,
+      width: buttonWidth,
+      height: buttonWidth / UI_ASPECT.button,
+      label,
+      fontSize: confirm ? 16 : 14,
+      labelColor: confirm ? "#4ade80" : "#ffffff",
+      onClick,
+    });
+    button.container.setDepth(DEPTH.UI_LAYER);
+    this.uiRoot?.add(button.container);
+
+    return button;
+  }
+
+  /** Turns the sell button into a tick awaiting a second click to confirm. */
+  private requestSell(record: TowerRecord): void {
+    if (!this.actionButton) return;
+    this.actionButton.setLabel("✓ SELL");
+    this.actionButton.setLabelColor("#4ade80");
+    this.actionButton.setFontSize(16);
+    this.actionButton.setOnClick(() => this.confirmSell(record));
+  }
+
+  /** Sends the sale once the defender confirms it with the tick. */
+  private confirmSell(record: TowerRecord): void {
+    this.room.send(MESSAGES.sellTower, { towerId: record.id });
+    this.clearSelection();
+  }
+
+  /**
+   * Clears the selected tower, its range, and any pending build or sale.
+   *
+   * @remarks Also the cancel path for the build/sell confirmations, so every
+   * visual (range ring, build highlight, action button) is torn down here.
+   */
+  private clearSelection(): void {
+    this.selectedSlotIndex = undefined;
+    this.pendingBuild = undefined;
+    this.rangeCircle?.destroy();
+    this.rangeCircle = undefined;
+    this.buildHighlight?.destroy();
+    this.buildHighlight = undefined;
+    this.actionButton?.destroy();
+    this.actionButton = undefined;
+  }
+
   private renderPhaseBanner(): void {
     const bannerX = 640;
     const bannerY = 108;
@@ -589,11 +789,11 @@ export class GameplayStage {
 
     const callbacks = Callbacks.get(this.room);
 
-    const onAdd = (value: unknown): void => {
+    const onAdd = (value: unknown, key: unknown): void => {
       const tower = value as Tower;
       const slot = this.map.slots.find((s) => s.slotIndex === tower.slotIndex);
       if (slot) {
-        this.renderTower(slot);
+        this.renderTower(slot, tower, String(key));
       }
     };
 
@@ -601,8 +801,12 @@ export class GameplayStage {
       const tower = value as Tower;
       const slot = this.map.slots.find((s) => s.slotIndex === tower.slotIndex);
       if (!slot) return;
-      this.towers.get(slot.slotIndex)?.destroy();
+      const record = this.towers.get(slot.slotIndex);
+      record?.sprite.destroy();
       this.towers.delete(slot.slotIndex);
+      if (this.selectedSlotIndex === slot.slotIndex) {
+        this.clearSelection();
+      }
     };
 
     // Third parameter `true` immediately calls onAdd for all existing towers in state
@@ -610,7 +814,7 @@ export class GameplayStage {
     this.unsubscribers.push(callbacks.onRemove("towers", onRemove));
   }
 
-  private renderTower(slot: TowerSlot): void {
+  private renderTower(slot: TowerSlot, tower: Tower, id: string): void {
     if (this.towers.has(slot.slotIndex)) return;
 
     const sprite = this.scene.add
@@ -619,7 +823,15 @@ export class GameplayStage {
       .setDisplaySize(135, 135)
       .setDepth(DEPTH.TOWERS_LAYER + slot.y * 0.001);
 
-    this.towers.set(slot.slotIndex, sprite);
+    if (this.role === "defender") {
+      sprite.setInteractive({ useHandCursor: true });
+      sprite.on("pointerdown", () => {
+        const record = this.towers.get(slot.slotIndex);
+        if (record) this.selectTower(slot, record);
+      });
+    }
+
+    this.towers.set(slot.slotIndex, { id, tower, sprite });
     this.root?.add(sprite);
   }
 
@@ -677,15 +889,28 @@ export class GameplayStage {
         .setDisplaySize(64, 64)
         .setDepth(DEPTH.UNITS_LAYER);
 
-      this.mobSprites.set(mob, sprite);
-      this.root?.add(sprite);
-      this.updateMobSprite(mob, sprite);
+      // Classic green-on-red bar; the green fill shrinks from its left edge.
+      const hpBg = this.scene.add
+        .rectangle(0, 0, MOB_HP_BAR.width, MOB_HP_BAR.height, 0x7f1d1d)
+        .setOrigin(0.5)
+        .setDepth(DEPTH.UNITS_LAYER + 1);
+      const hpFill = this.scene.add
+        .rectangle(0, 0, MOB_HP_BAR.width, MOB_HP_BAR.height, 0x22c55e)
+        .setOrigin(0, 0.5)
+        .setDepth(DEPTH.UNITS_LAYER + 2);
+
+      const record: MobRecord = { sprite, hpBg, hpFill };
+      this.mobSprites.set(mob, record);
+      this.root?.add([sprite, hpBg, hpFill]);
+      this.updateMobSprite(mob, record);
     };
 
     const onRemove = (value: unknown): void => {
-      const sprite = this.mobSprites.get(value as Mob);
-      if (!sprite) return;
-      sprite.destroy();
+      const record = this.mobSprites.get(value as Mob);
+      if (!record) return;
+      record.sprite.destroy();
+      record.hpBg.destroy();
+      record.hpFill.destroy();
       this.mobSprites.delete(value as Mob);
     };
 
@@ -694,27 +919,129 @@ export class GameplayStage {
     this.unsubscribers.push(callbacks.onRemove("mobs", onRemove));
   }
 
-  /** Per-frame pass repositioning every tracked mob sprite. */
+  /** Per-frame pass repositioning every tracked mob sprite and its health bar. */
   private updateMobs(): void {
     if (this.destroyed || this.mobSprites.size === 0) return;
-    this.mobSprites.forEach((sprite, mob) => this.updateMobSprite(mob, sprite));
+    this.mobSprites.forEach((record, mob) => this.updateMobSprite(mob, record));
   }
 
-  /** Places one sprite on the wavy path position derived from its progress. */
-  private updateMobSprite(mob: Mob, sprite: Phaser.GameObjects.Sprite): void {
+  /** Places one mob (body + health bar) at the path position for its progress. */
+  private updateMobSprite(mob: Mob, record: MobRecord): void {
     const path = this.pathFor(mob.pathId);
     if (!path || path.length < 2) return;
 
     const halfWidth = this.map.pathHalfWidth ?? 0;
     const point = samplePathWithLateral(path, mob.progress, mob.seed, halfWidth);
 
-    sprite.setPosition(point.x, point.y);
-    sprite.setDepth(DEPTH.UNITS_LAYER + point.y * 0.001);
+    record.sprite.setPosition(point.x, point.y);
+    record.sprite.setDepth(DEPTH.UNITS_LAYER + point.y * 0.001);
 
     // Face the direction of travel (art is a side-view sprite, so flip, not rotate).
     const ahead = samplePath(path, Math.min(1, mob.progress + 0.02));
     const dx = ahead.x - point.x;
-    if (Math.abs(dx) > 0.5) sprite.setFlipX(dx < 0);
+    if (Math.abs(dx) > 0.5) record.sprite.setFlipX(dx < 0);
+
+    this.updateMobHealthBar(mob, record, point.x, point.y);
+  }
+
+  /**
+   * Redraws a mob's health bar above it.
+   *
+   * @remarks The bar is hidden at full health (classic look, less clutter) and
+   * scaled so the green fill tracks `hp / maxHp` from the left edge.
+   */
+  private updateMobHealthBar(
+    mob: Mob,
+    record: MobRecord,
+    x: number,
+    y: number,
+  ): void {
+    const maxHp = mob.maxHp > 0 ? mob.maxHp : 1;
+    const ratio = Phaser.Math.Clamp(mob.hp / maxHp, 0, 1);
+    const damaged = ratio < 1;
+
+    const barY = y + MOB_HP_BAR.offsetY;
+    record.hpBg.setPosition(x, barY).setVisible(damaged);
+    record.hpFill
+      .setPosition(x - MOB_HP_BAR.width / 2, barY)
+      .setDisplaySize(MOB_HP_BAR.width * ratio, MOB_HP_BAR.height)
+      .setVisible(damaged);
+  }
+
+  /**
+   * Mirrors `RoomState.projectiles` into sprites using Colyseus Callbacks.
+   *
+   * @remarks
+   * Unlike mobs, projectiles carry their own synced `x`/`y`; the sprite is only
+   * re-pointed each frame (see {@link updateProjectiles}) so travel stays smooth
+   * between server patches.
+   */
+  private setupProjectileSync(): void {
+    if (!this.room) return;
+
+    const callbacks = Callbacks.get(this.room);
+
+    const onAdd = (value: unknown): void => {
+      const projectile = value as Projectile;
+      const sprite = this.scene.add
+        .sprite(projectile.x, projectile.y, "arrow_proj")
+        .setOrigin(0.5, 0.5)
+        .setDisplaySize(28, 28)
+        .setDepth(DEPTH.PROJECTILES_LAYER);
+
+      this.projectileSprites.set(projectile, sprite);
+      this.root?.add(sprite);
+    };
+
+    const onRemove = (value: unknown): void => {
+      const sprite = this.projectileSprites.get(value as Projectile);
+      if (!sprite) return;
+      sprite.destroy();
+      this.projectileSprites.delete(value as Projectile);
+    };
+
+    // Third parameter `true` immediately renders projectiles already in state.
+    this.unsubscribers.push(callbacks.onAdd("projectiles", onAdd, true));
+    this.unsubscribers.push(callbacks.onRemove("projectiles", onRemove));
+  }
+
+  /** Per-frame pass moving each projectile sprite to its synced position. */
+  private updateProjectiles(): void {
+    if (this.destroyed || this.projectileSprites.size === 0) return;
+
+    this.projectileSprites.forEach((sprite, projectile) => {
+      const dx = projectile.x - sprite.x;
+      const dy = projectile.y - sprite.y;
+      if (dx * dx + dy * dy > 0.01) sprite.setRotation(Math.atan2(dy, dx));
+      sprite.setPosition(projectile.x, projectile.y);
+    });
+  }
+
+  /**
+   * Keeps the base's floating HP bar in sync with the defender's core.
+   *
+   * @remarks `coreHp` is authoritative; the bar just reflects it. The max comes
+   * from {@link MATCH_RULES} since it never changes mid-match.
+   */
+  private setupBaseHpSync(): void {
+    if (!this.room) return;
+
+    const callbacks = Callbacks.get(this.room);
+    this.unsubscribers.push(
+      callbacks.listen("coreHp", (value: number) => this.updateBaseHp(value), true),
+    );
+  }
+
+  /** Redraws the base HP bar (width + colour) and its label. */
+  private updateBaseHp(coreHp: number): void {
+    const max = MATCH_RULES.coreHp;
+    const ratio = max > 0 ? Phaser.Math.Clamp(coreHp / max, 0, 1) : 0;
+
+    this.baseHpFill?.setDisplaySize(this.baseHpBarWidth * ratio, 10);
+    this.baseHpFill?.setFillStyle(
+      ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xf59e0b : 0xef4444,
+    );
+    this.baseHpText?.setText(`BASE CASTLE: ${coreHp}/${max} HP`);
   }
 
   /** Resolves a mob's `pathId` against the map's tracks. */
@@ -733,8 +1060,15 @@ export class GameplayStage {
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.unsubscribers = [];
 
-    for (const sprite of this.mobSprites.values()) sprite.destroy();
+    for (const record of this.mobSprites.values()) {
+      record.sprite.destroy();
+      record.hpBg.destroy();
+      record.hpFill.destroy();
+    }
     this.mobSprites.clear();
+
+    for (const sprite of this.projectileSprites.values()) sprite.destroy();
+    this.projectileSprites.clear();
 
     if (this.onKeyDown) {
       this.scene.input.keyboard?.off("keydown-D", this.onKeyDown);
@@ -748,12 +1082,16 @@ export class GameplayStage {
     this.debugGraphics?.destroy();
     this.debugGraphics = undefined;
 
+    this.clearSelection();
+
     this.topPortal?.destroy();
     this.bottomPortal?.destroy();
     this.phaseBanner?.destroy();
     this.startButton?.destroy();
     this.goldFrame = undefined;
     this.goldText = undefined;
+    this.baseHpFill = undefined;
+    this.baseHpText = undefined;
 
     for (const obj of this.deckObjects) obj.destroy();
     this.deckObjects = [];

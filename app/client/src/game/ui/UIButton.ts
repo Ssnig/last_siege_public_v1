@@ -10,6 +10,7 @@ export interface UIButtonConfig {
   label: string;
   onClick: () => void;
   fontSize?: number;
+  labelColor?: string;
 }
 
 /**
@@ -25,11 +26,13 @@ export class UIButton {
 
   private readonly image: Phaser.GameObjects.Image;
   private readonly label: Phaser.GameObjects.Text;
+  private onClick: () => void;
   private enabled = true;
 
   constructor(config: UIButtonConfig) {
-    const { scene, x, y, width, height, label, onClick, fontSize } = config;
+    const { scene, x, y, width, height, label, onClick, fontSize, labelColor } = config;
 
+    this.onClick = onClick;
     this.container = scene.add.container(x, y);
 
     this.image = scene.add
@@ -47,7 +50,7 @@ export class UIButton {
       .text(0, 0, label, {
         fontSize: `${fontSize ?? 14}px`,
         fontStyle: "bold",
-        color: "#ffffff",
+        color: labelColor ?? "#ffffff",
       })
       .setOrigin(0.5);
 
@@ -56,7 +59,7 @@ export class UIButton {
     });
     hit.on("pointerout", () => this.applyState());
     hit.on("pointerdown", () => {
-      if (this.enabled) onClick();
+      if (this.enabled) this.onClick();
     });
 
     this.container.add([this.image, hit, this.label]);
@@ -65,6 +68,21 @@ export class UIButton {
   /** Sets the button caption. */
   setLabel(text: string): void {
     this.label.setText(text);
+  }
+
+  /** Recolors the caption, e.g. to signal a confirm affordance. */
+  setLabelColor(color: string): void {
+    this.label.setColor(color);
+  }
+
+  /** Resizes the caption, e.g. to enlarge a confirm glyph. */
+  setFontSize(size: number): void {
+    this.label.setFontSize(size);
+  }
+
+  /** Replaces the click handler, letting one button switch between actions. */
+  setOnClick(onClick: () => void): void {
+    this.onClick = onClick;
   }
 
   /** Enables or disables interaction and updates the dimmed appearance. */
