@@ -8,6 +8,9 @@ import {
   buildCost,
   upgradeCost,
   tierAt,
+  totalInvested,
+  sellRefund,
+  SELL_REFUND_RATE,
 } from "@root/shared";
 
 /**
@@ -79,6 +82,22 @@ describe("balance.ts shape guards", () => {
     );
     for (const n of [MATCH_RULES.coreHp, MATCH_RULES.roundDurationSec]) {
       assert.ok(n > 0, `match rule must be > 0, got ${n}`);
+    }
+  });
+
+  it("totalInvested sums build plus upgrades and sellRefund refunds a fraction", () => {
+    for (const tower of Object.values(TOWER_TYPES)) {
+      assert.strictEqual(totalInvested(tower, 1), tower.tiers[0].cost);
+      for (let level = 1; level <= tower.tiers.length; level++) {
+        let expected = 0;
+        for (let i = 0; i < level; i++) expected += tower.tiers[i].cost;
+        assert.strictEqual(totalInvested(tower, level), expected);
+        assert.strictEqual(sellRefund(expected), Math.floor(expected * SELL_REFUND_RATE));
+        assert.ok(
+          sellRefund(expected) <= expected,
+          "refund never exceeds investment",
+        );
+      }
     }
   });
 

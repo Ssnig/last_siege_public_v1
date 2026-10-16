@@ -10,6 +10,15 @@ import {
 import { AttackerDraftStage } from "./stages/AttackerDraftStage";
 import { DefenderDraftStage } from "./stages/DefenderDraftStage";
 import { GameplayStage } from "./stages/GameplayStage";
+import {
+  registerUIFrames,
+  registerUIBgFrames,
+  UI_TEXTURE_KEY,
+  UI_TEXTURE_URL,
+  UI_BG_TEXTURE_KEY,
+  UI_BG_TEXTURE_URL,
+  UI_BG_ATLAS_URL,
+} from "./ui/uiAtlas";
 
 type PlayerRole = "attacker" | "defender";
 
@@ -96,10 +105,15 @@ export class GameScene extends Phaser.Scene {
     this.load.image("spawn_4", "/assets/sprites/spawn4.png");
     this.load.image("spawn_5", "/assets/sprites/spawn5.png");
     this.load.image("spawn_6", "/assets/sprites/spawn6.png");
+    this.load.image(UI_TEXTURE_KEY, UI_TEXTURE_URL);
+    this.load.atlas(UI_BG_TEXTURE_KEY, UI_BG_TEXTURE_URL, UI_BG_ATLAS_URL);
   }
 
 
   create(): void {
+    registerUIFrames(this);
+    registerUIBgFrames(this);
+
     const room = this.registry.get("room") as Room | undefined;
 
     if (!room) {

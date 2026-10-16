@@ -18,6 +18,11 @@ export const RoomState = schema({
   phaseEndsAt: t.float64().default(0),
   serverTick: t.uint32().default(0),
   waveIndex: t.uint16().default(0),
+  /**
+   * Defender core HP. Each mob that reaches the base subtracts its
+   * `leakDamage`; reaching zero ends the match with the attacker winning.
+   */
+  coreHp: t.uint16().default(0),
   players: t.map(Player),
   towers: t.map(Tower),
   mobs: t.map(Mob),

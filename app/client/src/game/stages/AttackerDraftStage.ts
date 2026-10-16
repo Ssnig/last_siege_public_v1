@@ -7,6 +7,12 @@ import {
   type MobType,
 } from "@root/shared";
 import { MobCard } from "../ui/MobCard";
+import { UIButton } from "../ui/UIButton";
+import {
+  UI_BG_FRAMES,
+  UI_BG_TEXTURE_KEY,
+  UI_TEXTURE_KEY,
+} from "../ui/uiAtlas";
 
 
 /**
@@ -37,8 +43,7 @@ export class AttackerDraftStage {/**
 
   private countText?: Phaser.GameObjects.Text;
   private selectedContainer?: Phaser.GameObjects.Container;
-  private confirmBackground?: Phaser.GameObjects.Rectangle;
-  private confirmText?: Phaser.GameObjects.Text;
+  private confirmButton?: UIButton;
 
   private confirmed = false;
   private detailsOverlay?: Phaser.GameObjects.Container;
@@ -92,31 +97,23 @@ export class AttackerDraftStage {/**
 
     this.root = this.scene.add.container(0, 0);
 
-    const background = this.scene.add.rectangle(
-      0,
-      0,
-      width,
-      height,
-      0x0b1120,
-    ).setOrigin(0, 0);
+    // Flat dark fill sits behind the art so its transparent margins never
+    // expose the canvas clear colour.
+    const backdrop = this.scene.add
+      .rectangle(0, 0, width, height, 0x3e2723)
+      .setOrigin(0, 0);
 
-    const rosterBackground = this.scene.add.rectangle(
-      0,
-      0,
-      width,
-      rosterHeight,
-      0x111827,
-    ).setOrigin(0, 0);
+    const background = this.scene.add
+      .image(0, 0, UI_BG_TEXTURE_KEY, UI_BG_FRAMES.bg1)
+      .setOrigin(0, 0)
+      .setDisplaySize(width, height);
 
-    const deckBackground = this.scene.add.rectangle(
-      0,
-      rosterHeight,
-      width,
-      deckHeight,
-      0x0f172a,
-    ).setOrigin(0, 0).setStrokeStyle(1, 0x334155);
+    const deckBackground = this.scene.add
+      .rectangle(0, rosterHeight, width, deckHeight, 0x0b1120, 0.4)
+      .setOrigin(0, 0)
+      .setStrokeStyle(1, 0x334155);
 
-    this.root.add([background, rosterBackground, deckBackground]);
+    this.root.add([backdrop, background, deckBackground]);
 
     this.createRoster(width, rosterHeight);
     this.createDeckPanel(width, rosterHeight, deckHeight);
@@ -132,6 +129,17 @@ export class AttackerDraftStage {/**
   private createRoster(width: number, rosterHeight: number): void {
     const padding = Math.max(12, Math.min(24, width * 0.03));
     const headerY = Math.max(20, Math.min(30, rosterHeight * 0.08));
+
+    // Opaque header strip keeps the roster heading legible over the bg art.
+    const headerHeight = Math.max(44, Math.min(58, rosterHeight * 0.12));
+    const headerBar = this.scene.add
+      .rectangle(0, 0, width, headerHeight, 0x0b1120, 0.8)
+      .setOrigin(0, 0);
+    const headerRule = this.scene.add
+      .rectangle(0, headerHeight, width, 2, 0x475569, 0.9)
+      .setOrigin(0, 0);
+
+    this.root!.add([headerBar, headerRule]);
 
     const title = this.scene.add.text(padding, headerY, "ATTACKER ROSTER", {
       fontSize: `${Math.max(17, Math.min(24, width * 0.035))}px`,
@@ -255,49 +263,27 @@ export class AttackerDraftStage {/**
       { fontSize: "12px", color: "#94a3b8" },
     ).setOrigin(0, 0.5);
 
-    this.selectedContainer = this.scene.add.container(
-      padding,
-      rosterHeight + Math.max(42, deckHeight * 0.36),
-    );
+    this.selectedContainer = this.scene.add.container(padding, rosterHeight + 50);
 
     const buttonX = width - padding - buttonWidth;
     const buttonY = rosterHeight + deckHeight / 2 + 8;
 
-    this.confirmBackground = this.scene.add
-      .rectangle(
-        buttonX + buttonWidth / 2,
-        buttonY,
-        buttonWidth,
-        buttonHeight,
-        0x4f46e5,
-      )
-      .setStrokeStyle(1, 0x818cf8)
-      .setInteractive();
-
-    this.confirmText = this.scene.add
-      .text(buttonX + buttonWidth / 2, buttonY, "CONFIRM", {
-        fontSize: compact ? "11px" : "13px",
-        fontStyle: "bold",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
-
-    this.confirmBackground.on("pointerover", () => {
-      if (!this.confirmed && this.selected.size > 0) {
-        this.confirmBackground?.setFillStyle(0x6366f1);
-      }
+    this.confirmButton = new UIButton({
+      scene: this.scene,
+      x: buttonX + buttonWidth / 2,
+      y: buttonY,
+      width: buttonWidth,
+      height: buttonHeight,
+      label: "CONFIRM",
+      fontSize: compact ? 11 : 13,
+      onClick: () => this.confirmDraft(),
     });
-
-    this.confirmBackground.on("pointerout", () => this.refreshSelection());
-
-    this.confirmBackground.on("pointerdown", () => this.confirmDraft());
 
     this.root!.add([
       heading,
       this.countText,
       this.selectedContainer,
-      this.confirmBackground,
-      this.confirmText,
+      this.confirmButton.container,
     ]);
   }
 
@@ -320,7 +306,7 @@ rejectDraft(reason: string): void {
    */
   private toggleMob(mob: MobType): void {
     if (this.confirmed) {
-      return;
+      this.confirmed = false;
     }
 
     if (this.selected.has(mob.id)) {
@@ -343,135 +329,43 @@ rejectDraft(reason: string): void {
       card.setSelected(this.selected.has(card.mob.id));
     }
 
-    this.countText?.setText(
-      `${this.selected.size}/${this.maxSelections} SELECTED`,
-    );
+    this.countText?.setText(`${this.selected.size}/${this.maxSelections} SELECTED`);
 
     this.selectedContainer?.removeAll(true);
 
     const width = this.scene.scale.width;
     const rosterHeight = Math.floor(this.scene.scale.height * 0.7);
     const deckHeight = this.scene.scale.height - rosterHeight;
-    const compact = width < 440;
-
-    const maxStripWidth = Math.max(
-      40,
-      width - (compact ? 148 : 196),
+    const padding = Math.max(12, Math.min(24, width * 0.03));
+    const maxStripWidth = Math.max(40, width - padding * 2 - 168);
+    const gap = 10;
+    const cardHeight = Math.max(60, Math.min(150, deckHeight - 72));
+    const cardWidth = Math.min(
+      cardHeight * 0.72,
+      (maxStripWidth - gap * Math.max(0, this.maxSelections - 1)) /
+        Math.max(1, this.maxSelections),
     );
-
-    const gap = 8;
-
-    const slotWidth = Math.max(
-      42,
-      Math.min(
-        76,
-        (maxStripWidth - gap * Math.max(0, this.maxSelections - 1)) /
-          Math.max(1, this.maxSelections),
-      ),
-    );
-
-    const slotHeight = Math.max(
-      42,
-      Math.min(70, deckHeight - 52),
-    );
-
-    const selectedMobs = this.mobs.filter((mob) =>
-      this.selected.has(mob.id),
-    );
+    const selectedMobs = this.mobs.filter((mob) => this.selected.has(mob.id));
 
     selectedMobs.forEach((mob, index) => {
-      const x = index * (slotWidth + gap);
+      const card = new MobCard(
+        this.scene,
+        index * (cardWidth + gap),
+        0,
+        cardWidth,
+        cardHeight,
+        mob,
+        (selectedMob) => this.toggleMob(selectedMob),
+      );
 
-      // 1. Background tile (rendered first)
-      const tile = this.scene.add
-        .rectangle(x, 0, slotWidth, slotHeight, 0x1e293b)
-        .setOrigin(0, 0)
-        .setStrokeStyle(1, 0x4ade80);
-
-      this.selectedContainer?.add(tile);
-
-      // 2. Warrior sprite (rendered above background)
-      const textureKey = "unit_warrior";
-
-      if (this.scene.textures.exists(textureKey)) {
-        const sprite = this.scene.add.image(
-          x + slotWidth / 2,
-          slotHeight * 0.38,
-          textureKey,
-        );
-
-        // Preserve aspect ratio
-        const scale = Math.min(
-          (slotWidth * 0.7) / sprite.width,
-          (slotHeight * 0.6) / sprite.height,
-        );
-
-        sprite.setScale(scale);
-
-        this.selectedContainer?.add(sprite);
-      } else {
-        // Fallback if texture hasn't loaded
-        const icon = this.scene.add.circle(
-          x + slotWidth / 2,
-          slotHeight * 0.38,
-          Math.max(7, Math.min(15, slotWidth * 0.18)),
-          this.getMobColor(mob.id),
-        );
-
-        this.selectedContainer?.add(icon);
-      }
-
-      // 3. Mob name (rendered above sprite)
-      const label = this.scene.add
-        .text(
-          x + slotWidth / 2,
-          slotHeight - 9,
-          mob.name,
-          {
-            fontSize: `${Math.max(
-              8,
-              Math.min(11, slotWidth * 0.15),
-            )}px`,
-            color: "#e2e8f0",
-            align: "center",
-            wordWrap: { width: slotWidth - 4 },
-          },
-        )
-        .setOrigin(0.5);
-
-      this.selectedContainer?.add(label);
+      card.setSelected(true);
+      this.selectedContainer?.add(card.container);
     });
 
-    // 4. Confirm button state
-    const canConfirm =
-      this.selected.size > 0 && !this.confirmed;
+    const canConfirm = this.selected.size > 0 && !this.confirmed;
 
-    this.confirmBackground
-      ?.setFillStyle(
-        this.confirmed
-          ? 0x059669
-          : canConfirm
-            ? 0x4f46e5
-            : 0x334155,
-      )
-      .setStrokeStyle(
-        1,
-        this.confirmed
-          ? 0x34d399
-          : canConfirm
-            ? 0x818cf8
-            : 0x475569,
-      );
-
-    this.confirmText
-      ?.setText(
-        this.confirmed ? "CONFIRMED" : "CONFIRM",
-      )
-      .setColor(
-        canConfirm || this.confirmed
-          ? "#ffffff"
-          : "#94a3b8",
-      );
+    this.confirmButton?.setEnabled(canConfirm);
+    this.confirmButton?.setLabel(this.confirmed ? "CONFIRMED" : "CONFIRM");
   }
 
   /**
@@ -505,69 +399,67 @@ rejectDraft(reason: string): void {
     });
 
     const panel = this.scene.add
-      .rectangle(
-        width / 2,
-        height / 2,
-        panelWidth,
-        panelHeight,
-        0x172033,
-      )
-      .setStrokeStyle(2, 0x6366f1)
-      .setInteractive();
+      .image(width / 2, height / 2, UI_TEXTURE_KEY, "panel")
+      .setDisplaySize(panelWidth, panelHeight);
+
+    const panelHit = this.scene.add
+      .rectangle(width / 2, height / 2, panelWidth, panelHeight, 0x000000, 0)
+      .setInteractive(
+        new Phaser.Geom.Rectangle(
+          -panelWidth / 2,
+          -panelHeight / 2,
+          panelWidth,
+          panelHeight,
+        ),
+        Phaser.Geom.Rectangle.Contains,
+      );
 
     // Keep clicks inside the panel from reaching the backdrop.
-    panel.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Event) => {
+    panelHit.on("pointerdown", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Event) => {
       event.stopPropagation();
     });
 
-    const title = this.scene.add.text(
-      panelX + 22,
-      panelY + 28,
-      mob.name,
-      {
-        fontSize: "24px",
-        fontStyle: "bold",
-        color: "#f8fafc",
-      },
-    );
+    const marginX = panelX + panelWidth * 0.09;
+    const titleY = panelY + panelHeight * 0.15;
+    const closeX = panelX + panelWidth * 0.88;
+
+    const title = this.scene.add.text(marginX, titleY, mob.name, {
+      fontSize: "24px",
+      fontStyle: "bold",
+      color: "#2b1a08",
+    });
 
     const stats = this.scene.add.text(
-      panelX + 22,
-      panelY + 82,
+      marginX,
+      panelY + panelHeight * 0.42,
       `HEALTH     ${mob.maxHp}\nSPEED       ${mob.speed}\nBOUNTY    ${mob.bounty}`,
       {
         fontSize: "16px",
-        color: "#cbd5e1",
+        color: "#3d2a16",
         lineSpacing: 12,
       },
     );
 
     const note = this.scene.add.text(
-      panelX + 22,
-      panelY + panelHeight - 64,
+      marginX,
+      panelY + panelHeight * 0.84,
       "Bounty is earned when this unit is defeated.",
       {
         fontSize: "11px",
-        color: "#94a3b8",
+        color: "#5f3f22",
         wordWrap: { width: panelWidth - 44 },
       },
     );
 
     const closeButton = this.scene.add
-      .rectangle(
-        panelX + panelWidth - 30,
-        panelY + 28,
-        32,
-        32,
-        0x334155,
-      )
+      .rectangle(closeX, titleY + 14, 32, 32, 0x334155)
       .setInteractive(
         new Phaser.Geom.Rectangle(-16, -16, 32, 32),
         Phaser.Geom.Rectangle.Contains,
       );
 
     const closeLabel = this.scene.add
-      .text(panelX + panelWidth - 30, panelY + 28, "×", {
+      .text(closeX, titleY + 14, "×", {
         fontSize: "22px",
         color: "#ffffff",
       })
@@ -578,6 +470,7 @@ rejectDraft(reason: string): void {
     overlay.add([
       shade,
       panel,
+      panelHit,
       title,
       stats,
       note,
@@ -593,22 +486,6 @@ rejectDraft(reason: string): void {
   private closeDetails(): void {
     this.detailsOverlay?.destroy(true);
     this.detailsOverlay = undefined;
-  }
-
-  /**
-   * Returns the fallback portrait color used before real mob art is loaded.
-   *
-   * @param id - Stable mob catalog ID.
-   * @returns Hexadecimal placeholder color.
-   */
-  private getMobColor(id: string): number {
-    const colors: Record<string, number> = {
-      grunt: 0x60a5fa,
-      runner: 0xfbbf24,
-      brute: 0xf87171,
-    };
-
-    return colors[id] ?? 0xa78bfa;
   }
 
  

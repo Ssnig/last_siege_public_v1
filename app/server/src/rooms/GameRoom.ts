@@ -5,6 +5,8 @@ import {
   RoomState,
   Player,
   Tower,
+  Mob,
+  Projectile,
   MESSAGES,
   MAPS,
   SAMPLE_MAP,
@@ -12,13 +14,26 @@ import {
   TOWER_TYPES,
   DEFAULT_DECK_RULES,
   DEFAULT_ECONOMY,
+  MATCH_RULES,
+  MOB_SPEED_JITTER,
+  PROJECTILE_HIT_RADIUS,
+  pathLength,
+  samplePathWithLateral,
+  tierAt,
   type DraftReadyIntent,
   type GameOverPayload,
+  type MapDefinition,
+  type MobType,
   type PlaceTowerIntent,
+  type SellTowerIntent,
+  type TowerTier,
+  type Vec2,
   type YouEconomyPayload,
   buildCost,
+  sellRefund,
 } from "@root/shared";
 import { Phases } from "../game/phases.js";
+import { selectTarget, type TargetCandidate } from "../game/targeting.js";
 
 export type RoleChoice = "attacker" | "defender" | "random";
 export type PlayerRole = "attacker" | "defender";
@@ -58,6 +73,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /** Authoritative phase + timer state machine. */
   private phases!: Phases;
 
+  /** Previous tick's phase, used to detect the exact tick combat begins. */
+  private lastPhase = "";
+
+  /** Monotonic source of projectile ids, unique for the room's whole lifetime. */
+  private projectileSeq = 0;
+
   plugins = definePlugins({
     idle: new IdleKickPlugin({ timeoutMs: 60_000 }),
   });
@@ -76,6 +97,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       client: Client,
       payload: PlaceTowerIntent,
     ) => this.handlePlaceTower(client, payload),
+
+    [MESSAGES.sellTower]: (
+      client: Client,
+      payload: SellTowerIntent,
+    ) => this.handleSellTower(client, payload),
 
     [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
   };
@@ -274,14 +300,15 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Handles tower placement during the building phase.
+   * Handles tower placement during the building or combat phase.
    *
    * @remarks
    * Only the defender can place towers. The tower type must be in their deck
-   * and they must have enough gold.
+   * and they must have enough gold. Building is allowed throughout combat so
+   * the defender can react to what is on the field.
    */
   private handlePlaceTower(client: Client, payload: PlaceTowerIntent): void {
-    if (this.state.phase !== "building") return;
+    if (this.state.phase !== "building" && this.state.phase !== "combat") return;
 
     const role = client.userData?.role as PlayerRole | undefined;
     if (role !== "defender") {
@@ -333,6 +360,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
         typeId: payload.typeId,
         slotIndex: payload.slotIndex,
         level: 1,
+        invested: cost,
         cooldown: 0,
       }),
     );
@@ -341,6 +369,43 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     console.log(
       `Defender placed tower ${payload.typeId} at slot ${payload.slotIndex} (-${cost}g)`,
+    );
+  }
+
+  /**
+   * Sells one of the defender's towers for a partial refund.
+   *
+   * @remarks
+   * Only the tower's owner may sell it, and only while the match is in the
+   * building or combat phase. The refund is `sellRefund` of the tower's own
+   * `invested` gold, so the client reads the same field to predict the price.
+   */
+  private handleSellTower(client: Client, payload: SellTowerIntent): void {
+    if (this.state.phase !== "building" && this.state.phase !== "combat") return;
+
+    const role = client.userData?.role as PlayerRole | undefined;
+    if (role !== "defender") {
+      console.log(`Only defender can sell towers. Client role: ${role}`);
+      return;
+    }
+
+    const tower = this.state.towers.get(payload.towerId);
+    if (!tower || tower.ownerId !== client.sessionId) {
+      console.log(`Defender has no sellable tower ${payload.towerId}`);
+      return;
+    }
+
+    const refund = sellRefund(tower.invested);
+
+    this.state.towers.delete(payload.towerId);
+    this.economies.set(
+      client.sessionId,
+      (this.economies.get(client.sessionId) ?? 0) + refund,
+    );
+    this.sendEconomy(client);
+
+    console.log(
+      `Defender sold tower ${payload.towerId} (${tower.typeId} lvl ${tower.level}) (+${refund}g)`,
     );
   }
 
@@ -427,8 +492,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.state.mapId = options.mapId || "konbaung";
     this.state.phase = "drafting";
+    this.state.coreHp = MATCH_RULES.coreHp;
 
     this.phases = new Phases({ state: this.state });
+    this.lastPhase = this.state.phase;
 
     this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
   }
@@ -502,6 +569,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.matchStarted = false;
       this.acceptedDecks.clear();
       this.state.phase = "drafting";
+      this.clearMobs();
+      this.clearProjectiles();
+      this.state.coreHp = MATCH_RULES.coreHp;
 
       for (const player of this.state.players.values()) {
         player.draftReady = false;
@@ -532,7 +602,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
     console.log(`Room ${this.roomId} disposing...`);
   }
 
-  /** Server tick: drives the phase/timer machine; no gameplay simulation yet. */
+  /**
+   * Server tick: drives the phase/timer machine and the mob simulation.
+   *
+   * @remarks
+   * Combat is detected by an edge (previous tick was not `combat`), so it fires
+   * for both the manual START button and the optional build timer without either
+   * path needing to remember to spawn.
+   */
   update(dt: number): void {
     const event = this.phases.update(dt);
 
@@ -540,8 +617,310 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.autoFillDecks(event.autoCompleted);
     }
 
-    if (event?.type === "combat-started") {
-      console.log(`Room ${this.roomId}: combat started`);
+    const phase = this.state.phase;
+
+    if (phase === "combat" && this.lastPhase !== "combat") {
+      this.spawnTestWave();
     }
+
+    if (phase === "combat") {
+      this.simulateMobs(dt);
+      // A breach may have ended the match; skip combat so no shots fire after.
+      if (this.state.phase === "combat") this.simulateCombat(dt);
+    } else if (this.lastPhase === "combat") {
+      this.clearMobs();
+      this.clearProjectiles();
+    }
+
+    this.lastPhase = phase;
+  }
+
+  /**
+   * Spawns the placeholder combat wave used to validate mob movement.
+   *
+   * @remarks Temporary stand-in for the real attacker wave economy. It splits
+   * evenly across the map's named paths (so both tracks can be eyeballed) and
+   * falls back to the single `path` for maps without `paths`.
+   */
+  private spawnTestWave(): void {
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const type = MOB_TYPES["grunt"];
+    if (!type) return;
+
+    const batchId = this.state.waveIndex + 1;
+    const perPath = 4;
+
+    let spawned = 0;
+    const top = map.paths?.top;
+    const bottom = map.paths?.bottom;
+
+    if (top && top.length >= 2) {
+      spawned += this.spawnMobsOnPath(top, "top", type, perPath, batchId);
+    }
+    if (bottom && bottom.length >= 2) {
+      spawned += this.spawnMobsOnPath(bottom, "bottom", type, perPath, batchId);
+    }
+    if (spawned === 0 && map.path.length >= 2) {
+      spawned += this.spawnMobsOnPath(map.path, "main", type, perPath * 2, batchId);
+    }
+
+    this.state.waveIndex = batchId;
+    console.log(
+      `Room ${this.roomId}: spawned test wave ${batchId} (${spawned} mobs, type ${type.id})`,
+    );
+  }
+
+  /**
+   * Creates `count` mobs of one type at the start of a path.
+   *
+   * @returns The number of mobs spawned.
+   */
+  private spawnMobsOnPath(
+    path: Vec2[],
+    pathId: string,
+    type: MobType,
+    count: number,
+    batchId: number,
+  ): number {
+    for (let i = 0; i < count; i++) {
+      const seed = (Math.random() * 0xffffffff) >>> 0;
+      const jitter = 1 + (Math.random() * 2 - 1) * MOB_SPEED_JITTER;
+      const id = `mob-${batchId}-${pathId}-${i}`;
+
+      this.state.mobs.set(
+        id,
+        new Mob({
+          ownerId: "",
+          typeId: type.id,
+          batchId,
+          progress: 0,
+          hp: type.maxHp,
+          maxHp: type.maxHp,
+          speed: type.speed * jitter,
+          bounty: type.bounty,
+          checkpoint: 0,
+          state: "moving",
+          seed,
+          pathId,
+        }),
+      );
+    }
+
+    return count;
+  }
+
+  /** Advances every mob along its path; breaches damage the defender's core. */
+  private simulateMobs(dt: number): void {
+    if (this.state.mobs.size === 0) return;
+
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const finished: string[] = [];
+
+    for (const [id, mob] of this.state.mobs) {
+      const path = this.pathFor(map, mob.pathId);
+      const total = path ? pathLength(path) : 0;
+
+      if (!path || total <= 0) {
+        finished.push(id);
+        continue;
+      }
+
+      mob.progress += (mob.speed / total) * dt;
+
+      if (mob.progress >= 1) {
+        this.leakToCore(MOB_TYPES[mob.typeId]?.leakDamage ?? 0);
+        finished.push(id);
+      }
+    }
+
+    for (const id of finished) {
+      this.state.mobs.delete(id);
+    }
+  }
+
+  /**
+   * Subtracts leaked damage from the defender's core.
+   *
+   * @remarks
+   * Reaching zero ends the match immediately with the attacker winning, announced
+   * to both clients like a surrender. Later breaches in the same tick are harmless
+   * (`declareGameOver` refuses a second call).
+   */
+  private leakToCore(damage: number): void {
+    if (damage <= 0) return;
+
+    this.state.coreHp = Math.max(0, this.state.coreHp - damage);
+    if (this.state.coreHp > 0) return;
+
+    if (!this.phases.declareGameOver("attacker")) return;
+
+    console.log(
+      `Room ${this.roomId}: defender core destroyed; attacker wins`,
+    );
+
+    const payload: GameOverPayload = { winner: "attacker", reason: "core" };
+    for (const client of this.clients) {
+      client.send(MESSAGES.gameOver, payload);
+    }
+  }
+
+  /** Resolves a mob's `pathId` against the map's tracks. */
+  private pathFor(map: MapDefinition, pathId: string): Vec2[] | undefined {
+    if (pathId === "top") return map.paths?.top;
+    if (pathId === "bottom") return map.paths?.bottom;
+    return map.path;
+  }
+
+  private clearMobs(): void {
+    if (this.state.mobs.size > 0) this.state.mobs.clear();
+  }
+
+  /**
+   * Advances tower targeting/firing and in-flight projectiles for one tick.
+   *
+   * @remarks
+   * Mob world positions are resolved once per tick from authoritative
+   * `progress` via the same `samplePathWithLateral` the client renders with, so
+   * range checks and projectile homing agree with what players see. Mobs are
+   * never damaged directly: a tower spawns a homing projectile (see
+   * {@link Projectile}), which applies its damage on arrival and pays the
+   * defender the mob's bounty on a kill.
+   */
+  private simulateCombat(dt: number): void {
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const halfWidth = map.pathHalfWidth ?? 0;
+
+    const positions = new Map<string, Vec2>();
+    const candidates: TargetCandidate[] = [];
+
+    for (const [id, mob] of this.state.mobs) {
+      const path = this.pathFor(map, mob.pathId);
+      if (!path || path.length < 2) continue;
+
+      const point = samplePathWithLateral(
+        path,
+        mob.progress,
+        mob.seed,
+        halfWidth,
+      );
+      positions.set(id, point);
+      candidates.push({ id, x: point.x, y: point.y, progress: mob.progress });
+    }
+
+    this.simulateTowers(dt, map, candidates);
+    this.simulateProjectiles(dt, positions);
+  }
+
+  /** Fires each ready tower at the in-range mob nearest the base. */
+  private simulateTowers(
+    dt: number,
+    map: MapDefinition,
+    candidates: readonly TargetCandidate[],
+  ): void {
+    for (const tower of this.state.towers.values()) {
+      const type = TOWER_TYPES[tower.typeId];
+      const tier = type ? tierAt(type, tower.level) : null;
+      const slot = map.slots.find((s) => s.slotIndex === tower.slotIndex);
+      if (!tier || !slot) continue;
+
+      // Clamp so a long idle period never stockpiles "negative" cooldown.
+      tower.cooldown = Math.max(0, tower.cooldown - dt);
+
+      const target = selectTarget(candidates, slot, tier.range);
+      tower.targetId = target?.id;
+
+      if (!target || tower.cooldown > 0) continue;
+
+      tower.cooldown = 1 / tier.fireRate;
+      this.spawnProjectile(tower, slot, target, tier);
+    }
+  }
+
+  /** Spawns a homing projectile from a tower's slot toward `target`. */
+  private spawnProjectile(
+    tower: Tower,
+    slot: Vec2,
+    target: TargetCandidate,
+    tier: TowerTier,
+  ): void {
+    const id = `proj-${this.projectileSeq++}`;
+
+    this.state.projectiles.set(
+      id,
+      new Projectile({
+        ownerId: tower.ownerId,
+        typeId: tower.typeId,
+        x: slot.x,
+        y: slot.y,
+        targetId: target.id,
+        damage: tier.damage,
+        speed: tier.projectileSpeed,
+      }),
+    );
+  }
+
+  /** Homes every projectile toward its target and resolves hits. */
+  private simulateProjectiles(
+    dt: number,
+    positions: ReadonlyMap<string, Vec2>,
+  ): void {
+    if (this.state.projectiles.size === 0) return;
+
+    const finished: string[] = [];
+
+    for (const [id, projectile] of this.state.projectiles) {
+      const target = positions.get(projectile.targetId);
+      const ownerId = projectile.ownerId;
+
+      // Target died or left the field before the shot landed; drop it.
+      if (!target) {
+        finished.push(id);
+        continue;
+      }
+
+      const dx = target.x - projectile.x;
+      const dy = target.y - projectile.y;
+      const distance = Math.hypot(dx, dy);
+      const step = projectile.speed * dt;
+
+      if (distance <= step + PROJECTILE_HIT_RADIUS) {
+        this.damageMob(projectile.targetId, projectile.damage, ownerId);
+        finished.push(id);
+        continue;
+      }
+
+      projectile.x += (dx / distance) * step;
+      projectile.y += (dy / distance) * step;
+    }
+
+    for (const id of finished) {
+      this.state.projectiles.delete(id);
+    }
+  }
+
+  /** Applies projectile damage and, on a kill, pays the defender the bounty. */
+  private damageMob(mobId: string, damage: number, ownerId: string): void {
+    const mob = this.state.mobs.get(mobId);
+    if (!mob) return;
+
+    mob.hp -= damage;
+    if (mob.hp > 0) return;
+
+    this.state.mobs.delete(mobId);
+    this.awardBounty(ownerId, mob.bounty);
+  }
+
+  /** Credits a defender's hidden gold and pushes them a fresh snapshot. */
+  private awardBounty(sessionId: string, amount: number): void {
+    if (!sessionId || amount <= 0) return;
+
+    this.economies.set(sessionId, (this.economies.get(sessionId) ?? 0) + amount);
+
+    const client = this.clients.find((c) => c.sessionId === sessionId);
+    if (client) this.sendEconomy(client);
+  }
+
+  private clearProjectiles(): void {
+    if (this.state.projectiles.size > 0) this.state.projectiles.clear();
   }
 }

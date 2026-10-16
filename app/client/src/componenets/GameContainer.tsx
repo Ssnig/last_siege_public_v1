@@ -240,9 +240,13 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
               {gameOver.youWin ? "Victory!" : "Defeat"}
             </h2>
             <p className="text-slate-300 text-sm">
-              {gameOver.youWin
-                ? "Your opponent surrendered."
-                : "You surrendered."}
+              {gameOver.reason === "core"
+                ? gameOver.youWin
+                  ? "The enemy base was destroyed."
+                  : "Your base was destroyed."
+                : gameOver.youWin
+                  ? "Your opponent surrendered."
+                  : "You surrendered."}
             </p>
             <p className="text-slate-500 text-xs">
               The enemy {gameOver.winner === "attacker" ? "Attacker" : "Defender"} wins.
