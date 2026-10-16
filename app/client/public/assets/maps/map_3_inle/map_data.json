@@ -1,0 +1,9 @@
+﻿{
+    "id":  "map_3_inle",
+    "name":  "Inle Lake Waterways",
+    "width":  1280,
+    "description":  "Trident canal waterways between floating tomato gardens and stilt wooden houses.",
+    "pathHalfWidth":  20,
+    "lanes":  3,
+    "height":  720
+}

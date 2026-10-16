@@ -1,0 +1,9 @@
+﻿{
+    "id":  "map_4_mandalay",
+    "name":  "Mandalay Fortress Moat",
+    "width":  1280,
+    "description":  "Grand square water moat flanked by fortified red brick ramparts and gate bridges.",
+    "pathHalfWidth":  20,
+    "lanes":  2,
+    "height":  720
+}

@@ -58,6 +58,16 @@ export interface GameRoomMetadata {
   roleChoice: RoleChoice;
 }
 
+const DEFAULT_ATTACKER_DECK = [
+  "horse_rider",
+  "sar_bal_gyi",
+  "gya_pu",
+  "a_ba",
+  "chon_toe",
+  "grunt",
+  "runner",
+];
+
 /** One batch waiting to spawn, scheduled against {@link GameRoom.matchTime}. */
 interface ScheduledBatch {
   atMatchTime: number;
@@ -267,7 +277,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       if (role === "defender") {
         deck = Object.keys(TOWER_TYPES).slice(0, 6);
       } else if (role === "attacker") {
-        deck = Object.keys(MOB_TYPES).slice(0, 4);
+        deck = DEFAULT_ATTACKER_DECK;
       }
     }
     const economy: YouEconomyPayload = {
@@ -289,7 +299,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const availableTroops =
-      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
+      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
     const staged = this.stagedWaves.get(sessionId) ?? new Map<string, StagedWave>();
 
     const paths: AttackerArmyPath[] = this.pathIdsFor(map).map((pathId) => {
@@ -650,7 +660,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const sessionId = client.sessionId;
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const allowedDeck =
-      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
+      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
     if (!allowedDeck.includes(payload.typeId)) {
       return void this.rejectWave(client, `${payload.typeId} is not in your deck.`);
     }
@@ -815,7 +825,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const staged = this.stagedWaves.get(sessionId);
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const allowedDeck =
-      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
+      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
 
     const requested =
       pathIds && pathIds.length > 0
@@ -1164,7 +1174,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
       if (hasStaged) {
         // Attacker staged waves during preparation: release them immediately!
-        this.executeWaveRelease(attackerClient);
+        const result = this.executeWaveRelease(attackerClient);
+        if (!result.success) {
+          console.warn(
+            `Room ${this.roomId}: failed to release staged waves (${result.error}); falling back to auto-staging`,
+          );
+          this.autoStageAndRelease(attackerClient);
+        }
       } else {
         // Attacker did not stage any wave before timer ran out: auto-stage starter wave and release
         this.autoStageAndRelease(attackerClient);
@@ -1182,45 +1198,61 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const sessionId = client.sessionId;
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const availableTroops =
-      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
-    const mobId = availableTroops[0] || "grunt";
+      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
 
     const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
     const pathIds = this.pathIdsFor(map);
 
-    for (const pathId of pathIds) {
+    for (const [idx, pathId] of pathIds.entries()) {
       const wave = this.ensureStagedWave(sessionId, pathId);
+      const primaryMob = availableTroops[idx % availableTroops.length];
+      const secondaryMob = availableTroops[(idx + 2) % availableTroops.length];
       wave.batches = [
         {
           batchId: `batch-${++this.batchSeq}`,
-          typeId: mobId,
-          count: 4,
+          typeId: primaryMob,
+          count: 2,
+        },
+        {
+          batchId: `batch-${++this.batchSeq}`,
+          typeId: secondaryMob,
+          count: 2,
         },
       ];
     }
 
-    this.executeWaveRelease(client, pathIds);
+    const outcome = this.executeWaveRelease(client, pathIds);
+    if (!outcome.success) {
+      console.warn(
+        `Room ${this.roomId}: autoStageAndRelease failed (${outcome.error}); forcing baseline wave`,
+      );
+      this.spawnBaselineWave();
+    }
   }
 
   /**
-   * Spawns baseline mobs for solo testing when no attacker client is connected.
+   * Spawns baseline mobs showcasing the Burmese units for battle testing.
    */
   private spawnBaselineWave(): void {
     const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
     const pathIds = this.pathIdsFor(map);
     const interval = DEFAULT_WAVE_RULES.batchIntervalSec;
+    const burmeseLineup = ["horse_rider", "sar_bal_gyi", "gya_pu", "a_ba", "chon_toe"];
     let offset = 0;
 
-    for (const pathId of pathIds) {
-      this.releaseQueue.push({
-        atMatchTime: this.matchTime + offset * interval,
-        pathId,
-        typeId: "grunt",
-        count: 4,
-      });
-      offset++;
+    for (const [laneIdx, pathId] of pathIds.entries()) {
+      for (let i = 0; i < burmeseLineup.length; i++) {
+        const mobId = burmeseLineup[(i + laneIdx) % burmeseLineup.length];
+        this.releaseQueue.push({
+          atMatchTime: this.matchTime + offset * interval,
+          pathId,
+          typeId: mobId,
+          count: 2,
+        });
+        offset++;
+      }
     }
-    console.log(`Room ${this.roomId}: spawned baseline wave on ${pathIds.join(", ")}`);
+    console.log(`Room ${this.roomId}: spawned Burmese battle wave on ${pathIds.join(", ")}`);
   }
 
   /**

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { TOWER_TYPES, MOB_TYPES, type AttackerArmyPayload } from '@root/shared';
 
 interface GameHUDProps {
@@ -30,12 +30,11 @@ const DEFAULT_DEFENDER_TOWERS = [
 ];
 
 const DEFAULT_ATTACKER_MOBS = [
-  'grunt',
-  'runner',
-  'brute',
-  'shade',
-  'spider',
-  'orc',
+  'horse_rider',
+  'sar_bal_gyi',
+  'gya_pu',
+  'a_ba',
+  'chon_toe',
 ];
 
 const TOWER_SHORT_NAMES: Record<string, string> = {
@@ -57,29 +56,39 @@ const TOWER_ICONS: Record<string, string> = {
 };
 
 const MOB_SHORT_NAMES: Record<string, string> = {
+  horse_rider: 'Rider',
+  sar_bal_gyi: 'SarBal',
+  gya_pu: 'GyaPu',
+  a_ba: 'A Ba',
+  chon_toe: 'ChonToe',
   grunt: 'Grunt',
-  runner: 'Run',
-  brute: 'Brute',
+  runner: 'Rider',
+  brute: 'SarBal',
   shade: 'Shade',
   spider: 'Spdr',
   orc: 'Orc',
-  gargoyle: 'Garg',
+  gargoyle: 'GyaPu',
   sapper: 'Sapr',
-  necromancer: 'Necro',
-  ogre: 'Ogre',
+  necromancer: 'A Ba',
+  ogre: 'ChonToe',
 };
 
 const MOB_ICONS: Record<string, string> = {
-  grunt: '/assets/sprites/unit_warrior.png',
-  runner: '/assets/sprites/spawn3.png',
-  brute: '/assets/sprites/spawn5.png',
-  shade: '/assets/sprites/spawn4.png',
-  spider: '/assets/sprites/spawn6.png',
-  orc: '/assets/sprites/spawn2.png',
-  gargoyle: '/assets/sprites/spawn5.png',
-  sapper: '/assets/sprites/spawn1.png',
-  necromancer: '/assets/sprites/spawn4.png',
-  ogre: '/assets/sprites/spawn6.png',
+  horse_rider: '/assets/units/horse_rider/face.png',
+  sar_bal_gyi: '/assets/units/sar_bal_gyi/face.png',
+  gya_pu: '/assets/units/gya_pu/face.png',
+  a_ba: '/assets/units/a_ba/face.png',
+  chon_toe: '/assets/units/chon_toe/face.png',
+  runner: '/assets/units/horse_rider/face.png',
+  grunt: '/assets/units/calvary/face.png',
+  brute: '/assets/units/sar_bal_gyi/face.png',
+  shade: '/assets/units/shade/face.png',
+  spider: '/assets/units/spider/face.png',
+  orc: '/assets/units/orc/face.png',
+  gargoyle: '/assets/units/gya_pu/face.png',
+  sapper: '/assets/units/sapper/face.png',
+  necromancer: '/assets/units/a_ba/face.png',
+  ogre: '/assets/units/chon_toe/face.png',
 };
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -124,8 +133,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     return () => clearInterval(interval);
   }, [phase]);
 
-  // Show a quick toast tip when UI visibility flips
+  // Show a quick toast tip when UI visibility flips (skip on initial mount)
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     setToastMessage(isUIHidden ? 'UI Hidden (Double-tap map to show)' : 'UI Visible');
     const timer = setTimeout(() => {
       setToastMessage(null);

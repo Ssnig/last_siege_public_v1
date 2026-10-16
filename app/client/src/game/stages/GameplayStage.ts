@@ -23,6 +23,8 @@ import {
   UI_BG_TEXTURE_KEY,
   UI_TEXTURE_KEY,
 } from "../ui/uiAtlas";
+import { UnitAnimationManager } from "../animation/UnitAnimationManager";
+import { AmbientNPCManager } from "../npc/AmbientNPCManager";
 
 /** Render order for the gameplay layers. */
 export const DEPTH = {
@@ -107,6 +109,7 @@ export class GameplayStage {
   private topPortal?: Phaser.GameObjects.Sprite;
   private bottomPortal?: Phaser.GameObjects.Sprite;
   private combatBanner?: Phaser.GameObjects.Container;
+  private ambientNpcManager?: AmbientNPCManager;
 
   private baseHpFill?: Phaser.GameObjects.Rectangle;
   private baseHpText?: Phaser.GameObjects.Text;
@@ -298,16 +301,20 @@ export class GameplayStage {
       this.root.add(deselectZone);
     }
 
-    // Load and render map background
     // Load and render map background (1280x720 at 0,0 aligning with slots, paths, portals, and base)
-    if (this.map.id === "konbaung") {
+    const bgKey = this.scene.textures.exists(this.map.id) ? this.map.id : "konbaung";
+    if (this.scene.textures.exists(bgKey)) {
       const bg = this.scene.add
-        .image(0, 0, "konbaung")
+        .image(0, 0, bgKey)
         .setOrigin(0, 0)
         .setDisplaySize(1280, 720)
         .setDepth(DEPTH.MAP_BG);
       this.root.add(bg);
     }
+
+    // Spawn ambient scenic NPCs and un-interactable scenery objects
+    this.ambientNpcManager = new AmbientNPCManager(this.scene, this.root);
+    this.ambientNpcManager.spawnForMap(this.map.id);
 
     // Create path curves
     this.paths = [];
@@ -958,10 +965,7 @@ export class GameplayStage {
 
     const onAdd = (value: unknown): void => {
       const mob = value as Mob;
-      const sprite = this.scene.add
-        .sprite(0, 0, "unit_warrior")
-        .setOrigin(0.5, 0.78)
-        .setDisplaySize(64, 64)
+      const sprite = UnitAnimationManager.spawnMobSprite(this.scene, mob.typeId)
         .setDepth(DEPTH.UNITS_LAYER);
 
       // Classic green-on-red bar; the green fill shrinks from its left edge.
@@ -1319,6 +1323,9 @@ export class GameplayStage {
     this.deckObjects = [];
     this.combatBanner?.destroy();
     this.combatBanner = undefined;
+
+    this.ambientNpcManager?.destroy();
+    this.ambientNpcManager = undefined;
 
     this.uiRoot?.destroy(true);
     this.uiRoot = undefined;

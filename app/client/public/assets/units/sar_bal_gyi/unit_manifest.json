@@ -1,0 +1,15 @@
+{
+  "id": "sar_bal_gyi",
+  "name": "Palace Royal Guard",
+  "frames": 6,
+  "cols": 3,
+  "rows": 2,
+  "frameWidth": 800,
+  "frameHeight": 670,
+  "frameRate": 6,
+  "scale": 0.16,
+  "origin": { "x": 0.5, "y": 0.85 },
+  "animations": {
+    "run": { "start": 0, "end": 5, "repeat": -1 }
+  }
+}
