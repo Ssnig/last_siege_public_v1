@@ -24,11 +24,18 @@ export const GameRoute = () => {
     if (room || !roomId || joinFailed) return;
 
     let cancelled = false;
+    let playerName = 'Player';
+    try {
+      playerName = localStorage.getItem('player-name') || 'Player';
+    } catch {}
+
+
     client
       .joinById(roomId, {
-        playerName: localStorage.getItem('player-name') ?? 'Player',
+        playerName,
       })
       .then((joined: Room) => {
+
         if (!cancelled) setRoom(joined);
       })
       .catch((e: unknown) => {

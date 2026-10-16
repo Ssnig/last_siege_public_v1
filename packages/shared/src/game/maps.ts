@@ -20,8 +20,6 @@ export interface TowerSlot {
  * positions. `base` is the defender's core location.
  * `paths` (optional) supports multiple named paths for advanced maps.
  * `width`/`height` (optional) define the virtual coordinate system size.
- * `pathHalfWidth` is how far (px) a mob may drift either side of the centreline
- * to give the wavy, crowd-like movement; see `lateralOffset`.
  */
 export interface MapDefinition {
   id: string;

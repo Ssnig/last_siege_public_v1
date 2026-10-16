@@ -1,6 +1,21 @@
 @import "tailwindcss";
 
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  background-color: #020617;
+}
+
 /* The Phaser canvas should sit flush in its fullscreen container. */
 #phaser-game canvas {
   display: block;
+  touch-action: none;
 }

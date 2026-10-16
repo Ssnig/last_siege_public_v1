@@ -420,7 +420,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const role = client.userData?.role as PlayerRole | undefined;
     if (role !== "defender") {
-      console.log(`Only defender can start combat. Client role: ${role}`);
+      console.log(`Only defender can manually start combat. Client role: ${role}`);
       return;
     }
 
@@ -429,7 +429,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       return;
     }
 
-    console.log(`Room ${this.roomId}: building -> combat (manual start)`);
+    console.log(`Room ${this.roomId}: building -> combat (manual start by defender ${client.sessionId})`);
   }
 
   /**

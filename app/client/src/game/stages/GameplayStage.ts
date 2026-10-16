@@ -37,6 +37,9 @@ export const DEPTH = {
   UI_LAYER: 30,
 } as const;
 
+export const MIN_CAMERA_ZOOM = 1.0;
+export const MAX_CAMERA_ZOOM = 1.6;
+
 export interface GameplayStageOptions {
   room: Room;
   map: MapDefinition;
@@ -103,6 +106,7 @@ export class GameplayStage {
   private startButton?: UIButton;
   private topPortal?: Phaser.GameObjects.Sprite;
   private bottomPortal?: Phaser.GameObjects.Sprite;
+  private combatBanner?: Phaser.GameObjects.Container;
 
   private baseHpFill?: Phaser.GameObjects.Rectangle;
   private baseHpText?: Phaser.GameObjects.Text;
@@ -118,6 +122,21 @@ export class GameplayStage {
   private showDebug = false;
   private onKeyDown?: (event: KeyboardEvent) => void;
   private onPointerDown?: (pointer: Phaser.Input.Pointer) => void;
+
+  // Camera Drag, Pinch-to-Zoom & Momentum Properties
+  private isDragging = false;
+  private isPinching = false;
+  private initialPinchDistance = 0;
+  private initialZoom = 1;
+  private lastPointerX = 0;
+  private lastPointerY = 0;
+  private cameraVelocityX = 0;
+  private cameraVelocityY = 0;
+  private isTouchingSlot = false;
+  private onCameraPointerDown?: (pointer: Phaser.Input.Pointer) => void;
+  private onCameraPointerMove?: (pointer: Phaser.Input.Pointer) => void;
+  private onCameraPointerUp?: () => void;
+  private onCameraWheel?: (pointer: any, gameObjects: any, deltaX: number, deltaY: number) => void;
 
   private unsubscribers: Array<() => void> = [];
   private combatStarted = false;
@@ -160,6 +179,8 @@ export class GameplayStage {
 
     if (this.deck.length > 0) {
       this.selectedTowerType = this.deck[0];
+    } else {
+      this.selectedTowerType = "basic";
     }
   }
 
@@ -172,6 +193,7 @@ export class GameplayStage {
     this.uiRoot = this.scene.add.container(0, 0).setDepth(DEPTH.UI_LAYER);
 
     this.setupPortals();
+    this.setupCameraControls();
     this.setupDebugControls();
 
     if (this.role === "defender") {
@@ -185,6 +207,9 @@ export class GameplayStage {
     this.setupProjectileSync();
     this.setupBaseHpSync();
     this.scene.events.on(Phaser.Scenes.Events.UPDATE, this.onSceneUpdate);
+
+    // Canvas UI is kept for fallback, but hidden while React GameHUD is mounted
+    this.uiRoot.setVisible(false);
   }
 
   /**
@@ -192,21 +217,12 @@ export class GameplayStage {
    */
   applyEconomy(payload: YouEconomyPayload): void {
     this.gold = payload.gold;
+    this.refreshGold();
     if (payload.deck && payload.deck.length > 0) {
       this.deck = payload.deck;
       if (!this.selectedTowerType) {
         this.selectedTowerType = this.deck[0];
       }
-    }
-
-    this.refreshGold();
-
-    if (
-      this.role === "defender" &&
-      this.deckCards.size === 0 &&
-      this.deck.length > 0
-    ) {
-      this.renderTowerDeck();
     }
   }
 
@@ -283,11 +299,12 @@ export class GameplayStage {
     }
 
     // Load and render map background
+    // Load and render map background (1280x720 at 0,0 aligning with slots, paths, portals, and base)
     if (this.map.id === "konbaung") {
       const bg = this.scene.add
         .image(0, 0, "konbaung")
         .setOrigin(0, 0)
-        .setDisplaySize(this.map.width || 1280, this.map.height || 720)
+        .setDisplaySize(1280, 720)
         .setDepth(DEPTH.MAP_BG);
       this.root.add(bg);
     }
@@ -347,18 +364,33 @@ export class GameplayStage {
           placeholder.setFillStyle(0x8b4513, 0.5);
           this.hideGhostTower();
         });
-        placeholder.on("pointerdown", () => this.handleSlotClick(slot));
+        placeholder.on(
+          "pointerdown",
+          (
+            _pointer: Phaser.Input.Pointer,
+            _localX: number,
+            _localY: number,
+            event: Phaser.Types.Input.EventData,
+          ) => {
+            event?.stopPropagation();
+            this.isTouchingSlot = true;
+            this.handleSlotClick(slot);
+          },
+        );
+        placeholder.on("pointerup", () => {
+          this.isTouchingSlot = false;
+        });
       }
 
       this.root?.add(placeholder);
     });
 
-    // Render base castle and floating HP bar
+    // Render base castle sprite (HP is integrated into React HUD)
     if (this.map.base && this.map.id === "konbaung") {
       const baseCastle = this.scene.add
         .sprite(this.map.base.x, this.map.base.y, "base_castle")
         .setOrigin(0.5, 0.5)
-        .setDisplaySize(280, 280)
+        .setDisplaySize(260, 260)
         .setDepth(DEPTH.BASE_LAYER);
       this.root.add(baseCastle);
 
@@ -438,18 +470,34 @@ export class GameplayStage {
     }
   }
 
+  private getActiveTowerType(): string | undefined {
+    return (
+      (this.scene.game.registry.get("selectedTowerType") as string | undefined) ||
+      this.selectedTowerType ||
+      (this.deck.length > 0 ? this.deck[0] : "basic")
+    );
+  }
+
   private handleSlotClick(slot: TowerSlot): void {
     const existing = this.towers.get(slot.slotIndex);
     if (existing) {
       this.selectTower(slot, existing);
       return;
     }
-    if (!this.selectedTowerType) {
+
+    // Tapping the already highlighted/pending slot confirms build directly
+    if (this.pendingBuild?.slotIndex === slot.slotIndex) {
+      this.confirmBuild();
+      return;
+    }
+
+    const typeId = this.getActiveTowerType();
+    if (!typeId) {
       console.log("No tower type selected");
       return;
     }
 
-    const towerType = TOWER_TYPES[this.selectedTowerType];
+    const towerType = TOWER_TYPES[typeId];
     const cost = towerType?.tiers[0]?.cost ?? 0;
     if (!towerType || this.gold < cost) {
       console.log(`Not enough gold: need ${cost}, have ${this.gold}`);
@@ -462,9 +510,8 @@ export class GameplayStage {
   /**
    * Arms a pending build on an empty slot and shows a confirm button.
    *
-   * @remarks Nothing is sent to the server yet; the defender must click the
-   * tick. Any other click cancels via {@link clearSelection}, which guards
-   * against misclicks.
+   * @remarks Tapping the ✓ BUILD button or tapping the slot a second time confirms.
+   * Clicking elsewhere deselects via clearSelection.
    */
   private requestBuild(slot: TowerSlot): void {
     this.clearSelection();
@@ -476,20 +523,29 @@ export class GameplayStage {
       .setStrokeStyle(3, 0x22c55e, 0.9);
     this.root?.add(this.buildHighlight);
 
-    this.actionButton = this.createActionButton(slot, "✓ BUILD", true, () =>
-      this.confirmBuild(),
+    const typeId = this.getActiveTowerType();
+    const towerType = typeId ? TOWER_TYPES[typeId] : undefined;
+    const cost = towerType?.tiers[0]?.cost ?? 50;
+
+    this.actionButton = this.createActionButton(
+      slot,
+      `✓ BUILD ${cost}g`,
+      true,
+      () => this.confirmBuild(),
     );
   }
 
   /** Sends the pending placement once the defender confirms it. */
   private confirmBuild(): void {
     const slot = this.pendingBuild;
-    if (!slot || !this.selectedTowerType) {
+    const typeId =
+      this.getActiveTowerType() || this.selectedTowerType || "basic";
+    if (!slot || !typeId) {
       this.clearSelection();
       return;
     }
 
-    const towerType = TOWER_TYPES[this.selectedTowerType];
+    const towerType = TOWER_TYPES[typeId];
     const cost = towerType?.tiers[0]?.cost ?? 0;
     if (!towerType || this.gold < cost) {
       console.log("Build cancelled: type unavailable or insufficient gold");
@@ -498,10 +554,10 @@ export class GameplayStage {
     }
 
     console.log(
-      `Sending place_tower for slot ${slot.slotIndex}, type: ${this.selectedTowerType}`,
+      `Sending place_tower for slot ${slot.slotIndex}, type: ${typeId}`,
     );
     this.room.send(MESSAGES.placeTower, {
-      typeId: this.selectedTowerType,
+      typeId,
       slotIndex: slot.slotIndex,
     });
     this.clearSelection();
@@ -631,8 +687,10 @@ export class GameplayStage {
     });
   }
 
+
   private showGhostTower(slot: TowerSlot): void {
-    if (!this.selectedTowerType) return;
+    const typeId = this.getActiveTowerType();
+    if (!typeId) return;
     this.hideGhostTower();
 
     this.ghostTower = this.scene.add
@@ -709,10 +767,13 @@ export class GameplayStage {
       label,
       fontSize: confirm ? 16 : 14,
       labelColor: confirm ? "#4ade80" : "#ffffff",
-      onClick,
+      onClick: () => {
+        this.isTouchingSlot = true;
+        onClick();
+      },
     });
     button.container.setDepth(DEPTH.UI_LAYER);
-    this.uiRoot?.add(button.container);
+    this.root?.add(button.container);
 
     return button;
   }
@@ -781,6 +842,7 @@ export class GameplayStage {
     this.uiRoot?.add(this.phaseBanner);
   }
 
+
   /**
    * Mirrors `RoomState.towers` into sprites for both players using Colyseus Callbacks.
    */
@@ -825,9 +887,22 @@ export class GameplayStage {
 
     if (this.role === "defender") {
       sprite.setInteractive({ useHandCursor: true });
-      sprite.on("pointerdown", () => {
-        const record = this.towers.get(slot.slotIndex);
-        if (record) this.selectTower(slot, record);
+      sprite.on(
+        "pointerdown",
+        (
+          _pointer: Phaser.Input.Pointer,
+          _localX: number,
+          _localY: number,
+          event: Phaser.Types.Input.EventData,
+        ) => {
+          event?.stopPropagation();
+          this.isTouchingSlot = true;
+          const record = this.towers.get(slot.slotIndex);
+          if (record) this.selectTower(slot, record);
+        },
+      );
+      sprite.on("pointerup", () => {
+        this.isTouchingSlot = false;
       });
     }
 
@@ -844,10 +919,10 @@ export class GameplayStage {
     this.startButton?.destroy();
     this.startButton = undefined;
 
-    // Show combat alert banner
+    // Show combat alert banner fixed to camera screen space
     const bannerWidth = 400;
     const bannerHeight = bannerWidth / UI_BG_ASPECT.notification2;
-    const banner = this.scene.add.container(640, 108);
+    this.combatBanner = this.scene.add.container(640, 45).setScrollFactor(0);
     const bg = this.scene.add
       .image(0, 0, UI_BG_TEXTURE_KEY, UI_BG_FRAMES.notification2)
       .setDisplaySize(bannerWidth, bannerHeight);
@@ -860,12 +935,12 @@ export class GameplayStage {
         wordWrap: { width: bannerWidth * 0.72 },
       })
       .setOrigin(0.5);
-    banner.add([bg, txt]);
-    banner.setDepth(DEPTH.UI_LAYER);
-    this.uiRoot?.add(banner);
+    this.combatBanner.add([bg, txt]);
+    this.combatBanner.setDepth(DEPTH.UI_LAYER);
 
     this.scene.time.delayedCall(4000, () => {
-      banner.destroy();
+      this.combatBanner?.destroy();
+      this.combatBanner = undefined;
     });
   }
 
@@ -1051,6 +1126,136 @@ export class GameplayStage {
     return this.map.path;
   }
 
+  /**
+   * Clamps camera scroll position so visible bounds remain within the 1280x720 map.
+   */
+  private clampCameraScroll(): void {
+    const cam = this.scene.cameras.main;
+    const halfW = (cam.width / 2) / cam.zoom;
+    const halfH = (cam.height / 2) / cam.zoom;
+
+    const minX = Math.min(0, halfW - cam.width / 2);
+    const maxX = Math.max(0, 1280 - halfW - cam.width / 2);
+    const minY = Math.min(0, halfH - cam.height / 2);
+    const maxY = Math.max(0, 720 - halfH - cam.height / 2);
+
+    if (minX <= maxX) {
+      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, minX, maxX);
+    } else {
+      cam.scrollX = 0;
+    }
+
+    if (minY <= maxY) {
+      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, minY, maxY);
+    } else {
+      cam.scrollY = 0;
+    }
+  }
+
+  /**
+   * Initializes drag & pan camera controls with pinch-to-zoom, boundary clamping, and momentum friction.
+   */
+  private setupCameraControls(): void {
+    const cam = this.scene.cameras.main;
+    this.scene.input.addPointer(2);
+
+    this.onCameraPointerDown = (pointer: Phaser.Input.Pointer) => {
+      const p1 = this.scene.input.pointer1;
+      const p2 = this.scene.input.pointer2;
+
+      // Two fingers down: initiate pinch-to-zoom gesture
+      if (p1.isDown && p2.isDown) {
+        this.isPinching = true;
+        this.isDragging = false;
+        this.initialPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+        this.initialZoom = cam.zoom;
+        this.cameraVelocityX = 0;
+        this.cameraVelocityY = 0;
+        return;
+      }
+
+      if (this.isTouchingSlot) return;
+
+      this.isDragging = true;
+      this.lastPointerX = pointer.x;
+      this.lastPointerY = pointer.y;
+      this.cameraVelocityX = 0;
+      this.cameraVelocityY = 0;
+    };
+
+    this.onCameraPointerMove = (pointer: Phaser.Input.Pointer) => {
+      const p1 = this.scene.input.pointer1;
+      const p2 = this.scene.input.pointer2;
+
+      // Handle two-finger pinch-to-zoom
+      if (p1.isDown && p2.isDown) {
+        this.isPinching = true;
+        this.isDragging = false;
+        const currentDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+        if (this.initialPinchDistance > 10) {
+          const factor = currentDist / this.initialPinchDistance;
+          const targetZoom = Phaser.Math.Clamp(this.initialZoom * factor, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
+          cam.setZoom(targetZoom);
+          this.clampCameraScroll();
+        }
+        return;
+      }
+
+      // Handle single-finger map dragging / panning
+      if (!this.isDragging || this.isPinching || !pointer.isDown || this.isTouchingSlot) return;
+
+      const dx = pointer.x - this.lastPointerX;
+      const dy = pointer.y - this.lastPointerY;
+
+      cam.scrollX -= dx / cam.zoom;
+      cam.scrollY -= dy / cam.zoom;
+      this.clampCameraScroll();
+
+      this.cameraVelocityX = -dx / cam.zoom;
+      this.cameraVelocityY = -dy / cam.zoom;
+      this.lastPointerX = pointer.x;
+      this.lastPointerY = pointer.y;
+    };
+
+    this.onCameraPointerUp = () => {
+      const p1 = this.scene.input.pointer1;
+      const p2 = this.scene.input.pointer2;
+
+      if (!p1.isDown || !p2.isDown) {
+        this.isPinching = false;
+        this.initialPinchDistance = 0;
+      }
+
+      this.isDragging = false;
+      this.isTouchingSlot = false;
+    };
+
+    this.onCameraWheel = (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
+      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
+      cam.setZoom(newZoom);
+      this.clampCameraScroll();
+    };
+
+    this.scene.input.on("pointerdown", this.onCameraPointerDown);
+    this.scene.input.on("pointermove", this.onCameraPointerMove);
+    this.scene.input.on("pointerup", this.onCameraPointerUp);
+    this.scene.input.on("wheel", this.onCameraWheel);
+  }
+
+  /**
+   * Per-frame update for camera glide physics (friction: 0.1 decay).
+   */
+  update(_time: number, _delta: number): void {
+    if (!this.isDragging && !this.isPinching && (Math.abs(this.cameraVelocityX) > 0.05 || Math.abs(this.cameraVelocityY) > 0.05)) {
+      const cam = this.scene.cameras.main;
+      cam.scrollX += this.cameraVelocityX;
+      cam.scrollY += this.cameraVelocityY;
+      this.clampCameraScroll();
+      this.cameraVelocityX *= 0.9; // friction 0.1 decay factor
+      this.cameraVelocityY *= 0.9;
+    }
+  }
+
   destroy(): void {
     this.destroyed = true;
     this.combatStarted = false;
@@ -1079,6 +1284,23 @@ export class GameplayStage {
     this.onKeyDown = undefined;
     this.onPointerDown = undefined;
 
+    if (this.onCameraPointerDown) {
+      this.scene.input.off("pointerdown", this.onCameraPointerDown);
+    }
+    if (this.onCameraPointerMove) {
+      this.scene.input.off("pointermove", this.onCameraPointerMove);
+    }
+    if (this.onCameraPointerUp) {
+      this.scene.input.off("pointerup", this.onCameraPointerUp);
+    }
+    if (this.onCameraWheel) {
+      this.scene.input.off("wheel", this.onCameraWheel);
+    }
+    this.onCameraPointerDown = undefined;
+    this.onCameraPointerMove = undefined;
+    this.onCameraPointerUp = undefined;
+    this.onCameraWheel = undefined;
+
     this.debugGraphics?.destroy();
     this.debugGraphics = undefined;
 
@@ -1095,6 +1317,8 @@ export class GameplayStage {
 
     for (const obj of this.deckObjects) obj.destroy();
     this.deckObjects = [];
+    this.combatBanner?.destroy();
+    this.combatBanner = undefined;
 
     this.uiRoot?.destroy(true);
     this.uiRoot = undefined;
