@@ -21,6 +21,9 @@ export const DEPTH = {
   UI_LAYER: 30,
 } as const;
 
+export const MIN_CAMERA_ZOOM = 1.0;
+export const MAX_CAMERA_ZOOM = 1.6;
+
 export interface GameplayStageOptions {
   room: Room;
   map: MapDefinition;
@@ -60,14 +63,18 @@ export class GameplayStage {
   private ghostTower?: Phaser.GameObjects.Sprite;
   private topPortal?: Phaser.GameObjects.Sprite;
   private bottomPortal?: Phaser.GameObjects.Sprite;
+  private combatBanner?: Phaser.GameObjects.Container;
 
   private debugGraphics?: Phaser.GameObjects.Graphics;
   private showDebug = false;
   private onKeyDown?: (event: KeyboardEvent) => void;
   private onPointerDown?: (pointer: Phaser.Input.Pointer) => void;
 
-  // Camera Drag & Momentum Properties
+  // Camera Drag, Pinch-to-Zoom & Momentum Properties
   private isDragging = false;
+  private isPinching = false;
+  private initialPinchDistance = 0;
+  private initialZoom = 1;
   private lastPointerX = 0;
   private lastPointerY = 0;
   private cameraVelocityX = 0;
@@ -185,12 +192,12 @@ export class GameplayStage {
     this.root?.destroy(true);
     this.root = this.scene.add.container(0, 0);
 
-    // Load and render map background
+    // Load and render map background (1280x720 at 0,0 aligning with slots, paths, portals, and base)
     if (this.map.id === "konbaung") {
       const bg = this.scene.add
         .image(0, 0, "konbaung")
         .setOrigin(0, 0)
-        .setDisplaySize(this.map.width || 1280, this.map.height || 720)
+        .setDisplaySize(1280, 720)
         .setDepth(DEPTH.MAP_BG);
       this.root.add(bg);
     }
@@ -267,7 +274,7 @@ export class GameplayStage {
       const baseCastle = this.scene.add
         .sprite(this.map.base.x, this.map.base.y, "base_castle")
         .setOrigin(0.5, 0.5)
-        .setDisplaySize(280, 280)
+        .setDisplaySize(260, 260)
         .setDepth(DEPTH.BASE_LAYER);
       this.root.add(baseCastle);
     } else if (this.map.base) {
@@ -416,8 +423,8 @@ export class GameplayStage {
     if (this.combatStarted || this.destroyed) return;
     this.combatStarted = true;
 
-    // Show combat alert banner
-    const banner = this.scene.add.container(640, 35);
+    // Show combat alert banner fixed to camera screen space
+    this.combatBanner = this.scene.add.container(640, 35).setScrollFactor(0);
     const bg = this.scene.add
       .rectangle(0, 0, 420, 46, 0x7f1d1d, 0.9)
       .setStrokeStyle(2, 0xef4444);
@@ -428,12 +435,12 @@ export class GameplayStage {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
-    banner.add([bg, txt]);
-    banner.setDepth(DEPTH.UI_LAYER);
-    this.root?.add(banner);
+    this.combatBanner.add([bg, txt]);
+    this.combatBanner.setDepth(DEPTH.UI_LAYER);
 
     this.scene.time.delayedCall(4000, () => {
-      banner.destroy();
+      this.combatBanner?.destroy();
+      this.combatBanner = undefined;
     });
 
     this.startSpawner();
@@ -534,16 +541,55 @@ export class GameplayStage {
   }
 
   /**
-   * Initializes drag & pan camera controls with boundary clamping and momentum friction.
+   * Clamps camera scroll position so visible bounds remain within the 1280x720 map.
+   */
+  private clampCameraScroll(): void {
+    const cam = this.scene.cameras.main;
+    const halfW = (cam.width / 2) / cam.zoom;
+    const halfH = (cam.height / 2) / cam.zoom;
+
+    const minX = Math.min(0, halfW - cam.width / 2);
+    const maxX = Math.max(0, 1280 - halfW - cam.width / 2);
+    const minY = Math.min(0, halfH - cam.height / 2);
+    const maxY = Math.max(0, 720 - halfH - cam.height / 2);
+
+    if (minX <= maxX) {
+      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, minX, maxX);
+    } else {
+      cam.scrollX = 0;
+    }
+
+    if (minY <= maxY) {
+      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, minY, maxY);
+    } else {
+      cam.scrollY = 0;
+    }
+  }
+
+  /**
+   * Initializes drag & pan camera controls with pinch-to-zoom, boundary clamping, and momentum friction.
    */
   private setupCameraControls(): void {
     const cam = this.scene.cameras.main;
-    const mapW = this.map.width || 1280;
-    const mapH = this.map.height || 720;
-    cam.setBounds(0, 0, mapW, mapH);
+    this.scene.input.addPointer(2);
 
     this.onCameraPointerDown = (pointer: Phaser.Input.Pointer) => {
+      const p1 = this.scene.input.pointer1;
+      const p2 = this.scene.input.pointer2;
+
+      // Two fingers down: initiate pinch-to-zoom gesture
+      if (p1.isDown && p2.isDown) {
+        this.isPinching = true;
+        this.isDragging = false;
+        this.initialPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+        this.initialZoom = cam.zoom;
+        this.cameraVelocityX = 0;
+        this.cameraVelocityY = 0;
+        return;
+      }
+
       if (this.isTouchingSlot) return;
+
       this.isDragging = true;
       this.lastPointerX = pointer.x;
       this.lastPointerY = pointer.y;
@@ -552,11 +598,33 @@ export class GameplayStage {
     };
 
     this.onCameraPointerMove = (pointer: Phaser.Input.Pointer) => {
-      if (!this.isDragging || !pointer.isDown || this.isTouchingSlot) return;
+      const p1 = this.scene.input.pointer1;
+      const p2 = this.scene.input.pointer2;
+
+      // Handle two-finger pinch-to-zoom
+      if (p1.isDown && p2.isDown) {
+        this.isPinching = true;
+        this.isDragging = false;
+        const currentDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+        if (this.initialPinchDistance > 10) {
+          const factor = currentDist / this.initialPinchDistance;
+          const targetZoom = Phaser.Math.Clamp(this.initialZoom * factor, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
+          cam.setZoom(targetZoom);
+          this.clampCameraScroll();
+        }
+        return;
+      }
+
+      // Handle single-finger map dragging / panning
+      if (!this.isDragging || this.isPinching || !pointer.isDown || this.isTouchingSlot) return;
+
       const dx = pointer.x - this.lastPointerX;
       const dy = pointer.y - this.lastPointerY;
+
       cam.scrollX -= dx / cam.zoom;
       cam.scrollY -= dy / cam.zoom;
+      this.clampCameraScroll();
+
       this.cameraVelocityX = -dx / cam.zoom;
       this.cameraVelocityY = -dy / cam.zoom;
       this.lastPointerX = pointer.x;
@@ -564,13 +632,22 @@ export class GameplayStage {
     };
 
     this.onCameraPointerUp = () => {
+      const p1 = this.scene.input.pointer1;
+      const p2 = this.scene.input.pointer2;
+
+      if (!p1.isDown || !p2.isDown) {
+        this.isPinching = false;
+        this.initialPinchDistance = 0;
+      }
+
       this.isDragging = false;
       this.isTouchingSlot = false;
     };
 
     this.onCameraWheel = (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
-      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, 0.8, 1.5);
+      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
       cam.setZoom(newZoom);
+      this.clampCameraScroll();
     };
 
     this.scene.input.on("pointerdown", this.onCameraPointerDown);
@@ -583,10 +660,11 @@ export class GameplayStage {
    * Per-frame update for camera glide physics (friction: 0.1 decay).
    */
   update(_time: number, _delta: number): void {
-    if (!this.isDragging && (Math.abs(this.cameraVelocityX) > 0.05 || Math.abs(this.cameraVelocityY) > 0.05)) {
+    if (!this.isDragging && !this.isPinching && (Math.abs(this.cameraVelocityX) > 0.05 || Math.abs(this.cameraVelocityY) > 0.05)) {
       const cam = this.scene.cameras.main;
       cam.scrollX += this.cameraVelocityX;
       cam.scrollY += this.cameraVelocityY;
+      this.clampCameraScroll();
       this.cameraVelocityX *= 0.9; // friction 0.1 decay factor
       this.cameraVelocityY *= 0.9;
     }
@@ -641,6 +719,8 @@ export class GameplayStage {
 
     this.topPortal?.destroy();
     this.bottomPortal?.destroy();
+    this.combatBanner?.destroy();
+    this.combatBanner = undefined;
 
     this.root?.destroy(true);
     this.root = undefined;

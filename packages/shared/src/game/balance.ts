@@ -186,7 +186,7 @@ export const DEFAULT_DECK_RULES: DeckRules = {
 export const MATCH_RULES: MatchRules = {
   coreHp: 10,
   draftDurationSec: -1,
-  buildingDurationSec: 180, // 3-minute building countdown
+  buildingDurationSec: 30, // 30-second building countdown
   roundDurationSec: 90,
 };
 
