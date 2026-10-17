@@ -1199,12 +1199,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Called when the building countdown timer runs down to 0 and transitions to combat.
-   * Ensures attacker units are set on the field (either by releasing whatever the attacker staged,
-   * or by auto-staging and releasing an affordable wave if nothing was staged).
+   * Launches the attacker's army when combat opens (timer expiry or the
+   * defender's START button).
+   *
+   * @remarks Whatever the attacker staged during `building` is released here, so
+   * building a wave while the defender lays towers sends it the moment the fight
+   * begins. An attacker who staged nothing sends nothing: they can still stage
+   * and Send during combat, and if they stay silent until the income window
+   * closes the defender wins on exhaustion.
    */
   private onBuildingTimerExpired(): void {
-    console.log(`Room ${this.roomId}: building timer expired -> launching waves for combat`);
     const attackerClient = this.clients.find(
       (c) => c.userData?.role === "attacker",
     );
@@ -1218,41 +1222,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       if (hasStaged) {
         // Attacker staged waves during preparation: release them immediately!
         this.executeWaveRelease(attackerClient);
-      } else {
-        // Attacker did not stage any wave before timer ran out: auto-stage starter wave and release
-        this.autoStageAndRelease(attackerClient);
       }
     } else {
       // Solo defender match: spawn baseline wave directly onto map paths
       this.spawnBaselineWave();
     }
-  }
-
-  /**
-   * Auto-stages and releases a basic wave when the preparation timer runs out.
-   */
-  private autoStageAndRelease(client: Client): void {
-    const sessionId = client.sessionId;
-    const deck = this.acceptedDecks.get(sessionId) ?? [];
-    const availableTroops =
-      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
-    const mobId = availableTroops[0] || "grunt";
-
-    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
-    const pathIds = this.pathIdsFor(map);
-
-    for (const pathId of pathIds) {
-      const wave = this.ensureStagedWave(sessionId, pathId);
-      wave.batches = [
-        {
-          batchId: `batch-${++this.batchSeq}`,
-          typeId: mobId,
-          count: 4,
-        },
-      ];
-    }
-
-    this.executeWaveRelease(client, pathIds);
   }
 
   /**
