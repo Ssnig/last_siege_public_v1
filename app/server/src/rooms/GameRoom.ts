@@ -34,6 +34,7 @@ import {
   type PlaceTowerIntent,
   type RoomStatus,
   type SellTowerIntent,
+  type UpgradeTowerIntent,
   type StagedWave,
   type TowerTier,
   type Vec2,
@@ -47,6 +48,7 @@ import {
   type YouEconomyPayload,
   buildCost,
   sellRefund,
+  upgradeCost,
 } from "@root/shared";
 import { Phases } from "../game/phases.js";
 import { selectTarget, type TargetCandidate } from "../game/targeting.js";
@@ -181,6 +183,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       client: Client,
       payload: SellTowerIntent,
     ) => this.handleSellTower(client, payload),
+
+    [MESSAGES.upgradeTower]: (
+      client: Client,
+      payload: UpgradeTowerIntent,
+    ) => this.handleUpgradeTower(client, payload),
 
     [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
 
@@ -637,6 +644,61 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     console.log(
       `Defender sold tower ${payload.towerId} (${tower.typeId} lvl ${tower.level}) (+${refund}g)`,
+    );
+  }
+
+  /**
+   * Upgrades one of the defender's towers to the next tier.
+   *
+   * @remarks
+   * Only the tower's owner may upgrade it, and only while the match is in the
+   * building or combat phase. Deducts the tier cost from the defender's economy,
+   * advances the tower's level, and adds the cost to its invested gold so future
+   * sales refund the upgraded value.
+   */
+  private handleUpgradeTower(client: Client, payload: UpgradeTowerIntent): void {
+    if (this.state.phase !== "building" && this.state.phase !== "combat") return;
+
+    const role = client.userData?.role as PlayerRole | undefined;
+    if (role !== "defender") {
+      console.log(`Only defender can upgrade towers. Client role: ${role}`);
+      return;
+    }
+
+    const tower = this.state.towers.get(payload.towerId);
+    if (!tower || tower.ownerId !== client.sessionId) {
+      console.log(`Defender has no upgradable tower ${payload.towerId}`);
+      return;
+    }
+
+    const towerType = TOWER_TYPES[tower.typeId];
+    if (!towerType) {
+      console.log(`Unknown tower type ${tower.typeId}`);
+      return;
+    }
+
+    const cost = upgradeCost(towerType, tower.level);
+    if (cost === null || tower.level >= towerType.tiers.length) {
+      console.log(`Tower ${payload.towerId} is already at max level (${tower.level})`);
+      return;
+    }
+
+    const gold = this.economies.get(client.sessionId) ?? 0;
+    if (gold < cost) {
+      console.log(
+        `Not enough gold to upgrade tower ${payload.towerId} (${gold}/${cost})`,
+      );
+      return;
+    }
+
+    this.economies.set(client.sessionId, gold - cost);
+    tower.level += 1;
+    tower.invested += cost;
+
+    this.sendEconomy(client);
+
+    console.log(
+      `Defender upgraded tower ${payload.towerId} (${tower.typeId}) to lvl ${tower.level} (-${cost}g)`,
     );
   }
 
