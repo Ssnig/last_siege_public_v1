@@ -37,6 +37,7 @@ import {
   type PlaceTowerIntent,
   type RoomStatus,
   type SellTowerIntent,
+  type UpgradeTowerIntent,
   type StagedWave,
   type TowerTier,
   type Vec2,
@@ -50,6 +51,7 @@ import {
   type YouEconomyPayload,
   buildCost,
   sellRefund,
+  upgradeCost,
 } from "@root/shared";
 import { Phases } from "../game/phases.js";
 import { selectTarget, type TargetCandidate } from "../game/targeting.js";
@@ -78,6 +80,16 @@ export interface GameRoomMetadata {
   status: RoomStatus;
 }
 
+const DEFAULT_ATTACKER_DECK = [
+  "horse_rider",
+  "sar_bal_gyi",
+  "gya_pu",
+  "a_ba",
+  "chon_toe",
+  "grunt",
+  "runner",
+];
+
 /** One batch waiting to spawn, scheduled against {@link GameRoom.matchTime}. */
 interface ScheduledBatch {
   atMatchTime: number;
@@ -100,6 +112,15 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private creatorSessionId?: string;
   private readyClients = new Set<string>();
   private matchStarted = false;
+
+  /**
+   * Whether the host pinned a map via the lobby selector.
+   *
+   * @remarks When set, {@link handleReady} keeps that choice and only the reveal
+   * screen is shown. When `false` (e.g. tests or quick-match) it falls back to a
+   * random pick from the shared pool.
+   */
+  private mapChosen = false;
 
   /**
    * Validated draft IDs keyed by session ID.
@@ -184,6 +205,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       client: Client,
       payload: SellTowerIntent,
     ) => this.handleSellTower(client, payload),
+
+    [MESSAGES.upgradeTower]: (
+      client: Client,
+      payload: UpgradeTowerIntent,
+    ) => this.handleUpgradeTower(client, payload),
 
     [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
 
@@ -312,7 +338,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       if (role === "defender") {
         deck = Object.keys(TOWER_TYPES).slice(0, 6);
       } else if (role === "attacker") {
-        deck = Object.keys(MOB_TYPES).slice(0, 4);
+        deck = DEFAULT_ATTACKER_DECK;
       }
     }
     const defaultIncome =
@@ -342,7 +368,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const availableTroops =
-      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
+      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
     const staged = this.stagedWaves.get(sessionId) ?? new Map<string, StagedWave>();
 
     const paths: AttackerArmyPath[] = this.pathIdsFor(map).map((pathId) => {
@@ -429,11 +455,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (this.readyClients.size < 2) return;
     this.matchStarted = true;
 
-    // Both players are now listening: reveal a freshly drawn map before the
-    // draft opens so they can plan around it. Reconnects take the branch above
-    // and never re-roll the map mid-match.
-    const nextMapId = pickRandomMapId(this.state.mapId);
-    if (nextMapId) this.state.mapId = nextMapId;
+    // Both players are now listening: reveal the map before the draft opens so
+    // they can plan around it. If the host picked one in the lobby, honour that
+    // choice; otherwise draw a random map from the pool. Reconnects take the
+    // branch above and never re-roll the map mid-match.
+    if (!this.mapChosen) {
+      const nextMapId = pickRandomMapId(this.state.mapId);
+      if (nextMapId) this.state.mapId = nextMapId;
+    }
     this.phases.beginMapReveal();
 
     for (const c of this.clients) {
@@ -652,6 +681,61 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
+   * Upgrades one of the defender's towers to the next tier.
+   *
+   * @remarks
+   * Only the tower's owner may upgrade it, and only while the match is in the
+   * building or combat phase. Deducts the tier cost from the defender's economy,
+   * advances the tower's level, and adds the cost to its invested gold so future
+   * sales refund the upgraded value.
+   */
+  private handleUpgradeTower(client: Client, payload: UpgradeTowerIntent): void {
+    if (this.state.phase !== "building" && this.state.phase !== "combat") return;
+
+    const role = client.userData?.role as PlayerRole | undefined;
+    if (role !== "defender") {
+      console.log(`Only defender can upgrade towers. Client role: ${role}`);
+      return;
+    }
+
+    const tower = this.state.towers.get(payload.towerId);
+    if (!tower || tower.ownerId !== client.sessionId) {
+      console.log(`Defender has no upgradable tower ${payload.towerId}`);
+      return;
+    }
+
+    const towerType = TOWER_TYPES[tower.typeId];
+    if (!towerType) {
+      console.log(`Unknown tower type ${tower.typeId}`);
+      return;
+    }
+
+    const cost = upgradeCost(towerType, tower.level);
+    if (cost === null || tower.level >= towerType.tiers.length) {
+      console.log(`Tower ${payload.towerId} is already at max level (${tower.level})`);
+      return;
+    }
+
+    const gold = this.economies.get(client.sessionId) ?? 0;
+    if (gold < cost) {
+      console.log(
+        `Not enough gold to upgrade tower ${payload.towerId} (${gold}/${cost})`,
+      );
+      return;
+    }
+
+    this.economies.set(client.sessionId, gold - cost);
+    tower.level += 1;
+    tower.invested += cost;
+
+    this.sendEconomy(client);
+
+    console.log(
+      `Defender upgraded tower ${payload.towerId} (${tower.typeId}) to lvl ${tower.level} (-${cost}g)`,
+    );
+  }
+
+  /**
    * Handles manual start of combat phase.
    *
    * @remarks
@@ -736,7 +820,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const sessionId = client.sessionId;
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const allowedDeck =
-      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
+      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
     if (!allowedDeck.includes(payload.typeId)) {
       return void this.rejectWave(client, `${payload.typeId} is not in your deck.`);
     }
@@ -901,7 +985,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const staged = this.stagedWaves.get(sessionId);
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const allowedDeck =
-      deck.length > 0 ? deck : Object.keys(MOB_TYPES).slice(0, 4);
+      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
 
     const requested =
       pathIds && pathIds.length > 0
@@ -1095,6 +1179,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     });
 
     this.state.mapId = options.mapId || "konbaung";
+    this.mapChosen = typeof options.mapId === "string" && options.mapId.length > 0;
     this.state.phase = "drafting";
     this.state.coreHp = MATCH_RULES.coreHp;
 
@@ -1320,7 +1405,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
       if (hasStaged) {
         // Attacker staged waves during preparation: release them immediately!
-        this.executeWaveRelease(attackerClient);
+        const result = this.executeWaveRelease(attackerClient);
+        if (!result.success) {
+          console.warn(
+            `Room ${this.roomId}: failed to release staged waves (${result.error}); falling back to auto-staging`,
+          );
+          this.autoStageAndRelease(attackerClient);
+        }
+      } else {
+        // Attacker did not stage any wave before timer ran out: auto-stage starter wave and release
+        this.autoStageAndRelease(attackerClient);
       }
     } else {
       // Solo defender match: spawn baseline wave directly onto map paths
@@ -1329,24 +1423,67 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Spawns baseline mobs for solo testing when no attacker client is connected.
+   * Auto-stages and releases a basic wave when the preparation timer runs out.
+   */
+  private autoStageAndRelease(client: Client): void {
+    const sessionId = client.sessionId;
+    const deck = this.acceptedDecks.get(sessionId) ?? [];
+    const availableTroops =
+      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
+
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const pathIds = this.pathIdsFor(map);
+
+    for (const [idx, pathId] of pathIds.entries()) {
+      const wave = this.ensureStagedWave(sessionId, pathId);
+      const primaryMob = availableTroops[idx % availableTroops.length];
+      const secondaryMob = availableTroops[(idx + 2) % availableTroops.length];
+      wave.batches = [
+        {
+          batchId: `batch-${++this.batchSeq}`,
+          typeId: primaryMob,
+          count: 2,
+        },
+        {
+          batchId: `batch-${++this.batchSeq}`,
+          typeId: secondaryMob,
+          count: 2,
+        },
+      ];
+    }
+
+    const outcome = this.executeWaveRelease(client, pathIds);
+    if (!outcome.success) {
+      console.warn(
+        `Room ${this.roomId}: autoStageAndRelease failed (${outcome.error}); forcing baseline wave`,
+      );
+      this.spawnBaselineWave();
+    }
+  }
+
+  /**
+   * Spawns baseline mobs showcasing the Burmese units for battle testing.
    */
   private spawnBaselineWave(): void {
     const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
     const pathIds = this.pathIdsFor(map);
     const interval = DEFAULT_WAVE_RULES.batchIntervalSec;
+    const burmeseLineup = ["horse_rider", "sar_bal_gyi", "gya_pu", "a_ba", "chon_toe"];
     let offset = 0;
 
-    for (const pathId of pathIds) {
-      this.releaseQueue.push({
-        atMatchTime: this.matchTime + offset * interval,
-        pathId,
-        typeId: "grunt",
-        count: 4,
-      });
-      offset++;
+    for (const [laneIdx, pathId] of pathIds.entries()) {
+      for (let i = 0; i < burmeseLineup.length; i++) {
+        const mobId = burmeseLineup[(i + laneIdx) % burmeseLineup.length];
+        this.releaseQueue.push({
+          atMatchTime: this.matchTime + offset * interval,
+          pathId,
+          typeId: mobId,
+          count: 2,
+        });
+        offset++;
+      }
     }
-    console.log(`Room ${this.roomId}: spawned baseline wave on ${pathIds.join(", ")}`);
+    console.log(`Room ${this.roomId}: spawned Burmese battle wave on ${pathIds.join(", ")}`);
   }
 
   /**

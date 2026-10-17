@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MAPS } from '@root/shared';
 import type { RoleChoice, RoomStatus } from '@root/shared';
 import type { Client, Room, RoomAvailable } from '@colyseus/sdk';
 import { useGameRoom } from '../network/roomContext';
 import { soundEffects } from '../audio/soundEffects';
 import { clearActiveMatch, loadActiveMatch, type ActiveMatch } from '../network/activeRoom';
 import { GoldCrest, GoldDivider, RoyalPanel } from './lobby/LobbyOrnaments';
+import { MapSelectorModal } from './match/MapSelectorModal';
 
 interface LobbyProps {
   client: Client;
@@ -46,6 +48,8 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   });
   const [rooms, setRooms] = useState<RoomAvailable[]>([]);
   const [selectedRoleChoice, setSelectedRoleChoice] = useState<RoleChoice>("random");
+  const [selectedMapId, setSelectedMapId] = useState<string>("konbaung");
+  const [showMapModal, setShowMapModal] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showNameModal, setShowNameModal] = useState<boolean>(false);
@@ -118,6 +122,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
       const room = await client.create("game_room", {
         playerName: name,
         roleChoice: selectedRoleChoice,
+        mapId: selectedMapId,
       });
       setRoom(room);
       navigate(`/game/${room.roomId}`);
@@ -483,6 +488,37 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
               </div>
             </div>
 
+            {/* Battlefield Selector Trigger */}
+            <div className="mt-2.5 sm:mt-3">
+              <label
+                className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-amber-200/80 mb-1 block"
+                style={{ fontFamily: "'Almendra', 'Cinzel', serif" }}
+              >
+                Battlefield
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setShowMapModal(true);
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-amber-600/60 bg-slate-900/80 hover:bg-slate-800 text-left transition cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🗺️</span>
+                  <div>
+                    <div className="text-xs font-bold text-amber-200">
+                      {MAPS[selectedMapId]?.name || selectedMapId}
+                    </div>
+                    <div className="text-[10px] text-amber-400/70">
+                      {MAPS[selectedMapId]?.lanes || 2} Lanes · Tap to Change
+                    </div>
+                  </div>
+                </div>
+                <span className="text-amber-400 text-xs font-bold">Change ❯</span>
+              </button>
+            </div>
+
             {/* Host New Match Button */}
             <button
               disabled={loading}
@@ -674,6 +710,18 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
           </RoyalPanel>
         </div>
       )}
+
+      {/* Battlefield Selector Modal */}
+      <MapSelectorModal
+        isOpen={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        selectedMapId={selectedMapId}
+        onSelectMap={(mapId) => {
+          setSelectedMapId(mapId);
+          setShowMapModal(false);
+          soundEffects.playClick();
+        }}
+      />
     </div>
   );
 };

@@ -196,16 +196,21 @@ export interface MatchRules {
 
 
 export const MOB_TYPES: Record<string, MobType> = {
-  grunt: { id: "grunt", name: "Grunt", maxHp: 125, speed: 25, bounty: 5, leakDamage: 1, cost: 12 },
-  runner: { id: "runner", name: "Runner", maxHp: 75, speed: 40, bounty: 7, leakDamage: 1, cost: 14 },
-  brute: { id: "brute", name: "Brute", maxHp: 500, speed: 15, bounty: 26, leakDamage: 2, cost: 46 },
-  shade: { id: "shade", name: "Shade", maxHp: 160, speed: 40, bounty: 9, leakDamage: 1, cost: 16 },
-  spider: { id: "spider", name: "Spider", maxHp: 55, speed: 50, bounty: 6, leakDamage: 1, cost: 10 },
-  orc: { id: "orc", name: "Orc", maxHp: 200, speed: 20, bounty: 10, leakDamage: 1, cost: 18 },
-  gargoyle: { id: "gargoyle", name: "Gargoyle", maxHp: 275, speed: 30, bounty: 15, leakDamage: 1, cost: 26 },
-  sapper: { id: "sapper", name: "Sapper", maxHp: 225, speed: 25, bounty: 13, leakDamage: 1, cost: 20 },
-  necromancer: { id: "necromancer", name: "Necromancer", maxHp: 400, speed: 30, bounty: 23, leakDamage: 1, cost: 34 },
-  ogre: { id: "ogre", name: "Ogre", maxHp: 875, speed: 10, bounty: 63, leakDamage: 4, cost: 68 },
+  grunt:       { id: "grunt",       name: "Grunt",             maxHp: 100, speed: 60,  bounty: 5,  leakDamage: 1, cost: 10 },
+  runner:      { id: "runner",      name: "Runner",            maxHp: 60,  speed: 110, bounty: 7,  leakDamage: 1, cost: 12 },
+  horse_rider: { id: "horse_rider", name: "Konbaung Cavalry", maxHp: 120, speed: 110, bounty: 8, leakDamage: 1, cost: 15 },
+  sar_bal_gyi: { id: "sar_bal_gyi", name: "Palace Royal Guard", maxHp: 420, speed: 45, bounty: 25, leakDamage: 3, cost: 40 },
+  gya_pu:      { id: "gya_pu",      name: "Winged Nat",        maxHp: 200, speed: 90,  bounty: 12, leakDamage: 2, cost: 20 },
+  a_ba:        { id: "a_ba",        name: "Nat Spirit Medium", maxHp: 320, speed: 70,  bounty: 22, leakDamage: 2, cost: 30 },
+  chon_toe:    { id: "chon_toe",    name: "Bush Sneak",        maxHp: 750, speed: 35,  bounty: 50, leakDamage: 4, cost: 55 },
+  brute:       { id: "brute",       name: "Brute",             maxHp: 400, speed: 40,  bounty: 25, leakDamage: 3, cost: 40 },
+  shade:       { id: "shade",       name: "Shade",             maxHp: 130, speed: 95,  bounty: 9,  leakDamage: 1, cost: 14 },
+  spider:      { id: "spider",      name: "Spider",            maxHp: 45,  speed: 130, bounty: 6,  leakDamage: 1, cost: 8 },
+  orc:         { id: "orc",         name: "Orc",               maxHp: 160, speed: 55,  bounty: 10, leakDamage: 1, cost: 16 },
+  gargoyle:    { id: "gargoyle",    name: "Gargoyle",          maxHp: 220, speed: 85,  bounty: 14, leakDamage: 2, cost: 22 },
+  sapper:      { id: "sapper",      name: "Sapper",            maxHp: 180, speed: 75,  bounty: 12, leakDamage: 2, cost: 18 },
+  necromancer: { id: "necromancer", name: "Necromancer",       maxHp: 320, speed: 70,  bounty: 22, leakDamage: 2, cost: 30 },
+  ogre:        { id: "ogre",        name: "Ogre",              maxHp: 700, speed: 30,  bounty: 60, leakDamage: 5, cost: 60 },
 };
 
 export const TOWER_TYPES: Record<string, TowerType> = {

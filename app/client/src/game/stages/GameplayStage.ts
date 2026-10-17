@@ -15,6 +15,8 @@ import {
   TOWER_TYPES,
   MATCH_RULES,
   sellRefund,
+  upgradeCost,
+  tierAt,
 } from "@root/shared";
 import { UIButton } from "../ui/UIButton";
 import { TowerCard } from "../ui/TowerCard";
@@ -25,6 +27,8 @@ import {
   UI_BG_TEXTURE_KEY,
   UI_TEXTURE_KEY,
 } from "../ui/uiAtlas";
+import { UnitAnimationManager } from "../animation/UnitAnimationManager";
+import { AmbientNPCManager } from "../npc/AmbientNPCManager";
 
 /** Render order for the gameplay layers. */
 export const DEPTH = {
@@ -58,6 +62,7 @@ type TowerRecord = {
   id: string;
   tower: Tower;
   sprite: Phaser.GameObjects.Sprite;
+  levelBadge?: Phaser.GameObjects.Container;
 };
 
 /** A mob and the sprites that render it: body plus its health bar. */
@@ -106,6 +111,7 @@ export class GameplayStage {
   private goldFrame?: Phaser.GameObjects.Image;
   private startButton?: UIButton;
   private combatBanner?: Phaser.GameObjects.Container;
+  private ambientNpcManager?: AmbientNPCManager;
 
   private baseHpFill?: Phaser.GameObjects.Rectangle;
   private baseHpText?: Phaser.GameObjects.Text;
@@ -114,6 +120,9 @@ export class GameplayStage {
   private selectedSlotIndex?: number;
   private rangeCircle?: Phaser.GameObjects.Arc;
   private actionButton?: UIButton;
+  private upgradeButton?: UIButton;
+  private sellButton?: UIButton;
+  private towerInfoPanel?: Phaser.GameObjects.Container;
   private pendingBuild?: TowerSlot;
   private buildHighlight?: Phaser.GameObjects.Arc;
 
@@ -237,6 +246,13 @@ export class GameplayStage {
     if (this.goldText) {
       this.goldText.setText(`${this.gold}`);
     }
+    if (this.selectedSlotIndex !== undefined) {
+      const record = this.towers.get(this.selectedSlotIndex);
+      const slot = this.map.slots.find((s) => s.slotIndex === this.selectedSlotIndex);
+      if (record && slot) {
+        this.refreshTowerSelection(slot, record);
+      }
+    }
   }
 
   private setupPortals(): void {
@@ -300,16 +316,20 @@ export class GameplayStage {
       this.root.add(deselectZone);
     }
 
-    // Load and render map background
     // Load and render map background (1280x720 at 0,0 aligning with slots, paths, portals, and base)
-    if (this.map.id === "konbaung") {
+    const bgKey = this.scene.textures.exists(this.map.id) ? this.map.id : "konbaung";
+    if (this.scene.textures.exists(bgKey)) {
       const bg = this.scene.add
-        .image(0, 0, "konbaung")
+        .image(0, 0, bgKey)
         .setOrigin(0, 0)
         .setDisplaySize(1280, 720)
         .setDepth(DEPTH.MAP_BG);
       this.root.add(bg);
     }
+
+    // Spawn ambient scenic NPCs and un-interactable scenery objects
+    this.ambientNpcManager = new AmbientNPCManager(this.scene, this.root);
+    this.ambientNpcManager.spawnForMap(this.map.id);
 
     // Create path curves from every named track (or the single `path`).
     this.paths = [];
@@ -688,12 +708,8 @@ export class GameplayStage {
   }
 
   /**
-   * Selects a placed tower: draws its range and shows a sell button.
-   *
-   * @remarks Clicking the same tower again dismisses the selection. The range
-   * radius and refund come from the same shared balance data the server uses,
-   * so what the defender sees matches the authoritative sale. Selling is a
-   * two-step confirm: the sell button turns into a tick.
+   * Selects a placed tower: draws its range, shows tier stats status, and
+   * presents both UPGRADE and SELL action buttons alongside each other.
    */
   private selectTower(slot: TowerSlot, record: TowerRecord): void {
     if (this.selectedSlotIndex === slot.slotIndex) {
@@ -704,8 +720,23 @@ export class GameplayStage {
     this.clearSelection();
     this.selectedSlotIndex = slot.slotIndex;
 
+    this.renderTowerSelection(slot, record);
+  }
+
+  /**
+   * Renders the floating status panel and the upgrade/sell action buttons.
+   */
+  private renderTowerSelection(slot: TowerSlot, record: TowerRecord): void {
     const towerType = TOWER_TYPES[record.tower.typeId];
-    const range = towerType?.tiers[record.tower.level - 1]?.range ?? 0;
+    const currentTier = towerType ? tierAt(towerType, record.tower.level) : null;
+    const maxLevel = towerType?.tiers.length ?? 1;
+    const isMax = record.tower.level >= maxLevel;
+    const nextTier = towerType && !isMax ? towerType.tiers[record.tower.level] : null;
+    const upgradePrice = towerType ? upgradeCost(towerType, record.tower.level) : null;
+    const refund = towerType ? sellRefund(record.tower.invested) : 0;
+
+    // Draw range ring matching current tier range
+    const range = currentTier?.range ?? 0;
     if (range > 0) {
       this.rangeCircle = this.scene.add
         .circle(slot.x, slot.y, range, 0x38bdf8, 0.12)
@@ -713,21 +744,197 @@ export class GameplayStage {
       this.root?.add(this.rangeCircle);
     }
 
-    const refund = towerType ? sellRefund(record.tower.invested) : 0;
-    this.actionButton = this.createActionButton(
-      slot,
-      `SELL +${refund}g`,
-      false,
-      () => this.requestSell(record),
-    );
+    // Geometry layout: clamp horizontally and anchor above tower
+    const clampedX = Phaser.Math.Clamp(slot.x, 140, 1280 - 140);
+    const buttonY = Math.max(88, slot.y - 88);
+    const panelY = buttonY - 54;
+    const panelW = 246;
+    const panelH = 50;
+
+    // --- Status Panel ---
+    this.towerInfoPanel = this.scene.add.container(clampedX, panelY);
+    this.towerInfoPanel.setDepth(DEPTH.UI_LAYER);
+    this.root?.add(this.towerInfoPanel);
+
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(0x0a0f1d, 0.94);
+    bg.lineStyle(1.5, 0xca8a04, 0.95);
+    bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
+    bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
+
+    const nameText = this.scene.add
+      .text(-panelW / 2 + 10, -12, towerType?.name ?? record.tower.typeId, {
+        fontSize: "12px",
+        fontStyle: "bold",
+        color: "#f8fafc",
+      })
+      .setOrigin(0, 0.5);
+
+    const tierBadgeText = this.scene.add
+      .text(
+        panelW / 2 - 10,
+        -12,
+        isMax ? "TIER MAX" : `TIER ${record.tower.level}/${maxLevel}`,
+        {
+          fontSize: "11px",
+          fontStyle: "bold",
+          color: isMax ? "#fbbf24" : "#38bdf8",
+        },
+      )
+      .setOrigin(1, 0.5);
+
+    bg.lineStyle(1, 0x334155, 0.7);
+    bg.lineBetween(-panelW / 2 + 8, 0, panelW / 2 - 8, 0);
+
+    let statsText: Phaser.GameObjects.Text;
+    if (!isMax && nextTier && currentTier) {
+      statsText = this.scene.add
+        .text(
+          0,
+          12,
+          `DMG ${currentTier.damage}➔${nextTier.damage}   RNG ${currentTier.range}➔${nextTier.range}   SPD ${currentTier.fireRate}➔${nextTier.fireRate}/s`,
+          {
+            fontSize: "10.5px",
+            fontStyle: "bold",
+            color: "#cbd5e1",
+          },
+        )
+        .setOrigin(0.5, 0.5);
+    } else if (currentTier) {
+      statsText = this.scene.add
+        .text(
+          0,
+          12,
+          `DMG ${currentTier.damage}   RNG ${currentTier.range}   SPD ${currentTier.fireRate}/s`,
+          {
+            fontSize: "11px",
+            fontStyle: "bold",
+            color: "#94a3b8",
+          },
+        )
+        .setOrigin(0.5, 0.5);
+    } else {
+      statsText = this.scene.add
+        .text(0, 12, "NO STATS", {
+          fontSize: "11px",
+          color: "#94a3b8",
+        })
+        .setOrigin(0.5, 0.5);
+    }
+
+    this.towerInfoPanel.add([bg, nameText, tierBadgeText, statsText]);
+
+    // --- Action Buttons (UPGRADE on left, SELL on right) ---
+    const btnWidth = 116;
+    const btnHeight = btnWidth / UI_ASPECT.button;
+
+    // Upgrade Button
+    if (!isMax && upgradePrice !== null) {
+      const canAfford = this.gold >= upgradePrice;
+      this.upgradeButton = new UIButton({
+        scene: this.scene,
+        x: clampedX - 63,
+        y: buttonY,
+        width: btnWidth,
+        height: btnHeight,
+        label: `UPG -${upgradePrice}g`,
+        fontSize: 13,
+        labelColor: canAfford ? "#ffffff" : "#94a3b8",
+        onClick: () => {
+          this.isTouchingSlot = true;
+          this.requestUpgrade(record);
+        },
+      });
+      if (!canAfford) {
+        this.upgradeButton.setEnabled(false);
+      }
+    } else {
+      this.upgradeButton = new UIButton({
+        scene: this.scene,
+        x: clampedX - 63,
+        y: buttonY,
+        width: btnWidth,
+        height: btnHeight,
+        label: "MAX TIER",
+        fontSize: 12,
+        labelColor: "#94a3b8",
+        onClick: () => {
+          this.isTouchingSlot = true;
+        },
+      });
+      this.upgradeButton.setEnabled(false);
+    }
+    this.upgradeButton.container.setDepth(DEPTH.UI_LAYER);
+    this.root?.add(this.upgradeButton.container);
+
+    // Sell Button
+    this.sellButton = new UIButton({
+      scene: this.scene,
+      x: clampedX + 63,
+      y: buttonY,
+      width: btnWidth,
+      height: btnHeight,
+      label: `SELL +${refund}g`,
+      fontSize: 13,
+      labelColor: "#ffffff",
+      onClick: () => {
+        this.isTouchingSlot = true;
+        this.requestSell(record);
+      },
+    });
+    this.sellButton.container.setDepth(DEPTH.UI_LAYER);
+    this.root?.add(this.sellButton.container);
   }
 
   /**
-   * Creates the floating action button above a slot.
-   *
-   * @remarks Confirm buttons spell out the action (`✓ BUILD` / `✓ SELL`) and
-   * use a green caption so a second, deliberate click reads differently from
-   * the primary action.
+   * Arms a pending upgrade confirmation on the upgrade button.
+   */
+  private requestUpgrade(record: TowerRecord): void {
+    if (!this.upgradeButton) return;
+    this.resetSellButton(record);
+
+    this.upgradeButton.setLabel("✓ UPGRADE");
+    this.upgradeButton.setLabelColor("#4ade80");
+    this.upgradeButton.setFontSize(14);
+    this.upgradeButton.setOnClick(() => this.confirmUpgrade(record));
+  }
+
+  /** Sends the upgrade request to the server. */
+  private confirmUpgrade(record: TowerRecord): void {
+    this.room.send(MESSAGES.upgradeTower, { towerId: record.id });
+    if (this.upgradeButton) {
+      this.upgradeButton.setEnabled(false);
+      this.upgradeButton.setLabel("UPGRADING...");
+      this.upgradeButton.setLabelColor("#94a3b8");
+    }
+  }
+
+  /** Resets the upgrade button to its unconfirmed state. */
+  private resetUpgradeButton(record: TowerRecord): void {
+    if (!this.upgradeButton) return;
+    const towerType = TOWER_TYPES[record.tower.typeId];
+    const isMax = towerType ? record.tower.level >= towerType.tiers.length : true;
+    const upgradePrice = towerType ? upgradeCost(towerType, record.tower.level) : null;
+    if (!isMax && upgradePrice !== null) {
+      const canAfford = this.gold >= upgradePrice;
+      this.upgradeButton.setLabel(`UPG -${upgradePrice}g`);
+      this.upgradeButton.setLabelColor(canAfford ? "#ffffff" : "#94a3b8");
+      this.upgradeButton.setFontSize(13);
+      this.upgradeButton.setEnabled(canAfford);
+      this.upgradeButton.setOnClick(() => {
+        this.isTouchingSlot = true;
+        this.requestUpgrade(record);
+      });
+    } else {
+      this.upgradeButton.setLabel("MAX TIER");
+      this.upgradeButton.setLabelColor("#94a3b8");
+      this.upgradeButton.setFontSize(12);
+      this.upgradeButton.setEnabled(false);
+    }
+  }
+
+  /**
+   * Creates the floating action button above a slot (used by build confirmation).
    */
   private createActionButton(
     slot: TowerSlot,
@@ -759,11 +966,13 @@ export class GameplayStage {
 
   /** Turns the sell button into a tick awaiting a second click to confirm. */
   private requestSell(record: TowerRecord): void {
-    if (!this.actionButton) return;
-    this.actionButton.setLabel("✓ SELL");
-    this.actionButton.setLabelColor("#4ade80");
-    this.actionButton.setFontSize(16);
-    this.actionButton.setOnClick(() => this.confirmSell(record));
+    if (!this.sellButton) return;
+    this.resetUpgradeButton(record);
+
+    this.sellButton.setLabel("✓ SELL");
+    this.sellButton.setLabelColor("#4ade80");
+    this.sellButton.setFontSize(14);
+    this.sellButton.setOnClick(() => this.confirmSell(record));
   }
 
   /** Sends the sale once the defender confirms it with the tick. */
@@ -772,11 +981,39 @@ export class GameplayStage {
     this.clearSelection();
   }
 
+  /** Resets the sell button to its unconfirmed state. */
+  private resetSellButton(record: TowerRecord): void {
+    if (!this.sellButton) return;
+    const towerType = TOWER_TYPES[record.tower.typeId];
+    const refund = towerType ? sellRefund(record.tower.invested) : 0;
+    this.sellButton.setLabel(`SELL +${refund}g`);
+    this.sellButton.setLabelColor("#ffffff");
+    this.sellButton.setFontSize(13);
+    this.sellButton.setOnClick(() => {
+      this.isTouchingSlot = true;
+      this.requestSell(record);
+    });
+  }
+
   /**
-   * Clears the selected tower, its range, and any pending build or sale.
-   *
-   * @remarks Also the cancel path for the build/sell confirmations, so every
-   * visual (range ring, build highlight, action button) is torn down here.
+   * Refreshes the currently active selection UI (e.g. after an upgrade or gold change).
+   */
+  private refreshTowerSelection(slot: TowerSlot, record: TowerRecord): void {
+    if (this.selectedSlotIndex !== slot.slotIndex) return;
+    this.rangeCircle?.destroy();
+    this.rangeCircle = undefined;
+    this.upgradeButton?.destroy();
+    this.upgradeButton = undefined;
+    this.sellButton?.destroy();
+    this.sellButton = undefined;
+    this.towerInfoPanel?.destroy();
+    this.towerInfoPanel = undefined;
+
+    this.renderTowerSelection(slot, record);
+  }
+
+  /**
+   * Clears the selected tower, its range, and any pending build or sale/upgrade.
    */
   private clearSelection(): void {
     this.selectedSlotIndex = undefined;
@@ -787,6 +1024,12 @@ export class GameplayStage {
     this.buildHighlight = undefined;
     this.actionButton?.destroy();
     this.actionButton = undefined;
+    this.upgradeButton?.destroy();
+    this.upgradeButton = undefined;
+    this.sellButton?.destroy();
+    this.sellButton = undefined;
+    this.towerInfoPanel?.destroy();
+    this.towerInfoPanel = undefined;
   }
 
   private renderPhaseBanner(): void {
@@ -835,6 +1078,40 @@ export class GameplayStage {
       const slot = this.map.slots.find((s) => s.slotIndex === tower.slotIndex);
       if (slot) {
         this.renderTower(slot, tower, String(key));
+
+        this.unsubscribers.push(
+          callbacks.listen(tower, "level", () => {
+            const record = this.towers.get(slot.slotIndex);
+            if (record) {
+              this.updateTowerLevelBadge(record);
+              if (this.selectedSlotIndex === slot.slotIndex) {
+                this.refreshTowerSelection(slot, record);
+              }
+            }
+          }),
+        );
+        this.unsubscribers.push(
+          callbacks.listen(tower, "invested", () => {
+            const record = this.towers.get(slot.slotIndex);
+            if (record && this.selectedSlotIndex === slot.slotIndex) {
+              this.refreshTowerSelection(slot, record);
+            }
+          }),
+        );
+      }
+    };
+
+    const onChange = (value: unknown): void => {
+      const tower = value as Tower;
+      const slot = this.map.slots.find((s) => s.slotIndex === tower.slotIndex);
+      if (!slot) return;
+      const record = this.towers.get(slot.slotIndex);
+      if (record) {
+        record.tower = tower;
+        this.updateTowerLevelBadge(record);
+        if (this.selectedSlotIndex === slot.slotIndex) {
+          this.refreshTowerSelection(slot, record);
+        }
       }
     };
 
@@ -844,6 +1121,7 @@ export class GameplayStage {
       if (!slot) return;
       const record = this.towers.get(slot.slotIndex);
       record?.sprite.destroy();
+      record?.levelBadge?.destroy();
       this.towers.delete(slot.slotIndex);
       if (this.selectedSlotIndex === slot.slotIndex) {
         this.clearSelection();
@@ -852,7 +1130,59 @@ export class GameplayStage {
 
     // Third parameter `true` immediately calls onAdd for all existing towers in state
     this.unsubscribers.push(callbacks.onAdd("towers", onAdd, true));
+    this.unsubscribers.push(callbacks.onChange("towers", onChange));
     this.unsubscribers.push(callbacks.onRemove("towers", onRemove));
+  }
+
+  private createTowerLevelBadge(slot: TowerSlot, level: number): Phaser.GameObjects.Container {
+    const badge = this.scene.add.container(slot.x, slot.y - 116);
+    badge.setDepth(DEPTH.TOWERS_LAYER + slot.y * 0.001 + 0.0002);
+
+    const w = 44;
+    const h = 18;
+    const bg = this.scene.add.graphics();
+    bg.name = "bg";
+    this.drawBadgeBg(bg, level, w, h);
+
+    const label = this.scene.add
+      .text(0, 0, `Lv.${level}`, {
+        fontSize: "11px",
+        fontStyle: "bold",
+        color: level > 1 ? "#fbbf24" : "#e2e8f0",
+      })
+      .setOrigin(0.5);
+    label.name = "label";
+
+    badge.add([bg, label]);
+    return badge;
+  }
+
+  private drawBadgeBg(bg: Phaser.GameObjects.Graphics, level: number, w: number, h: number): void {
+    bg.clear();
+    bg.fillStyle(0x090d16, 0.88);
+    bg.lineStyle(1.2, level > 1 ? 0xf59e0b : 0x475569, 0.9);
+    bg.fillRoundedRect(-w / 2, -h / 2, w, h, 6);
+    bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 6);
+  }
+
+  private updateTowerLevelBadge(record: TowerRecord): void {
+    if (!record.levelBadge) return;
+    const label = record.levelBadge.getByName("label") as Phaser.GameObjects.Text | null;
+    const bg = record.levelBadge.getByName("bg") as Phaser.GameObjects.Graphics | null;
+    if (label) {
+      label.setText(`Lv.${record.tower.level}`);
+      label.setColor(record.tower.level > 1 ? "#fbbf24" : "#e2e8f0");
+    }
+    if (bg) {
+      this.drawBadgeBg(bg, record.tower.level, 44, 18);
+    }
+    this.scene.tweens.add({
+      targets: record.levelBadge,
+      scaleX: 1.25,
+      scaleY: 1.25,
+      yoyo: true,
+      duration: 120,
+    });
   }
 
   private renderTower(slot: TowerSlot, tower: Tower, id: string): void {
@@ -863,6 +1193,8 @@ export class GameplayStage {
       .setOrigin(0.5, 0.82)
       .setDisplaySize(135, 135)
       .setDepth(DEPTH.TOWERS_LAYER + slot.y * 0.001);
+
+    const levelBadge = this.createTowerLevelBadge(slot, tower.level);
 
     if (this.role === "defender") {
       sprite.setInteractive({ useHandCursor: true });
@@ -885,8 +1217,9 @@ export class GameplayStage {
       });
     }
 
-    this.towers.set(slot.slotIndex, { id, tower, sprite });
+    this.towers.set(slot.slotIndex, { id, tower, sprite, levelBadge });
     this.root?.add(sprite);
+    if (levelBadge) this.root?.add(levelBadge);
   }
 
   startCombat(): void {
@@ -937,10 +1270,7 @@ export class GameplayStage {
 
     const onAdd = (value: unknown): void => {
       const mob = value as Mob;
-      const sprite = this.scene.add
-        .sprite(0, 0, "unit_warrior")
-        .setOrigin(0.5, 0.78)
-        .setDisplaySize(64, 64)
+      const sprite = UnitAnimationManager.spawnMobSprite(this.scene, mob.typeId)
         .setDepth(DEPTH.UNITS_LAYER);
 
       // Classic green-on-red bar; the green fill shrinks from its left edge.
@@ -1296,6 +1626,9 @@ export class GameplayStage {
     this.deckObjects = [];
     this.combatBanner?.destroy();
     this.combatBanner = undefined;
+
+    this.ambientNpcManager?.destroy();
+    this.ambientNpcManager = undefined;
 
     this.uiRoot?.destroy(true);
     this.uiRoot = undefined;

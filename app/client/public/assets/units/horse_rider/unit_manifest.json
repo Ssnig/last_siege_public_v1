@@ -1,0 +1,15 @@
+{
+  "id": "horse_rider",
+  "name": "Konbaung Cavalry",
+  "frames": 6,
+  "cols": 3,
+  "rows": 2,
+  "frameWidth": 341,
+  "frameHeight": 286,
+  "frameRate": 8,
+  "scale": 0.35,
+  "origin": { "x": 0.5, "y": 0.8 },
+  "animations": {
+    "run": { "start": 0, "end": 5, "repeat": -1 }
+  }
+}

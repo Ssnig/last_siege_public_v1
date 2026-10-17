@@ -33,8 +33,14 @@ export interface TowerSlot {
  */
 export interface MapDefinition {
   id: string;
-  /** Human-readable name shown on the pre-draft reveal screen. */
+  /** Human-readable name shown in the reveal screen and map selector. */
   name?: string;
+  /** Flavour text shown in the map selector. */
+  description?: string;
+  /** Number of lanes/corridors, shown in the map selector. */
+  lanes?: number;
+  /** Preview image path shown in the map selector and reveal. */
+  thumbnail?: string;
   path: Vec2[];
   paths?: Record<string, Vec2[]>;
   pathLabels?: Record<string, string>;
@@ -104,7 +110,10 @@ export const SAMPLE_MAP: MapDefinition = {
 
 export const KONBAUNG_MAP: MapDefinition = {
   id: "konbaung",
-  name: "Konbaung",
+  name: "Konbaung Royal Palace",
+  description: "Two sweeping royal road corridors encircling ancient pagodas into the central stone courtyard.",
+  lanes: 2,
+  thumbnail: "/assets/maps/map_1_konbaung/preview.png",
   width: 1280,
   height: 720,
   path: [],
@@ -120,7 +129,7 @@ export const KONBAUNG_MAP: MapDefinition = {
       { x: 816, y: 184 },
       { x: 842, y: 266 },
       { x: 858, y: 349 },
-      { x: 1005, y: 375 }
+      { x: 1005, y: 375 },
     ],
     bottom: [
       { x: 52, y: 583 },
@@ -133,18 +142,206 @@ export const KONBAUNG_MAP: MapDefinition = {
       { x: 730, y: 623 },
       { x: 1062, y: 623 },
       { x: 1114, y: 562 },
-      { x: 1095, y: 485 }
-    ]
+      { x: 1095, y: 485 },
+    ],
   },
   slots: [
     { slotIndex: 0, x: 246, y: 184 },
     { slotIndex: 1, x: 394, y: 218 },
     { slotIndex: 2, x: 756, y: 218 },
     { slotIndex: 3, x: 394, y: 500 },
-    { slotIndex: 4, x: 1034, y: 539 }
+    { slotIndex: 4, x: 1034, y: 539 },
   ],
   checkpoints: [1, 3],
-  base: { x: 1108, y: 360 }
+  base: { x: 1120, y: 340 },
+  pathHalfWidth: 20,
+};
+
+export const BAGAN_MAP: MapDefinition = {
+  id: "bagan",
+  name: "Bagan Temple Plains",
+  description: "Ancient red brick pagodas dotting golden plains with choke points through stupa courtyards.",
+  lanes: 2,
+  thumbnail: "/assets/maps/map_2_bagan/preview.png",
+  width: 1280,
+  height: 720,
+  path: [],
+  paths: {
+    top: [
+      { x: 50, y: 150 },
+      { x: 350, y: 150 },
+      { x: 450, y: 240 },
+      { x: 700, y: 240 },
+      { x: 850, y: 340 },
+      { x: 1050, y: 350 },
+    ],
+    bottom: [
+      { x: 50, y: 550 },
+      { x: 350, y: 550 },
+      { x: 450, y: 460 },
+      { x: 700, y: 460 },
+      { x: 850, y: 380 },
+      { x: 1050, y: 370 },
+    ],
+  },
+  slots: [
+    { slotIndex: 0, x: 250, y: 220 },
+    { slotIndex: 1, x: 550, y: 160 },
+    { slotIndex: 2, x: 550, y: 540 },
+    { slotIndex: 3, x: 780, y: 350 },
+    { slotIndex: 4, x: 950, y: 260 },
+  ],
+  checkpoints: [1, 3],
+  base: { x: 1120, y: 360 },
+  pathHalfWidth: 20,
+};
+
+export const INLE_MAP: MapDefinition = {
+  id: "inle",
+  name: "Inle Lake Waterways",
+  description: "Trident canal waterways between floating tomato gardens and stilt wooden houses.",
+  lanes: 2,
+  thumbnail: "/assets/maps/map_3_inle/preview.png",
+  width: 1280,
+  height: 720,
+  path: [],
+  paths: {
+    top: [
+      { x: 50, y: 130 },
+      { x: 320, y: 130 },
+      { x: 500, y: 220 },
+      { x: 800, y: 220 },
+      { x: 1050, y: 340 },
+    ],
+    bottom: [
+      { x: 50, y: 590 },
+      { x: 320, y: 590 },
+      { x: 500, y: 480 },
+      { x: 800, y: 480 },
+      { x: 1050, y: 380 },
+    ],
+  },
+  slots: [
+    { slotIndex: 0, x: 280, y: 200 },
+    { slotIndex: 1, x: 420, y: 350 },
+    { slotIndex: 2, x: 650, y: 150 },
+    { slotIndex: 3, x: 650, y: 550 },
+    { slotIndex: 4, x: 920, y: 350 },
+  ],
+  checkpoints: [1, 3],
+  base: { x: 1120, y: 360 },
+  pathHalfWidth: 20,
+};
+
+export const MANDALAY_MAP: MapDefinition = {
+  id: "mandalay",
+  name: "Mandalay Fortress Moat",
+  description: "Grand square water moat flanked by fortified red brick ramparts and gate bridges.",
+  lanes: 2,
+  thumbnail: "/assets/maps/map_4_mandalay/preview.png",
+  width: 1280,
+  height: 720,
+  path: [],
+  paths: {
+    top: [
+      { x: 60, y: 120 },
+      { x: 400, y: 120 },
+      { x: 520, y: 260 },
+      { x: 780, y: 260 },
+      { x: 1050, y: 350 },
+    ],
+    bottom: [
+      { x: 60, y: 600 },
+      { x: 400, y: 600 },
+      { x: 520, y: 460 },
+      { x: 780, y: 460 },
+      { x: 1050, y: 370 },
+    ],
+  },
+  slots: [
+    { slotIndex: 0, x: 260, y: 200 },
+    { slotIndex: 1, x: 450, y: 360 },
+    { slotIndex: 2, x: 660, y: 180 },
+    { slotIndex: 3, x: 660, y: 540 },
+    { slotIndex: 4, x: 920, y: 260 },
+  ],
+  checkpoints: [1, 3],
+  base: { x: 1120, y: 360 },
+  pathHalfWidth: 20,
+};
+
+export const RAKHINE_MAP: MapDefinition = {
+  id: "rakhine",
+  name: "Mrauk-U Stone Bastion",
+  description: "Misty hill paths carving through thick monolithic stone walls and jungle temples.",
+  lanes: 2,
+  thumbnail: "/assets/maps/map_5_rakhine/preview.png",
+  width: 1280,
+  height: 720,
+  path: [],
+  paths: {
+    top: [
+      { x: 50, y: 140 },
+      { x: 280, y: 140 },
+      { x: 420, y: 250 },
+      { x: 720, y: 210 },
+      { x: 1050, y: 350 },
+    ],
+    bottom: [
+      { x: 50, y: 580 },
+      { x: 280, y: 580 },
+      { x: 420, y: 470 },
+      { x: 720, y: 510 },
+      { x: 1050, y: 370 },
+    ],
+  },
+  slots: [
+    { slotIndex: 0, x: 220, y: 220 },
+    { slotIndex: 1, x: 380, y: 360 },
+    { slotIndex: 2, x: 580, y: 150 },
+    { slotIndex: 3, x: 580, y: 570 },
+    { slotIndex: 4, x: 880, y: 360 },
+  ],
+  checkpoints: [1, 3],
+  base: { x: 1120, y: 360 },
+  pathHalfWidth: 20,
+};
+
+export const BAGO_MAP: MapDefinition = {
+  id: "bago",
+  name: "Hanthawaddy Golden Gate",
+  description: "A wide river crossing into the monumental golden gateway of the southern kingdom.",
+  lanes: 2,
+  thumbnail: "/assets/maps/map_6_bago/preview.png",
+  width: 1280,
+  height: 720,
+  path: [],
+  paths: {
+    top: [
+      { x: 50, y: 130 },
+      { x: 300, y: 130 },
+      { x: 460, y: 250 },
+      { x: 750, y: 250 },
+      { x: 1050, y: 350 },
+    ],
+    bottom: [
+      { x: 50, y: 590 },
+      { x: 300, y: 590 },
+      { x: 460, y: 470 },
+      { x: 750, y: 470 },
+      { x: 1050, y: 370 },
+    ],
+  },
+  slots: [
+    { slotIndex: 0, x: 240, y: 210 },
+    { slotIndex: 1, x: 400, y: 360 },
+    { slotIndex: 2, x: 620, y: 160 },
+    { slotIndex: 3, x: 620, y: 560 },
+    { slotIndex: 4, x: 900, y: 280 },
+  ],
+  checkpoints: [1, 3],
+  base: { x: 1120, y: 360 },
+  pathHalfWidth: 20,
 };
 
 /**
@@ -257,6 +454,11 @@ export const MAPS: Record<string, MapDefinition> = {
   [KONBAUNG_MAP.id]: KONBAUNG_MAP,
   [MERGE_MAP.id]: MERGE_MAP,
   [FORK_MAP.id]: FORK_MAP,
+  [BAGAN_MAP.id]: BAGAN_MAP,
+  [INLE_MAP.id]: INLE_MAP,
+  [MANDALAY_MAP.id]: MANDALAY_MAP,
+  [RAKHINE_MAP.id]: RAKHINE_MAP,
+  [BAGO_MAP.id]: BAGO_MAP,
 };
 
 /**
@@ -265,11 +467,9 @@ export const MAPS: Record<string, MapDefinition> = {
  * @remarks `sample` is a dev fixture and deliberately excluded. Order is
  * irrelevant: {@link pickRandomMapId} samples uniformly.
  */
-export const MAP_POOL: readonly string[] = [
-  KONBAUNG_MAP.id,
-  MERGE_MAP.id,
-  FORK_MAP.id,
-];
+export const MAP_POOL: readonly string[] = Object.values(MAPS)
+  .map((map) => map.id)
+  .filter((id) => id !== SAMPLE_MAP.id);
 
 /**
  * Picks a map for a fresh match.

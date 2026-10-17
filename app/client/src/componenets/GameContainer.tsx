@@ -90,6 +90,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [phase, setPhase] = useState<string>(() => room.state?.phase || 'drafting');
   const [phaseEndsAt, setPhaseEndsAt] = useState<number>(() => room.state?.phaseEndsAt || 180);
   const [mapId, setMapId] = useState<string>(() => room.state?.mapId || 'konbaung');
+  const [maxCastleHp] = useState<number>(MATCH_RULES.coreHp);
 
   // Attacker wave-staging state (attacker-only private pushes)
   const [army, setArmy] = useState<AttackerArmyPayload | null>(null);
@@ -107,6 +108,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       gameInstanceRef.current.registry.set('selectedTowerType', id);
     }
   };
+
+  useEffect(() => {
+    if (gameInstanceRef.current) {
+      gameInstanceRef.current.registry.set('selectedTowerType', selectedTowerType);
+    }
+  }, [selectedTowerType]);
 
   // AFK fallback: if a finished match is left idle, return to the lobby.
   useEffect(() => {
@@ -148,7 +155,6 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       }
     });
 
-    // Attacker-only: the staged army + wave rules to drive the staging panel.
     const offArmy = room.onMessage(MESSAGES.attackerArmy, (data: AttackerArmyPayload) => {
       setArmy(data);
       setGold(data.gold);
@@ -357,7 +363,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           gold={gold}
           incomeRate={incomeRate}
           castleHp={castleHp}
-          maxCastleHp={MATCH_RULES.coreHp}
+          maxCastleHp={maxCastleHp}
           deck={deck}
           selectedTowerType={selectedTowerType}
           onSelectTower={handleSelectTower}
@@ -365,6 +371,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           phase={phase}
           phaseEndsAt={phaseEndsAt}
           role={playerInfo.myRole as 'attacker' | 'defender'}
+          onStartBattle={() => {
+            room.send(MESSAGES.startCombat, {});
+          }}
           onToggleArmy={
             playerInfo.myRole === 'attacker' ? () => setArmyPanelOpen((open) => !open) : undefined
           }
@@ -399,9 +408,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
               {gameOver.youWin ? "Victory!" : "Defeat"}
             </h2>
             <p className="text-slate-300 text-sm">
-              {gameOver.youWin
-                ? "Your opponent surrendered."
-                : "You surrendered."}
+              {gameOver.reason === "core"
+                ? gameOver.youWin
+                  ? "The enemy base was destroyed!"
+                  : "Your base was destroyed!"
+                : gameOver.reason === "time"
+                  ? gameOver.youWin
+                    ? "The defense held until attacker forces were exhausted!"
+                    : "Attacker forces were exhausted!"
+                  : gameOver.youWin
+                    ? "Your opponent surrendered."
+                    : "You surrendered."}
             </p>
             <p className="text-slate-500 text-xs">
               The enemy {gameOver.winner === "attacker" ? "Attacker" : "Defender"} wins.

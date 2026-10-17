@@ -1,0 +1,15 @@
+{
+  "id": "a_ba",
+  "name": "Nat Spirit Medium",
+  "frames": 6,
+  "cols": 3,
+  "rows": 2,
+  "frameWidth": 341,
+  "frameHeight": 286,
+  "frameRate": 7,
+  "scale": 0.35,
+  "origin": { "x": 0.5, "y": 0.85 },
+  "animations": {
+    "run": { "start": 0, "end": 5, "repeat": -1 }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "chon_toe",
+  "name": "Bush Sneak",
+  "frames": 6,
+  "cols": 3,
+  "rows": 2,
+  "frameWidth": 800,
+  "frameHeight": 670,
+  "frameRate": 6,
+  "scale": 0.15,
+  "origin": { "x": 0.5, "y": 0.85 },
+  "animations": {
+    "run": { "start": 0, "end": 5, "repeat": -1 }
+  }
+}

@@ -15,6 +15,7 @@ import {
   MATCH_RULES,
   buildCost,
   sellRefund,
+  upgradeCost,
 } from "@root/shared";
 
 function waitForPhase(room: { state: RoomState }, phase: string, timeoutMs = 2000): Promise<void> {
@@ -206,7 +207,6 @@ describe("testing your Colyseus app", () => {
   it("reveals a random map from the pool before drafting once both players are ready", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
-      mapId: "sample",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -222,6 +222,28 @@ describe("testing your Colyseus app", () => {
     assert.notStrictEqual(room.state.mapId, "sample", "the fixture map is never revealed");
 
     // Shorten the reveal rather than wait the full balance window.
+    room.state.phaseEndsAt = 0.05;
+    await waitForPhase(room, "drafting");
+  });
+
+  it("keeps a map explicitly chosen in the lobby instead of rolling one", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "bagan",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.ready);
+    defender.send(MESSAGES.ready);
+
+    await waitForPhase(room, "mapReveal");
+    assert.strictEqual(
+      room.state.mapId,
+      "bagan",
+      "the host's picked map must survive the reveal",
+    );
+
     room.state.phaseEndsAt = 0.05;
     await waitForPhase(room, "drafting");
   });
@@ -438,6 +460,51 @@ describe("testing your Colyseus app", () => {
 
     await waitFor(() => !room.state.towers.has(towerId));
     assert.ok(!room.state.towers.has(towerId), "the sold tower leaves the shared state");
+  });
+
+  it("upgrades a defender tower, deducts gold, increases level and invested amount", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: Object.keys(MOB_TYPES).slice(0, 2) });
+    defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
+    await waitForPhase(room, "building");
+
+    const towerTypeId = Object.keys(TOWER_TYPES)[0];
+    const towerType = TOWER_TYPES[towerTypeId];
+    const slotIndex = MAPS[room.state.mapId].slots[0].slotIndex;
+    const startGold = DEFAULT_ECONOMY.defenderStartingGold;
+    const costBuild = buildCost(towerType);
+    const costUpgrade = upgradeCost(towerType, 1)!;
+    const afterBuild = startGold - costBuild;
+    const afterUpgrade = afterBuild - costUpgrade;
+
+    const built = waitForEconomy(defender, (gold) => gold === afterBuild);
+    defender.send(MESSAGES.placeTower, { typeId: towerTypeId, slotIndex });
+    await built;
+
+    const towerId = `${defender.sessionId}-${slotIndex}`;
+    await waitFor(() => room.state.towers.has(towerId));
+    assert.strictEqual(room.state.towers.get(towerId).level, 1);
+    assert.strictEqual(room.state.towers.get(towerId).invested, costBuild);
+
+    const upgraded = waitForEconomy(defender, (gold) => gold === afterUpgrade);
+    defender.send(MESSAGES.upgradeTower, { towerId });
+    await upgraded;
+
+    await waitFor(() => room.state.towers.get(towerId).level === 2);
+    const tower = room.state.towers.get(towerId);
+    assert.strictEqual(tower.level, 2);
+    assert.strictEqual(tower.invested, costBuild + costUpgrade);
+
+    // Verify sell refund is based on the updated invested amount
+    const afterSell = afterUpgrade + sellRefund(costBuild + costUpgrade);
+    const sold = waitForEconomy(defender, (gold) => gold === afterSell);
+    defender.send(MESSAGES.sellTower, { towerId });
+    await sold;
   });
 
   it("towers fire at mobs in range, damage them, and pay a bounty on kill", async () => {

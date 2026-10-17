@@ -113,7 +113,9 @@ export class MobCard {
     const portraitX = width / 2;
     const portraitY = portraitTop + portraitHeight / 2;
 
-    const textureKey = `mob-${mob.id}`;
+    const textureKey = scene.textures.exists(`unit-face-${mob.id}`)
+      ? `unit-face-${mob.id}`
+      : `mob-${mob.id}`;
 
     if (scene.textures.exists(textureKey)) {
       const sprite = scene.add

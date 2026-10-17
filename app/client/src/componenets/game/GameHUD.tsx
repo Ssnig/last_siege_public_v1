@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { TOWER_TYPES } from '@root/shared';
 import { useSmoothCountdown } from './useSmoothCountdown';
 
@@ -72,8 +72,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   // Brief toast notification on UI toggle
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Show a quick toast tip when UI visibility flips (skip on initial mount)
+  const isFirstRender = useRef(true);
   // Show a quick toast tip when UI visibility flips
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     setToastMessage(isUIHidden ? 'UI Hidden (Double-tap map to show)' : 'UI Visible');
     const timer = setTimeout(() => {
       setToastMessage(null);

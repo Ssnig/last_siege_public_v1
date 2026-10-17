@@ -1,0 +1,9 @@
+﻿{
+    "id":  "map_2_bagan",
+    "name":  "Bagan Temple Plains",
+    "width":  1280,
+    "description":  "Ancient red brick pagodas dotting golden plains with choke points through stupa courtyards.",
+    "pathHalfWidth":  20,
+    "lanes":  2,
+    "height":  720
+}
