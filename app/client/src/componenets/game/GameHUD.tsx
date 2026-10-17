@@ -14,6 +14,10 @@ interface GameHUDProps {
   isUIHidden?: boolean;
   castleHp?: number;
   maxCastleHp?: number;
+  /** Attacker-only: toggles the army-staging overlay. Omit to hide the button. */
+  onToggleArmy?: () => void;
+  /** Whether the army-staging overlay is currently open (drives the button icon). */
+  armyOpen?: boolean;
 }
 
 const DEFAULT_DEFENDER_TOWERS = [
@@ -56,6 +60,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   isUIHidden = false,
   castleHp = 10,
   maxCastleHp = 10,
+  onToggleArmy,
+  armyOpen = false,
 }) => {
   // Timer state synchronized with server phaseEndsAt
   const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
@@ -115,18 +121,35 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         {/* Top Header Row: Gold (Left), Centered Wave/Timer, Settings + Castle HP (Right) */}
         <div className="w-full flex items-start justify-between px-2.5 sm:px-4 md:px-6 pt-2 pointer-events-none">
           
-          {/* Top-Left: Dynamic Responsive Gold Display */}
-          <div
-            className="pointer-events-auto relative w-[130px] h-[38px] md:w-[180px] md:h-[50px] flex items-center justify-end pr-2.5 md:pr-4 shadow-lg drop-shadow transition-transform hover:scale-102"
-            style={{
-              backgroundImage: "url('/assets/ui/hud/hud_gold_badge_clean.png')",
-              backgroundSize: '100% 100%',
-              backgroundRepeat: 'no-repeat',
-            }}
-          >
-            <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-base tracking-wide font-['Almendra',serif]">
-              GOLD: {gold}g
-            </span>
+          {/* Top-Left: Gold display + (attacker) army-panel toggle */}
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <div
+              className="pointer-events-auto relative w-[130px] h-[38px] md:w-[180px] md:h-[50px] flex items-center justify-end pr-2.5 md:pr-4 shadow-lg drop-shadow transition-transform hover:scale-102"
+              style={{
+                backgroundImage: "url('/assets/ui/hud/hud_gold_badge_clean.png')",
+                backgroundSize: '100% 100%',
+                backgroundRepeat: 'no-repeat',
+              }}
+            >
+              <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-base tracking-wide font-['Almendra',serif]">
+                GOLD: {gold}g
+              </span>
+            </div>
+
+            {onToggleArmy && (
+              <button
+                onClick={onToggleArmy}
+                aria-label={armyOpen ? 'Close army panel' : 'Open army panel'}
+                className={`pointer-events-auto flex items-center gap-1 px-2.5 h-[38px] md:h-[50px] rounded-lg border text-[11px] md:text-sm font-black uppercase tracking-wide shadow-lg active:scale-95 transition font-['Almendra',serif] ${
+                  armyOpen
+                    ? 'bg-amber-500 text-slate-950 border-amber-300'
+                    : 'bg-slate-950/85 text-amber-200 border-amber-600/60 hover:bg-slate-800'
+                }`}
+              >
+                <span>⚔️</span>
+                <span>Army</span>
+              </button>
+            )}
           </div>
 
           {/* Top-Center: Exactly Centered Wave & Timer Banner with Pixel-Perfect Plaque Alignment */}
@@ -174,8 +197,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           </div>
         </div>
 
-        {/* Bottom-Center: Minecraft-Style Building Hotbar (Horizontal Scrollable, Responsive) */}
-        {(role === 'defender' || phase === 'building') && (
+        {/* Bottom-Center: Minecraft-Style Building Hotbar (defender only) */}
+        {role === 'defender' && (
           <div className="pointer-events-auto fixed bottom-2 left-1/2 -translate-x-1/2 flex items-center justify-center max-w-[96vw]">
             <div
               className="relative flex items-center gap-1 sm:gap-1.5 md:gap-2 px-2 py-1 md:px-3 md:py-1.5 rounded-lg shadow-2xl drop-shadow-[0_8px_20px_rgba(0,0,0,0.9)] bg-gradient-to-r from-red-950/95 via-[#450a0a]/95 to-red-950/95 border border-amber-600/80 overflow-x-auto scrollbar-none touch-pan-x"

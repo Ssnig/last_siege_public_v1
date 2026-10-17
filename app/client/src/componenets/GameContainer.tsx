@@ -3,10 +3,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { Callbacks, Room } from '@colyseus/sdk';
 import { GameScene } from '../game/GameScene';
-import { MESSAGES, type OpponentLeftPayload, type GameOverPayload, type YouEconomyPayload } from '@root/shared';
+import {
+  MESSAGES,
+  MATCH_RULES,
+  type OpponentLeftPayload,
+  type GameOverPayload,
+  type YouEconomyPayload,
+  type AttackerArmyPayload,
+  type WaveRejectedPayload,
+} from '@root/shared';
 import { useGameRoom } from '../network/roomContext';
 import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
+import { AttackerWavePanel } from './game/AttackerWavePanel';
 
 interface GameContainerProps {
   room: Room;
@@ -73,6 +82,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [selectedTowerType, setSelectedTowerType] = useState<string>('basic');
   const [phase, setPhase] = useState<string>(() => room.state?.phase || 'drafting');
   const [phaseEndsAt, setPhaseEndsAt] = useState<number>(() => room.state?.phaseEndsAt || 180);
+  const [coreHp, setCoreHp] = useState<number>(() => room.state?.coreHp ?? MATCH_RULES.coreHp);
+
+  // Attacker wave-staging state (attacker-only private pushes)
+  const [army, setArmy] = useState<AttackerArmyPayload | null>(null);
+  const [waveError, setWaveError] = useState<string | null>(null);
+  const [armyPanelOpen, setArmyPanelOpen] = useState(false);
 
   const handleSelectTower = (id: string) => {
     setSelectedTowerType(id);
@@ -87,6 +102,13 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     const timer = setTimeout(onLeaveRoom, GAME_OVER_AUTO_RETURN_MS);
     return () => clearTimeout(timer);
   }, [gameOver, onLeaveRoom]);
+
+  // Auto-dismiss a wave refusal so the panel doesn't keep a stale message.
+  useEffect(() => {
+    if (!waveError) return;
+    const timer = setTimeout(() => setWaveError(null), 2500);
+    return () => clearTimeout(timer);
+  }, [waveError]);
 
   // Room wiring: listeners + the ready handshake. Runs once per room; the
   // cleanup (including room.leave()) runs only when this component unmounts.
@@ -105,6 +127,21 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         setDeck(data.deck);
       }
     });
+
+    // Attacker-only: the staged army + wave rules to drive the staging panel.
+    const offArmy = room.onMessage(MESSAGES.attackerArmy, (data: AttackerArmyPayload) => {
+      setArmy(data);
+      setGold(data.gold);
+      setWaveError(null);
+    });
+
+    // Attacker-only: a refused wave intent, surfaced as a short-lived toast.
+    const offWaveRejected = room.onMessage(
+      MESSAGES.waveRejected,
+      (data: WaveRejectedPayload) => {
+        setWaveError(data.reason);
+      },
+    );
 
     // Tell the server the HUD is listening so it can safely send the role payload.
     room.send(MESSAGES.ready);
@@ -148,14 +185,21 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       setPhaseEndsAt(endsAt);
     });
 
+    const unlistenCoreHp = Callbacks.get(room).listen("coreHp", (hp: number) => {
+      setCoreHp(hp);
+    });
+
     return () => {
       offRoleAssigned();
       offEconomy();
+      offArmy();
+      offWaveRejected();
       offOpponentLeft();
       offLeave.remove(handleLeave);
       offGameOver();
       unlistenPhase();
       unlistenPhaseEndsAt();
+      unlistenCoreHp();
       room.leave();
       // Drop the finished/left room from context so a later /game/:roomId
       // visit (e.g. via the browser back/forward) can never reuse it.
@@ -225,6 +269,24 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           phase={phase}
           phaseEndsAt={phaseEndsAt}
           role={playerInfo.myRole as 'attacker' | 'defender'}
+          onToggleArmy={
+            playerInfo.myRole === 'attacker' ? () => setArmyPanelOpen((open) => !open) : undefined
+          }
+          armyOpen={armyPanelOpen}
+        />
+      )}
+
+      {/* Attacker wave-staging panel (opened from the Army button next to gold) */}
+      {matchStarted && !gameOver && playerInfo.myRole === 'attacker' && army && armyPanelOpen && (
+        <AttackerWavePanel
+          army={army}
+          error={waveError}
+          phase={phase}
+          phaseEndsAt={phaseEndsAt}
+          coreHp={coreHp}
+          maxCoreHp={MATCH_RULES.coreHp}
+          onClose={() => setArmyPanelOpen(false)}
+          send={(type, payload) => room.send(type, payload)}
         />
       )}
 
