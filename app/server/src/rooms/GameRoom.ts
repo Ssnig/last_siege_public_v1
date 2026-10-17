@@ -32,6 +32,7 @@ import {
   type MapDefinition,
   type MobType,
   type PlaceTowerIntent,
+  type RoomStatus,
   type SellTowerIntent,
   type StagedWave,
   type TowerTier,
@@ -66,6 +67,12 @@ const RECONNECT_WINDOW_SEC = 180;
 export interface GameRoomMetadata {
   creatorName: string;
   roleChoice: RoleChoice;
+  /**
+   * Lobby-browser status. Set to `"available"` on creation and promoted to
+   * `"playing"` once a second player joins; never reverted, so a room whose
+   * opponent left still reads as in-progress.
+   */
+  status: RoomStatus;
 }
 
 /** One batch waiting to spawn, scheduled against {@link GameRoom.matchTime}. */
@@ -379,25 +386,47 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Sends role details after both clients have registered their message handlers.
+   * Sends one client the role snapshot its HUD needs to leave the waiting
+   * screen: its own role plus the opponent's name and role.
+   */
+  private sendRoleAssigned(client: Client): void {
+    const opponent = this.clients.find(
+      (other) => other.sessionId !== client.sessionId,
+    );
+
+    client.send(MESSAGES.roleAssigned, {
+      myName: client.userData.playerName,
+      myRole: client.userData.role,
+      opponentName: opponent?.userData.playerName,
+      opponentRole: opponent?.userData.role,
+    });
+  }
+
+  /**
+   * Sends role details after both clients have registered their message
+   * handlers.
+   *
+   * @remarks
+   * A client that rejoins an already-started match — e.g. via the lobby's
+   * resume prompt after a hard refresh — re-sends `ready` from a freshly
+   * mounted component. That handshake must re-announce roles to that client
+   * rather than being ignored, otherwise it is stranded on the waiting screen.
    */
   private handleReady(client: Client): void {
     this.readyClients.add(client.sessionId);
 
-    if (this.matchStarted || this.readyClients.size < 2) return;
+    if (this.matchStarted) {
+      this.sendRoleAssigned(client);
+      // The reconnect-time push can land before the fresh component subscribes,
+      // so re-send the private snapshots now that its handlers exist.
+      this.sendPlayerState(client);
+      return;
+    }
+    if (this.readyClients.size < 2) return;
     this.matchStarted = true;
 
     for (const c of this.clients) {
-      const opponent = this.clients.find(
-        (other) => other.sessionId !== c.sessionId,
-      );
-
-      c.send(MESSAGES.roleAssigned, {
-        myName: c.userData.playerName,
-        myRole: c.userData.role,
-        opponentName: opponent?.userData.playerName,
-        opponentRole: opponent?.userData.role,
-      });
+      this.sendRoleAssigned(c);
     }
   }
 
@@ -1032,10 +1061,26 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
+  /**
+   * Promotes the room's lobby listing to `"playing"` once a match is under way.
+   *
+   * @remarks
+   * Idempotent and one-way: the status is never reset to `"available"`, so a
+   * room that has started a match keeps showing as in-progress even after a
+   * player leaves. `setMetadata` replaces the whole metadata object, so the
+   * existing fields are spread through.
+   */
+  private markPlaying(): void {
+    const metadata = this.metadata as GameRoomMetadata | undefined;
+    if (!metadata || metadata.status === "playing") return;
+    this.setMetadata({ ...metadata, status: "playing" });
+  }
+
   onCreate(options: any): void {
     this.setMetadata({
       creatorName: options.playerName || "Anonymous",
       roleChoice: options.roleChoice || "random",
+      status: "available",
     });
 
     this.state.mapId = options.mapId || "konbaung";
@@ -1074,6 +1119,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.assignRoles();
       await this.lock();
       this.phases.beginDraft();
+      this.markPlaying();
 
       // Seed each client with its private economy so the HUD is correct even
       // before the draft is confirmed (deck arrives in a later push).
