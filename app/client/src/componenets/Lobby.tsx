@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { RoleChoice } from '@root/shared';
+import type { RoleChoice, RoomStatus } from '@root/shared';
 import type { Client, Room, RoomAvailable } from '@colyseus/sdk';
 import { useGameRoom } from '../network/roomContext';
 import { soundEffects } from '../audio/soundEffects';
+import { clearActiveMatch, loadActiveMatch, type ActiveMatch } from '../network/activeRoom';
 import { GoldCrest, GoldDivider, RoyalPanel } from './lobby/LobbyOrnaments';
 
 interface LobbyProps {
   client: Client;
+}
+
+/** Reads a room's status, defaulting rooms created before the field existed to `"available"`. */
+function roomStatusOf(room: RoomAvailable): RoomStatus {
+  return room.metadata?.status === 'playing' ? 'playing' : 'available';
 }
 
 /**
@@ -44,6 +50,10 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showNameModal, setShowNameModal] = useState<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
+
+  /** A match this device still holds a seat in (seeded from storage so a hard refresh offers a reconnect). */
+  const [resumable, setResumable] = useState<ActiveMatch | null>(() => loadActiveMatch());
+  const [reconnecting, setReconnecting] = useState<boolean>(false);
 
   /** Trims, persists the nickname, and moves past the name gate. No-op if blank. */
   const confirmName = () => {
@@ -152,6 +162,43 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
     setName(trimmed);
     setShowNameModal(false);
   };
+
+  /**
+   * Re-enters the stored match.
+   *
+   * @remarks The server holds the seat for a fixed window, so a failure here
+   * means it has expired: the stored token is dropped and the banner hidden.
+   */
+  const handleReconnect = async () => {
+    if (!resumable) return;
+    soundEffects.playClick();
+    setReconnecting(true);
+    setErrorMessage(null);
+    try {
+      const room = await client.reconnect(resumable.reconnectionToken);
+      setRoom(room);
+      navigate(`/game/${room.roomId}`);
+    } catch (e: any) {
+      console.error('Failed to reconnect:', e);
+      clearActiveMatch();
+      setResumable(null);
+      setReconnecting(false);
+      setErrorMessage('Your previous match is no longer available.');
+    }
+  };
+
+  /** Forgets the stored match so the resume prompt stops appearing. */
+  const handleDismissResume = () => {
+    soundEffects.playModal();
+    clearActiveMatch();
+    setResumable(null);
+  };
+
+  // Available rooms lead; playing rooms trail as low-priority, still listed.
+  const sortedRooms = [...rooms].sort(
+    (a, b) =>
+      Number(roomStatusOf(a) === 'playing') - Number(roomStatusOf(b) === 'playing'),
+  );
 
   // ──── Step 1: Royal Name Entry Gate ────
   if (!isNamed) {
@@ -323,6 +370,69 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
           </div>
         )}
 
+        {/* ═══ Resume Match Banner ═══ */}
+        {resumable && (
+          <div
+            className="relative rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+            style={{
+              background: 'linear-gradient(135deg, #7a5410 0%, #5a3c0a 50%, #3d2906 100%)',
+              border: '2px solid #d4af37',
+              boxShadow: '0 4px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(254,240,138,0.2)',
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="relative w-3.5 h-3.5 shrink-0">
+                <div className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-40" />
+                <div className="absolute inset-0 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)]" />
+              </div>
+              <div>
+                <p
+                  className="text-sm font-bold text-amber-100 tracking-wide"
+                  style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
+                >
+                  You still have a game running.
+                </p>
+                <p
+                  className="text-[11px] sm:text-xs text-amber-100/70"
+                  style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
+                >
+                  Reconnect to rejoin your match before your seat expires.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:shrink-0">
+              <button
+                onClick={handleDismissResume}
+                onMouseEnter={() => soundEffects.playHover()}
+                className="px-3 py-1.5 rounded-md text-xs font-bold tracking-wider transition cursor-pointer active:scale-95"
+                style={{
+                  fontFamily: "'Almendra SC', 'Almendra', serif",
+                  background: 'linear-gradient(180deg, #6b1e1e, #4a1212)',
+                  border: '1.5px solid rgba(197,155,39,0.6)',
+                  color: '#fef3c7',
+                }}
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={handleReconnect}
+                disabled={reconnecting}
+                onMouseEnter={() => soundEffects.playHover()}
+                className="px-4 py-1.5 rounded-md text-xs font-bold tracking-wider transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
+                style={{
+                  fontFamily: "'Almendra SC', 'Almendra', serif",
+                  background: 'linear-gradient(180deg, #10b981, #059669, #047857)',
+                  border: '1.5px solid #d4af37',
+                  color: '#fef3c7',
+                  boxShadow: '0 2px 10px rgba(5,150,105,0.4)',
+                }}
+              >
+                {reconnecting ? 'Reconnecting...' : 'Reconnect'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ═══ Two Panel Grid ═══ */}
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1.8fr] gap-3 sm:gap-4 flex-1 min-h-0">
 
@@ -419,49 +529,75 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                   </p>
                 </div>
               ) : (
-                rooms.map((room) => (
-                  <div
-                    key={room.roomId}
-                    className="flex items-center justify-between rounded-lg px-4 py-3 transition-all hover:brightness-110"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(74,18,18,0.6), rgba(60,15,15,0.8))',
-                      border: '1px solid rgba(197,155,39,0.35)',
-                    }}
-                  >
-                    <div>
-                      <p
-                        className="font-bold text-sm text-amber-100"
-                        style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
-                      >
-                        {room.metadata?.creatorName || 'Unknown'}'s Arena
-                      </p>
-                      <p
-                        className="text-xs text-amber-300/50"
-                        style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
-                      >
-                        Preference:{' '}
-                        <span className="text-amber-300 uppercase font-semibold">
-                          {room.metadata?.roleChoice || 'random'}
-                        </span>
-                      </p>
-                    </div>
-                    <button
-                      disabled={loading}
-                      onClick={() => handleJoinRoom(room.roomId)}
-                      onMouseEnter={() => soundEffects.playHover()}
-                      className="px-5 py-2 rounded-md font-bold text-xs tracking-wider transition-all cursor-pointer disabled:opacity-50 active:scale-95 hover:brightness-110"
+                sortedRooms.map((room) => {
+                  const status = roomStatusOf(room);
+                  const isPlaying = status === 'playing';
+
+                  return (
+                    <div
+                      key={room.roomId}
+                      className={`flex items-center justify-between rounded-lg px-4 py-3 transition-all ${
+                        isPlaying ? 'opacity-55' : 'hover:brightness-110'
+                      }`}
                       style={{
-                        fontFamily: "'Almendra SC', 'Almendra', serif",
-                        background: 'linear-gradient(180deg, #10b981, #059669)',
-                        border: '1.5px solid #d4af37',
-                        color: '#fef3c7',
-                        boxShadow: '0 1px 6px rgba(5,150,105,0.3)',
+                        background: 'linear-gradient(135deg, rgba(74,18,18,0.6), rgba(60,15,15,0.8))',
+                        border: '1px solid rgba(197,155,39,0.35)',
                       }}
                     >
-                      {loading ? "Joining..." : "Join Match"}
-                    </button>
-                  </div>
-                ))
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p
+                            className="font-bold text-sm text-amber-100"
+                            style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
+                          >
+                            {room.metadata?.creatorName || 'Unknown'}'s Arena
+                          </p>
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                            style={{
+                              fontFamily: "'Almendra SC', 'Almendra', serif",
+                              background: isPlaying
+                                ? 'linear-gradient(180deg, #7f1d1d, #5c0f0f)'
+                                : 'linear-gradient(180deg, #065f46, #064e3b)',
+                              border: `1px solid ${isPlaying ? 'rgba(248,113,113,0.5)' : 'rgba(52,211,153,0.5)'}`,
+                              color: isPlaying ? '#fecaca' : '#a7f3d0',
+                            }}
+                          >
+                            {isPlaying ? 'Playing' : 'Available'}
+                          </span>
+                        </div>
+                        <p
+                          className="text-xs text-amber-300/50"
+                          style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
+                        >
+                          Preference:{' '}
+                          <span className="text-amber-300 uppercase font-semibold">
+                            {room.metadata?.roleChoice || 'random'}
+                          </span>
+                        </p>
+                      </div>
+                      <button
+                        disabled={loading || isPlaying}
+                        onClick={() => handleJoinRoom(room.roomId)}
+                        onMouseEnter={() => soundEffects.playHover()}
+                        className="px-5 py-2 rounded-md font-bold text-xs tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:brightness-110"
+                        style={{
+                          fontFamily: "'Almendra SC', 'Almendra', serif",
+                          background: isPlaying
+                            ? 'linear-gradient(180deg, #4b5563, #374151)'
+                            : 'linear-gradient(180deg, #10b981, #059669)',
+                          border: '1.5px solid #d4af37',
+                          color: '#fef3c7',
+                          boxShadow: isPlaying
+                            ? 'none'
+                            : '0 1px 6px rgba(5,150,105,0.3)',
+                        }}
+                      >
+                        {isPlaying ? 'In Progress' : loading ? 'Joining...' : 'Join Match'}
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </RoyalPanel>

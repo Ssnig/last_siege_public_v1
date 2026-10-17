@@ -165,6 +165,43 @@ describe("testing your Colyseus app", () => {
     assert.strictEqual(room.state.phase, "drafting", "the room opens drafting immediately");
   });
 
+  it("advertises 'available' until a second player makes it 'playing'", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      playerName: "Host",
+    });
+    assert.strictEqual(room.metadata.status, "available", "a fresh room is available");
+
+    await colyseus.connectTo(room, { playerName: "Host" });
+    assert.strictEqual(
+      room.metadata.status,
+      "available",
+      "a lone host leaves the room available",
+    );
+
+    await colyseus.connectTo(room, { playerName: "Joiner" });
+    assert.strictEqual(
+      room.metadata.status,
+      "playing",
+      "the second player promotes the listing to playing",
+    );
+  });
+
+  it("keeps a started room 'playing' after a player leaves", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {});
+    await colyseus.connectTo(room);
+    const joiner = await colyseus.connectTo(room);
+    assert.strictEqual(room.metadata.status, "playing");
+
+    await joiner.leave();
+    await waitFor(() => room.state.players.size === 1);
+
+    assert.strictEqual(
+      room.metadata.status,
+      "playing",
+      "status never reverts to available once a match has begun",
+    );
+  });
+
   it("moves to building when both players confirm a valid draft", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",

@@ -1,10 +1,11 @@
-import  { useState } from 'react';
+import  { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import type { Room } from '@colyseus/sdk';
 import { Lobby } from './componenets/Lobby';
 import { GameRoute } from './componenets/GameRoute';
 import { GameRoomContext, type GameRoomContextValue } from './network/roomContext';
 import { client } from './network/client';
+import { clearActiveMatch, saveActiveMatch } from './network/activeRoom';
 
 import { LandingPage } from './componenets/landing/LandingPage';
 import { OrientationPrompt } from './componenets/mobile/OrientationPrompt';
@@ -22,6 +23,19 @@ import { InitialLoadingScreen } from './componenets/common/InitialLoadingScreen'
 export default function App() {
   const [room, setRoom] = useState<Room | null>(null);
   const roomContext: GameRoomContextValue = { room, setRoom };
+
+  // Track the previously held room so a transition *back* to null (an
+  // intentional leave) clears the stored reconnect, while the initial null on a
+  // hard refresh leaves it intact for the lobby's resume prompt.
+  const previousRoomRef = useRef<Room | null>(null);
+  useEffect(() => {
+    if (room) {
+      saveActiveMatch(room);
+    } else if (previousRoomRef.current) {
+      clearActiveMatch();
+    }
+    previousRoomRef.current = room;
+  }, [room]);
 
   return (
     <div className="w-screen h-screen bg-slate-900 text-white overflow-hidden flex items-center justify-center">
