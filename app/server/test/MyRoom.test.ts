@@ -663,4 +663,50 @@ describe("testing your Colyseus app", () => {
       "towers can be placed after combat begins",
     );
   });
+
+  it("lists every named track of a multi-path map to the attacker", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "merge",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+
+    // Any staging mutation re-pushes the private army snapshot; read the tracks from it.
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "lower", typeId: "grunt", count: 1 });
+    const army = await waitForArmy(attacker, (payload) => payload.paths.length === 3);
+    assert.deepStrictEqual(
+      army.paths.map((path) => path.pathId),
+      ["upper", "middle", "lower"],
+      "the merge map exposes all three registered tracks",
+    );
+  });
+
+  it("spawns released mobs onto the requested track of a merge map", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "merge",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "lower", typeId: "grunt", count: 2 });
+    attacker.send(MESSAGES.waveRelease, { pathIds: ["lower"] });
+
+    await waitFor(() =>
+      [...room.state.mobs.values()].some((mob) => mob.pathId === "lower"),
+    );
+    assert.ok(
+      [...room.state.mobs.values()].every((mob) => mob.pathId === "lower"),
+      "mobs follow the assigned track",
+    );
+  });
 });

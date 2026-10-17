@@ -91,6 +91,8 @@ export interface YouEconomyPayload {
 /** One path's staged army inside an `attacker_army` push. */
 export interface AttackerArmyPath {
   pathId: string;
+  /** Display name from the map's `pathLabels`; UI falls back to `Path N`. */
+  label?: string;
   size: WaveSize;
   batches: StagedBatch[];
   /** Total gold to send this wave (units + fee). */

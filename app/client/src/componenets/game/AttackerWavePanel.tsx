@@ -216,7 +216,7 @@ export const AttackerWavePanel: React.FC<AttackerWavePanelProps> = ({
                     boxShadow: isActive ? `0 0 12px ${NEON_SOFT}` : 'none',
                   }}
                 >
-                  <div>Path {index + 1}</div>
+                  <div>{path.label ?? `Path ${index + 1}`}</div>
                   <div className="text-[10px] font-normal text-slate-400">
                     {path.troopCount} units · {path.size}
                   </div>
@@ -235,7 +235,7 @@ export const AttackerWavePanel: React.FC<AttackerWavePanelProps> = ({
           >
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-bold text-cyan-200">
-                Path {activeIndex + 1} Formation
+                {activePath.label ?? `Path ${activeIndex + 1}`} Formation
               </span>
               {activePath && limits && (
                 <span className="flex items-center gap-1 text-xs text-slate-300">
@@ -380,9 +380,14 @@ export const AttackerWavePanel: React.FC<AttackerWavePanelProps> = ({
               onClick={copyOtherPath}
               disabled={!otherPath || otherPath.batches.length === 0}
               className="rounded-lg border px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-[#142040] disabled:opacity-40"
-              style={{ borderColor: NEON }}
+              style={{
+                borderColor: NEON,
+                display: paths.length === 2 ? undefined : 'none',
+              }}
             >
-              {otherPath ? `⧉ Copy from Path ${paths.indexOf(otherPath) + 1}` : '⧉ Copy'}
+              {otherPath
+                ? `⧉ Copy from ${otherPath.label ?? `Path ${paths.indexOf(otherPath) + 1}`}`
+                : '⧉ Copy'}
             </button>
             <button
               onClick={() => activePath && send(MESSAGES.waveClear, { pathId: activePath.pathId })}

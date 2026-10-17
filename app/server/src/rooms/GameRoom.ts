@@ -20,6 +20,8 @@ import {
   PROJECTILE_HIT_RADIUS,
   pathLength,
   samplePathWithLateral,
+  mapPath,
+  mapPathIds,
   tierAt,
   waveGoldCost,
   waveTroopCount,
@@ -347,6 +349,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
         staged.get(pathId) ?? ({ pathId, size: "small", batches: [] } as StagedWave);
       return {
         pathId: wave.pathId,
+        label: map.pathLabels?.[pathId],
         size: wave.size,
         batches: wave.batches.map((batch) => ({ ...batch })),
         goldCost: waveGoldCost(wave.batches, wave.size),
@@ -1475,12 +1478,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   /** Named path ids on a map that are long enough to actually walk. */
   private pathIdsFor(map: MapDefinition): string[] {
-    if (map.paths) {
-      return Object.entries(map.paths)
-        .filter(([, points]) => points && points.length >= 2)
-        .map(([pathId]) => pathId);
-    }
-    return map.path.length >= 2 ? ["main"] : [];
+    return mapPathIds(map);
   }
 
   /**
@@ -1596,9 +1594,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   /** Resolves a mob's `pathId` against the map's tracks. */
   private pathFor(map: MapDefinition, pathId: string): Vec2[] | undefined {
-    if (pathId === "top") return map.paths?.top;
-    if (pathId === "bottom") return map.paths?.bottom;
-    return map.path;
+    return mapPath(map, pathId);
   }
 
   private clearMobs(): void {
@@ -1634,7 +1630,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
         halfWidth,
       );
       positions.set(id, point);
-      candidates.push({ id, x: point.x, y: point.y, progress: mob.progress });
+      const remaining = Math.max(0, 1 - mob.progress) * pathLength(path);
+      candidates.push({ id, x: point.x, y: point.y, remaining });
     }
 
     this.simulateTowers(dt, map, candidates);

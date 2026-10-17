@@ -4,6 +4,8 @@ import {
   MESSAGES,
   samplePath,
   samplePathWithLateral,
+  mapPath,
+  mapPathIds,
   type MapDefinition,
   type Mob,
   type Projectile,
@@ -86,8 +88,7 @@ export class GameplayStage {
   private root?: Phaser.GameObjects.Container;
   private uiRoot?: Phaser.GameObjects.Container;
   private paths: Phaser.Curves.Path[] = [];
-  private topPath?: Phaser.Curves.Path;
-  private bottomPath?: Phaser.Curves.Path;
+  private portals: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private towers: Map<number, TowerRecord> = new Map();
   private mobSprites: Map<Mob, MobRecord> = new Map();
   private projectileSprites: Map<Projectile, Phaser.GameObjects.Sprite> = new Map();
@@ -104,8 +105,6 @@ export class GameplayStage {
   private goldText?: Phaser.GameObjects.Text;
   private goldFrame?: Phaser.GameObjects.Image;
   private startButton?: UIButton;
-  private topPortal?: Phaser.GameObjects.Sprite;
-  private bottomPortal?: Phaser.GameObjects.Sprite;
   private combatBanner?: Phaser.GameObjects.Container;
 
   private baseHpFill?: Phaser.GameObjects.Rectangle;
@@ -257,23 +256,26 @@ export class GameplayStage {
       });
     }
 
-    // Top path portal at { x: 52, y: 112 }
-    this.topPortal = this.scene.add
-      .sprite(52, 112, "spawn_2")
-      .setOrigin(0.5, 0.72)
-      .setDisplaySize(130, 130)
-      .setDepth(DEPTH.PORTAL_LAYER + 112 * 0.001)
-      .play("portal_spin");
-    this.root?.add(this.topPortal);
+    // One portal per *distinct* spawn point: tracks that share a start (a fork)
+    // get a single portal, while tracks with different starts (a merge) get one
+    // each. Keyed by rounded coordinates so duplicated heads collapse together.
+    for (const pathId of mapPathIds(this.map)) {
+      const path = mapPath(this.map, pathId);
+      if (!path || path.length === 0) continue;
 
-    // Bottom path portal at { x: 52, y: 583 }
-    this.bottomPortal = this.scene.add
-      .sprite(52, 583, "spawn_2")
-      .setOrigin(0.5, 0.72)
-      .setDisplaySize(130, 130)
-      .setDepth(DEPTH.PORTAL_LAYER + 583 * 0.001)
-      .play("portal_spin");
-    this.root?.add(this.bottomPortal);
+      const start = path[0];
+      const key = `${Math.round(start.x)},${Math.round(start.y)}`;
+      if (this.portals.has(key)) continue;
+
+      const portal = this.scene.add
+        .sprite(start.x, start.y, "spawn_2")
+        .setOrigin(0.5, 0.72)
+        .setDisplaySize(130, 130)
+        .setDepth(DEPTH.PORTAL_LAYER + start.y * 0.001)
+        .play("portal_spin");
+      this.root?.add(portal);
+      this.portals.set(key, portal);
+    }
   }
 
   private render(): void {
@@ -309,40 +311,17 @@ export class GameplayStage {
       this.root.add(bg);
     }
 
-    // Create path curves
+    // Create path curves from every named track (or the single `path`).
     this.paths = [];
-    if (this.map.paths?.top && this.map.paths.top.length > 0) {
-      this.topPath = new Phaser.Curves.Path(
-        this.map.paths.top[0].x,
-        this.map.paths.top[0].y,
-      );
-      for (let i = 1; i < this.map.paths.top.length; i++) {
-        this.topPath.lineTo(this.map.paths.top[i].x, this.map.paths.top[i].y);
+    for (const pathId of mapPathIds(this.map)) {
+      const points = mapPath(this.map, pathId);
+      if (!points || points.length === 0) continue;
+
+      const curve = new Phaser.Curves.Path(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        curve.lineTo(points[i].x, points[i].y);
       }
-      this.paths.push(this.topPath);
-    }
-    if (this.map.paths?.bottom && this.map.paths.bottom.length > 0) {
-      this.bottomPath = new Phaser.Curves.Path(
-        this.map.paths.bottom[0].x,
-        this.map.paths.bottom[0].y,
-      );
-      for (let i = 1; i < this.map.paths.bottom.length; i++) {
-        this.bottomPath.lineTo(
-          this.map.paths.bottom[i].x,
-          this.map.paths.bottom[i].y,
-        );
-      }
-      this.paths.push(this.bottomPath);
-    }
-    if (this.paths.length === 0 && this.map.path && this.map.path.length > 0) {
-      const singlePath = new Phaser.Curves.Path(
-        this.map.path[0].x,
-        this.map.path[0].y,
-      );
-      for (let i = 1; i < this.map.path.length; i++) {
-        singlePath.lineTo(this.map.path[i].x, this.map.path[i].y);
-      }
-      this.paths.push(singlePath);
+      this.paths.push(curve);
     }
 
     // Render interactive tower slots (radius 36)
@@ -1121,9 +1100,7 @@ export class GameplayStage {
 
   /** Resolves a mob's `pathId` against the map's tracks. */
   private pathFor(pathId: string): Vec2[] | undefined {
-    if (pathId === "top") return this.map.paths?.top;
-    if (pathId === "bottom") return this.map.paths?.bottom;
-    return this.map.path;
+    return mapPath(this.map, pathId);
   }
 
   /**
@@ -1306,8 +1283,8 @@ export class GameplayStage {
 
     this.clearSelection();
 
-    this.topPortal?.destroy();
-    this.bottomPortal?.destroy();
+    for (const portal of this.portals.values()) portal.destroy();
+    this.portals.clear();
     this.phaseBanner?.destroy();
     this.startButton?.destroy();
     this.goldFrame = undefined;
