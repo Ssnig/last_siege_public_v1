@@ -1,5 +1,6 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { TOWER_TYPES, MOB_TYPES, type AttackerArmyPayload } from '@root/shared';
 import React, { useEffect, useState } from 'react';
-import { TOWER_TYPES } from '@root/shared';
 import { useSmoothCountdown } from './useSmoothCountdown';
 
 interface GameHUDProps {
@@ -31,6 +32,14 @@ const DEFAULT_DEFENDER_TOWERS = [
   'sniper',
 ];
 
+const DEFAULT_ATTACKER_MOBS = [
+  'horse_rider',
+  'sar_bal_gyi',
+  'gya_pu',
+  'a_ba',
+  'chon_toe',
+];
+
 const TOWER_SHORT_NAMES: Record<string, string> = {
   basic: 'Twr',
   pitchfork: 'Pfk',
@@ -47,6 +56,42 @@ const TOWER_ICONS: Record<string, string> = {
   crossbow: '/assets/ui/hud/slot_crossbow.png',
   cannon: '/assets/ui/hud/slot_cannon.png',
   sniper: '/assets/ui/hud/slot_sniper.png',
+};
+
+const MOB_SHORT_NAMES: Record<string, string> = {
+  horse_rider: 'Rider',
+  sar_bal_gyi: 'SarBal',
+  gya_pu: 'GyaPu',
+  a_ba: 'A Ba',
+  chon_toe: 'ChonToe',
+  grunt: 'Grunt',
+  runner: 'Rider',
+  brute: 'SarBal',
+  shade: 'Shade',
+  spider: 'Spdr',
+  orc: 'Orc',
+  gargoyle: 'GyaPu',
+  sapper: 'Sapr',
+  necromancer: 'A Ba',
+  ogre: 'ChonToe',
+};
+
+const MOB_ICONS: Record<string, string> = {
+  horse_rider: '/assets/units/horse_rider/face.png',
+  sar_bal_gyi: '/assets/units/sar_bal_gyi/face.png',
+  gya_pu: '/assets/units/gya_pu/face.png',
+  a_ba: '/assets/units/a_ba/face.png',
+  chon_toe: '/assets/units/chon_toe/face.png',
+  runner: '/assets/units/horse_rider/face.png',
+  grunt: '/assets/units/calvary/face.png',
+  brute: '/assets/units/sar_bal_gyi/face.png',
+  shade: '/assets/units/shade/face.png',
+  spider: '/assets/units/spider/face.png',
+  orc: '/assets/units/orc/face.png',
+  gargoyle: '/assets/units/gya_pu/face.png',
+  sapper: '/assets/units/sapper/face.png',
+  necromancer: '/assets/units/a_ba/face.png',
+  ogre: '/assets/units/chon_toe/face.png',
 };
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -72,8 +117,28 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   // Brief toast notification on UI toggle
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (phaseEndsAt > 0) {
+      setSecondsRemaining(Math.ceil(phaseEndsAt));
+    }
+  }, [phaseEndsAt]);
+
+  useEffect(() => {
+    if (phase === 'gameover') return;
+    const interval = setInterval(() => {
+      setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  // Show a quick toast tip when UI visibility flips (skip on initial mount)
+  const isFirstRender = useRef(true);
   // Show a quick toast tip when UI visibility flips
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     setToastMessage(isUIHidden ? 'UI Hidden (Double-tap map to show)' : 'UI Visible');
     const timer = setTimeout(() => {
       setToastMessage(null);

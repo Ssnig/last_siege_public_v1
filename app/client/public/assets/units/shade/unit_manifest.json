@@ -1,0 +1,22 @@
+﻿{
+    "frameRate":  10,
+    "id":  "shade",
+    "cols":  6,
+    "origin":  {
+                   "y":  0.8,
+                   "x":  0.5
+               },
+    "scale":  0.5,
+    "frameHeight":  128,
+    "animations":  {
+                       "run":  {
+                                   "end":  5,
+                                   "repeat":  -1,
+                                   "start":  0
+                               }
+                   },
+    "frameWidth":  128,
+    "name":  "Shadow Assassin",
+    "frames":  6,
+    "rows":  1
+}

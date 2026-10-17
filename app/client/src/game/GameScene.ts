@@ -19,6 +19,8 @@ import {
   UI_BG_ATLAS_URL,
 } from "./ui/uiAtlas";
 
+import { UnitAnimationManager } from "./animation/UnitAnimationManager";
+
 type PlayerRole = "attacker" | "defender";
 
 /**
@@ -93,7 +95,14 @@ export class GameScene extends Phaser.Scene {
       percentText.destroy();
     });
 
-    this.load.image("konbaung", "/assets/maps/konbaung.jpg");
+    // 6 Maps
+    this.load.image("konbaung", "/assets/maps/map_1_konbaung/map.jpg");
+    this.load.image("bagan", "/assets/maps/map_2_bagan/map.jpg");
+    this.load.image("inle", "/assets/maps/map_3_inle/map.jpg");
+    this.load.image("mandalay", "/assets/maps/map_4_mandalay/map.jpg");
+    this.load.image("rakhine", "/assets/maps/map_5_rakhine/map.jpg");
+    this.load.image("bago", "/assets/maps/map_6_bago/map.jpg");
+
     this.load.image("base_castle", "/assets/sprites/base_castle.png");
     this.load.image("tower_archer", "/assets/sprites/tower_archer.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
@@ -105,15 +114,17 @@ export class GameScene extends Phaser.Scene {
     this.load.image("spawn_5", "/assets/sprites/spawn5.png");
     this.load.image("spawn_6", "/assets/sprites/spawn6.png");
     this.load.image(UI_TEXTURE_KEY, UI_TEXTURE_URL);
-    // UI_bg.json is a TexturePacker multi-pack ("textures" array format);
-    // multiatlas() handles that format and resolves the spritesheet from the base path.
-    this.load.multiatlas(UI_BG_TEXTURE_KEY, UI_BG_ATLAS_URL, "/assets/ui");
+    this.load.atlas(UI_BG_TEXTURE_KEY, UI_BG_TEXTURE_URL, UI_BG_ATLAS_URL);
+
+    // Preload unit spritesheets and face icons
+    UnitAnimationManager.preload(this);
   }
 
 
   create(): void {
     registerUIFrames(this);
     registerUIBgFrames(this);
+    UnitAnimationManager.createAnimations(this);
 
     const room = this.registry.get("room") as Room | undefined;
 

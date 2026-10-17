@@ -1,0 +1,9 @@
+﻿{
+    "id":  "map_1_konbaung",
+    "name":  "Konbaung Royal Palace",
+    "width":  1280,
+    "description":  "Two sweeping royal road corridors encircling ancient pagodas into the central stone courtyard.",
+    "pathHalfWidth":  20,
+    "lanes":  2,
+    "height":  720
+}

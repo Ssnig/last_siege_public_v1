@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { Callbacks, Room } from '@colyseus/sdk';
 import { GameScene } from '../game/GameScene';
+import { MESSAGES, type OpponentLeftPayload, type GameOverPayload, type YouEconomyPayload, type AttackerArmyPayload } from '@root/shared';
 import {
   MESSAGES,
   MATCH_RULES,
@@ -86,6 +87,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [selectedTowerType, setSelectedTowerType] = useState<string>('basic');
   const [phase, setPhase] = useState<string>(() => room.state?.phase || 'drafting');
   const [phaseEndsAt, setPhaseEndsAt] = useState<number>(() => room.state?.phaseEndsAt || 180);
+  const [castleHp, setCastleHp] = useState<number>(() => room.state?.coreHp ?? 10);
+  const [maxCastleHp] = useState<number>(10);
+  const [attackerArmy, setAttackerArmy] = useState<AttackerArmyPayload | null>(null);
 
   // Attacker wave-staging state (attacker-only private pushes)
   const [army, setArmy] = useState<AttackerArmyPayload | null>(null);
@@ -103,6 +107,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       gameInstanceRef.current.registry.set('selectedTowerType', id);
     }
   };
+
+  useEffect(() => {
+    if (gameInstanceRef.current) {
+      gameInstanceRef.current.registry.set('selectedTowerType', selectedTowerType);
+    }
+  }, [selectedTowerType]);
 
   // AFK fallback: if a finished match is left idle, return to the lobby.
   useEffect(() => {
@@ -142,6 +152,11 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       if (data.deck && data.deck.length > 0) {
         setDeck(data.deck);
       }
+    });
+
+    const offAttackerArmy = room.onMessage(MESSAGES.attackerArmy, (data: AttackerArmyPayload) => {
+      console.log("GameContainer attackerArmy received:", data);
+      setAttackerArmy(data);
     });
 
     // Attacker-only: the staged army + wave rules to drive the staging panel.
@@ -347,6 +362,21 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           phase={phase}
           phaseEndsAt={phaseEndsAt}
           role={playerInfo.myRole as 'attacker' | 'defender'}
+          castleHp={castleHp}
+          maxCastleHp={maxCastleHp}
+          attackerArmy={attackerArmy}
+          onAddBatch={(pathId, typeId, count) => {
+            room.send(MESSAGES.waveAddBatch, { pathId, typeId, count });
+          }}
+          onReleaseWave={(pathIds) => {
+            room.send(MESSAGES.waveRelease, { pathIds });
+          }}
+          onClearWave={(pathId) => {
+            room.send(MESSAGES.waveClear, { pathId });
+          }}
+          onStartBattle={() => {
+            room.send(MESSAGES.startCombat, {});
+          }}
           onToggleArmy={
             playerInfo.myRole === 'attacker' ? () => setArmyPanelOpen((open) => !open) : undefined
           }
@@ -381,9 +411,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
               {gameOver.youWin ? "Victory!" : "Defeat"}
             </h2>
             <p className="text-slate-300 text-sm">
-              {gameOver.youWin
-                ? "Your opponent surrendered."
-                : "You surrendered."}
+              {gameOver.reason === "core"
+                ? gameOver.youWin
+                  ? "The enemy base was destroyed!"
+                  : "Your base was destroyed!"
+                : gameOver.reason === "time"
+                  ? gameOver.youWin
+                    ? "The defense held until attacker forces were exhausted!"
+                    : "Attacker forces were exhausted!"
+                  : gameOver.youWin
+                    ? "Your opponent surrendered."
+                    : "You surrendered."}
             </p>
             <p className="text-slate-500 text-xs">
               The enemy {gameOver.winner === "attacker" ? "Attacker" : "Defender"} wins.
