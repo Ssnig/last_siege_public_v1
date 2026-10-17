@@ -33,6 +33,8 @@ export interface TowerSlot {
  */
 export interface MapDefinition {
   id: string;
+  /** Human-readable name shown on the pre-draft reveal screen. */
+  name?: string;
   path: Vec2[];
   paths?: Record<string, Vec2[]>;
   pathLabels?: Record<string, string>;
@@ -78,6 +80,7 @@ export function mapPath(map: MapDefinition, pathId: string): Vec2[] | undefined 
 
 export const SAMPLE_MAP: MapDefinition = {
   id: "sample",
+  name: "Sample Field",
   path: [
     { x: 0, y: 100 },
     { x: 300, y: 100 },
@@ -101,6 +104,7 @@ export const SAMPLE_MAP: MapDefinition = {
 
 export const KONBAUNG_MAP: MapDefinition = {
   id: "konbaung",
+  name: "Konbaung",
   width: 1280,
   height: 720,
   path: [],
@@ -153,6 +157,7 @@ export const KONBAUNG_MAP: MapDefinition = {
  */
 export const MERGE_MAP: MapDefinition = {
   id: "merge",
+  name: "Threefold Merge",
   width: 1280,
   height: 720,
   path: [],
@@ -209,6 +214,7 @@ export const MERGE_MAP: MapDefinition = {
  */
 export const FORK_MAP: MapDefinition = {
   id: "fork",
+  name: "Twin Fork",
   width: 1280,
   height: 720,
   path: [],
@@ -252,3 +258,32 @@ export const MAPS: Record<string, MapDefinition> = {
   [MERGE_MAP.id]: MERGE_MAP,
   [FORK_MAP.id]: FORK_MAP,
 };
+
+/**
+ * Map ids eligible for random selection each match.
+ *
+ * @remarks `sample` is a dev fixture and deliberately excluded. Order is
+ * irrelevant: {@link pickRandomMapId} samples uniformly.
+ */
+export const MAP_POOL: readonly string[] = [
+  KONBAUNG_MAP.id,
+  MERGE_MAP.id,
+  FORK_MAP.id,
+];
+
+/**
+ * Picks a map for a fresh match.
+ *
+ * @param exclude - A map id to avoid when the pool has another option, e.g. the
+ * one already on the room, so a rematch does not repeat the last map.
+ * @returns A map id from {@link MAP_POOL}, or `""` when the pool is empty.
+ *
+ * @remarks When the pool holds a single id (or `exclude` leaves no candidate)
+ * that id is returned; callers can treat `""` as "leave the current map alone".
+ */
+export function pickRandomMapId(exclude?: string): string {
+  if (MAP_POOL.length === 0) return "";
+  const candidates = MAP_POOL.filter((id) => id !== exclude);
+  const pool = candidates.length > 0 ? candidates : MAP_POOL;
+  return pool[Math.floor(Math.random() * pool.length)];
+}

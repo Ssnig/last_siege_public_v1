@@ -209,6 +209,12 @@ export class GameScene extends Phaser.Scene {
    */
   private syncPhase(): void {
     switch (this.currentPhase) {
+      case "mapReveal":
+        // The map is shown by a React overlay; clear any draft UI a joiner may
+        // have started before the server rolled the reveal into place.
+        this.destroyDraftStages();
+        break;
+
       case "drafting":
         if (this.assignedRole) {
           this.startDraft(this.assignedRole);

@@ -173,6 +173,13 @@ export const PROJECTILE_HIT_RADIUS = 12;
 export interface MatchRules {
   /** Core HP before the defender loses. */
   coreHp: number;
+  /**
+   * Seconds the random map is revealed before the draft opens.
+   *
+   * @remarks A non-positive value skips the reveal entirely and drops straight
+   * into `drafting`; used by tests to keep the boot path deterministic.
+   */
+  mapRevealDurationSec: number;
   /** Seconds allocated to the draft phase. */
   draftDurationSec: number;
   /** Seconds allocated to the building phase. */
@@ -309,6 +316,7 @@ export const DEFAULT_DECK_RULES: DeckRules = {
 
 export const MATCH_RULES: MatchRules = {
   coreHp: 45,
+  mapRevealDurationSec: 5,
   draftDurationSec: -1,
   buildingDurationSec: 45, // 45-second building countdown
   roundDurationSec: 135,
@@ -316,6 +324,7 @@ export const MATCH_RULES: MatchRules = {
 
 export const MATCH_PHASES = {
   waiting: "waiting",
+  mapReveal: "mapReveal",
   drafting: "drafting",
   building: "building",
   combat: "combat",

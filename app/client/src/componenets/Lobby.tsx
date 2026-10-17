@@ -118,7 +118,6 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
       const room = await client.create("game_room", {
         playerName: name,
         roleChoice: selectedRoleChoice,
-        mapId: "konbaung",
       });
       setRoom(room);
       navigate(`/game/${room.roomId}`);

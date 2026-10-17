@@ -6,6 +6,8 @@ import { GameScene } from '../game/GameScene';
 import {
   MESSAGES,
   MATCH_RULES,
+  MAPS,
+  SAMPLE_MAP,
   type OpponentLeftPayload,
   type GameOverPayload,
   type YouEconomyPayload,
@@ -16,6 +18,7 @@ import { useGameRoom } from '../network/roomContext';
 import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
 import { AttackerWavePanel } from './game/AttackerWavePanel';
+import { MapRevealOverlay } from './game/MapRevealOverlay';
 
 interface GameContainerProps {
   room: Room;
@@ -86,6 +89,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [selectedTowerType, setSelectedTowerType] = useState<string>('basic');
   const [phase, setPhase] = useState<string>(() => room.state?.phase || 'drafting');
   const [phaseEndsAt, setPhaseEndsAt] = useState<number>(() => room.state?.phaseEndsAt || 180);
+  const [mapId, setMapId] = useState<string>(() => room.state?.mapId || 'konbaung');
 
   // Attacker wave-staging state (attacker-only private pushes)
   const [army, setArmy] = useState<AttackerArmyPayload | null>(null);
@@ -223,6 +227,11 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       setCastleHp(hp);
     });
 
+    // The pre-draft reveal shows whichever map the server rolled for the match.
+    const unlistenMapId = Callbacks.get(room).listen("mapId", (id: string) => {
+      setMapId(id);
+    });
+
     return () => {
       offRoleAssigned();
       offEconomy();
@@ -236,6 +245,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       unlistenPhase();
       unlistenPhaseEndsAt();
       unlistenCoreHp();
+      unlistenMapId();
       // Mark this as an intentional leave so `onLeave` doesn't flip the UI
       // into the "disconnected" screen on the way out.
       intentionalLeaveRef.current = true;
@@ -333,8 +343,16 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       {/* Phaser Canvas Container (fullscreen ENVELOP) */}
       <div ref={gameRef} id="phaser-game" className="w-full h-full flex items-center justify-center overflow-hidden" />
 
+      {/* Pre-draft map reveal (covers the idle canvas while the map is shown) */}
+      {matchStarted && phase === 'mapReveal' && (
+        <MapRevealOverlay
+          map={MAPS[mapId] ?? SAMPLE_MAP}
+          serverSeconds={phaseEndsAt}
+        />
+      )}
+
       {/* Royal Game HUD Overlay */}
-      {matchStarted && phase !== 'drafting' && (
+      {matchStarted && (phase === 'building' || phase === 'combat') && (
         <GameHUD
           gold={gold}
           incomeRate={incomeRate}

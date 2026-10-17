@@ -10,6 +10,7 @@ import {
   MOB_TYPES,
   TOWER_TYPES,
   MAPS,
+  MAP_POOL,
   DEFAULT_ECONOMY,
   MATCH_RULES,
   buildCost,
@@ -200,6 +201,29 @@ describe("testing your Colyseus app", () => {
       "playing",
       "status never reverts to available once a match has begun",
     );
+  });
+
+  it("reveals a random map from the pool before drafting once both players are ready", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "sample",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.ready);
+    defender.send(MESSAGES.ready);
+
+    await waitForPhase(room, "mapReveal");
+    assert.ok(
+      MAP_POOL.includes(room.state.mapId),
+      `revealed map "${room.state.mapId}" should come from the pool`,
+    );
+    assert.notStrictEqual(room.state.mapId, "sample", "the fixture map is never revealed");
+
+    // Shorten the reveal rather than wait the full balance window.
+    room.state.phaseEndsAt = 0.05;
+    await waitForPhase(room, "drafting");
   });
 
   it("moves to building when both players confirm a valid draft", async () => {

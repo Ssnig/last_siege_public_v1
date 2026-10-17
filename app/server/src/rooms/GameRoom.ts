@@ -22,6 +22,7 @@ import {
   samplePathWithLateral,
   mapPath,
   mapPathIds,
+  pickRandomMapId,
   tierAt,
   waveGoldCost,
   waveTroopCount,
@@ -427,6 +428,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
     if (this.readyClients.size < 2) return;
     this.matchStarted = true;
+
+    // Both players are now listening: reveal a freshly drawn map before the
+    // draft opens so they can plan around it. Reconnects take the branch above
+    // and never re-roll the map mid-match.
+    const nextMapId = pickRandomMapId(this.state.mapId);
+    if (nextMapId) this.state.mapId = nextMapId;
+    this.phases.beginMapReveal();
 
     for (const c of this.clients) {
       this.sendRoleAssigned(c);
@@ -1090,7 +1098,17 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.phase = "drafting";
     this.state.coreHp = MATCH_RULES.coreHp;
 
-    this.phases = new Phases({ state: this.state });
+    // Room-level override of the reveal window keeps tests deterministic while
+    // production uses the balance default from MATCH_RULES.
+    const mapRevealDurationSec =
+      typeof options.mapRevealDurationSec === "number"
+        ? options.mapRevealDurationSec
+        : MATCH_RULES.mapRevealDurationSec;
+
+    this.phases = new Phases(
+      { state: this.state },
+      { ...MATCH_RULES, mapRevealDurationSec },
+    );
     this.lastPhase = this.state.phase;
 
     this.setTimestep((deltaTime) => this.update(deltaTime / 1000));

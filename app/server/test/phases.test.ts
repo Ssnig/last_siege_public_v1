@@ -45,6 +45,46 @@ describe("Phases", () => {
     for (const p of state.players.values()) assert.strictEqual(p.draftReady, false);
   });
 
+  it("beginMapReveal needs two players", () => {
+    const { phases } = makeRoom(["a"]);
+    assert.strictEqual(phases.beginMapReveal(), null);
+    assert.strictEqual(phases.phase, MATCH_PHASES.drafting);
+  });
+
+  it("beginMapReveal opens an armed reveal window and clears readiness", () => {
+    const { phases, state } = makeRoom();
+    state.players.get("a").draftReady = true;
+
+    const event = phases.beginMapReveal();
+    assert.deepStrictEqual(event, { type: "map-reveal-started" });
+    assert.strictEqual(phases.phase, MATCH_PHASES.mapReveal);
+    assert.strictEqual(state.phaseEndsAt, MATCH_RULES.mapRevealDurationSec);
+    for (const p of state.players.values()) assert.strictEqual(p.draftReady, false);
+  });
+
+  it("a reveal countdown elapses into an unarmed drafting", () => {
+    const { phases, state } = makeRoom();
+    phases.beginMapReveal();
+
+    assert.strictEqual(phases.update(1), null);
+    assert.strictEqual(phases.phase, MATCH_PHASES.mapReveal);
+    assert.strictEqual(state.phaseEndsAt, MATCH_RULES.mapRevealDurationSec - 1);
+
+    state.phaseEndsAt = 0.1;
+    assert.deepStrictEqual(phases.update(0.5), { type: "draft-started" });
+    assert.strictEqual(phases.phase, MATCH_PHASES.drafting);
+    assert.strictEqual(state.phaseEndsAt, 0);
+  });
+
+  it("a disabled reveal falls straight through to drafting", () => {
+    const { phases } = makeRoom(["a", "b"], { ...MATCH_RULES, mapRevealDurationSec: 0 });
+    phases.beginMapReveal();
+    assert.strictEqual(phases.phase, MATCH_PHASES.mapReveal);
+
+    assert.deepStrictEqual(phases.update(0.02), { type: "draft-started" });
+    assert.strictEqual(phases.phase, MATCH_PHASES.drafting);
+  });
+
   it("a -1 (or 0) duration never times out, even with a huge dt", () => {
     const { phases, state } = makeRoom();
     phases.beginDraft();
