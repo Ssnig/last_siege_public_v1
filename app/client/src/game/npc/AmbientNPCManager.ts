@@ -34,17 +34,14 @@ export class AmbientNPCManager {
     const spawns = this.getSpawnsForMap(mapId);
 
     for (const config of spawns) {
-      if (!this.scene.textures.exists(config.textureKey)) {
-        // Fallback to spawn_1 or placeholder if custom art is pending
-        if (!this.scene.textures.exists("spawn_1")) continue;
-      }
-
-      const texture = this.scene.textures.exists(config.textureKey)
-        ? config.textureKey
-        : "spawn_1";
+      // Skip any NPC whose art hasn't been bundled/registered yet. An earlier
+      // version fell back to the `spawn_1` mob-portal texture, which scattered
+      // spinning portals over the battlefield wherever a villager was meant to
+      // be. Nothing is drawn until the real texture loads.
+      if (!this.scene.textures.exists(config.textureKey)) continue;
 
       const sprite = this.scene.add
-        .sprite(config.x, config.y, texture)
+        .sprite(config.x, config.y, config.textureKey)
         .setOrigin(0.5, 0.8)
         .setScale(config.scale ?? 0.35)
         .setAlpha(config.alpha ?? 0.95)

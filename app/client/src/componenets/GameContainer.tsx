@@ -215,14 +215,19 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       });
     });
 
-    // Authoritative phase updates
+    // Authoritative phase updates. `game_over` may arrive before or after this
+    // patch (or never, when rejoining a match that already closed), so the
+    // fallback reads the reason the server mirrored into `RoomState` instead of
+    // guessing "surrender" — a normal core/time win would otherwise show a
+    // phantom concession.
     const unlistenPhase = Callbacks.get(room).listen("phase", (p: string) => {
       setPhase(p);
       if (p !== "gameover") return;
       const winner = room.state.winner as "attacker" | "defender" | undefined;
       if (!winner) return;
       const myRole = room.state.players.get(room.sessionId)?.role;
-      setGameOver((prev) => prev ?? { winner, reason: "surrender", youWin: winner === myRole });
+      const reason = room.state.gameOverReason || "surrender";
+      setGameOver((prev) => prev ?? { winner, reason, youWin: winner === myRole });
     });
 
     const unlistenPhaseEndsAt = Callbacks.get(room).listen("phaseEndsAt", (endsAt: number) => {

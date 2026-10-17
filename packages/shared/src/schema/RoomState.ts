@@ -15,6 +15,15 @@ export const RoomState = schema({
   phase: t.string().default("drafting"),
   mapId: t.string().default(""),
   winner: t.string().optional(),
+  /**
+   * Why the match ended (`surrender` | `core` | `time`); empty while live.
+   *
+   * @remarks Mirrored out of the private `game_over` message so a client that
+   * never saw the message (a rejoin after the match closed, or a message that
+   * arrived before its handler) still renders the correct game-over copy from
+   * the same authoritative patch that carries `phase`.
+   */
+  gameOverReason: t.string().default(""),
   phaseEndsAt: t.float64().default(0),
   serverTick: t.uint32().default(0),
   waveIndex: t.uint16().default(0),

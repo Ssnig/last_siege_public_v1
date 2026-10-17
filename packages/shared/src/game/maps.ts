@@ -84,6 +84,15 @@ export function mapPath(map: MapDefinition, pathId: string): Vec2[] | undefined 
   return pathId === "main" ? map.path : undefined;
 }
 
+/**
+ * Sentinel map id meaning "draw one at random when the draft begins".
+ *
+ * @remarks Stored verbatim in room metadata and the lobby's map selector so the
+ * picker can render a *Random* option; {@link pickRandomMapId} resolves it to a
+ * concrete map just before the reveal.
+ */
+export const RANDOM_MAP_ID = "random";
+
 export const SAMPLE_MAP: MapDefinition = {
   id: "sample",
   name: "Sample Field",
@@ -486,4 +495,20 @@ export function pickRandomMapId(exclude?: string): string {
   const candidates = MAP_POOL.filter((id) => id !== exclude);
   const pool = candidates.length > 0 ? candidates : MAP_POOL;
   return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/**
+ * Human-readable label for a map selection, including the random sentinel.
+ *
+ * @param mapId - A map id, {@link RANDOM_MAP_ID}, or `undefined`/`""` for an
+ * unset legacy room.
+ * @returns The map's `name`, `"Random"` for the sentinel/empty case, or the raw
+ * id when it is unknown to {@link MAPS}.
+ *
+ * @remarks Keeps the lobby list and the map selector from having to special-case
+ * the random option or old rooms created before the field existed.
+ */
+export function mapDisplayName(mapId: string | undefined | null): string {
+  if (!mapId || mapId === RANDOM_MAP_ID) return "Random";
+  return MAPS[mapId]?.name ?? mapId;
 }

@@ -44,22 +44,23 @@ export const MapRevealOverlay: React.FC<MapRevealOverlayProps> = ({
   }
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/90 backdrop-blur-md px-4">
-      <div className="w-full max-w-3xl flex flex-col items-center gap-5 text-center">
+    <div className="absolute inset-0 z-40 h-full w-full overflow-y-auto bg-slate-950/90 backdrop-blur-md">
+      <div className="min-h-full w-full flex flex-col items-center justify-center gap-3 sm:gap-4 px-4 py-6 text-center">
         <p className="text-[11px] font-bold tracking-[0.4em] text-sky-400/80 uppercase">
           Battlefield Chosen
         </p>
         <h2
-          className="text-3xl sm:text-4xl font-black text-white tracking-tight"
+          className="text-2xl sm:text-4xl font-black text-white tracking-tight"
           style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
         >
           {map.name ?? map.id}
         </h2>
 
-        <div className="w-full rounded-2xl border border-slate-700 bg-slate-900/80 overflow-hidden shadow-2xl">
+        <div className="mx-auto w-fit max-w-full rounded-2xl border border-slate-700 bg-slate-900/80 overflow-hidden shadow-2xl">
           <svg
             viewBox={`0 0 ${width} ${height}`}
-            className="w-full h-auto block"
+            preserveAspectRatio="xMidYMid meet"
+            className="block h-[46vh] max-h-[46vh] w-auto max-w-full"
             role="img"
             aria-label={`Layout of ${map.name ?? map.id}`}
           >

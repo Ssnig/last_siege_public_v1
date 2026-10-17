@@ -1,4 +1,4 @@
-import { RoomState, MATCH_PHASES, MATCH_RULES, type MatchPhase, type MatchRules } from "@root/shared";
+import { RoomState, MATCH_PHASES, MATCH_RULES, type GameOverReason, type MatchPhase, type MatchRules } from "@root/shared";
 import type { PlayerRole } from "../rooms/GameRoom.js";
 
 /**
@@ -112,6 +112,7 @@ export class Phases {
     this.state.phase = this.phase;
     this.state.phaseEndsAt = this.isMapRevealArmed() ? this.mapRevealDurationSec : 0;
     this.state.winner = "";
+    this.state.gameOverReason = "";
     for (const player of this.state.players.values()) {
       player.draftReady = false;
     }
@@ -131,6 +132,7 @@ export class Phases {
     this.state.phase = this.phase;
     this.state.phaseEndsAt = this.isDraftArmed() ? this.draftDurationSec : 0;
     this.state.winner = "";
+    this.state.gameOverReason = "";
     for (const player of this.state.players.values()) {
       player.draftReady = false;
     }
@@ -236,14 +238,23 @@ export class Phases {
    * a surrender. Allowed from any in-match phase (map reveal, drafting,
    * building, combat); refused while still waiting for opponents or after the
    * match is already over.
+   *
+   * @param winner - Role that wins the match.
+   * @param reason - Why it ended, mirrored into `RoomState.gameOverReason` so
+   * the client can recover the copy without the private `game_over` message.
+   * @returns The `gameover` event, or `null` when the match was already over.
    */
-  declareGameOver(winner: PlayerRole): PhaseEvent | null {
+  declareGameOver(winner: PlayerRole, reason: GameOverReason = "surrender"): PhaseEvent | null {
     this.syncPhase();
 
     if (this.phase === MATCH_PHASES.waiting || this.phase === MATCH_PHASES.gameover) {
       return null;
     }
 
+    // Written before `phase`: both travel in the same patch, and clients react
+    // to the phase change, so the reason must already be readable when that
+    // listener fires (see `RoomState.gameOverReason`).
+    this.state.gameOverReason = reason;
     this.phase = MATCH_PHASES.gameover;
     this.state.phase = this.phase;
     this.state.phaseEndsAt = 0;
@@ -260,6 +271,7 @@ export class Phases {
     this.state.phase = this.phase;
     this.state.phaseEndsAt = 0;
     this.state.winner = "";
+    this.state.gameOverReason = "";
     for (const player of this.state.players.values()) {
       player.draftReady = false;
     }

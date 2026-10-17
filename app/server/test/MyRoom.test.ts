@@ -11,6 +11,7 @@ import {
   TOWER_TYPES,
   MAPS,
   MAP_POOL,
+  RANDOM_MAP_ID,
   DEFAULT_ECONOMY,
   MATCH_RULES,
   buildCost,
@@ -208,6 +209,11 @@ describe("testing your Colyseus app", () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
     });
+    assert.strictEqual(
+      room.metadata.mapId,
+      RANDOM_MAP_ID,
+      "an unpinned room advertises the random sentinel in the lobby",
+    );
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
 
@@ -220,6 +226,11 @@ describe("testing your Colyseus app", () => {
       `revealed map "${room.state.mapId}" should come from the pool`,
     );
     assert.notStrictEqual(room.state.mapId, "sample", "the fixture map is never revealed");
+    assert.strictEqual(
+      room.metadata.mapId,
+      room.state.mapId,
+      "the drawn map replaces the random sentinel in the lobby metadata",
+    );
 
     // Shorten the reveal rather than wait the full balance window.
     room.state.phaseEndsAt = 0.05;
@@ -231,6 +242,11 @@ describe("testing your Colyseus app", () => {
       roleChoice: "attacker",
       mapId: "bagan",
     });
+    assert.strictEqual(
+      room.metadata.mapId,
+      "bagan",
+      "the lobby advertises the host's picked battlefield",
+    );
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
 
@@ -243,6 +259,7 @@ describe("testing your Colyseus app", () => {
       "bagan",
       "the host's picked map must survive the reveal",
     );
+    assert.strictEqual(room.metadata.mapId, "bagan");
 
     room.state.phaseEndsAt = 0.05;
     await waitForPhase(room, "drafting");
@@ -320,6 +337,33 @@ describe("testing your Colyseus app", () => {
 
     await waitForPhase(room, "gameover");
     assert.strictEqual(room.state.winner, "defender");
+    assert.strictEqual(room.state.gameOverReason, "surrender");
+  });
+
+  it("announces a destroyed core to both players as reason 'core'", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+
+    // Actually breaching the base means walking the whole path (~60s); the
+    // breach handler itself is what is under test, so trigger it directly.
+    const loserAck = defender.waitForMessage(MESSAGES.gameOver);
+    const winnerAck = attacker.waitForMessage(MESSAGES.gameOver);
+    (room as unknown as { leakToCore: (damage: number) => void }).leakToCore(
+      MATCH_RULES.coreHp,
+    );
+
+    assert.deepStrictEqual(await loserAck, { winner: "attacker", reason: "core" });
+    assert.deepStrictEqual(await winnerAck, { winner: "attacker", reason: "core" });
+
+    await waitForPhase(room, "gameover");
+    assert.strictEqual(room.state.winner, "attacker");
+    assert.strictEqual(room.state.gameOverReason, "core");
   });
 
   it("a lone player cannot surrender (no opponent to win)", async () => {
@@ -699,6 +743,7 @@ describe("testing your Colyseus app", () => {
     const payload = await over;
     assert.deepStrictEqual(payload, { winner: "defender", reason: "time" });
     await waitForPhase(room, "gameover");
+    assert.strictEqual(room.state.gameOverReason, "time");
   });
 
   it("stays live after the income window if the attacker still has staged troops", async () => {

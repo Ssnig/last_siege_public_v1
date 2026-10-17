@@ -69,14 +69,19 @@ export interface OpponentLeftPayload {
   youAreHost : boolean
 }
 
+/**
+ * Why a match ended.
+ *
+ * @remarks `core` = the defender's base was destroyed; `surrender` = a
+ * concession; `time` = the round timer expired and the attacker had no units
+ * left. Also mirrored into `RoomState.gameOverReason`.
+ */
+export type GameOverReason = "surrender" | "core" | "time";
+
 /** Payload of the `game_over` private message. */
 export interface GameOverPayload {
   winner: "attacker" | "defender";
-  /**
-   * `core` = the defender's base was destroyed; `surrender` = a concession;
-   * `time` = the round timer expired and the attacker had no units left.
-   */
-  reason: "surrender" | "core" | "time";
+  reason: GameOverReason;
 }
 
 /** Payload of the `you_economy` private message (hidden from the opponent). */

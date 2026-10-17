@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MAPS } from '@root/shared';
+import { MAPS, mapDisplayName } from '@root/shared';
 import type { RoleChoice, RoomStatus } from '@root/shared';
 import type { Client, Room, RoomAvailable } from '@colyseus/sdk';
 import { useGameRoom } from '../network/roomContext';
@@ -508,10 +508,13 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                   <span className="text-base">🗺️</span>
                   <div>
                     <div className="text-xs font-bold text-amber-200">
-                      {MAPS[selectedMapId]?.name || selectedMapId}
+                      {mapDisplayName(selectedMapId)}
                     </div>
                     <div className="text-[10px] text-amber-400/70">
-                      {MAPS[selectedMapId]?.lanes || 2} Lanes · Tap to Change
+                      {MAPS[selectedMapId]
+                        ? `${MAPS[selectedMapId].lanes || 2} Lanes`
+                        : 'Surprise pick'}{' '}
+                      · Tap to Change
                     </div>
                   </div>
                 </div>
@@ -608,6 +611,15 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                           Preference:{' '}
                           <span className="text-amber-300 uppercase font-semibold">
                             {room.metadata?.roleChoice || 'random'}
+                          </span>
+                        </p>
+                        <p
+                          className="text-xs text-amber-300/50"
+                          style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
+                        >
+                          Map:{' '}
+                          <span className="text-amber-300 font-semibold">
+                            {mapDisplayName(room.metadata?.mapId)}
                           </span>
                         </p>
                       </div>

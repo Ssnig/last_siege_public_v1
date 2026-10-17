@@ -23,6 +23,7 @@ import {
   mapPath,
   mapPathIds,
   pickRandomMapId,
+  RANDOM_MAP_ID,
   tierAt,
   waveGoldCost,
   waveTroopCount,
@@ -72,6 +73,12 @@ const RECONNECT_WINDOW_SEC = 180;
 export interface GameRoomMetadata {
   creatorName: string;
   roleChoice: RoleChoice;
+  /**
+   * The battlefield shown in the lobby browser: a concrete map id, or
+   * {@link RANDOM_MAP_ID} while the host has opted into a random draw. Once the
+   * reveal runs it is replaced with the map actually drawn.
+   */
+  mapId: string;
   /**
    * Lobby-browser status. Set to `"available"` on creation and promoted to
    * `"playing"` once a second player joins; never reverted, so a room whose
@@ -460,8 +467,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
     // choice; otherwise draw a random map from the pool. Reconnects take the
     // branch above and never re-roll the map mid-match.
     if (!this.mapChosen) {
-      const nextMapId = pickRandomMapId(this.state.mapId);
+      const nextMapId = pickRandomMapId();
       if (nextMapId) this.state.mapId = nextMapId;
+    }
+    // Promote the lobby's "random" placeholder to the concrete map that was
+    // drawn, so the browser list reflects the real battlefield.
+    const metadata = this.metadata as GameRoomMetadata | undefined;
+    if (metadata && metadata.mapId !== this.state.mapId) {
+      this.setMetadata({ ...metadata, mapId: this.state.mapId });
     }
     this.phases.beginMapReveal();
 
@@ -1144,7 +1157,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (!winner) return;
 
-    if (!this.phases.declareGameOver(winner)) return;
+    if (!this.phases.declareGameOver(winner, "surrender")) return;
 
     console.log(
       `Room ${this.roomId}: ${client.sessionId} (${loser}) surrendered; ${winner} wins`,
@@ -1172,14 +1185,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   onCreate(options: any): void {
+    // Resolve the host's battlefield pick: a real map id is honoured as-is, the
+    // "random" sentinel (or a missing/unknown id) defers to a draw at reveal
+    // time. Metadata keeps the sentinel until the draw promotes it.
+    const requestedMapId =
+      typeof options.mapId === "string" && options.mapId.length > 0
+        ? options.mapId
+        : RANDOM_MAP_ID;
+    const pickedMap = requestedMapId !== RANDOM_MAP_ID && MAPS[requestedMapId];
+    this.mapChosen = !!pickedMap;
+    this.state.mapId = pickedMap ? requestedMapId : "konbaung";
+
     this.setMetadata({
       creatorName: options.playerName || "Anonymous",
       roleChoice: options.roleChoice || "random",
+      mapId: pickedMap ? requestedMapId : RANDOM_MAP_ID,
       status: "available",
     });
 
-    this.state.mapId = options.mapId || "konbaung";
-    this.mapChosen = typeof options.mapId === "string" && options.mapId.length > 0;
     this.state.phase = "drafting";
     this.state.coreHp = MATCH_RULES.coreHp;
 
@@ -1523,7 +1546,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (this.state.mobs.size > 0 || this.releaseQueue.length > 0) return;
     if (this.hasStagedArmy()) return;
 
-    if (!this.phases.declareGameOver("defender")) return;
+    if (!this.phases.declareGameOver("defender", "time")) return;
 
     console.log(`Room ${this.roomId}: attacker exhausted; defender wins`);
 
@@ -1735,7 +1758,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.coreHp = Math.max(0, this.state.coreHp - damage);
     if (this.state.coreHp > 0) return;
 
-    if (!this.phases.declareGameOver("attacker")) return;
+    if (!this.phases.declareGameOver("attacker", "core")) return;
 
     console.log(
       `Room ${this.roomId}: defender core destroyed; attacker wins`,

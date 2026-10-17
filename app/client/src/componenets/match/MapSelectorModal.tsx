@@ -1,5 +1,5 @@
 import React from "react";
-import { MAPS, type MapDefinition } from "@root/shared";
+import { MAPS, RANDOM_MAP_ID, type MapDefinition } from "@root/shared";
 
 interface MapSelectorModalProps {
   isOpen: boolean;
@@ -18,6 +18,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
 
   // Filter out sample test map, show canonical 6 battlefields
   const playableMaps = Object.values(MAPS).filter((m) => m.id !== "sample");
+  const isRandom = selectedMapId === RANDOM_MAP_ID;
 
   return (
     <div
@@ -52,6 +53,61 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
 
         {/* Maps Grid */}
         <div className="p-4 md:p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {/* Random option: a map is drawn when the draft begins */}
+          <div
+            key={RANDOM_MAP_ID}
+            onClick={() => onSelectMap(RANDOM_MAP_ID)}
+            className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex flex-col bg-slate-950/70 ${
+              isRandom
+                ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.5)] scale-[1.02]"
+                : "border-slate-700/80 hover:border-amber-600/60 hover:scale-[1.01]"
+            }`}
+          >
+            {/* Dice Preview */}
+            <div className="relative h-32 md:h-36 w-full overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center">
+              <span className="text-5xl transition-transform duration-300 group-hover:scale-110">
+                🎲
+              </span>
+              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/80 border border-amber-500/60 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
+                Surprise
+              </div>
+              {isRandom && (
+                <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center text-xs shadow-md">
+                  ✓
+                </div>
+              )}
+            </div>
+
+            {/* Random Info */}
+            <div className="p-3 flex flex-col gap-1 flex-1 justify-between">
+              <div>
+                <h3
+                  className={`text-sm md:text-base font-bold transition-colors ${
+                    isRandom
+                      ? "text-amber-300 font-['Almendra',serif]"
+                      : "text-slate-100 group-hover:text-amber-200"
+                  }`}
+                >
+                  Random Battlefield
+                </h3>
+                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
+                  Let fate decide — a map is drawn the moment the draft begins.
+                </p>
+              </div>
+
+              <div className="pt-2 mt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500">
+                <span>{playableMaps.length} Maps</span>
+                <span
+                  className={`font-semibold ${
+                    isRandom ? "text-amber-400" : "text-slate-400"
+                  }`}
+                >
+                  {isRandom ? "Selected" : "Tap to Select"}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {playableMaps.map((map: MapDefinition) => {
             const isSelected = selectedMapId === map.id;
             const thumbSrc =

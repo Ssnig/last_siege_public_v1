@@ -37,11 +37,29 @@ export const DEPTH = {
   SLOTS_LAYER: 2,
   PORTAL_LAYER: 4,
   BASE_LAYER: 5,
-  UNITS_LAYER: 10,
-  TOWERS_LAYER: 15,
+  /**
+   * Shared band for bodies that must occlude each other by depth (towers, mobs
+   * and the UI that rides on them). Sorting both through {@link actorDepth}
+   * keeps the drawing order tied to world y, so a mob lower on screen passes in
+   * front of the tower it walks past instead of always rendering behind it.
+   */
+  ACTORS_LAYER: 10,
   PROJECTILES_LAYER: 20,
   UI_LAYER: 30,
 } as const;
+
+/**
+ * Draw depth for a world-space body from its world y, so of two bodies the one
+ * nearer the bottom of the map (larger y) draws on top.
+ *
+ * @remarks Phaser ignores `depth` for children of a Container, so these values
+ * are applied by re-sorting {@link GameplayStage.actors} every frame rather
+ * than by the display list.
+ *
+ * @param y - World y of the body's pivot (its "feet", where origin sits).
+ * @returns A depth inside {@link DEPTH.ACTORS_LAYER} proportional to `y`.
+ */
+const actorDepth = (y: number): number => DEPTH.ACTORS_LAYER + y * 0.001;
 
 export const MIN_CAMERA_ZOOM = 1.0;
 export const MAX_CAMERA_ZOOM = 1.6;
@@ -92,6 +110,17 @@ export class GameplayStage {
 
   private root?: Phaser.GameObjects.Container;
   private uiRoot?: Phaser.GameObjects.Container;
+  /**
+   * Child container of {@link root} holding every body that y-sorts against the
+   * others (towers, mobs, health bars, level badges).
+   *
+   * @remarks Phaser ignores `depth` on Container children, so the `depth`
+   * values from {@link actorDepth} only become real draw order here: the list
+   * is re-sorted every frame. It is created after the portals (ground art that
+   * bodies draw over) and before any actor sync so its index in `root` is the
+   * only thing deciding its rank — children of `root` are drawn in add order.
+   */
+  private actors?: Phaser.GameObjects.Container;
   private paths: Phaser.Curves.Path[] = [];
   private portals: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private towers: Map<number, TowerRecord> = new Map();
@@ -154,6 +183,10 @@ export class GameplayStage {
   private onSceneUpdate = (): void => {
     this.updateMobs();
     this.updateProjectiles();
+
+    // Mobs move every frame, so the y-sort has to run with them: this is what
+    // applies `actorDepth`, since Phaser ignores `depth` on Container children.
+    this.actors?.sort("depth");
   };
 
   constructor(
@@ -199,8 +232,13 @@ export class GameplayStage {
     // (map, units, towers). Child depth inside a single container is ignored,
     // so a separate container with a higher scene depth is required.
     this.uiRoot = this.scene.add.container(0, 0).setDepth(DEPTH.UI_LAYER);
-
     this.setupPortals();
+
+    // Added after the portals (they are ground art bodies draw over) and before
+    // any tower/mob sync below, so its index inside `root` is fixed for good.
+    this.actors = this.scene.add.container(0, 0);
+    this.root?.add(this.actors);
+
     this.setupCameraControls();
     this.setupDebugControls();
 
@@ -295,8 +333,18 @@ export class GameplayStage {
   }
 
   private render(): void {
+    // Tear down world-layer objects owned by the previous render first: root
+    // destruction below frees their sprites, but the portal bookkeeping map and
+    // the ambient manager's tweens must be dropped too, otherwise a re-render
+    // leaves stale handles that block re-creation (and leak tweens).
+    this.ambientNpcManager?.destroy();
+    this.ambientNpcManager = undefined;
+    this.portals.clear();
+
     this.root?.destroy(true);
     this.root = this.scene.add.container(0, 0);
+    // Destroyed with its parent; a rebuilt world creates it again in `create()`.
+    this.actors = undefined;
 
     // A full-map hit area behind everything clears the current selection and
     // cancels any pending build/sale when the defender clicks empty ground.
@@ -697,9 +745,9 @@ export class GameplayStage {
       .setOrigin(0.5, 0.82)
       .setDisplaySize(135, 135)
       .setAlpha(0.5)
-      .setDepth(DEPTH.TOWERS_LAYER + slot.y * 0.001);
+      .setDepth(actorDepth(slot.y));
 
-    this.root?.add(this.ghostTower);
+    (this.actors ?? this.root)?.add(this.ghostTower);
   }
 
   private hideGhostTower(): void {
@@ -1136,7 +1184,7 @@ export class GameplayStage {
 
   private createTowerLevelBadge(slot: TowerSlot, level: number): Phaser.GameObjects.Container {
     const badge = this.scene.add.container(slot.x, slot.y - 116);
-    badge.setDepth(DEPTH.TOWERS_LAYER + slot.y * 0.001 + 0.0002);
+    badge.setDepth(actorDepth(slot.y) + 0.0002);
 
     const w = 44;
     const h = 18;
@@ -1192,7 +1240,7 @@ export class GameplayStage {
       .sprite(slot.x, slot.y, "tower_archer")
       .setOrigin(0.5, 0.82)
       .setDisplaySize(135, 135)
-      .setDepth(DEPTH.TOWERS_LAYER + slot.y * 0.001);
+      .setDepth(actorDepth(slot.y));
 
     const levelBadge = this.createTowerLevelBadge(slot, tower.level);
 
@@ -1218,8 +1266,9 @@ export class GameplayStage {
     }
 
     this.towers.set(slot.slotIndex, { id, tower, sprite, levelBadge });
-    this.root?.add(sprite);
-    if (levelBadge) this.root?.add(levelBadge);
+    // Towers sort against mobs every frame; see `onSceneUpdate`.
+    (this.actors ?? this.root)?.add(sprite);
+    if (levelBadge) (this.actors ?? this.root)?.add(levelBadge);
   }
 
   startCombat(): void {
@@ -1271,21 +1320,22 @@ export class GameplayStage {
     const onAdd = (value: unknown): void => {
       const mob = value as Mob;
       const sprite = UnitAnimationManager.spawnMobSprite(this.scene, mob.typeId)
-        .setDepth(DEPTH.UNITS_LAYER);
+        .setDepth(DEPTH.ACTORS_LAYER);
 
       // Classic green-on-red bar; the green fill shrinks from its left edge.
       const hpBg = this.scene.add
         .rectangle(0, 0, MOB_HP_BAR.width, MOB_HP_BAR.height, 0x7f1d1d)
         .setOrigin(0.5)
-        .setDepth(DEPTH.UNITS_LAYER + 1);
+        .setDepth(DEPTH.ACTORS_LAYER + 1);
       const hpFill = this.scene.add
         .rectangle(0, 0, MOB_HP_BAR.width, MOB_HP_BAR.height, 0x22c55e)
         .setOrigin(0, 0.5)
-        .setDepth(DEPTH.UNITS_LAYER + 2);
+        .setDepth(DEPTH.ACTORS_LAYER + 2);
 
       const record: MobRecord = { sprite, hpBg, hpFill };
       this.mobSprites.set(mob, record);
-      this.root?.add([sprite, hpBg, hpFill]);
+      // Same y-sorted layer as towers, so the two occlude by world y.
+      (this.actors ?? this.root)?.add([sprite, hpBg, hpFill]);
       this.updateMobSprite(mob, record);
     };
 
@@ -1318,7 +1368,7 @@ export class GameplayStage {
     const point = samplePathWithLateral(path, mob.progress, mob.seed, halfWidth);
 
     record.sprite.setPosition(point.x, point.y);
-    record.sprite.setDepth(DEPTH.UNITS_LAYER + point.y * 0.001);
+    record.sprite.setDepth(actorDepth(point.y));
 
     // Face the direction of travel (art is a side-view sprite, so flip, not rotate).
     const ahead = samplePath(path, Math.min(1, mob.progress + 0.02));
@@ -1345,9 +1395,12 @@ export class GameplayStage {
     const damaged = ratio < 1;
 
     const barY = y + MOB_HP_BAR.offsetY;
-    record.hpBg.setPosition(x, barY).setVisible(damaged);
+    // Tied to the mob's own y so the bar sits on it and keeps the same
+    // front/back order against towers the mob body has.
+    record.hpBg.setPosition(x, barY).setDepth(actorDepth(y) + 0.0002).setVisible(damaged);
     record.hpFill
       .setPosition(x - MOB_HP_BAR.width / 2, barY)
+      .setDepth(actorDepth(y) + 0.0003)
       .setDisplaySize(MOB_HP_BAR.width * ratio, MOB_HP_BAR.height)
       .setVisible(damaged);
   }
