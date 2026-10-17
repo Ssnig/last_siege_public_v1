@@ -53,6 +53,16 @@ import { selectTarget, type TargetCandidate } from "../game/targeting.js";
 export type RoleChoice = "attacker" | "defender" | "random";
 export type PlayerRole = "attacker" | "defender";
 
+/**
+ * Seconds a dropped client's seat is held open for reconnection.
+ *
+ * @remarks Must comfortably exceed the client SDK's own retry budget (default
+ * backoff tops out at 5s and gives up after ~56s). A background tab throttles
+ * the SDK's retry timers, so a short window here strands the player even when
+ * they come back.
+ */
+const RECONNECT_WINDOW_SEC = 180;
+
 export interface GameRoomMetadata {
   creatorName: string;
   roleChoice: RoleChoice;
@@ -132,7 +142,17 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private projectileSeq = 0;
 
   plugins = definePlugins({
-    idle: new IdleKickPlugin({ timeoutMs: 60_000 }),
+    /**
+     * Drops clients that stop sending messages (e.g. a host who queued and
+     * walked away before the match). An active match is exempt: the defender
+     * legitimately sends nothing while watching combat, and kicking them here
+     * closed the socket with code 1000 — a final leave the SDK will not
+     * reconnect from — stranding them on a frozen, unresponsive board.
+     */
+    idle: new IdleKickPlugin({
+      timeoutMs: 60_000,
+      isExempt: () => this.matchStarted,
+    }),
   });
 
   messages = {
@@ -1063,14 +1083,26 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
-  /** Allows a dropped client to reconnect for up to 60 seconds. */
+  /**
+   * Holds a dropped client's seat so they can rejoin the same match.
+   *
+   * @remarks Called on an unexpected socket close (backgrounded tab, network
+   * blip, proxy stall). The client SDK reconnects automatically within
+   * {@link RECONNECT_WINDOW_SEC}; only if it never returns does `onLeave` run
+   * and reopen the room for a replacement opponent.
+   */
   onDrop(client: Client, code: CloseCode): void {
-    this.allowReconnection(client, 60).catch(() => {});
+    console.log(
+      `Client ${client.sessionId} dropped (code ${code}); holding seat for ${RECONNECT_WINDOW_SEC}s`,
+    );
+    this.allowReconnection(client, RECONNECT_WINDOW_SEC).catch(() => {});
   }
 
   onReconnect(client: Client): void {
     console.log(`Client ${client.sessionId} reconnected!`);
     this.sendPlayerState(client);
+    // Re-seed the attacker's private wave panel (no-op for the defender).
+    this.sendAttackerArmy(client);
   }
 
   /**

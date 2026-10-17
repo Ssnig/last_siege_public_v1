@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { TOWER_TYPES } from '@root/shared';
+import { useSmoothCountdown } from './useSmoothCountdown';
 
 interface GameHUDProps {
   gold: number;
@@ -65,27 +66,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onToggleArmy,
   armyOpen = false,
 }) => {
-  // Timer state synchronized with server phaseEndsAt
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
-    return phaseEndsAt > 0 ? Math.ceil(phaseEndsAt) : 30;
-  });
+  // Smooth countdown driven by the server's phaseEndsAt (see hook docs).
+  const secondsRemaining = useSmoothCountdown(phaseEndsAt, phase !== 'gameover');
 
   // Brief toast notification on UI toggle
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (phaseEndsAt > 0) {
-      setSecondsRemaining(Math.ceil(phaseEndsAt));
-    }
-  }, [phaseEndsAt]);
-
-  useEffect(() => {
-    if (phase === 'gameover') return;
-    const interval = setInterval(() => {
-      setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [phase]);
 
   // Show a quick toast tip when UI visibility flips
   useEffect(() => {

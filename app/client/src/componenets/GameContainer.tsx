@@ -65,6 +65,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const { setRoom } = useGameRoom();
   const gameRef = useRef<HTMLDivElement>(null);
   const gameInstanceRef = useRef<Phaser.Game | null>(null);
+  /** Set right before our own `room.leave()` so the teardown leave is ignored. */
+  const intentionalLeaveRef = useRef(false);
 
   // Pre-seeded from the snapshot so a joiner into a started room skips the wait.
   const [matchStarted, setMatchStarted] = useState<boolean>(
@@ -90,6 +92,11 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [waveError, setWaveError] = useState<string | null>(null);
   const [armyPanelOpen, setArmyPanelOpen] = useState(false);
 
+  // Connection health: drives the reconnect/disconnect overlays.
+  const [connectionState, setConnectionState] = useState<
+    'connected' | 'reconnecting' | 'disconnected'
+  >('connected');
+
   const handleSelectTower = (id: string) => {
     setSelectedTowerType(id);
     if (gameInstanceRef.current) {
@@ -114,6 +121,11 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   // Room wiring: listeners + the ready handshake. Runs once per room; the
   // cleanup (including room.leave()) runs only when this component unmounts.
   useEffect(() => {
+    // Match the SDK's retry budget to the server's 180s reconnection window.
+    // The default budget (~56s) gives up long before the held seat expires,
+    // so a backgrounded tab would be dropped for good.
+    room.reconnection.maxRetries = 40;
+
     const offRoleAssigned = room.onMessage(MESSAGES.roleAssigned, (data) => {
       console.log("Role assigned received:", data);
       setPlayerInfo(data);
@@ -161,8 +173,26 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       room.send(MESSAGES.ready);
     });
 
-    const handleLeave = () => {
-      setStatusText("Connection Lost.");
+    const handleDrop = (code: number, reason?: string) => {
+      console.warn('Connection dropped:', code, reason);
+      setConnectionState('reconnecting');
+    };
+    const offDrop = room.onDrop(handleDrop);
+
+    const handleReconnect = () => {
+      console.log('Connection restored.');
+      setConnectionState('connected');
+      // Re-send the ready handshake so the server re-pushes role/economy.
+      room.send(MESSAGES.ready);
+    };
+    const offReconnect = room.onReconnect(handleReconnect);
+
+    const handleLeave = (code: number, reason?: string) => {
+      // Our own teardown (navigating away) calls `room.leave()`; ignore it.
+      if (intentionalLeaveRef.current) return;
+      console.warn('Connection lost:', code, reason);
+      setStatusText('Connection Lost.');
+      setConnectionState('disconnected');
     };
     const offLeave = room.onLeave(handleLeave);
 
@@ -199,11 +229,16 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       offArmy();
       offWaveRejected();
       offOpponentLeft();
+      offDrop.remove(handleDrop);
+      offReconnect.remove(handleReconnect);
       offLeave.remove(handleLeave);
       offGameOver();
       unlistenPhase();
       unlistenPhaseEndsAt();
       unlistenCoreHp();
+      // Mark this as an intentional leave so `onLeave` doesn't flip the UI
+      // into the "disconnected" screen on the way out.
+      intentionalLeaveRef.current = true;
       room.leave();
       // Drop the finished/left room from context so a later /game/:roomId
       // visit (e.g. via the browser back/forward) can never reuse it.
@@ -245,14 +280,50 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     };
   }, [room, matchStarted, playerInfo]);
 
+  /**
+   * Full-screen status layer shown while the socket is dropped or gone. It
+   * also swallows clicks, so a dead board can't look interactive.
+   */
+  const connectionOverlay = connectionState !== 'connected' && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-sm">
+      {connectionState === 'reconnecting' ? (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="w-12 h-12 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
+          <div>
+            <p className="text-lg font-bold text-white">Reconnecting…</p>
+            <p className="text-xs text-slate-400">
+              Hold on, restoring your match.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-4 p-6 text-center">
+          <h2 className="text-2xl font-bold text-white">Disconnected</h2>
+          <p className="text-sm text-slate-400">
+            We couldn't restore your connection to the match.
+          </p>
+          <button
+            onClick={onLeaveRoom}
+            className="mt-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-white transition"
+          >
+            Back to Lobby
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   // Pre-match: no Phaser yet, render royal match waiting screen
   if (!matchStarted) {
     return (
-      <MatchLoadingScreen
-        room={room}
-        statusText={statusText}
-        onLeaveRoom={onLeaveRoom}
-      />
+      <>
+        <MatchLoadingScreen
+          room={room}
+          statusText={statusText}
+          onLeaveRoom={onLeaveRoom}
+        />
+        {connectionOverlay}
+      </>
     );
   }
 
@@ -287,6 +358,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       {matchStarted && !gameOver && playerInfo.myRole === 'attacker' && army && armyPanelOpen && (
         <AttackerWavePanel
           army={army}
+          gold={gold}
           error={waveError}
           phase={phase}
           phaseEndsAt={phaseEndsAt}
@@ -433,6 +505,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           </div>
         </div>
       )}
+
+      {/* Reconnect / disconnect status (above the board, blocks input) */}
+      {connectionOverlay}
     </div>
   );
 };

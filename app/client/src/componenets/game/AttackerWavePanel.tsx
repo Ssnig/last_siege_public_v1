@@ -6,9 +6,12 @@ import {
   type AttackerArmyPath,
   type WaveSize,
 } from '@root/shared';
+import { useSmoothCountdown } from './useSmoothCountdown';
 
 interface AttackerWavePanelProps {
   army: AttackerArmyPayload;
+  /** Live gold balance (kept in sync by the per-second economy push). */
+  gold: number;
   /** Latest refusal reason from the server, if any. */
   error: string | null;
   /** Current match phase (used to freeze the timer at game over). */
@@ -55,6 +58,7 @@ function thumbStyle(typeId: string): React.CSSProperties {
  */
 export const AttackerWavePanel: React.FC<AttackerWavePanelProps> = ({
   army,
+  gold,
   error,
   phase,
   phaseEndsAt,
@@ -74,16 +78,8 @@ export const AttackerWavePanel: React.FC<AttackerWavePanelProps> = ({
     }
   }, [paths, activePathId]);
 
-  // Local 1s countdown, resynced whenever the server pushes a new value.
-  const [secondsLeft, setSecondsLeft] = useState<number>(() => Math.ceil(phaseEndsAt));
-  useEffect(() => {
-    setSecondsLeft(Math.ceil(phaseEndsAt));
-  }, [phaseEndsAt]);
-  useEffect(() => {
-    if (phase === 'gameover') return;
-    const id = setInterval(() => setSecondsLeft((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(id);
-  }, [phase]);
+  // Smooth countdown driven by the server's phaseEndsAt (see hook docs).
+  const secondsLeft = useSmoothCountdown(phaseEndsAt, phase !== 'gameover');
 
   const activeIndex = Math.max(0, paths.findIndex((p) => p.pathId === activePathId));
   const activePath: AttackerArmyPath | undefined = paths[activeIndex];
@@ -100,7 +96,7 @@ export const AttackerWavePanel: React.FC<AttackerWavePanelProps> = ({
     (activePath.troopCount >= limits.waveLimit || activePath.batches.length >= limits.maxBatches);
 
   const canSend =
-    !!activePath && activePath.troopCount > 0 && activePath.goldCost <= army.gold;
+    !!activePath && activePath.troopCount > 0 && activePath.goldCost <= gold;
 
   const addTroop = (typeId: string) => {
     if (!activePath) return;
@@ -162,7 +158,7 @@ export const AttackerWavePanel: React.FC<AttackerWavePanelProps> = ({
           <div className={statBox} style={statBoxStyle}>
             <span className="text-lg">🪙</span>
             <div className="leading-tight">
-              <div className="text-sm font-bold text-amber-300">{army.gold}</div>
+              <div className="text-sm font-bold text-amber-300">{gold}</div>
               <div className="text-[10px] text-emerald-300">
                 {army.incomeExpired ? 'income stopped' : `+${army.goldPerSecond}/s`}
               </div>
