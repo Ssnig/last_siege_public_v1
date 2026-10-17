@@ -32,7 +32,9 @@ import {
   type MapDefinition,
   type MobType,
   type PlaceTowerIntent,
+  type RoomStatus,
   type SellTowerIntent,
+  type UpgradeTowerIntent,
   type StagedWave,
   type TowerTier,
   type Vec2,
@@ -46,6 +48,7 @@ import {
   type YouEconomyPayload,
   buildCost,
   sellRefund,
+  upgradeCost,
 } from "@root/shared";
 import { Phases } from "../game/phases.js";
 import { selectTarget, type TargetCandidate } from "../game/targeting.js";
@@ -53,9 +56,25 @@ import { selectTarget, type TargetCandidate } from "../game/targeting.js";
 export type RoleChoice = "attacker" | "defender" | "random";
 export type PlayerRole = "attacker" | "defender";
 
+/**
+ * Seconds a dropped client's seat is held open for reconnection.
+ *
+ * @remarks Must comfortably exceed the client SDK's own retry budget (default
+ * backoff tops out at 5s and gives up after ~56s). A background tab throttles
+ * the SDK's retry timers, so a short window here strands the player even when
+ * they come back.
+ */
+const RECONNECT_WINDOW_SEC = 180;
+
 export interface GameRoomMetadata {
   creatorName: string;
   roleChoice: RoleChoice;
+  /**
+   * Lobby-browser status. Set to `"available"` on creation and promoted to
+   * `"playing"` once a second player joins; never reverted, so a room whose
+   * opponent left still reads as in-progress.
+   */
+  status: RoomStatus;
 }
 
 const DEFAULT_ATTACKER_DECK = [
@@ -103,6 +122,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private economies = new Map<string, number>();
 
+  /** Dynamic passive income rate per player session ID, in gold per second. */
+  private incomeRates = new Map<string, number>();
+
   /**
    * Attacker-only staged armies, keyed by session id then by path id.
    *
@@ -139,7 +161,17 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private projectileSeq = 0;
 
   plugins = definePlugins({
-    idle: new IdleKickPlugin({ timeoutMs: 60_000 }),
+    /**
+     * Drops clients that stop sending messages (e.g. a host who queued and
+     * walked away before the match). An active match is exempt: the defender
+     * legitimately sends nothing while watching combat, and kicking them here
+     * closed the socket with code 1000 — a final leave the SDK will not
+     * reconnect from — stranding them on a frozen, unresponsive board.
+     */
+    idle: new IdleKickPlugin({
+      timeoutMs: 60_000,
+      isExempt: () => this.matchStarted,
+    }),
   });
 
   messages = {
@@ -161,6 +193,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       client: Client,
       payload: SellTowerIntent,
     ) => this.handleSellTower(client, payload),
+
+    [MESSAGES.upgradeTower]: (
+      client: Client,
+      payload: UpgradeTowerIntent,
+    ) => this.handleUpgradeTower(client, payload),
 
     [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
 
@@ -246,6 +283,18 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.economies.set(creatorClient.sessionId, this.startingGold(creatorRole));
     this.economies.set(joinerClient.sessionId, this.startingGold(joinerRole));
+    this.incomeRates.set(
+      creatorClient.sessionId,
+      creatorRole === "attacker"
+        ? DEFAULT_ECONOMY.attackerBaseIncome
+        : DEFAULT_ECONOMY.defenderBaseIncome,
+    );
+    this.incomeRates.set(
+      joinerClient.sessionId,
+      joinerRole === "attacker"
+        ? DEFAULT_ECONOMY.attackerBaseIncome
+        : DEFAULT_ECONOMY.defenderBaseIncome,
+    );
     this.bigWavesRemaining.set(
       creatorClient.sessionId,
       creatorRole === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
@@ -280,10 +329,18 @@ export class GameRoom extends Room<{ state: RoomState }> {
         deck = DEFAULT_ATTACKER_DECK;
       }
     }
+    const defaultIncome =
+      role === "attacker"
+        ? DEFAULT_ECONOMY.attackerBaseIncome
+        : DEFAULT_ECONOMY.defenderBaseIncome;
+    const incomeRate =
+      Math.round((this.incomeRates.get(client.sessionId) ?? defaultIncome) * 10) / 10;
+
     const economy: YouEconomyPayload = {
       gold: Math.floor(this.economies.get(client.sessionId) ?? 0),
       deck: deck ?? [],
       bigWavesRemaining: this.bigWavesRemaining.get(client.sessionId) ?? 0,
+      incomeRate,
     };
     client.send(MESSAGES.youEconomy, economy);
   }
@@ -314,9 +371,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
       };
     });
 
+    const currentIncome =
+      this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
+
     const payload: AttackerArmyPayload = {
       gold: Math.floor(this.economies.get(sessionId) ?? 0),
-      goldPerSecond: DEFAULT_ECONOMY.goldPerSecond,
+      goldPerSecond: Math.round(currentIncome * 10) / 10,
       incomeExpired: this.incomeExpired,
       bigWavesRemaining: this.bigWavesRemaining.get(sessionId) ?? 0,
       availableTroops: [...availableTroops],
@@ -343,25 +403,47 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Sends role details after both clients have registered their message handlers.
+   * Sends one client the role snapshot its HUD needs to leave the waiting
+   * screen: its own role plus the opponent's name and role.
+   */
+  private sendRoleAssigned(client: Client): void {
+    const opponent = this.clients.find(
+      (other) => other.sessionId !== client.sessionId,
+    );
+
+    client.send(MESSAGES.roleAssigned, {
+      myName: client.userData.playerName,
+      myRole: client.userData.role,
+      opponentName: opponent?.userData.playerName,
+      opponentRole: opponent?.userData.role,
+    });
+  }
+
+  /**
+   * Sends role details after both clients have registered their message
+   * handlers.
+   *
+   * @remarks
+   * A client that rejoins an already-started match — e.g. via the lobby's
+   * resume prompt after a hard refresh — re-sends `ready` from a freshly
+   * mounted component. That handshake must re-announce roles to that client
+   * rather than being ignored, otherwise it is stranded on the waiting screen.
    */
   private handleReady(client: Client): void {
     this.readyClients.add(client.sessionId);
 
-    if (this.matchStarted || this.readyClients.size < 2) return;
+    if (this.matchStarted) {
+      this.sendRoleAssigned(client);
+      // The reconnect-time push can land before the fresh component subscribes,
+      // so re-send the private snapshots now that its handlers exist.
+      this.sendPlayerState(client);
+      return;
+    }
+    if (this.readyClients.size < 2) return;
     this.matchStarted = true;
 
     for (const c of this.clients) {
-      const opponent = this.clients.find(
-        (other) => other.sessionId !== c.sessionId,
-      );
-
-      c.send(MESSAGES.roleAssigned, {
-        myName: c.userData.playerName,
-        myRole: c.userData.role,
-        opponentName: opponent?.userData.playerName,
-        opponentRole: opponent?.userData.role,
-      });
+      this.sendRoleAssigned(c);
     }
   }
 
@@ -572,6 +654,61 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     console.log(
       `Defender sold tower ${payload.towerId} (${tower.typeId} lvl ${tower.level}) (+${refund}g)`,
+    );
+  }
+
+  /**
+   * Upgrades one of the defender's towers to the next tier.
+   *
+   * @remarks
+   * Only the tower's owner may upgrade it, and only while the match is in the
+   * building or combat phase. Deducts the tier cost from the defender's economy,
+   * advances the tower's level, and adds the cost to its invested gold so future
+   * sales refund the upgraded value.
+   */
+  private handleUpgradeTower(client: Client, payload: UpgradeTowerIntent): void {
+    if (this.state.phase !== "building" && this.state.phase !== "combat") return;
+
+    const role = client.userData?.role as PlayerRole | undefined;
+    if (role !== "defender") {
+      console.log(`Only defender can upgrade towers. Client role: ${role}`);
+      return;
+    }
+
+    const tower = this.state.towers.get(payload.towerId);
+    if (!tower || tower.ownerId !== client.sessionId) {
+      console.log(`Defender has no upgradable tower ${payload.towerId}`);
+      return;
+    }
+
+    const towerType = TOWER_TYPES[tower.typeId];
+    if (!towerType) {
+      console.log(`Unknown tower type ${tower.typeId}`);
+      return;
+    }
+
+    const cost = upgradeCost(towerType, tower.level);
+    if (cost === null || tower.level >= towerType.tiers.length) {
+      console.log(`Tower ${payload.towerId} is already at max level (${tower.level})`);
+      return;
+    }
+
+    const gold = this.economies.get(client.sessionId) ?? 0;
+    if (gold < cost) {
+      console.log(
+        `Not enough gold to upgrade tower ${payload.towerId} (${gold}/${cost})`,
+      );
+      return;
+    }
+
+    this.economies.set(client.sessionId, gold - cost);
+    tower.level += 1;
+    tower.invested += cost;
+
+    this.sendEconomy(client);
+
+    console.log(
+      `Defender upgraded tower ${payload.towerId} (${tower.typeId}) to lvl ${tower.level} (-${cost}g)`,
     );
   }
 
@@ -876,6 +1013,26 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.economies.set(sessionId, gold - totalCost);
     this.bigWavesRemaining.set(sessionId, budget - bigWaves);
 
+    // Boost attacker passive income based on units' cost
+    const unitCostTotal = toRelease.reduce(
+      (total, wave) =>
+        total +
+        wave.batches.reduce(
+          (bTotal, b) => bTotal + (MOB_TYPES[b.typeId]?.cost ?? 0) * b.count,
+          0,
+        ),
+      0,
+    );
+    const incomeBoost = unitCostTotal * DEFAULT_ECONOMY.attackerIncomeGainRate;
+    if (incomeBoost > 0) {
+      const currentRate =
+        this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
+      this.incomeRates.set(sessionId, currentRate + incomeBoost);
+      console.log(
+        `Room ${this.roomId}: attacker income boosted by +${incomeBoost.toFixed(1)}g/s to ${(currentRate + incomeBoost).toFixed(1)}g/s`,
+      );
+    }
+
     const interval = DEFAULT_WAVE_RULES.batchIntervalSec;
     let offset = 0;
     for (const wave of toRelease) {
@@ -976,10 +1133,26 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
+  /**
+   * Promotes the room's lobby listing to `"playing"` once a match is under way.
+   *
+   * @remarks
+   * Idempotent and one-way: the status is never reset to `"available"`, so a
+   * room that has started a match keeps showing as in-progress even after a
+   * player leaves. `setMetadata` replaces the whole metadata object, so the
+   * existing fields are spread through.
+   */
+  private markPlaying(): void {
+    const metadata = this.metadata as GameRoomMetadata | undefined;
+    if (!metadata || metadata.status === "playing") return;
+    this.setMetadata({ ...metadata, status: "playing" });
+  }
+
   onCreate(options: any): void {
     this.setMetadata({
       creatorName: options.playerName || "Anonymous",
       roleChoice: options.roleChoice || "random",
+      status: "available",
     });
 
     this.state.mapId = options.mapId || "konbaung";
@@ -1018,6 +1191,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.assignRoles();
       await this.lock();
       this.phases.beginDraft();
+      this.markPlaying();
 
       // Seed each client with its private economy so the HUD is correct even
       // before the draft is confirmed (deck arrives in a later push).
@@ -1027,14 +1201,26 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
-  /** Allows a dropped client to reconnect for up to 60 seconds. */
+  /**
+   * Holds a dropped client's seat so they can rejoin the same match.
+   *
+   * @remarks Called on an unexpected socket close (backgrounded tab, network
+   * blip, proxy stall). The client SDK reconnects automatically within
+   * {@link RECONNECT_WINDOW_SEC}; only if it never returns does `onLeave` run
+   * and reopen the room for a replacement opponent.
+   */
   onDrop(client: Client, code: CloseCode): void {
-    this.allowReconnection(client, 60).catch(() => {});
+    console.log(
+      `Client ${client.sessionId} dropped (code ${code}); holding seat for ${RECONNECT_WINDOW_SEC}s`,
+    );
+    this.allowReconnection(client, RECONNECT_WINDOW_SEC).catch(() => {});
   }
 
   onReconnect(client: Client): void {
     console.log(`Client ${client.sessionId} reconnected!`);
     this.sendPlayerState(client);
+    // Re-seed the attacker's private wave panel (no-op for the defender).
+    this.sendAttackerArmy(client);
   }
 
   /**
@@ -1047,6 +1233,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.players.delete(client.sessionId);
     this.acceptedDecks.delete(client.sessionId);
     this.economies.delete(client.sessionId);
+    this.incomeRates.delete(client.sessionId);
     this.stagedWaves.delete(client.sessionId);
     this.bigWavesRemaining.delete(client.sessionId);
 
@@ -1076,6 +1263,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
       const hostRole = host.userData?.role as PlayerRole | undefined;
       this.economies.set(host.sessionId, this.startingGold(hostRole ?? "defender"));
+      this.incomeRates.set(
+        host.sessionId,
+        (hostRole ?? "defender") === "attacker"
+          ? DEFAULT_ECONOMY.attackerBaseIncome
+          : DEFAULT_ECONOMY.defenderBaseIncome,
+      );
       this.bigWavesRemaining.set(
         host.sessionId,
         (hostRole ?? "defender") === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
@@ -1156,12 +1349,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Called when the building countdown timer runs down to 0 and transitions to combat.
-   * Ensures attacker units are set on the field (either by releasing whatever the attacker staged,
-   * or by auto-staging and releasing an affordable wave if nothing was staged).
+   * Launches the attacker's army when combat opens (timer expiry or the
+   * defender's START button).
+   *
+   * @remarks Whatever the attacker staged during `building` is released here, so
+   * building a wave while the defender lays towers sends it the moment the fight
+   * begins. An attacker who staged nothing sends nothing: they can still stage
+   * and Send during combat, and if they stay silent until the income window
+   * closes the defender wins on exhaustion.
    */
   private onBuildingTimerExpired(): void {
-    console.log(`Room ${this.roomId}: building timer expired -> launching waves for combat`);
     const attackerClient = this.clients.find(
       (c) => c.userData?.role === "attacker",
     );
@@ -1319,15 +1516,27 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * is accumulated as a float and floored on push so the HUD shows whole numbers.
    */
   private accrueIncome(dt: number): void {
-    if (this.incomeExpired) return;
-
     for (const client of this.clients) {
-      if (client.userData?.role !== "attacker") continue;
       const sessionId = client.sessionId;
-      this.economies.set(
-        sessionId,
-        (this.economies.get(sessionId) ?? 0) + DEFAULT_ECONOMY.goldPerSecond * dt,
-      );
+      const role = client.userData?.role as PlayerRole | undefined;
+
+      if (role === "attacker") {
+        if (!this.incomeExpired) {
+          const rate =
+            this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
+          this.economies.set(
+            sessionId,
+            (this.economies.get(sessionId) ?? 0) + rate * dt,
+          );
+        }
+      } else if (role === "defender") {
+        const rate =
+          this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.defenderBaseIncome;
+        this.economies.set(
+          sessionId,
+          (this.economies.get(sessionId) ?? 0) + rate * dt,
+        );
+      }
     }
   }
 
@@ -1338,7 +1547,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.incomePushAccumulator = 0;
 
     for (const client of this.clients) {
-      if (client.userData?.role === "attacker") this.sendEconomy(client);
+      this.sendEconomy(client);
     }
   }
 
@@ -1456,7 +1665,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
       mob.progress += (mob.speed / total) * dt;
 
       if (mob.progress >= 1) {
-        this.leakToCore(MOB_TYPES[mob.typeId]?.leakDamage ?? 0);
+        const mobType = MOB_TYPES[mob.typeId];
+        this.leakToCore(mobType?.leakDamage ?? 0);
+
+        // Leak pity refund: defender receives a portion of bounty so leaks don't cause starvation
+        if (mobType && mobType.bounty > 0) {
+          const pityBounty = Math.floor(
+            mobType.bounty * (DEFAULT_ECONOMY.leakPityRate ?? 0.3),
+          );
+          if (pityBounty > 0) {
+            const defender = this.clients.find(
+              (c) => c.userData?.role === "defender",
+            );
+            if (defender) {
+              this.awardBounty(defender.sessionId, pityBounty);
+            }
+          }
+        }
+
         finished.push(id);
       }
     }

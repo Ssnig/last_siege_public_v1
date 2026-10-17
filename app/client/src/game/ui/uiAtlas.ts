@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 
-/** Texture key for the combined UI atlas (`public/assets/UI/UI.png`). */
+/** Texture key for the combined UI atlas (`public/assets/ui/UI.png`). */
 export const UI_TEXTURE_KEY = "ui";
 
 /** Load path for the UI atlas. */

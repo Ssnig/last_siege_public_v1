@@ -53,14 +53,27 @@ export interface EconomyConfig {
   defenderStartingGold: number;
   attackerStartingGold: number;
   /**
-   * Passive gold per second the attacker accrues during building and combat.
+   * Passive base gold per second the attacker accrues during building and combat.
    *
-   * @remarks Stops for the attacker once the round timer (`roundDurationSec`)
-   * expires; the defender is bounty-funded and never receives this.
+   * @remarks Stops once the round timer (`roundDurationSec`) expires.
+   */
+  attackerBaseIncome: number;
+  /**
+   * Passive base gold per second the defender accrues during building and combat.
+   */
+  defenderBaseIncome: number;
+  /**
+   * Fraction of released units' gold cost permanently converted to attacker passive income rate.
+   */
+  attackerIncomeGainRate: number;
+  /**
+   * Fallback / legacy passive income rate.
    */
   goldPerSecond: number;
   /** Total big waves the attacker has for the whole match. */
   bigWaveCount: number;
+  /** Fraction of mob bounty refunded to defender when a mob leaks into the core. */
+  leakPityRate: number;
 }
 
 /**
@@ -174,6 +187,7 @@ export interface MatchRules {
   roundDurationSec: number;
 }
 
+
 export const MOB_TYPES: Record<string, MobType> = {
   grunt:       { id: "grunt",       name: "Grunt",             maxHp: 100, speed: 60,  bounty: 5,  leakDamage: 1, cost: 10 },
   runner:      { id: "runner",      name: "Runner",            maxHp: 60,  speed: 110, bounty: 7,  leakDamage: 1, cost: 12 },
@@ -196,97 +210,101 @@ export const TOWER_TYPES: Record<string, TowerType> = {
   basic: {
     id: "basic", name: "Arrow Tower",
     tiers: [
-      { cost: 50,  damage: 12, range: 140, fireRate: 1.2, projectileSpeed: 400 },
-      { cost: 90,  damage: 22, range: 160, fireRate: 1.3, projectileSpeed: 430 },
-      { cost: 160, damage: 40, range: 185, fireRate: 1.4, projectileSpeed: 460 },
+      { cost: 55, damage: 12, range: 140, fireRate: 1.08, projectileSpeed: 400 },
+      { cost: 105, damage: 22, range: 160, fireRate: 1.17, projectileSpeed: 430 },
+      { cost: 185, damage: 40, range: 185, fireRate: 1.26, projectileSpeed: 460 },
     ],
   },
   pitchfork: {
     id: "pitchfork", name: "Pitchfork Turret",
     tiers: [
-      { cost: 30,  damage: 6,  range: 110, fireRate: 1.0, projectileSpeed: 300 },
-      { cost: 55,  damage: 12, range: 125, fireRate: 1.1, projectileSpeed: 325 },
-      { cost: 95,  damage: 24, range: 140, fireRate: 1.2, projectileSpeed: 350 },
+      { cost: 35, damage: 6, range: 110, fireRate: 0.9, projectileSpeed: 300 },
+      { cost: 65, damage: 12, range: 125, fireRate: 0.99, projectileSpeed: 325 },
+      { cost: 110, damage: 24, range: 140, fireRate: 1.08, projectileSpeed: 350 },
     ],
   },
   poison: {
     id: "poison", name: "Poison Dart",
     tiers: [
-      { cost: 70,  damage: 6,  range: 120, fireRate: 1.6, projectileSpeed: 340 },
-      { cost: 125, damage: 12, range: 135, fireRate: 1.8, projectileSpeed: 370 },
-      { cost: 210, damage: 26, range: 150, fireRate: 2.0, projectileSpeed: 400 },
+      { cost: 80, damage: 6, range: 120, fireRate: 1.44, projectileSpeed: 340 },
+      { cost: 145, damage: 12, range: 135, fireRate: 1.62, projectileSpeed: 370 },
+      { cost: 240, damage: 26, range: 150, fireRate: 1.8, projectileSpeed: 400 },
     ],
   },
   crossbow: {
     id: "crossbow", name: "Crossbow",
     tiers: [
-      { cost: 80,  damage: 8,  range: 130, fireRate: 2.2, projectileSpeed: 380 },
-      { cost: 140, damage: 15, range: 145, fireRate: 2.4, projectileSpeed: 410 },
-      { cost: 240, damage: 30, range: 165, fireRate: 2.6, projectileSpeed: 440 },
+      { cost: 90, damage: 8, range: 130, fireRate: 1.98, projectileSpeed: 380 },
+      { cost: 160, damage: 15, range: 145, fireRate: 2.16, projectileSpeed: 410 },
+      { cost: 275, damage: 30, range: 165, fireRate: 2.34, projectileSpeed: 440 },
     ],
   },
   cannon: {
     id: "cannon", name: "Cannon",
     tiers: [
-      { cost: 120, damage: 40, range: 110, fireRate: 0.6, projectileSpeed: 300 },
-      { cost: 200, damage: 75, range: 120, fireRate: 0.65, projectileSpeed: 320 },
-      { cost: 340, damage: 150, range: 135, fireRate: 0.7, projectileSpeed: 340 },
+      { cost: 140, damage: 40, range: 110, fireRate: 0.54, projectileSpeed: 300 },
+      { cost: 230, damage: 75, range: 120, fireRate: 0.59, projectileSpeed: 320 },
+      { cost: 390, damage: 150, range: 135, fireRate: 0.63, projectileSpeed: 340 },
     ],
   },
   sniper: {
     id: "sniper", name: "Sniper",
     tiers: [
-      { cost: 110, damage: 35, range: 220, fireRate: 0.4, projectileSpeed: 500 },
-      { cost: 190, damage: 70, range: 250, fireRate: 0.45, projectileSpeed: 540 },
-      { cost: 330, damage: 160, range: 285, fireRate: 0.5, projectileSpeed: 580 },
+      { cost: 125, damage: 35, range: 220, fireRate: 0.36, projectileSpeed: 500 },
+      { cost: 220, damage: 70, range: 250, fireRate: 0.41, projectileSpeed: 540 },
+      { cost: 380, damage: 160, range: 285, fireRate: 0.45, projectileSpeed: 580 },
     ],
   },
   arcanist: {
     id: "arcanist", name: "Arcanist",
     tiers: [
-      { cost: 150, damage: 30, range: 120, fireRate: 0.5, projectileSpeed: 260 },
-      { cost: 260, damage: 60, range: 135, fireRate: 0.55, projectileSpeed: 280 },
-      { cost: 430, damage: 140, range: 155, fireRate: 0.6, projectileSpeed: 300 },
+      { cost: 170, damage: 30, range: 120, fireRate: 0.45, projectileSpeed: 260 },
+      { cost: 300, damage: 60, range: 135, fireRate: 0.5, projectileSpeed: 280 },
+      { cost: 495, damage: 140, range: 155, fireRate: 0.54, projectileSpeed: 300 },
     ],
   },
   tesla: {
     id: "tesla", name: "Tesla",
     tiers: [
-      { cost: 180, damage: 20, range: 100, fireRate: 1.8, projectileSpeed: 320 },
-      { cost: 300, damage: 40, range: 115, fireRate: 2.0, projectileSpeed: 350 },
-      { cost: 520, damage: 90, range: 135, fireRate: 2.2, projectileSpeed: 380 },
+      { cost: 205, damage: 20, range: 100, fireRate: 1.62, projectileSpeed: 320 },
+      { cost: 345, damage: 40, range: 115, fireRate: 1.8, projectileSpeed: 350 },
+      { cost: 600, damage: 90, range: 135, fireRate: 1.98, projectileSpeed: 380 },
     ],
   },
   archmage: {
     id: "archmage", name: "Archmage",
     tiers: [
-      { cost: 200, damage: 55, range: 150, fireRate: 0.5, projectileSpeed: 340 },
-      { cost: 340, damage: 110, range: 170, fireRate: 0.55, projectileSpeed: 360 },
-      { cost: 580, damage: 240, range: 195, fireRate: 0.6, projectileSpeed: 380 },
+      { cost: 230, damage: 55, range: 150, fireRate: 0.45, projectileSpeed: 340 },
+      { cost: 390, damage: 110, range: 170, fireRate: 0.5, projectileSpeed: 360 },
+      { cost: 665, damage: 240, range: 195, fireRate: 0.54, projectileSpeed: 380 },
     ],
   },
   bertha: {
     id: "bertha", name: "Big Bertha",
     tiers: [
-      { cost: 260, damage: 120, range: 140, fireRate: 0.35, projectileSpeed: 280 },
-      { cost: 450, damage: 240, range: 155, fireRate: 0.4, projectileSpeed: 300 },
-      { cost: 780, damage: 500, range: 175, fireRate: 0.45, projectileSpeed: 320 },
+      { cost: 300, damage: 120, range: 140, fireRate: 0.32, projectileSpeed: 280 },
+      { cost: 520, damage: 240, range: 155, fireRate: 0.36, projectileSpeed: 300 },
+      { cost: 895, damage: 500, range: 175, fireRate: 0.41, projectileSpeed: 320 },
     ],
   },
 };
 
 export const DEFAULT_ECONOMY: EconomyConfig = {
-  defenderStartingGold: 200,
-  attackerStartingGold: 150,
-  goldPerSecond: 20,
-  bigWaveCount: 5,
+  defenderStartingGold: 160,
+  attackerStartingGold: 120,
+  attackerBaseIncome: 2.5,
+  defenderBaseIncome: 5.0,
+  attackerIncomeGainRate: 0.035,
+  goldPerSecond: 5,
+  bigWaveCount: 3,
+  leakPityRate: 0.21,
 };
 
 export const DEFAULT_WAVE_RULES: WaveRules = {
-  batchIntervalSec: 2,
+  batchIntervalSec: 2.5,
   sizes: {
-    small: { batchLimit: 10, waveLimit: 30, maxBatches: 5, fee: 10 },
-    big:   { batchLimit: 15, waveLimit: 45, maxBatches: 8, fee: 40 },
+    small: { batchLimit: 10, waveLimit: 30, maxBatches: 5, fee: 15 },
+    big: { batchLimit: 15, waveLimit: 45, maxBatches: 8, fee: 55 },
   },
 };
 
@@ -295,10 +313,10 @@ export const DEFAULT_DECK_RULES: DeckRules = {
 };
 
 export const MATCH_RULES: MatchRules = {
-  coreHp: 10,
+  coreHp: 45,
   draftDurationSec: -1,
-  buildingDurationSec: 30, // 30-second building countdown
-  roundDurationSec: 90,
+  buildingDurationSec: 45, // 45-second building countdown
+  roundDurationSec: 135,
 };
 
 export const MATCH_PHASES = {
@@ -329,7 +347,7 @@ export function upgradeCost(type: TowerType, fromLevel: number): number | null {
 }
 
 /** Fraction of a tower's total invested gold refunded when it is sold (70%). */
-export const SELL_REFUND_RATE = 0.7;
+export const SELL_REFUND_RATE = 0.55;
 
 /** Total gold invested into a tower at `level`: build cost plus every upgrade. */
 export function totalInvested(type: TowerType, level: number): number {

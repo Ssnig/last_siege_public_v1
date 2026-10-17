@@ -16,7 +16,6 @@ import {
   UI_TEXTURE_KEY,
   UI_TEXTURE_URL,
   UI_BG_TEXTURE_KEY,
-  UI_BG_TEXTURE_URL,
   UI_BG_ATLAS_URL,
 } from "./ui/uiAtlas";
 

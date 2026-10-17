@@ -14,6 +14,7 @@ import {
   MATCH_RULES,
   buildCost,
   sellRefund,
+  upgradeCost,
 } from "@root/shared";
 
 function waitForPhase(room: { state: RoomState }, phase: string, timeoutMs = 2000): Promise<void> {
@@ -98,6 +99,44 @@ function waitForArmy(
   });
 }
 
+/**
+ * Waits until the defender's gold jumps by more than passive income explains.
+ *
+ * @remarks The defender now earns `incomeRate` every second, so a plain "gold
+ * went up" check can no longer tell a kill bounty from the passive tick. Each
+ * push carries `incomeRate`, so a bounty is whatever is left after subtracting
+ * the income earned between two consecutive pushes.
+ */
+function waitForBountyPush(
+  client: {
+    onMessage: (type: string, cb: (payload: YouEconomyPayload) => void) => () => void;
+  },
+  incomeRate: number,
+  timeoutMs = 20000,
+): Promise<YouEconomyPayload> {
+  return new Promise((resolve, reject) => {
+    let prev: { gold: number; at: number } | null = null;
+    const unsubscribe = client.onMessage(MESSAGES.youEconomy, (payload) => {
+      const at = Date.now();
+      if (prev) {
+        const elapsed = Math.max((at - prev.at) / 1000, 0);
+        const passive = incomeRate * elapsed;
+        if (payload.gold - prev.gold - passive >= 3) {
+          clearInterval(timer);
+          unsubscribe();
+          resolve(payload);
+        }
+      }
+      prev = { gold: payload.gold, at };
+    });
+    const timer = setInterval(() => {
+      clearInterval(timer);
+      unsubscribe();
+      reject(new Error("kill bounty not observed within timeout"));
+    }, timeoutMs);
+  });
+}
+
 /** Drafts both sides, then brings the room to the `building` phase. */
 async function draftToBuilding(
   attacker: { send: (type: string, payload?: unknown) => void },
@@ -125,6 +164,43 @@ describe("testing your Colyseus app", () => {
     assert.ok(player, "a Player is created on join");
     assert.strictEqual(player.name, "Anonymous", "name falls back when none is provided");
     assert.strictEqual(room.state.phase, "drafting", "the room opens drafting immediately");
+  });
+
+  it("advertises 'available' until a second player makes it 'playing'", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      playerName: "Host",
+    });
+    assert.strictEqual(room.metadata.status, "available", "a fresh room is available");
+
+    await colyseus.connectTo(room, { playerName: "Host" });
+    assert.strictEqual(
+      room.metadata.status,
+      "available",
+      "a lone host leaves the room available",
+    );
+
+    await colyseus.connectTo(room, { playerName: "Joiner" });
+    assert.strictEqual(
+      room.metadata.status,
+      "playing",
+      "the second player promotes the listing to playing",
+    );
+  });
+
+  it("keeps a started room 'playing' after a player leaves", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {});
+    await colyseus.connectTo(room);
+    const joiner = await colyseus.connectTo(room);
+    assert.strictEqual(room.metadata.status, "playing");
+
+    await joiner.leave();
+    await waitFor(() => room.state.players.size === 1);
+
+    assert.strictEqual(
+      room.metadata.status,
+      "playing",
+      "status never reverts to available once a match has begun",
+    );
   });
 
   it("moves to building when both players confirm a valid draft", async () => {
@@ -258,12 +334,12 @@ describe("testing your Colyseus app", () => {
     // Nothing is spawned on the combat edge any more: the attacker opts in.
     assert.strictEqual(room.state.mobs.size, 0, "no mobs appear without a release");
 
-    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 4 });
-    attacker.send(MESSAGES.waveAddBatch, { pathId: "bottom", typeId: "grunt", count: 4 });
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 3 });
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "bottom", typeId: "grunt", count: 3 });
     attacker.send(MESSAGES.waveRelease, {});
 
     // Batches go out `batchIntervalSec` apart, so the second path lags a moment.
-    await waitFor(() => room.state.mobs.size === 8, 6000);
+    await waitFor(() => room.state.mobs.size === 6, 6000);
 
     const pathIds = new Set<string>();
     for (const mob of room.state.mobs.values()) {
@@ -341,6 +417,51 @@ describe("testing your Colyseus app", () => {
     assert.ok(!room.state.towers.has(towerId), "the sold tower leaves the shared state");
   });
 
+  it("upgrades a defender tower, deducts gold, increases level and invested amount", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: Object.keys(MOB_TYPES).slice(0, 2) });
+    defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
+    await waitForPhase(room, "building");
+
+    const towerTypeId = Object.keys(TOWER_TYPES)[0];
+    const towerType = TOWER_TYPES[towerTypeId];
+    const slotIndex = MAPS[room.state.mapId].slots[0].slotIndex;
+    const startGold = DEFAULT_ECONOMY.defenderStartingGold;
+    const costBuild = buildCost(towerType);
+    const costUpgrade = upgradeCost(towerType, 1)!;
+    const afterBuild = startGold - costBuild;
+    const afterUpgrade = afterBuild - costUpgrade;
+
+    const built = waitForEconomy(defender, (gold) => gold === afterBuild);
+    defender.send(MESSAGES.placeTower, { typeId: towerTypeId, slotIndex });
+    await built;
+
+    const towerId = `${defender.sessionId}-${slotIndex}`;
+    await waitFor(() => room.state.towers.has(towerId));
+    assert.strictEqual(room.state.towers.get(towerId).level, 1);
+    assert.strictEqual(room.state.towers.get(towerId).invested, costBuild);
+
+    const upgraded = waitForEconomy(defender, (gold) => gold === afterUpgrade);
+    defender.send(MESSAGES.upgradeTower, { towerId });
+    await upgraded;
+
+    await waitFor(() => room.state.towers.get(towerId).level === 2);
+    const tower = room.state.towers.get(towerId);
+    assert.strictEqual(tower.level, 2);
+    assert.strictEqual(tower.invested, costBuild + costUpgrade);
+
+    // Verify sell refund is based on the updated invested amount
+    const afterSell = afterUpgrade + sellRefund(costBuild + costUpgrade);
+    const sold = waitForEconomy(defender, (gold) => gold === afterSell);
+    defender.send(MESSAGES.sellTower, { towerId });
+    await sold;
+  });
+
   it("towers fire at mobs in range, damage them, and pay a bounty on kill", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
@@ -352,46 +473,48 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
     await waitForPhase(room, "building");
 
-    // Spend the whole defence budget on four basic towers so their combined DPS
-    // is enough to kill a grunt well within the timeout. Two cover each path.
+    // Stack both affordable basic towers over the top path: one tower alone
+    // cannot out-damage a grunt during a single pass, two comfortably can.
     const slots = MAPS[room.state.mapId].slots;
-    const buildSlots = [slots[0], slots[1], slots[3], slots[4]].map(
-      (slot) => slot.slotIndex,
-    );
+    const buildSlots = [slots[0], slots[1]].map((slot) => slot.slotIndex);
 
-    const drained = waitForEconomy(defender, (gold) => gold === 0);
     for (const slotIndex of buildSlots) {
       defender.send(MESSAGES.placeTower, { typeId: "basic", slotIndex });
     }
-    await drained;
     await waitFor(() => room.state.towers.size === buildSlots.length);
-
-    // Gold is zero now, so the next positive push can only be a kill bounty.
-    const bounty = waitForEconomy(defender, (gold) => gold > 0, 13000);
 
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 4 });
-    attacker.send(MESSAGES.waveAddBatch, { pathId: "bottom", typeId: "grunt", count: 4 });
+    // The defender now earns passive income, so the bounty is detected as the
+    // leftover after that income is subtracted from each push.
+    const bounty = waitForBountyPush(defender, DEFAULT_ECONOMY.defenderBaseIncome);
+
+    // Only the defended path is attacked, so any HP lost is tower damage and any
+    // missing mob is a kill (not a leak).
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 3 });
     attacker.send(MESSAGES.waveRelease, {});
     await waitFor(() => room.state.mobs.size > 0);
 
     await waitFor(() => room.state.projectiles.size > 0, 6000);
+    await waitFor(
+      () => [...room.state.mobs.values()].some((mob) => mob.hp < mob.maxHp),
+      6000,
+    );
 
     const payload = await bounty;
-    assert.ok(payload.gold >= 5, `kill bounty credited (gold ${payload.gold})`);
-
-    // A kill removes a mob; within the window none can have reached the base.
-    assert.ok(
-      room.state.mobs.size < 8,
-      "at least one mob was killed by tower fire",
+    assert.ok(payload.gold > 0, `kill bounty credited (gold ${payload.gold})`);
+    assert.strictEqual(
+      room.state.coreHp,
+      MATCH_RULES.coreHp,
+      "the wave died to tower fire instead of reaching the base",
     );
   });
 
   it("subtracts core HP when mobs breach the base", async function () {
-    // Slow by nature: with no towers the wave must walk the whole path (~20s).
-    this.timeout(35000);
+    // Slow by nature: with no towers the wave must walk the whole ~1300px path.
+    // Grunts now crawl at 25px/s, so a full walk is close to a minute.
+    this.timeout(95000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
@@ -406,19 +529,19 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 4 });
-    attacker.send(MESSAGES.waveAddBatch, { pathId: "bottom", typeId: "grunt", count: 4 });
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 3 });
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "bottom", typeId: "grunt", count: 3 });
     attacker.send(MESSAGES.waveRelease, {});
 
-    await waitFor(() => room.state.mobs.size === 8, 6000);
+    await waitFor(() => room.state.mobs.size === 6, 6000);
     assert.strictEqual(room.state.coreHp, MATCH_RULES.coreHp, "core starts full");
 
-    // No towers are built, so all eight grunts eventually reach the base and
+    // No towers are built, so all six grunts eventually reach the base and
     // leak exactly 1 each.
-    await waitFor(() => room.state.mobs.size === 0, 30000, 100);
+    await waitFor(() => room.state.mobs.size === 0, 75000, 100);
     assert.strictEqual(
       room.state.coreHp,
-      MATCH_RULES.coreHp - 8,
+      MATCH_RULES.coreHp - 6,
       "each breaching grunt subtracts its leakDamage",
     );
   });
@@ -438,7 +561,7 @@ describe("testing your Colyseus app", () => {
     const army = await waitForArmy(attacker, (payload) =>
       payload.paths.some((path) => path.pathId === "top" && path.troopCount === 3),
     );
-    assert.strictEqual(army.goldPerSecond, DEFAULT_ECONOMY.goldPerSecond);
+    assert.strictEqual(army.goldPerSecond, DEFAULT_ECONOMY.attackerBaseIncome);
     assert.ok(army.availableTroops.includes("grunt"), "the deck is exposed as choices");
 
     // But releasing is combat-only.

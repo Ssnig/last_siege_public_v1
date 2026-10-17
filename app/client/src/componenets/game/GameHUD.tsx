@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TOWER_TYPES, MOB_TYPES, type AttackerArmyPayload } from '@root/shared';
+import React, { useEffect, useState } from 'react';
+import { useSmoothCountdown } from './useSmoothCountdown';
 
 interface GameHUDProps {
   gold: number;
@@ -14,10 +16,11 @@ interface GameHUDProps {
   isUIHidden?: boolean;
   castleHp?: number;
   maxCastleHp?: number;
-  attackerArmy?: AttackerArmyPayload | null;
-  onAddBatch?: (pathId: string, typeId: string, count: number) => void;
-  onReleaseWave?: (pathIds?: string[]) => void;
-  onClearWave?: (pathId: string) => void;
+  incomeRate?: number;
+  /** Attacker-only: toggles the army-staging overlay. Omit to hide the button. */
+  onToggleArmy?: () => void;
+  /** Whether the army-staging overlay is currently open (drives the button icon). */
+  armyOpen?: boolean;
 }
 
 const DEFAULT_DEFENDER_TOWERS = [
@@ -102,19 +105,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   phaseEndsAt = 30,
   role = 'defender',
   isUIHidden = false,
-  castleHp = 10,
-  maxCastleHp = 10,
-  attackerArmy = null,
-  onAddBatch,
-  onReleaseWave,
-  onClearWave,
+  castleHp = 45,
+  maxCastleHp = 45,
+  incomeRate,
+  onToggleArmy,
+  armyOpen = false,
 }) => {
-  // Timer state synchronized with server phaseEndsAt
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
-    return phaseEndsAt > 0 ? Math.ceil(phaseEndsAt) : 30;
-  });
-
-  const [selectedPath, setSelectedPath] = useState<'top' | 'bottom'>('top');
+  // Smooth countdown driven by the server's phaseEndsAt (see hook docs).
+  const secondsRemaining = useSmoothCountdown(phaseEndsAt, phase !== 'gameover');
 
   // Brief toast notification on UI toggle
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -135,6 +133,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   // Show a quick toast tip when UI visibility flips (skip on initial mount)
   const isFirstRender = useRef(true);
+  // Show a quick toast tip when UI visibility flips
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -155,22 +154,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   // Towers in tray: strictly top 6 slots (or deck if provided)
   const availableTowers = (deck && deck.length > 0 ? deck : DEFAULT_DEFENDER_TOWERS).slice(0, 6);
 
-  // Mobs in tray for attacker
-  const availableMobs = (deck && deck.length > 0 ? deck : DEFAULT_ATTACKER_MOBS).slice(0, 6);
-  const selectedPathArmy = attackerArmy?.paths?.find((p) => p.pathId === selectedPath);
-  const stagedCount = selectedPathArmy?.troopCount ?? 0;
-  const stagedGold = selectedPathArmy?.goldCost ?? 0;
-  const totalStagedCount = attackerArmy?.paths?.reduce((sum, p) => sum + p.troopCount, 0) ?? 0;
-  const totalStagedGold = attackerArmy?.paths?.reduce((sum, p) => sum + p.goldCost, 0) ?? 0;
-
-  const handleSpawnMob = (mobId: string) => {
-    const mob = MOB_TYPES[mobId];
-    const count = mob && mob.cost >= 30 ? 1 : 2;
-    if (onAddBatch) {
-      onAddBatch(selectedPath, mobId, count);
-    }
-  };
-
   return (
     <>
       {/* Toast notification indicator for Double-Tap UI toggle */}
@@ -190,18 +173,42 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         {/* Top Header Row: Gold (Left), Centered Wave/Timer, Settings + Castle HP (Right) */}
         <div className="w-full flex items-start justify-between px-2.5 sm:px-4 md:px-6 pt-2 pointer-events-none">
           
-          {/* Top-Left: Dynamic Responsive Gold Display */}
-          <div
-            className="pointer-events-auto relative w-[130px] h-[38px] md:w-[180px] md:h-[50px] flex items-center justify-end pr-2.5 md:pr-4 shadow-lg drop-shadow transition-transform hover:scale-102"
-            style={{
-              backgroundImage: "url('/assets/ui/hud/hud_gold_badge_clean.png')",
-              backgroundSize: '100% 100%',
-              backgroundRepeat: 'no-repeat',
-            }}
-          >
-            <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-base tracking-wide font-['Almendra',serif]">
-              GOLD: {gold}g
-            </span>
+          {/* Top-Left: Gold display + (attacker) army-panel toggle */}
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <div
+              className="pointer-events-auto relative w-[130px] h-[38px] md:w-[180px] md:h-[50px] flex items-center justify-end pr-2.5 md:pr-4 shadow-lg drop-shadow transition-transform hover:scale-102"
+              style={{
+                backgroundImage: "url('/assets/ui/hud/hud_gold_badge_clean.png')",
+                backgroundSize: '100% 100%',
+                backgroundRepeat: 'no-repeat',
+              }}
+            >
+              <div className="flex flex-col items-end justify-center leading-none">
+                <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-base tracking-wide font-['Almendra',serif]">
+                  GOLD: {gold}g
+                </span>
+                {incomeRate !== undefined && (
+                  <span className="text-emerald-300 font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] text-[9px] md:text-[11px] tracking-tight font-sans">
+                    +{incomeRate}g/s
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {onToggleArmy && (
+              <button
+                onClick={onToggleArmy}
+                aria-label={armyOpen ? 'Close army panel' : 'Open army panel'}
+                className={`pointer-events-auto flex items-center gap-1 px-2.5 h-[38px] md:h-[50px] rounded-lg border text-[11px] md:text-sm font-black uppercase tracking-wide shadow-lg active:scale-95 transition font-['Almendra',serif] ${
+                  armyOpen
+                    ? 'bg-amber-500 text-slate-950 border-amber-300'
+                    : 'bg-slate-950/85 text-amber-200 border-amber-600/60 hover:bg-slate-800'
+                }`}
+              >
+                <span>⚔️</span>
+                <span>Army</span>
+              </button>
+            )}
           </div>
 
           {/* Top-Center: Exactly Centered Wave & Timer Banner with Pixel-Perfect Plaque Alignment */}
@@ -313,114 +320,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   </button>
                 );
               })}
-            </div>
-          </div>
-        )}
-
-        {/* Bottom-Center: Attacker Wave Hotbar */}
-        {role === 'attacker' && (
-          <div className="pointer-events-auto fixed bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 max-w-[96vw]">
-            {/* Lane Selector Tabs & Staged Status */}
-            <div className="flex items-center gap-2 bg-slate-950/90 px-3 py-1 rounded-full border border-amber-600/60 shadow-lg text-xs font-bold">
-              <span className="text-amber-400 text-[10px] md:text-xs">LANE:</span>
-              <button
-                onClick={() => setSelectedPath('top')}
-                className={`px-2.5 py-0.5 rounded-full transition-all text-[10px] md:text-xs cursor-pointer ${
-                  selectedPath === 'top'
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-[0_0_8px_rgba(245,158,11,0.8)]'
-                    : 'text-amber-200/70 hover:text-amber-100 bg-slate-800/80'
-                }`}
-              >
-                ▲ TOP {attackerArmy?.paths?.find((p) => p.pathId === 'top')?.troopCount ? `(${attackerArmy.paths.find((p) => p.pathId === 'top')!.troopCount})` : ''}
-              </button>
-              <button
-                onClick={() => setSelectedPath('bottom')}
-                className={`px-2.5 py-0.5 rounded-full transition-all text-[10px] md:text-xs cursor-pointer ${
-                  selectedPath === 'bottom'
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-[0_0_8px_rgba(245,158,11,0.8)]'
-                    : 'text-amber-200/70 hover:text-amber-100 bg-slate-800/80'
-                }`}
-              >
-                ▼ BOTTOM {attackerArmy?.paths?.find((p) => p.pathId === 'bottom')?.troopCount ? `(${attackerArmy.paths.find((p) => p.pathId === 'bottom')!.troopCount})` : ''}
-              </button>
-
-              {stagedCount > 0 && onClearWave && (
-                <button
-                  onClick={() => onClearWave(selectedPath)}
-                  title="Clear staged lane"
-                  className="ml-1 text-[10px] text-red-400 hover:text-red-300 underline cursor-pointer"
-                >
-                  Clear ({stagedGold}g)
-                </button>
-              )}
-            </div>
-
-            {/* Units Tray & Staged Release Action Bar */}
-            <div className="flex items-center gap-1.5 md:gap-2">
-              {/* Unit Cards */}
-              <div
-                className="relative flex items-center gap-1 sm:gap-1.5 md:gap-2 px-2 py-1 md:px-3 md:py-1.5 rounded-lg shadow-2xl drop-shadow-[0_8px_20px_rgba(0,0,0,0.9)] bg-gradient-to-r from-red-950/95 via-[#450a0a]/95 to-red-950/95 border border-amber-600/80 overflow-x-auto scrollbar-none touch-pan-x"
-                style={{
-                  boxShadow: '0 0 14px rgba(0,0,0,0.85), inset 0 0 8px rgba(251,191,36,0.3)',
-                }}
-              >
-                {availableMobs.map((mobId) => {
-                  const mob = MOB_TYPES[mobId];
-                  const cost = mob?.cost ?? 10;
-                  const canAfford = gold >= cost;
-                  const iconSrc = MOB_ICONS[mobId] || '/assets/sprites/unit_warrior.png';
-                  const shortName = MOB_SHORT_NAMES[mobId] || mob?.name?.slice(0, 4) || mobId;
-
-                  return (
-                    <button
-                      key={mobId}
-                      onClick={() => handleSpawnMob(mobId)}
-                      disabled={!canAfford}
-                      className={`relative flex-shrink-0 w-[44px] h-[46px] md:w-[58px] md:h-[64px] flex flex-col items-center justify-between p-0.5 rounded transition-all cursor-pointer ${
-                        canAfford ? 'hover:scale-105 active:scale-95' : 'opacity-50 saturate-50 cursor-not-allowed'
-                      }`}
-                      title={`${mob?.name ?? mobId} (${cost}g)`}
-                    >
-                      <div className="w-6 h-6 md:w-8 md:h-8 flex items-center justify-center overflow-hidden rounded bg-black/40">
-                        <img
-                          src={iconSrc}
-                          alt={mob?.name ?? mobId}
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                      <div className="w-full text-center bg-black/75 rounded-b py-[1px] px-0.5">
-                        <span className="text-[8px] md:text-[10px] font-bold text-amber-200 leading-none truncate block">
-                          {shortName} / {cost}g
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Release Wave Button (Combat Phase) or Staged Indicator (Building Phase) */}
-              {phase === 'combat' && (
-                <button
-                  onClick={() => onReleaseWave?.()}
-                  disabled={totalStagedCount === 0}
-                  className={`flex-shrink-0 px-3 py-2 md:px-4 md:py-3 rounded-lg font-black text-[11px] md:text-xs uppercase tracking-wider shadow-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
-                    totalStagedCount > 0
-                      ? 'bg-gradient-to-r from-red-600 via-amber-500 to-red-600 text-white animate-pulse active:scale-95 border-2 border-amber-300'
-                      : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-                  }`}
-                >
-                  <span>⚔️ RELEASE</span>
-                  <span className="text-[9px] font-normal">
-                    {totalStagedCount > 0 ? `${totalStagedCount} units (${totalStagedGold}g)` : 'Stage Units'}
-                  </span>
-                </button>
-              )}
-              {phase === 'building' && (
-                <div className="flex-shrink-0 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg bg-slate-900/90 border border-amber-500/40 text-amber-200 text-center text-[10px] md:text-xs">
-                  <div className="font-bold">STAGED ARMY</div>
-                  <div className="text-[9px] text-amber-400">{totalStagedCount} units ({totalStagedGold}g)</div>
-                </div>
-              )}
             </div>
           </div>
         )}
