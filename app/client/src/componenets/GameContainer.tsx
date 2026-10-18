@@ -372,6 +372,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         <DraftOverlay
           room={room}
           role={(playerInfo.myRole as 'attacker' | 'defender') || 'defender'}
+          serverSeconds={phaseEndsAt}
           onConfirm={(deck) => {
             room.send(MESSAGES.draftReady, { deck });
           }}

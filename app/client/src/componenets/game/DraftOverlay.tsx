@@ -9,9 +9,12 @@ import {
   type TowerType,
 } from '@root/shared';
 
+import { useSmoothCountdown } from './useSmoothCountdown';
+
 interface DraftOverlayProps {
   room: Room;
   role: 'attacker' | 'defender';
+  serverSeconds?: number;
   onConfirm?: (deck: string[]) => void;
 }
 
@@ -191,6 +194,7 @@ const CornerFlourish: React.FC<{ position: 'tl' | 'tr' | 'bl' | 'br' }> = ({ pos
 export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   room,
   role = 'defender',
+  serverSeconds,
   onConfirm,
 }) => {
   // Authoritative role from room state or fallback to prop
@@ -219,6 +223,13 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   // 5-second post-draft countdown after round 3
   const [isFinalCountdown, setIsFinalCountdown] = useState<boolean>(false);
   const [finalSeconds, setFinalSeconds] = useState<number>(5);
+
+  const smoothSeconds = useSmoothCountdown(
+    serverSeconds ?? 0,
+    serverSeconds !== undefined && serverSeconds > 0,
+  );
+  const effectiveRoundSeconds = serverSeconds !== undefined ? smoothSeconds : roundSeconds;
+  const effectiveFinalSeconds = serverSeconds !== undefined ? smoothSeconds : finalSeconds;
 
   // Opponent state & revealed enemy picks
   const [opponentName, setOpponentName] = useState<string>('Opponent');
@@ -262,6 +273,8 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   currentRoundRef.current = currentRound;
   const isRoundReadyRef = useRef<boolean>(isRoundReady);
   isRoundReadyRef.current = isRoundReady;
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
 
   // Auto-pick random units from unselected catalog entries to reach 2 picks
   const autoPickForCurrentRound = useCallback(() => {
@@ -281,6 +294,9 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
     return finalPicks;
   }, [catalogList]);
 
+  const autoPickRef = useRef(autoPickForCurrentRound);
+  autoPickRef.current = autoPickForCurrentRound;
+
   // Submit picks for current round
   const submitCurrentRoundPicks = useCallback(
     (picksToSubmit?: string[]) => {
@@ -296,12 +312,15 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
       });
 
       // Also trigger onConfirm callback if in final round
-      if (currentRoundRef.current === 3 && onConfirm) {
-        onConfirm([...lockedPicksRef.current, ...picks]);
+      if (currentRoundRef.current === 3 && onConfirmRef.current) {
+        onConfirmRef.current([...lockedPicksRef.current, ...picks]);
       }
     },
-    [room, onConfirm],
+    [room],
   );
+
+  const submitPicksRef = useRef(submitCurrentRoundPicks);
+  submitPicksRef.current = submitCurrentRoundPicks;
 
   // 5-second final countdown timer when all 3 rounds conclude
   useEffect(() => {
@@ -332,8 +351,8 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         if (prev <= 1) {
           // Timer expired! Auto-pick and submit if not already ready
           if (!isRoundReadyRef.current) {
-            const filled = autoPickForCurrentRound();
-            submitCurrentRoundPicks(filled);
+            const filled = autoPickRef.current();
+            submitPicksRef.current(filled);
           }
           return 0;
         }
@@ -342,7 +361,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentRound, isFinalCountdown, autoPickForCurrentRound, submitCurrentRoundPicks]);
+  }, [currentRound, isFinalCountdown]);
 
   // Colyseus message listeners
   useEffect(() => {
@@ -596,12 +615,12 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                     className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
                     style={{ textShadow: '2px 2px 0px #000' }}
                   >
-                    ⚔️ BATTLE COMMENCES IN {finalSeconds}s ⚔️
+                    ⚔️ BATTLE COMMENCES IN {effectiveFinalSeconds}s ⚔️
                   </span>
 
                   <div className="flex items-center gap-1 px-3 py-0.5 rounded-full font-black text-xs sm:text-sm border bg-emerald-950/90 border-emerald-400 text-emerald-300">
                     <span>⏱</span>
-                    <span>{finalSeconds}s</span>
+                    <span>{effectiveFinalSeconds}s</span>
                   </div>
                 </>
               ) : (
@@ -623,13 +642,13 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   {/* 15-second countdown pill */}
                   <div
                     className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full font-black text-xs sm:text-sm border ${
-                      roundSeconds <= 3
+                      effectiveRoundSeconds <= 3
                         ? 'bg-red-900/90 border-red-400 text-red-200 animate-pulse'
                         : 'bg-black/60 border-amber-400 text-amber-300'
                     }`}
                   >
                     <span>⏱</span>
-                    <span>{roundSeconds}s</span>
+                    <span>{effectiveRoundSeconds}s</span>
                   </div>
                 </>
               )}
@@ -994,7 +1013,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   <CornerFlourish position="bl" />
                   <CornerFlourish position="br" />
                   <span className="flex items-center gap-2">
-                    ⚔️ PREPARE FOR BATTLE ({finalSeconds}s)
+                    ⚔️ PREPARE FOR BATTLE ({effectiveFinalSeconds}s)
                   </span>
                 </button>
               ) : (
@@ -1021,10 +1040,10 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                       ROUND {currentRound} READY <span className="text-emerald-300">✓</span> (Waiting...)
                     </span>
                   ) : roundPicks.length === 2 ? (
-                    <span>CONFIRM ROUND {currentRound} ({roundSeconds}s)</span>
+                    <span>CONFIRM ROUND {currentRound} ({effectiveRoundSeconds}s)</span>
                   ) : (
                     <span>
-                      CHOOSE 2 FOR ROUND {currentRound} ({roundPicks.length}/2) [{roundSeconds}s]
+                      CHOOSE 2 FOR ROUND {currentRound} ({roundPicks.length}/2) [{effectiveRoundSeconds}s]
                     </span>
                   )}
                 </button>
