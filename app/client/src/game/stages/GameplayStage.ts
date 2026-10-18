@@ -45,6 +45,12 @@ export const DEPTH = {
    */
   ACTORS_LAYER: 10,
   PROJECTILES_LAYER: 20,
+  /**
+   * World-space floating combat text (damage, bounty, core hits). Sits just
+   * below {@link DEPTH.UI_LAYER} so it reads over units/projectiles but never
+   * covers the HUD.
+   */
+  FLOATERS_LAYER: 25,
   UI_LAYER: 30,
 } as const;
 
@@ -126,6 +132,15 @@ export class GameplayStage {
   private towers: Map<number, TowerRecord> = new Map();
   private mobSprites: Map<Mob, MobRecord> = new Map();
   private projectileSprites: Map<Projectile, Phaser.GameObjects.Sprite> = new Map();
+
+  /**
+   * Live floating combat-text labels (damage/"+gold"/core hits).
+   *
+   * @remarks Tracked so {@link destroy} can tear them and their tweens down:
+   * they are scene-level objects (not children of {@link root}) to keep their
+   * depth above the world containers.
+   */
+  private floatingTexts = new Set<Phaser.GameObjects.Text>();
 
   private gold = 200;
   private deck: string[] = [];
@@ -1306,6 +1321,57 @@ export class GameplayStage {
   }
 
   /**
+   * Spawns a short-lived floating label that drifts up and fades out.
+   *
+   * @remarks Scene-level (not parented to {@link root}) so its depth beats the
+   * world containers; tracked in {@link floatingTexts} for teardown.
+   *
+   * @param x - World x of the label's anchor.
+   * @param y - World y of the label's anchor.
+   * @param text - Label contents.
+   * @param color - CSS colour string for the text.
+   * @param options - Optional size/rise/duration overrides.
+   */
+  private spawnFloatingText(
+    x: number,
+    y: number,
+    text: string,
+    color: string,
+    options?: { fontSize?: string; rise?: number; duration?: number },
+  ): void {
+    if (this.destroyed) return;
+
+    const rise = options?.rise ?? 34;
+    const duration = options?.duration ?? 700;
+    const label = this.scene.add
+      .text(x, y, text, {
+        fontSize: options?.fontSize ?? "16px",
+        fontStyle: "bold",
+        color,
+        stroke: "#0b1120",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.FLOATERS_LAYER)
+      .setScale(0.7);
+
+    this.floatingTexts.add(label);
+
+    this.scene.tweens.add({
+      targets: label,
+      y: y - rise,
+      scale: 1,
+      alpha: { from: 1, to: 0 },
+      duration,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        this.floatingTexts.delete(label);
+        label.destroy();
+      },
+    });
+  }
+
+  /**
    * Mirrors `RoomState.mobs` into sprites using Colyseus Callbacks.
    *
    * @remarks Positions are not synced; each frame the sprite is placed from the
@@ -1337,11 +1403,46 @@ export class GameplayStage {
       // Same y-sorted layer as towers, so the two occlude by world y.
       (this.actors ?? this.root)?.add([sprite, hpBg, hpFill]);
       this.updateMobSprite(mob, record);
+
+      // Floating damage number whenever a tower's projectile lands a hit.
+      this.unsubscribers.push(
+        callbacks.listen(mob, "hp", (hp: number, previousHp: number) => {
+          const damage = (previousHp ?? hp) - hp;
+          if (damage <= 0) return;
+          const live = this.mobSprites.get(mob);
+          if (!live) return;
+          this.spawnFloatingText(
+            live.sprite.x + Phaser.Math.Between(-8, 8),
+            live.sprite.y - 52,
+            `${damage}`,
+            "#f8fafc",
+          );
+        }),
+      );
     };
 
     const onRemove = (value: unknown): void => {
-      const record = this.mobSprites.get(value as Mob);
+      const mob = value as Mob;
+      const record = this.mobSprites.get(mob);
       if (!record) return;
+      // Killing-blow HP never reaches this client: the server mutates `hp` and
+      // deletes the mob in the same tick, so the decoder ships the DELETE and
+      // discards the field update — `mob.hp` here is the last surviving value.
+      // Instead rely on progress, which is monotonic and never discarded: a
+      // leak is the only removal with progress at or past the core, and a wave
+      // reset only ever clears mobs outside combat. A mid-combat removal that
+      // never reached the core was therefore a kill worth its bounty.
+      const killed =
+        this.room?.state.phase === "combat" && mob.progress < 1 && mob.bounty > 0;
+      if (killed) {
+        this.spawnFloatingText(
+          record.sprite.x,
+          record.sprite.y - 44,
+          `+${mob.bounty}g`,
+          "#fde047",
+          { fontSize: "20px", rise: 48, duration: 900 },
+        );
+      }
       record.sprite.destroy();
       record.hpBg.destroy();
       record.hpFill.destroy();
@@ -1465,8 +1566,29 @@ export class GameplayStage {
 
     const callbacks = Callbacks.get(this.room);
     this.unsubscribers.push(
-      callbacks.listen("coreHp", (value: number) => this.updateBaseHp(value), true),
+      callbacks.listen(
+        "coreHp",
+        (value: number, previous: number) => {
+          this.updateBaseHp(value);
+          // A decrease means a mob breached the base: float the lost HP there.
+          if (typeof previous === "number" && previous > value) {
+            this.spawnCoreHitText(previous - value);
+          }
+        },
+        true,
+      ),
     );
+  }
+
+  /** Floats a red "-N HP" label above the base when its core takes damage. */
+  private spawnCoreHitText(damage: number): void {
+    const base = this.map.base;
+    if (!base) return;
+    this.spawnFloatingText(base.x, base.y - 96, `-${damage} HP`, "#f87171", {
+      fontSize: "18px",
+      rise: 42,
+      duration: 820,
+    });
   }
 
   /** Redraws the base HP bar (width + colour) and its label. */
@@ -1634,6 +1756,12 @@ export class GameplayStage {
 
     for (const sprite of this.projectileSprites.values()) sprite.destroy();
     this.projectileSprites.clear();
+
+    for (const label of this.floatingTexts) {
+      this.scene.tweens.killTweensOf(label);
+      label.destroy();
+    }
+    this.floatingTexts.clear();
 
     if (this.onKeyDown) {
       this.scene.input.keyboard?.off("keydown-D", this.onKeyDown);

@@ -117,7 +117,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           {/* Top-Left: Gold display + (attacker) army-panel toggle */}
           <div className="flex items-center gap-1.5 md:gap-2">
             <div
-              className="pointer-events-auto relative w-[130px] h-[38px] md:w-[180px] md:h-[50px] flex items-center justify-end pr-2.5 md:pr-4 shadow-lg drop-shadow transition-transform hover:scale-102"
+              className="pointer-events-auto relative w-[112px] h-[34px] md:w-[156px] md:h-[44px] flex items-center justify-end pr-2 md:pr-3 shadow-lg drop-shadow transition-transform hover:scale-102"
               style={{
                 backgroundImage: "url('/assets/ui/hud/hud_gold_badge_clean.png')",
                 backgroundSize: '100% 100%',
@@ -125,11 +125,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               }}
             >
               <div className="flex flex-col items-end justify-center leading-none">
-                <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-base tracking-wide font-['Almendra',serif]">
+                <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-[15px] tracking-wide font-['Almendra',serif]">
                   GOLD: {gold}g
                 </span>
                 {incomeRate !== undefined && (
-                  <span className="text-emerald-300 font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] text-[9px] md:text-[11px] tracking-tight font-sans">
+                  <span className="text-emerald-300 font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] text-[10px] md:text-xs tracking-tight font-sans">
                     +{incomeRate}g/s
                   </span>
                 )}
@@ -140,7 +140,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               <button
                 onClick={onToggleArmy}
                 aria-label={armyOpen ? 'Close army panel' : 'Open army panel'}
-                className={`pointer-events-auto flex items-center gap-1 px-2.5 h-[38px] md:h-[50px] rounded-lg border text-[11px] md:text-sm font-black uppercase tracking-wide shadow-lg active:scale-95 transition font-['Almendra',serif] ${
+                className={`pointer-events-auto flex items-center gap-1 px-2 h-[34px] md:h-[44px] rounded-lg border text-[11px] md:text-sm font-black uppercase tracking-wide shadow-lg active:scale-95 transition font-['Almendra',serif] ${
                   armyOpen
                     ? 'bg-amber-500 text-slate-950 border-amber-300'
                     : 'bg-slate-950/85 text-amber-200 border-amber-600/60 hover:bg-slate-800'
@@ -154,18 +154,27 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* Top-Center: Exactly Centered Wave & Timer Banner with Pixel-Perfect Plaque Alignment */}
           <div
-            className="pointer-events-auto fixed top-1.5 md:top-3 left-1/2 -translate-x-1/2 w-32 h-[78px] md:w-44 md:h-[108px] drop-shadow-[0_6px_14px_rgba(0,0,0,0.9)] transition-transform select-none"
+            className="pointer-events-auto fixed top-1.5 md:top-3 left-1/2 -translate-x-1/2 w-24 h-[60px] md:w-36 md:h-[88px] drop-shadow-[0_6px_14px_rgba(0,0,0,0.9)] transition-transform select-none"
             style={{
               backgroundImage: "url('/assets/ui/hud/hud_wave_banner.png')",
               backgroundSize: '100% 100%',
               backgroundRepeat: 'no-repeat',
             }}
           >
+            {/* Phase tag — replaces the old full-text swap so the clock stays visible */}
+            {phase === 'combat' && (
+              <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
+                <span className="font-['Almendra',serif] font-black text-red-300 text-[10px] md:text-xs tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">
+                  ⚔ COMBAT
+                </span>
+              </div>
+            )}
+
             {/* Live Numeric Countdown Clock — Exactly aligned in the lower golden plaque */}
             <div className="absolute top-[70%] h-[22%] inset-x-0 flex items-center justify-center pointer-events-none">
-              <span className="font-['Almendra',serif] font-bold text-amber-100 text-[11px] md:text-sm tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
-                {phase === 'combat' ? 'COMBAT' : timeFormatted}
-              </span>
+               <span className="font-['Almendra',serif] font-bold text-amber-100 text-xs md:text-[15px] tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+                 {timeFormatted}
+               </span>
             </div>
           </div>
 
@@ -174,7 +183,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <button
               onClick={onOpenMenu}
               aria-label="Open Game Settings"
-              className="w-8 h-8 md:w-11 md:h-11 rounded-full active:scale-95 hover:scale-105 transition shadow-lg drop-shadow cursor-pointer flex items-center justify-center p-0 border-0 bg-transparent"
+              className="w-7 h-7 md:w-9 md:h-9 rounded-full active:scale-95 hover:scale-105 transition shadow-lg drop-shadow cursor-pointer flex items-center justify-center p-0 border-0 bg-transparent"
             >
               <img
                 src="/assets/ui/hud/hud_settings_btn.png"
@@ -184,10 +193,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             </button>
 
             {/* Compact Base Castle HP Badge */}
-            <div className="flex items-center gap-1.5 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md bg-slate-950/85 border border-amber-600/50 shadow-md text-[10px] md:text-xs text-amber-100 font-bold">
+             <div className="flex items-center gap-1.5 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-slate-950/85 border border-amber-600/50 shadow-md text-[11px] md:text-sm text-amber-100 font-bold">
               <span>🏰</span>
               <span>{castleHp}/{maxCastleHp}</span>
-              <div className="w-10 h-1.5 md:w-16 md:h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+              <div className="w-9 h-1.5 md:w-14 md:h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
                 <div
                   className="h-full bg-emerald-500 rounded-full transition-all duration-300"
                   style={{ width: `${Math.max(0, Math.min(100, (castleHp / maxCastleHp) * 100))}%` }}
@@ -218,13 +227,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <button
                     key={towerId}
                     onClick={() => onSelectTower(towerId)}
-                    className={`relative flex-shrink-0 w-[42px] h-[44px] md:w-[56px] md:h-[62px] flex flex-col items-center justify-between p-0.5 rounded transition-all cursor-pointer ${
+                    className={`relative flex-shrink-0 w-[38px] h-[40px] md:w-[50px] md:h-[54px] flex flex-col items-center justify-between p-0.5 rounded transition-all cursor-pointer ${
                       isSelected ? 'scale-105 z-10' : 'hover:scale-102 opacity-95'
                     } ${!canAfford ? 'opacity-55 saturate-50' : ''}`}
                     title={`${tower?.name ?? towerId} (${cost}g)`}
                   >
                     {/* Tower Icon */}
-                    <div className="w-6 h-6 md:w-8 md:h-8 flex items-center justify-center overflow-hidden rounded">
+                    <div className="w-5 h-5 md:w-7 md:h-7 flex items-center justify-center overflow-hidden rounded">
                       <img
                         src={iconSrc}
                         alt={tower?.name ?? towerId}
@@ -245,17 +254,17 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
                     {/* Stacked Title & Cost (e.g. "Twr / 50g") */}
                     <div className="w-full text-center bg-black/75 rounded-b py-[1px] px-0.5">
-                      <span className="text-[8px] md:text-[10px] font-bold text-amber-200 leading-none truncate block">
-                        {shortName} / {cost}g
-                      </span>
+                       <span className="text-[8px] md:text-[10px] font-bold text-amber-200 leading-none truncate block">
+                         {shortName} / {cost}g
+                       </span>
                     </div>
 
                     {/* Insufficient gold indicator */}
                     {!canAfford && (
                       <div className="absolute inset-0 bg-red-950/60 rounded flex items-center justify-center pointer-events-none">
-                        <span className="text-[8px] md:text-[10px] text-red-300 font-black drop-shadow">
-                          LOW
-                        </span>
+                         <span className="text-[8px] md:text-[10px] text-red-300 font-black drop-shadow">
+                           LOW
+                         </span>
                       </div>
                     )}
                   </button>
@@ -270,9 +279,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <button
             onClick={onStartBattle}
             aria-label="Start Battle"
-            className="pointer-events-auto fixed bottom-2.5 right-2.5 md:bottom-4 md:right-4 z-40 px-3.5 py-2 md:px-5 md:py-2.5 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.5)] border-2 border-amber-300 flex items-center gap-1.5 transition-all cursor-pointer font-['Almendra',serif]"
+             className="pointer-events-auto fixed bottom-2.5 right-2.5 md:bottom-4 md:right-4 z-40 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.5)] border-2 border-amber-300 flex items-center gap-1.5 transition-all cursor-pointer font-['Almendra',serif]"
           >
-            <span className="text-sm md:text-base">⚔️</span>
+            <span className="text-xs md:text-sm">⚔️</span>
             <span>Start Battle</span>
           </button>
         )}

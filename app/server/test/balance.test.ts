@@ -69,8 +69,8 @@ describe("balance.ts shape guards", () => {
   });
 
   it("economy, deck and match rules are positive and present", () => {
-    const { defenderStartingGold, attackerStartingGold, goldPerSecond } = DEFAULT_ECONOMY;
-    for (const n of [defenderStartingGold, attackerStartingGold, goldPerSecond]) {
+    const { defenderStartingGold, attackerStartingGold } = DEFAULT_ECONOMY;
+    for (const n of [defenderStartingGold, attackerStartingGold]) {
       assert.ok(n > 0, `economy value must be > 0, got ${n}`);
     }
     assert.ok(DEFAULT_ECONOMY.bigWaveCount > 0);

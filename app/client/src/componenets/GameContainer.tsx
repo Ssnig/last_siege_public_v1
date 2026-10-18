@@ -9,6 +9,8 @@ import {
   MAPS,
   SAMPLE_MAP,
   type OpponentLeftPayload,
+  type OpponentReconnectingPayload,
+  type OpponentReconnectedPayload,
   type GameOverPayload,
   type YouEconomyPayload,
   type AttackerArmyPayload,
@@ -19,6 +21,7 @@ import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
 import { AttackerWavePanel } from './game/AttackerWavePanel';
 import { MapRevealOverlay } from './game/MapRevealOverlay';
+import { useSmoothCountdown } from './game/useSmoothCountdown';
 
 interface GameContainerProps {
   room: Room;
@@ -50,6 +53,33 @@ function hasOwnRole(room: Room): boolean {
     | undefined;
   return role === "attacker" || role === "defender";
 }
+
+/**
+ * Non-blocking notice shown to the player who stayed when their opponent's
+ * socket drops. The match keeps running; the seats are held for the ticking
+ * window, after which the opponent forfeits.
+ */
+const OpponentReconnectBanner: React.FC<{
+  name: string;
+  secondsRemaining: number;
+}> = ({ name, secondsRemaining }) => {
+  const seconds = useSmoothCountdown(secondsRemaining);
+  if (seconds <= 0) return null;
+
+  return (
+    <div className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2">
+      <div className="rounded-lg border border-amber-500/60 bg-slate-950/90 px-4 py-2 text-center shadow-xl backdrop-blur-sm">
+        <p className="text-sm font-bold text-amber-200">
+          {name} disconnected
+        </p>
+        <p className="text-xs text-slate-300">
+          Reconnecting… <span className="font-mono font-bold text-white">{seconds}s</span> — they
+          forfeit if they don't return.
+        </p>
+      </div>
+    </div>
+  );
+};
 
 /**
  * Joins lifecycle: the Phaser canvas mounts only once both players are in
@@ -102,6 +132,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     'connected' | 'reconnecting' | 'disconnected'
   >('connected');
 
+  // Set while the *opponent* is inside their reconnection window (we stay live).
+  const [opponentReconnect, setOpponentReconnect] = useState<{
+    name: string;
+    seconds: number;
+  } | null>(null);
+
   const handleSelectTower = (id: string) => {
     setSelectedTowerType(id);
     if (gameInstanceRef.current) {
@@ -132,7 +168,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   // Room wiring: listeners + the ready handshake. Runs once per room; the
   // cleanup (including room.leave()) runs only when this component unmounts.
   useEffect(() => {
-    // Match the SDK's retry budget to the server's 180s reconnection window.
+    // Match the SDK's retry budget to the server's 120s reconnection window.
     // The default budget (~56s) gives up long before the held seat expires,
     // so a backgrounded tab would be dropped for good.
     room.reconnection.maxRetries = 40;
@@ -182,6 +218,21 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       );
       room.send(MESSAGES.ready);
     });
+
+    // Opponent's socket dropped: keep playing, show their reconnect countdown.
+    const offOpponentReconnecting = room.onMessage(
+      MESSAGES.opponentReconnecting,
+      (data: OpponentReconnectingPayload) => {
+        setOpponentReconnect({ name: data.opponentName, seconds: data.secondsRemaining });
+      },
+    );
+
+    const offOpponentReconnected = room.onMessage(
+      MESSAGES.opponentReconnected,
+      (_data: OpponentReconnectedPayload) => {
+        setOpponentReconnect(null);
+      },
+    );
 
     const handleDrop = (code: number, reason?: string) => {
       console.warn('Connection dropped:', code, reason);
@@ -249,6 +300,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       offArmy();
       offWaveRejected();
       offOpponentLeft();
+      offOpponentReconnecting();
+      offOpponentReconnected();
       offDrop.remove(handleDrop);
       offReconnect.remove(handleReconnect);
       offLeave.remove(handleLeave);
@@ -362,6 +415,14 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         />
       )}
 
+      {/* Opponent reconnecting: informational, does not block play */}
+      {matchStarted && !gameOver && opponentReconnect && (
+        <OpponentReconnectBanner
+          name={opponentReconnect.name}
+          secondsRemaining={opponentReconnect.seconds}
+        />
+      )}
+
       {/* Royal Game HUD Overlay */}
       {matchStarted && (phase === 'building' || phase === 'combat') && (
         <GameHUD
@@ -421,9 +482,13 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
                   ? gameOver.youWin
                     ? "The defense held until attacker forces were exhausted!"
                     : "Attacker forces were exhausted!"
-                  : gameOver.youWin
-                    ? "Your opponent surrendered."
-                    : "You surrendered."}
+                  : gameOver.reason === "disconnect"
+                    ? gameOver.youWin
+                      ? "Your opponent disconnected and did not return."
+                      : "You disconnected and did not return in time."
+                    : gameOver.youWin
+                      ? "Your opponent surrendered."
+                      : "You surrendered."}
             </p>
             <p className="text-slate-500 text-xs">
               The enemy {gameOver.winner === "attacker" ? "Attacker" : "Defender"} wins.
