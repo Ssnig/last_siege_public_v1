@@ -30,41 +30,59 @@ interface TacticalData {
 }
 
 const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
-  basic: {
-    title: 'ARROW TOWER',
+  archer: {
+    title: 'ARCHER TOWER',
     weakness: 'Armored Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/ui/hud/slot_arrow.png',
+    iconSrc: '/assets/towers/01_archer_tower/icon.png',
   },
-  pitchfork: {
-    title: 'PITCHFORK TURRET',
-    weakness: 'Heavy Cavalry',
-    stacks: 'Max 10',
-    iconSrc: '/assets/ui/hud/slot_pitchfork.png',
-  },
-  poison: {
-    title: 'POISON DART',
-    weakness: 'Immune Nat Spirits',
-    stacks: 'Max 6',
-    iconSrc: '/assets/ui/hud/slot_poison.png',
-  },
-  crossbow: {
-    title: 'CROSSBOW',
-    weakness: 'High Armor Defenses',
-    stacks: 'Max 6',
-    iconSrc: '/assets/ui/hud/slot_crossbow.png',
+  basic: {
+    title: 'ARCHER TOWER',
+    weakness: 'Armored Swarms',
+    stacks: 'Max 8',
+    iconSrc: '/assets/towers/01_archer_tower/icon.png',
   },
   cannon: {
-    title: 'CANNON SHOOTER',
+    title: 'CANNON',
     weakness: 'Quick Units',
     stacks: 'Max 5',
-    iconSrc: '/assets/ui/hud/slot_cannon.png',
+    iconSrc: '/assets/towers/02_cannon/icon.png',
   },
-  sniper: {
-    title: 'ROYAL SNIPER',
+  bomb: {
+    title: 'BOMB THROWING TOWER',
+    weakness: 'Single Fast Targets',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/03_bomb_throwing_tower/icon.png',
+  },
+  bell: {
+    title: 'BELL TOWER',
+    weakness: 'Long-Range Snipers',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/04_bell_tower/icon.png',
+  },
+  spear: {
+    title: 'SPEAR TOWER',
+    weakness: 'Heavy Cavalry',
+    stacks: 'Max 8',
+    iconSrc: '/assets/towers/05_spear_tower/icon.png',
+  },
+  pitchfork: {
+    title: 'SPEAR TOWER',
+    weakness: 'Heavy Cavalry',
+    stacks: 'Max 8',
+    iconSrc: '/assets/towers/05_spear_tower/icon.png',
+  },
+  gun: {
+    title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/ui/hud/slot_sniper.png',
+    iconSrc: '/assets/towers/06_gun_tower/icon.png',
+  },
+  sniper: {
+    title: 'GUN TOWER',
+    weakness: 'Dense Swarms',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/06_gun_tower/icon.png',
   },
   arcanist: {
     title: 'ROYAL ARCANIST',

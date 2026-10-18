@@ -1,0 +1,16 @@
+{
+  "id": "spear",
+  "dir_name": "05_spear_tower",
+  "name": "Spear Tower",
+  "description": "Fortified bamboo rampart launching high-piercing bamboo javelins and steel spears.",
+  "projectile": {
+    "id": "spear",
+    "name": "Piercing Spear",
+    "size": [
+      32,
+      32
+    ],
+    "trailColor": "#10b981",
+    "impactEffect": "spear_pierce"
+  }
+}

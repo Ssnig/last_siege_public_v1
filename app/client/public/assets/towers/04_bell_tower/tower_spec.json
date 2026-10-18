@@ -1,0 +1,16 @@
+{
+  "id": "bell",
+  "dir_name": "04_bell_tower",
+  "name": "Bell Tower",
+  "description": "Sacred pagoda bronze bell tower emitting resonant sonic shockwaves that slow and damage enemies.",
+  "projectile": {
+    "id": "soundwave",
+    "name": "Sonic Shockwave",
+    "size": [
+      36,
+      36
+    ],
+    "trailColor": "#eab308",
+    "impactEffect": "bell_resonance"
+  }
+}

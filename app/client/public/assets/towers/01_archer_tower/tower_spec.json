@@ -1,0 +1,16 @@
+{
+  "id": "archer",
+  "dir_name": "01_archer_tower",
+  "name": "Archer Tower",
+  "description": "Elevated wooden watchtower manned by Royal archers firing rapid-fire arrows.",
+  "projectile": {
+    "id": "arrow",
+    "name": "Iron Arrow",
+    "size": [
+      28,
+      28
+    ],
+    "trailColor": "#f59e0b",
+    "impactEffect": "arrow_hit"
+  }
+}

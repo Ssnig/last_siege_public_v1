@@ -1,0 +1,16 @@
+{
+  "id": "gun",
+  "dir_name": "06_gun_tower",
+  "name": "Gun Tower",
+  "description": "Matchlock musket tower with marksmen firing high-penetration lead shot.",
+  "projectile": {
+    "id": "bullet",
+    "name": "Lead Bullet",
+    "size": [
+      20,
+      20
+    ],
+    "trailColor": "#06b6d4",
+    "impactEffect": "gun_smoke"
+  }
+}

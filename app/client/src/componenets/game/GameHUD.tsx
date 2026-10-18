@@ -23,30 +23,36 @@ interface GameHUDProps {
 }
 
 const DEFAULT_DEFENDER_TOWERS = [
-  'basic',
-  'pitchfork',
-  'poison',
-  'crossbow',
+  'archer',
   'cannon',
-  'sniper',
+  'bomb',
+  'bell',
+  'spear',
+  'gun',
 ];
 
 const TOWER_SHORT_NAMES: Record<string, string> = {
-  basic: 'Twr',
-  pitchfork: 'Pfk',
-  poison: 'Psn',
-  crossbow: 'Xbw',
+  archer: 'Arc',
+  basic: 'Arc',
   cannon: 'Can',
-  sniper: 'Snp',
+  bomb: 'Bmb',
+  bell: 'Bel',
+  spear: 'Spr',
+  pitchfork: 'Spr',
+  gun: 'Gun',
+  sniper: 'Gun',
 };
 
 const TOWER_ICONS: Record<string, string> = {
-  basic: '/assets/ui/hud/slot_arrow.png',
-  pitchfork: '/assets/ui/hud/slot_pitchfork.png',
-  poison: '/assets/ui/hud/slot_poison.png',
-  crossbow: '/assets/ui/hud/slot_crossbow.png',
-  cannon: '/assets/ui/hud/slot_cannon.png',
-  sniper: '/assets/ui/hud/slot_sniper.png',
+  archer: '/assets/towers/01_archer_tower/icon.png',
+  basic: '/assets/towers/01_archer_tower/icon.png',
+  cannon: '/assets/towers/02_cannon/icon.png',
+  bomb: '/assets/towers/03_bomb_throwing_tower/icon.png',
+  bell: '/assets/towers/04_bell_tower/icon.png',
+  spear: '/assets/towers/05_spear_tower/icon.png',
+  pitchfork: '/assets/towers/05_spear_tower/icon.png',
+  gun: '/assets/towers/06_gun_tower/icon.png',
+  sniper: '/assets/towers/06_gun_tower/icon.png',
 };
 
 export const GameHUD: React.FC<GameHUDProps> = ({
