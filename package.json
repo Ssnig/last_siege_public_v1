@@ -7,8 +7,8 @@
   ],
   "scripts": {
     "dev:shared": "npm run build --workspace=packages/shared -- --watch",
-    "dev:server": "npm run start --workspace=app/server",
-    "dev:client": "npm run dev --workspace=app/client",
+    "dev:server": "npm run build:shared && npm run start --workspace=app/server",
+    "dev:client": "npm run build:shared && npm run dev --workspace=app/client",
     "build:shared": "npm run build --workspace=packages/shared",
     "build:server": "npm run build:shared && npm run build --workspace=app/server",
     "build:client": "npm run build:shared && npm run build --workspace=app/client",
