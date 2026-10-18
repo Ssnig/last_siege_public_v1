@@ -450,7 +450,7 @@ export class GameplayStage {
       const hpBarWidth = 120;
       const hpBarHeight = 10;
       const hpBarX = this.map.base.x;
-      const hpBarY = this.map.base.y - 150;
+      const hpBarY = this.map.base.y + (this.map.baseHpOffsetY ?? -150);
 
       const hpBarBorder = this.scene.add
         .rectangle(hpBarX, hpBarY, hpBarWidth + 4, hpBarHeight + 4, 0x0f172a, 0.8)

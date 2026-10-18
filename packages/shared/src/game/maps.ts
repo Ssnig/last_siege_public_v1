@@ -51,6 +51,8 @@ export interface MapDefinition {
   base: Vec2;
   /** Custom base sprite image path. Defaults to /assets/maps/<folder>/base.png or fallback base_castle. */
   baseImage?: string;
+  /** Vertical offset for floating base HP bar in pixels. Defaults to -150. */
+  baseHpOffsetY?: number;
   width?: number;
   height?: number;
   pathHalfWidth?: number;
@@ -251,9 +253,7 @@ export const INLE_MAP: MapDefinition = {
       { x: 796, y: 114 },
       { x: 861, y: 94 },
       { x: 926, y: 116 },
-      { x: 960, y: 182 },
-      { x: 955, y: 275 },
-      { x: 980, y: 410 },
+      { x: 960, y: 190 },
     ],
     bottom: [
       { x: 57, y: 357 },
@@ -278,8 +278,7 @@ export const INLE_MAP: MapDefinition = {
       { x: 838, y: 619 },
       { x: 891, y: 612 },
       { x: 931, y: 564 },
-      { x: 955, y: 455 },
-      { x: 980, y: 410 },
+      { x: 960, y: 525 },
     ],
   },
   pathLabels: {
@@ -299,8 +298,9 @@ export const INLE_MAP: MapDefinition = {
     { slotIndex: 8, x: 1127, y: 602 },
   ],
   checkpoints: [3, 12],
-  base: { x: 980, y: 410 },
+  base: { x: 970, y: 360 },
   baseImage: "/assets/maps/map_3_inle/base.png",
+  baseHpOffsetY: -110,
   pathHalfWidth: 20,
 };
 
