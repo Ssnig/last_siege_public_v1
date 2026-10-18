@@ -294,6 +294,57 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "building");
   });
 
+  it("runs the round-based 2-2-2 pick draft through to combat and a released wave", async function () {
+    this.timeout(20000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await waitForPhase(room, "drafting", 5000);
+
+    // Three rounds of two picks each; the server reveals each round and runs a
+    // short final countdown before opening the building phase.
+    const attackerDeck = Object.keys(MOB_TYPES).slice(0, 6);
+    const defenderDeck = Object.keys(TOWER_TYPES).slice(0, 6);
+    for (let round = 1; round <= 3; round++) {
+      attacker.send(MESSAGES.draftPick, {
+        round,
+        picks: attackerDeck.slice((round - 1) * 2, round * 2),
+      });
+      defender.send(MESSAGES.draftPick, {
+        round,
+        picks: defenderDeck.slice((round - 1) * 2, round * 2),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    await waitForPhase(room, "building", 15000);
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, {
+      typeId: defenderDeck[0],
+      slotIndex: slots[0].slotIndex,
+    });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    // The picked deck is what the attacker may deploy, so the wave is drawn
+    // from the same six units the draft handed out.
+    attacker.send(MESSAGES.waveAddBatch, {
+      pathId: "top",
+      typeId: attackerDeck[0],
+      count: 3,
+    });
+    attacker.send(MESSAGES.waveRelease, {});
+    await waitFor(() => room.state.mobs.size > 0, 6000);
+    await waitFor(() => room.state.projectiles.size > 0, 6000);
+  });
+
   it("rejects an invalid draft and keeps the room in drafting", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
