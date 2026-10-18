@@ -126,6 +126,11 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
         ? 'Your adversary conceded and surrendered the battlefield.'
         : 'You surrendered the field of battle.';
     }
+    if (gameOver.reason === 'disconnect') {
+      return gameOver.youWin
+        ? 'Your adversary left the battlefield and did not return in time.'
+        : 'You were disconnected and did not return in time.';
+    }
     return gameOver.youWin
       ? 'A glorious victory has been claimed in the royal realm!'
       : 'Defeated in battle! Regroup and fight again.';

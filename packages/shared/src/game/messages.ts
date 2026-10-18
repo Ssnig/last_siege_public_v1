@@ -16,6 +16,10 @@ export const MESSAGES = {
   roleAssigned: "role_assigned",
   /** Server → client (private): the other player left; `youAreHost` when promoted. */
   opponentLeft: "opponent_left",
+  /** Server → client (private): the opponent's socket dropped; they may return. */
+  opponentReconnecting: "opponent_reconnecting",
+  /** Server → client (private): the dropped opponent came back. */
+  opponentReconnected: "opponent_reconnected",
   /** Server → client (private): the match ended and who won, with the reason. */
   gameOver: "game_over",
   /** Client → server: this client concedes; the opponent wins. */
@@ -78,13 +82,32 @@ export interface OpponentLeftPayload {
 }
 
 /**
+ * Payload of the `opponent_reconnecting` private message.
+ *
+ * @remarks Sent to the player who is still connected when their opponent's
+ * socket drops. The game keeps running; if the opponent is not back within
+ * `secondsRemaining`, the remaining player is declared the winner.
+ */
+export interface OpponentReconnectingPayload {
+  opponentName: string;
+  /** Whole seconds before the seat is forfeited and the match is awarded. */
+  secondsRemaining: number;
+}
+
+/** Payload of the `opponent_reconnected` private message. */
+export interface OpponentReconnectedPayload {
+  opponentName: string;
+}
+
+/**
  * Why a match ended.
  *
  * @remarks `core` = the defender's base was destroyed; `surrender` = a
  * concession; `time` = the round timer expired and the attacker had no units
- * left. Also mirrored into `RoomState.gameOverReason`.
+ * left; `disconnect` = the opponent did not return inside the reconnection
+ * window. Also mirrored into `RoomState.gameOverReason`.
  */
-export type GameOverReason = "surrender" | "core" | "time";
+export type GameOverReason = "surrender" | "core" | "time" | "disconnect";
 
 /** Payload of the `game_over` private message. */
 export interface GameOverPayload {

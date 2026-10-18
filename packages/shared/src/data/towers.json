@@ -38,6 +38,7 @@
   "cannon": {
     "id": "cannon",
     "name": "Cannon",
+    "splashRadius": 60,
     "tiers": [
       { "cost": 140, "damage": 40, "range": 110, "fireRate": 0.54, "projectileSpeed": 300 },
       { "cost": 230, "damage": 75, "range": 120, "fireRate": 0.59, "projectileSpeed": 320 },
@@ -83,6 +84,7 @@
   "bertha": {
     "id": "bertha",
     "name": "Big Bertha",
+    "splashRadius": 90,
     "tiers": [
       { "cost": 300, "damage": 120, "range": 140, "fireRate": 0.32, "projectileSpeed": 280 },
       { "cost": 520, "damage": 240, "range": 155, "fireRate": 0.36, "projectileSpeed": 300 },

@@ -54,6 +54,15 @@ export interface TowerType {
   id: string;
   name: string;
   tiers: TowerTier[];
+  /**
+   * Impact blast radius, in px, for artillery-style towers.
+   *
+   * @remarks Omitted (or `0`) means a single-target shot: its projectile only
+   * damages the mob it was aimed at. A positive value turns the tower into
+   * artillery — the projectile still flies to its destination even if the aim
+   * target dies and, on landing, damages **every** mob inside this radius.
+   */
+  splashRadius?: number;
 }
 
 /** Economy tuning for both sides. */
@@ -61,23 +70,18 @@ export interface EconomyConfig {
   defenderStartingGold: number;
   attackerStartingGold: number;
   /**
-   * Passive base gold per second the attacker accrues during building and combat.
+   * Passive base gold per second the attacker accrues during combat.
    *
-   * @remarks Stops once the round timer (`roundDurationSec`) expires.
+   * @remarks No gold accrues during building; the round timer
+   * (`roundDurationSec`) stops this income once it expires.
    */
   attackerBaseIncome: number;
-  /**
-   * Passive base gold per second the defender accrues during building and combat.
-   */
+  /** Passive base gold per second the defender accrues during combat. */
   defenderBaseIncome: number;
   /**
    * Fraction of released units' gold cost permanently converted to attacker passive income rate.
    */
   attackerIncomeGainRate: number;
-  /**
-   * Fallback / legacy passive income rate.
-   */
-  goldPerSecond: number;
   /** Total big waves the attacker has for the whole match. */
   bigWaveCount: number;
   /** Fraction of mob bounty refunded to defender when a mob leaks into the core. */

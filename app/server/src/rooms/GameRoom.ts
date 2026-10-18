@@ -68,9 +68,9 @@ export type PlayerRole = "attacker" | "defender";
  * @remarks Must comfortably exceed the client SDK's own retry budget (default
  * backoff tops out at 5s and gives up after ~56s). A background tab throttles
  * the SDK's retry timers, so a short window here strands the player even when
- * they come back.
+ * they come back. When it lapses the opponent is declared the winner.
  */
-const RECONNECT_WINDOW_SEC = 180;
+const RECONNECT_WINDOW_SEC = 120;
 
 export interface GameRoomMetadata {
   creatorName: string;
@@ -184,6 +184,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /** Big-wave pool left per attacker session id. */
   private bigWavesRemaining = new Map<string, number>();
 
+  /**
+   * Session ids whose socket dropped and are inside their reconnection window.
+   *
+   * @remarks Distinguishes a timed-out drop (declare the opponent the winner)
+   * from a deliberate `leave()` (reopen the room for a replacement) inside
+   * {@link onLeave}, since both arrive through the same hook.
+   */
+  private pendingReconnect = new Set<string>();
+
+  /**
+   * Seconds a dropped client's seat is held open, defaulting to
+   * {@link RECONNECT_WINDOW_SEC}.
+   *
+   * @remarks Overridable through room options so tests can exercise the
+   * timeout path without waiting the full production window.
+   */
+  private reconnectWindowSec = RECONNECT_WINDOW_SEC;
+
   /** Dt accumulator that throttles passive-income pushes to roughly 1 Hz. */
   private incomePushAccumulator = 0;
 
@@ -195,6 +213,26 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   /** Monotonic source of projectile ids, unique for the room's whole lifetime. */
   private projectileSeq = 0;
+
+  /**
+   * Ground point each in-flight projectile is flying toward, keyed by its id.
+   *
+   * @remarks Kept server-side (not synced) and refreshed from the living target
+   * every tick while it lives. When the target dies the last aim is retained so
+   * the shot still travels to where the mob was and lands instead of blinking
+   * out mid-air.
+   */
+  private projectileAim = new Map<string, Vec2>();
+
+  /**
+   * Blast radius each in-flight projectile applies on impact, keyed by its id.
+   *
+   * @remarks `0` is a single-target arrow; a positive value is artillery, whose
+   * landing still damages every mob inside the radius even if its aim target
+   * died en route. Captured at spawn from the tower's `splashRadius` in
+   * {@link TOWER_TYPES}.
+   */
+  private projectileSplash = new Map<string, number>();
 
   plugins = definePlugins({
     /**
@@ -909,6 +947,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (this.state.phase !== "building" && this.state.phase !== "combat") {
       return "You cannot stage units right now.";
     }
+    if (this.incomeExpired) {
+      return "Your income has stopped; no more units can be staged.";
+    }
     return null;
   }
 
@@ -1415,6 +1456,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
     );
     this.lastPhase = this.state.phase;
 
+    // Same idea for the reconnection seat window: production uses the default,
+    // tests shorten it to exercise the timeout path quickly.
+    if (typeof options.reconnectWindowSec === "number") {
+      this.reconnectWindowSec = options.reconnectWindowSec;
+    }
+
     this.setTimestep((deltaTime) => this.update(deltaTime / 1000));
   }
 
@@ -1464,29 +1511,79 @@ export class GameRoom extends Room<{ state: RoomState }> {
    *
    * @remarks Called on an unexpected socket close (backgrounded tab, network
    * blip, proxy stall). The client SDK reconnects automatically within
-   * {@link RECONNECT_WINDOW_SEC}; only if it never returns does `onLeave` run
-   * and reopen the room for a replacement opponent.
+   * {@link RECONNECT_WINDOW_SEC}; the opponent is told to hold on and the match
+   * keeps running in the meantime. Only if the dropped client never returns
+   * does `onLeave` run, awarding the match to the player who stayed.
    */
   onDrop(client: Client, code: CloseCode): void {
     console.log(
-      `Client ${client.sessionId} dropped (code ${code}); holding seat for ${RECONNECT_WINDOW_SEC}s`,
+      `Client ${client.sessionId} dropped (code ${code}); holding seat for ${this.reconnectWindowSec}s`,
     );
-    this.allowReconnection(client, RECONNECT_WINDOW_SEC).catch(() => {});
+    this.pendingReconnect.add(client.sessionId);
+
+    const opponent = this.clients.find(
+      (c) => c.sessionId !== client.sessionId,
+    );
+    opponent?.send(MESSAGES.opponentReconnecting, {
+      opponentName: client.userData?.playerName ?? "Your opponent",
+      secondsRemaining: this.reconnectWindowSec,
+    });
+
+    this.allowReconnection(client, this.reconnectWindowSec).catch(() => {});
   }
 
   onReconnect(client: Client): void {
     console.log(`Client ${client.sessionId} reconnected!`);
+    this.pendingReconnect.delete(client.sessionId);
     this.sendPlayerState(client);
     // Re-seed the attacker's private wave panel (no-op for the defender).
     this.sendAttackerArmy(client);
+
+    const opponent = this.clients.find(
+      (c) => c.sessionId !== client.sessionId,
+    );
+    opponent?.send(MESSAGES.opponentReconnected, {
+      opponentName: client.userData?.playerName ?? "Your opponent",
+    });
   }
 
   /**
-   * Removes a departed player and resets the remaining player's match draft
-   * when the room reopens for a replacement opponent.
+   * Ends the match in favour of the player whose opponent's reconnection
+   * window lapsed.
+   *
+   * @remarks A no-op once the match is already over or when nobody is left to
+   * award (the room disposes when empty). The winner stays connected and
+   * leaves from the game-over screen, which is why the room is not reopened
+   * here.
+   */
+  private awardDisconnectWin(leaver: Client): void {
+    if (this.state.phase === "gameover") return;
+
+    const remaining = this.clients[0];
+    const winner = remaining?.userData?.role as PlayerRole | undefined;
+    if (!remaining || !winner) return;
+
+    if (!this.phases.declareGameOver(winner, "disconnect")) return;
+
+    console.log(
+      `Room ${this.roomId}: ${leaver.sessionId} did not reconnect; ${winner} wins by disconnect`,
+    );
+
+    const payload: GameOverPayload = { winner, reason: "disconnect" };
+    for (const c of this.clients) {
+      c.send(MESSAGES.gameOver, payload);
+    }
+  }
+
+  /**
+   * Removes a departed player. A deliberate leave reopens the room for a
+   * replacement opponent; a drop whose reconnection window lapsed instead
+   * awards the match to the player who stayed.
    */
   onLeave(client: Client, code: CloseCode): void {
     console.log(`Client ${client.sessionId} left! Code: ${code}`);
+
+    const wasDropped = this.pendingReconnect.delete(client.sessionId);
 
     this.state.players.delete(client.sessionId);
     this.acceptedDecks.delete(client.sessionId);
@@ -1497,6 +1594,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.rematchVotes.delete(client.sessionId);
 
     const wasCreator = client.sessionId === this.creatorSessionId;
+
+    if (wasDropped) {
+      this.awardDisconnectWin(client);
+      return;
+    }
 
     if (
       this.clients.length === 1 &&
@@ -1570,10 +1672,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (event?.type === "building-started" && event.autoCompleted.length > 0) {
       this.autoFillDecks(event.autoCompleted);
-    }
-
-    if (event?.type === "combat-started") {
-      this.onBuildingTimerExpired();
     }
 
     if (event?.type === "round-expired") {
@@ -1654,110 +1752,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Launches the attacker's army when combat opens (timer expiry or the
-   * defender's START button).
-   *
-   * @remarks Whatever the attacker staged during `building` is released here, so
-   * building a wave while the defender lays towers sends it the moment the fight
-   * begins. An attacker who staged nothing sends nothing: they can still stage
-   * and Send during combat, and if they stay silent until the income window
-   * closes the defender wins on exhaustion.
-   */
-  private onBuildingTimerExpired(): void {
-    const attackerClient = this.clients.find(
-      (c) => c.userData?.role === "attacker",
-    );
-
-    if (attackerClient) {
-      const sessionId = attackerClient.sessionId;
-      const staged = this.stagedWaves.get(sessionId);
-      const hasStaged =
-        staged && Array.from(staged.values()).some((w) => w.batches.length > 0);
-
-      if (hasStaged) {
-        // Attacker staged waves during preparation: release them immediately!
-        const result = this.executeWaveRelease(attackerClient);
-        if (!result.success) {
-          console.warn(
-            `Room ${this.roomId}: failed to release staged waves (${result.error}); falling back to auto-staging`,
-          );
-          this.autoStageAndRelease(attackerClient);
-        }
-      } else {
-        // Attacker did not stage any wave before timer ran out: auto-stage starter wave and release
-        this.autoStageAndRelease(attackerClient);
-      }
-    } else {
-      // Solo defender match: spawn baseline wave directly onto map paths
-      this.spawnBaselineWave();
-    }
-  }
-
-  /**
-   * Auto-stages and releases a basic wave when the preparation timer runs out.
-   */
-  private autoStageAndRelease(client: Client): void {
-    const sessionId = client.sessionId;
-    const deck = this.acceptedDecks.get(sessionId) ?? [];
-    const availableTroops =
-      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
-
-    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
-    const pathIds = this.pathIdsFor(map);
-
-    for (const [idx, pathId] of pathIds.entries()) {
-      const wave = this.ensureStagedWave(sessionId, pathId);
-      const primaryMob = availableTroops[idx % availableTroops.length];
-      const secondaryMob = availableTroops[(idx + 2) % availableTroops.length];
-      wave.batches = [
-        {
-          batchId: `batch-${++this.batchSeq}`,
-          typeId: primaryMob,
-          count: 2,
-        },
-        {
-          batchId: `batch-${++this.batchSeq}`,
-          typeId: secondaryMob,
-          count: 2,
-        },
-      ];
-    }
-
-    const outcome = this.executeWaveRelease(client, pathIds);
-    if (!outcome.success) {
-      console.warn(
-        `Room ${this.roomId}: autoStageAndRelease failed (${outcome.error}); forcing baseline wave`,
-      );
-      this.spawnBaselineWave();
-    }
-  }
-
-  /**
-   * Spawns baseline mobs showcasing the Burmese units for battle testing.
-   */
-  private spawnBaselineWave(): void {
-    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
-    const pathIds = this.pathIdsFor(map);
-    const interval = DEFAULT_WAVE_RULES.batchIntervalSec;
-    const burmeseLineup = ["horse_rider", "sar_bal_gyi", "gya_pu", "a_ba", "chon_toe"];
-    let offset = 0;
-
-    for (const [laneIdx, pathId] of pathIds.entries()) {
-      for (let i = 0; i < burmeseLineup.length; i++) {
-        const mobId = burmeseLineup[(i + laneIdx) % burmeseLineup.length];
-        this.releaseQueue.push({
-          atMatchTime: this.matchTime + offset * interval,
-          pathId,
-          typeId: mobId,
-          count: 2,
-        });
-        offset++;
-      }
-    }
-    console.log(`Room ${this.roomId}: spawned Burmese battle wave on ${pathIds.join(", ")}`);
-  }
-
-  /**
    * Resets per-match income state the moment combat begins.
    */
   private beginCombatSim(): void {
@@ -1772,17 +1766,104 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /**
    * Reacts to the round timer hitting zero: attacker passive income stops, but
    * the match itself carries on until someone is out.
+   *
+   * @remarks Any army still staged is flushed here (see {@link flushStagedArmy})
+   * so a player cannot park an unaffordable wave and stall the match forever.
    */
   private onRoundExpired(): void {
     if (this.incomeExpired) return;
     this.incomeExpired = true;
 
     for (const client of this.clients) {
+      if (client.userData?.role === "attacker") {
+        this.flushStagedArmy(client);
+      }
       this.sendEconomy(client);
       this.sendAttackerArmy(client);
     }
 
     console.log(`Room ${this.roomId}: income window closed`);
+  }
+
+  /**
+   * Releases whatever the attacker still has staged when their income stops.
+   *
+   * @remarks Staging never charges gold — only a send does — so a player could
+   * stage an army they can never afford and leave it parked, which keeps
+   * {@link hasStagedArmy} `true` and stalls the match. To resolve that without
+   * handing out a free army, batches are discarded newest-first until the
+   * remaining army fits the attacker's current gold, then the survivors are
+   * released through {@link executeWaveRelease} (so gold, big-wave budget and
+   * the income boost all match a normal send). Big waves beyond the leftover
+   * budget are dropped whole before that.
+   */
+  private flushStagedArmy(client: Client): void {
+    const sessionId = client.sessionId;
+    const staged = this.stagedWaves.get(sessionId);
+    if (!staged || staged.size === 0) return;
+
+    // Big waves are gated by a match budget that staging never checked, so any
+    // wave past the leftover budget can never legally release: drop it whole.
+    const budget = this.bigWavesRemaining.get(sessionId) ?? 0;
+    let bigKept = 0;
+    for (const pathId of [...staged.keys()].reverse()) {
+      const wave = staged.get(pathId);
+      if (!wave || wave.size !== "big" || wave.batches.length === 0) continue;
+      if (bigKept >= budget) {
+        wave.batches = [];
+      } else {
+        bigKept++;
+      }
+    }
+
+    // Discard newest batches across paths until the army fits the gold on hand.
+    const gold = this.economies.get(sessionId) ?? 0;
+    let dropped = 0;
+    for (const pathId of [...staged.keys()].reverse()) {
+      const wave = staged.get(pathId);
+      if (!wave) continue;
+      while (wave.batches.length > 0 && this.stagedTotalCost(staged) > gold) {
+        wave.batches.pop();
+        dropped++;
+      }
+    }
+
+    for (const [pathId, wave] of [...staged.entries()]) {
+      if (wave.batches.length === 0) staged.delete(pathId);
+    }
+
+    const pathIds = [...staged.keys()];
+    if (pathIds.length === 0) {
+      console.log(
+        `Room ${this.roomId}: flushed ${dropped} staged batch(es); nothing affordable to send`,
+      );
+      return;
+    }
+
+    const outcome = this.executeWaveRelease(client, pathIds);
+    if (!outcome.success) {
+      // Should not happen once affordability/budget are settled, but never let a
+      // stuck staged army soft-lock the match: drop it and let exhaustion fire.
+      console.warn(
+        `Room ${this.roomId}: staged flush release failed (${outcome.error}); discarding staged army`,
+      );
+      staged.clear();
+    } else {
+      console.log(
+        `Room ${this.roomId}: flushed staged army on ${pathIds.join(", ")} (-${dropped} batch(es))`,
+      );
+    }
+  }
+
+  /** Total gold to send every non-empty staged wave for one attacker. */
+  private stagedTotalCost(staged: Map<string, StagedWave>): number {
+    let total = 0;
+    for (const wave of staged.values()) {
+      if (wave.batches.length > 0) {
+        total += waveGoldCost(wave.batches, wave.size);
+      }
+    }
+    return total;
   }
 
   /**
@@ -1900,6 +1981,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.incomePushAccumulator = 0;
     this.batchSeq = 0;
     this.state.waveIndex = 0;
+    this.projectileAim.clear();
+    this.projectileSplash.clear();
   }
 
   /** Named path ids on a map that are long enough to actually walk. */
@@ -2110,9 +2193,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
         speed: tier.projectileSpeed,
       }),
     );
+
+    // Remember where the shot is headed and how wide it bursts, so it can still
+    // land (and artillery can still splash) after its target dies.
+    this.projectileAim.set(id, { x: target.x, y: target.y });
+    this.projectileSplash.set(id, TOWER_TYPES[tower.typeId]?.splashRadius ?? 0);
   }
 
-  /** Homes every projectile toward its target and resolves hits. */
+  /** Homes every projectile toward its aim and resolves the shot on arrival. */
   private simulateProjectiles(
     dt: number,
     positions: ReadonlyMap<string, Vec2>,
@@ -2122,22 +2210,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const finished: string[] = [];
 
     for (const [id, projectile] of this.state.projectiles) {
+      // While the target lives, keep the aim glued to it (homing). Once it is
+      // gone the last aim is frozen and reused, so the shot still flies out and
+      // lands rather than being deleted the instant its target dies.
       const target = positions.get(projectile.targetId);
-      const ownerId = projectile.ownerId;
-
-      // Target died or left the field before the shot landed; drop it.
-      if (!target) {
-        finished.push(id);
-        continue;
+      const aim = this.projectileAim.get(id);
+      if (target && aim) {
+        aim.x = target.x;
+        aim.y = target.y;
       }
+      const destination = aim ?? { x: projectile.x, y: projectile.y };
 
-      const dx = target.x - projectile.x;
-      const dy = target.y - projectile.y;
+      const dx = destination.x - projectile.x;
+      const dy = destination.y - projectile.y;
       const distance = Math.hypot(dx, dy);
       const step = projectile.speed * dt;
 
       if (distance <= step + PROJECTILE_HIT_RADIUS) {
-        this.damageMob(projectile.targetId, projectile.damage, ownerId);
+        this.resolveProjectileImpact(id, projectile, destination, positions);
         finished.push(id);
         continue;
       }
@@ -2148,6 +2238,44 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     for (const id of finished) {
       this.state.projectiles.delete(id);
+      this.projectileAim.delete(id);
+      this.projectileSplash.delete(id);
+    }
+  }
+
+  /**
+   * Applies a projectile's damage where it landed.
+   *
+   * @remarks A single-target arrow only damages the mob it was aimed at, so if
+   * that mob died en route the shot is a harmless miss. An artillery shell
+   * (`splashRadius > 0`) still bursts, damaging every mob within the blast
+   * radius of the impact point.
+   */
+  private resolveProjectileImpact(
+    id: string,
+    projectile: Projectile,
+    impact: Vec2,
+    positions: ReadonlyMap<string, Vec2>,
+  ): void {
+    const ownerId = projectile.ownerId;
+    const hit = new Set<string>();
+
+    // A still-living target is always hit (the shot was homing on it).
+    if (positions.has(projectile.targetId)) {
+      hit.add(projectile.targetId);
+    }
+
+    const splash = this.projectileSplash.get(id) ?? 0;
+    if (splash > 0) {
+      for (const [mobId, pos] of positions) {
+        if (Math.hypot(pos.x - impact.x, pos.y - impact.y) <= splash) {
+          hit.add(mobId);
+        }
+      }
+    }
+
+    for (const mobId of hit) {
+      this.damageMob(mobId, projectile.damage, ownerId);
     }
   }
 
@@ -2175,5 +2303,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   private clearProjectiles(): void {
     if (this.state.projectiles.size > 0) this.state.projectiles.clear();
+    this.projectileAim.clear();
+    this.projectileSplash.clear();
   }
 }

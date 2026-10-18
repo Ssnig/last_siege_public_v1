@@ -5,7 +5,6 @@
     "attackerBaseIncome": 2.5,
     "defenderBaseIncome": 5.0,
     "attackerIncomeGainRate": 0.035,
-    "goldPerSecond": 5,
     "bigWaveCount": 3,
     "leakPityRate": 0.21
   },

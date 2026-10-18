@@ -1,5 +1,6 @@
 import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
+import { Callbacks } from "@colyseus/sdk";
 
 import appConfig from "../src/app.config.js";
 import {
@@ -13,6 +14,7 @@ import {
   MAP_POOL,
   RANDOM_MAP_ID,
   DEFAULT_ECONOMY,
+  DEFAULT_WAVE_RULES,
   MATCH_RULES,
   buildCost,
   sellRefund,
@@ -292,6 +294,57 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "building");
   });
 
+  it("runs the round-based 2-2-2 pick draft through to combat and a released wave", async function () {
+    this.timeout(20000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await waitForPhase(room, "drafting", 5000);
+
+    // Three rounds of two picks each; the server reveals each round and runs a
+    // short final countdown before opening the building phase.
+    const attackerDeck = Object.keys(MOB_TYPES).slice(0, 6);
+    const defenderDeck = Object.keys(TOWER_TYPES).slice(0, 6);
+    for (let round = 1; round <= 3; round++) {
+      attacker.send(MESSAGES.draftPick, {
+        round,
+        picks: attackerDeck.slice((round - 1) * 2, round * 2),
+      });
+      defender.send(MESSAGES.draftPick, {
+        round,
+        picks: defenderDeck.slice((round - 1) * 2, round * 2),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    await waitForPhase(room, "building", 15000);
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, {
+      typeId: defenderDeck[0],
+      slotIndex: slots[0].slotIndex,
+    });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    // The picked deck is what the attacker may deploy, so the wave is drawn
+    // from the same six units the draft handed out.
+    attacker.send(MESSAGES.waveAddBatch, {
+      pathId: "top",
+      typeId: attackerDeck[0],
+      count: 3,
+    });
+    attacker.send(MESSAGES.waveRelease, {});
+    await waitFor(() => room.state.mobs.size > 0, 6000);
+    await waitFor(() => room.state.projectiles.size > 0, 6000);
+  });
+
   it("rejects an invalid draft and keeps the room in drafting", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
@@ -437,6 +490,29 @@ describe("testing your Colyseus app", () => {
       assert.ok(mob.speed > 0, "each mob carries a jittered speed");
     }
     assert.deepStrictEqual([...pathIds].sort(), ["bottom", "top"], "both tracks are used");
+  });
+
+  it("sends no attacker troops when combat begins without an explicit release", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 3 });
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.strictEqual(
+      room.state.mobs.size,
+      0,
+      "staged waves wait for an explicit release instead of launching on the combat edge",
+    );
   });
 
   it("advances spawned mobs along their path", async () => {
@@ -598,6 +674,56 @@ describe("testing your Colyseus app", () => {
       MATCH_RULES.coreHp,
       "the wave died to tower fire instead of reaching the base",
     );
+  });
+
+  it("removes a killed mob mid-combat, short of the core and with its bounty intact", async function () {
+    this.timeout(20000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: Object.keys(MOB_TYPES).slice(0, 2) });
+    defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    for (const slot of [slots[0], slots[1]]) {
+      defender.send(MESSAGES.placeTower, { typeId: "basic", slotIndex: slot.slotIndex });
+    }
+    await waitFor(() => room.state.towers.size === 2);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 3 });
+    attacker.send(MESSAGES.waveRelease, {});
+    await waitFor(() => room.state.mobs.size > 0);
+
+    // The bounty floater reads these two fields straight off the removed mob
+    // record. The server mutates HP and deletes in the same tick, so the
+    // decoder ships the DELETE and drops the field update — the client can
+    // never see a non-positive HP, and has to tell a kill from a leak by
+    // progress instead. Both fields must therefore survive to onRemove.
+    const callbacks = Callbacks.get(attacker);
+    const removals: Array<{ progress: number; bounty: number }> = [];
+    callbacks.onRemove("mobs", (mob) => {
+      removals.push({ progress: mob.progress, bounty: mob.bounty });
+    });
+
+    await waitFor(() => removals.length > 0, 15000);
+
+    assert.ok(
+      removals.some((r) => r.progress < 1),
+      `a kill removes the mob short of the core (${JSON.stringify(removals)})`,
+    );
+    assert.ok(
+      removals.every((r) => r.bounty > 0),
+      `the removed record still carries its bounty (${JSON.stringify(removals)})`,
+    );
+    assert.strictEqual(room.state.phase, "combat", "kills are removed mid-combat");
   });
 
   it("subtracts core HP when mobs breach the base", async function () {
@@ -844,5 +970,122 @@ describe("testing your Colyseus app", () => {
       [...room.state.mobs.values()].every((mob) => mob.pathId === "lower"),
       "mobs follow the assigned track",
     );
+  });
+
+  it("auto-releases an affordable staged army when the income window closes", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    // Stage an affordable army and never release it, then close the window: the
+    // anti-grief flush should send it rather than let it stall the match.
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 2 });
+    await waitForArmy(attacker, (payload) =>
+      payload.paths.some((path) => path.pathId === "top" && path.troopCount === 2),
+    );
+
+    room.state.phaseEndsAt = 0.05;
+    await waitForArmy(attacker, (payload) => payload.incomeExpired, 5000);
+
+    await waitFor(() => room.state.mobs.size > 0, 3000);
+    assert.strictEqual(room.state.phase, "combat", "the flushed army keeps the match live");
+  });
+
+  it("drops an unaffordable staged army on income expiry instead of stalling the match", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    // A single big wave of 15 grunts (150g units + 55g fee) costs far more than
+    // the attacker's gold, so the flush must discard the only batch and let the
+    // match resolve instead of parking an unsendable army forever.
+    const waveCost = MOB_TYPES["grunt"].cost * 15 + DEFAULT_WAVE_RULES.sizes.big.fee;
+    assert.ok(
+      waveCost > DEFAULT_ECONOMY.attackerStartingGold,
+      "precondition: the staged army is unaffordable",
+    );
+    attacker.send(MESSAGES.waveSetSize, { pathId: "top", size: "big" });
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 15 });
+    await waitForArmy(attacker, (payload) =>
+      payload.paths.some((path) => path.pathId === "top" && path.troopCount === 15),
+    );
+
+    room.state.phaseEndsAt = 0.05;
+    const over = defender.waitForMessage(MESSAGES.gameOver, 8000);
+    const payload = await over;
+    assert.deepStrictEqual(payload, { winner: "defender", reason: "time" });
+    assert.strictEqual(room.state.phase, "gameover");
+  });
+
+  it("refuses to stage new units once the income window has closed", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    // Keep a unit on the field so the match outlives the income window.
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 2 });
+    attacker.send(MESSAGES.waveRelease, {});
+    await waitFor(() => room.state.mobs.size > 0, 3000);
+
+    room.state.phaseEndsAt = 0.05;
+    await waitForArmy(attacker, (payload) => payload.incomeExpired, 5000);
+
+    const rejected = attacker.waitForMessage(MESSAGES.waveRejected);
+    attacker.send(MESSAGES.waveAddBatch, { pathId: "top", typeId: "grunt", count: 1 });
+    const msg = await rejected;
+    assert.match(msg.reason, /income/i);
+  });
+
+  it("awards the match to the staying player when a dropped opponent never returns", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      // Short seat window so the timeout path runs without a 2-minute wait.
+      reconnectWindowSec: 0.3,
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    const remainingRole = room.state.players.get(defender.sessionId)?.role;
+
+    const notice = defender.waitForMessage(MESSAGES.opponentReconnecting);
+    // Drop the attacker's socket without consenting. Disable the SDK's own
+    // auto-reconnect so the seat genuinely laps; the game keeps running.
+    attacker.reconnection.enabled = false;
+    const left = attacker.leave(false);
+    const reconnecting = await notice;
+    assert.strictEqual(reconnecting.secondsRemaining, 0.3);
+
+    const over = defender.waitForMessage(MESSAGES.gameOver, 5000);
+    const payload = await over;
+    await left;
+    assert.deepStrictEqual(payload, { winner: remainingRole, reason: "disconnect" });
+    await waitForPhase(room, "gameover");
+    assert.strictEqual(room.state.gameOverReason, "disconnect");
   });
 });
