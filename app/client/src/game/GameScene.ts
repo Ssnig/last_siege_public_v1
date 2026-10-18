@@ -229,9 +229,8 @@ export class GameScene extends Phaser.Scene {
         break;
 
       case "drafting":
-        if (this.assignedRole) {
-          this.startDraft(this.assignedRole);
-        }
+        // Drafting UI is presented by the React DraftOverlay; keep Phaser canvas clean.
+        this.destroyDraftStages();
         break;
 
       case "building":
@@ -258,35 +257,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * Creates the draft UI for the assigned role.
-   *
-   * @remarks
-   * Existing draft instances are retained to preserve local selections.
-   * The server validates every submitted deck.
-   */
-  private startDraft(role: PlayerRole): void {
-    if (role === "attacker" && this.attackerDraft) return;
-    if (role === "defender" && this.defenderDraft) return;
 
-    this.destroyDraftStages();
-    this.buildingPlaceholder?.destroy();
-    this.buildingPlaceholder = undefined;
-
-    const onConfirm = (deck: string[]): void => {
-      if (this.currentPhase !== "drafting") return;
-
-      this.room.send(MESSAGES.draftReady, { deck });
-    };
-
-    if (role === "attacker") {
-      this.attackerDraft = new AttackerDraftStage(this, onConfirm);
-      this.attackerDraft.create();
-    } else {
-      this.defenderDraft = new DefenderDraftStage(this, onConfirm);
-      this.defenderDraft.create();
-    }
-  }
 
   /** Destroys the active draft UI and its resize subscriptions. */
   private destroyDraftStages(): void {

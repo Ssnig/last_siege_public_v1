@@ -19,6 +19,8 @@ import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
 import { AttackerWavePanel } from './game/AttackerWavePanel';
 import { MapRevealOverlay } from './game/MapRevealOverlay';
+import { DraftOverlay } from './game/DraftOverlay';
+import { GameOverOverlay } from './game/GameOverOverlay';
 
 interface GameContainerProps {
   room: Room;
@@ -222,7 +224,10 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     // phantom concession.
     const unlistenPhase = Callbacks.get(room).listen("phase", (p: string) => {
       setPhase(p);
-      if (p !== "gameover") return;
+      if (p !== "gameover") {
+        setGameOver(null);
+        return;
+      }
       const winner = room.state.winner as "attacker" | "defender" | undefined;
       if (!winner) return;
       const myRole = room.state.players.get(room.sessionId)?.role;
@@ -362,6 +367,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         />
       )}
 
+      {/* Royal Drafting Phase UI (covers the idle canvas while drafting) */}
+      {matchStarted && phase === 'drafting' && (
+        <DraftOverlay
+          room={room}
+          role={(playerInfo.myRole as 'attacker' | 'defender') || 'defender'}
+          onConfirm={(deck) => {
+            room.send(MESSAGES.draftReady, { deck });
+          }}
+        />
+      )}
+
       {/* Royal Game HUD Overlay */}
       {matchStarted && (phase === 'building' || phase === 'combat') && (
         <GameHUD
@@ -401,44 +417,16 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         />
       )}
 
-      {/* Game-over screen (layered above the canvas) */}
+      {/* Royal Konbaung Victory & Defeat Overlay */}
       {gameOver && (
-        <div className="absolute inset-0 z-50 bg-slate-950/95 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4 p-8 text-center">
-            <h2
-              className={`text-4xl font-black tracking-tight ${
-                gameOver.youWin ? "text-emerald-400" : "text-red-400"
-              }`}
-            >
-              {gameOver.youWin ? "Victory!" : "Defeat"}
-            </h2>
-            <p className="text-slate-300 text-sm">
-              {gameOver.reason === "core"
-                ? gameOver.youWin
-                  ? "The enemy base was destroyed!"
-                  : "Your base was destroyed!"
-                : gameOver.reason === "time"
-                  ? gameOver.youWin
-                    ? "The defense held until attacker forces were exhausted!"
-                    : "Attacker forces were exhausted!"
-                  : gameOver.youWin
-                    ? "Your opponent surrendered."
-                    : "You surrendered."}
-            </p>
-            <p className="text-slate-500 text-xs">
-              The enemy {gameOver.winner === "attacker" ? "Attacker" : "Defender"} wins.
-            </p>
-            <button
-              onClick={onLeaveRoom}
-              className="mt-4 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-white transition"
-            >
-              Back to Lobby
-            </button>
-            <p className="text-slate-600 text-[11px]">
-              Returning automatically in a few minutes if left idle.
-            </p>
-          </div>
-        </div>
+        <GameOverOverlay
+          gameOver={gameOver}
+          room={room}
+          onExit={onLeaveRoom}
+          onRematch={() => {
+            room.send(MESSAGES.rematch);
+          }}
+        />
       )}
 
       {/* Floating menu button (only during drafting phase before GameHUD takes over) */}
