@@ -31,7 +31,9 @@ import {
   validateWave,
   type AttackerArmyPath,
   type AttackerArmyPayload,
+  type DraftPickIntent,
   type DraftReadyIntent,
+  type DraftRoundUpdatePayload,
   type GameOverPayload,
   type MapDefinition,
   type MobType,
@@ -135,6 +137,21 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private acceptedDecks = new Map<string, string[]>();
 
+  /** Current 2-2-2 draft round (1, 2, or 3). */
+  private draftRound = 1;
+
+  /** Seconds remaining in current draft round (15.0s). */
+  private draftRoundTimer = 15.0;
+
+  /** 5-second post-draft countdown after round 3 concludes before entering building. */
+  private draftFinalCountdown: number | null = null;
+
+  /** Picks submitted per player in the current round. */
+  private draftRoundPicks = new Map<string, string[]>();
+
+  /** Track player sessionIds that have voted for a rematch. */
+  private rematchVotes = new Set<string>();
+
   /**
    * Hidden gold per session ID. Mirrors `acceptedDecks`: kept off `RoomState`
    * and pushed to the owner via private `you_economy` messages only.
@@ -201,6 +218,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       payload: DraftReadyIntent,
     ) => this.handleDraftReady(client, payload),
 
+    [MESSAGES.draftPick]: (
+      client: Client,
+      payload: DraftPickIntent,
+    ) => this.handleDraftPick(client, payload),
+
     [MESSAGES.surrender]: (client: Client) => this.handleSurrender(client),
 
     [MESSAGES.placeTower]: (
@@ -254,6 +276,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       client: Client,
       payload: WaveReleaseIntent,
     ) => this.handleWaveRelease(client, payload),
+
+    [MESSAGES.rematch]: (client: Client) => this.handleRematch(client),
   };
 
   /**
@@ -579,6 +603,104 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /** Sends a private explanation for a rejected draft submission. */
   private rejectDraft(client: Client, reason: string): void {
     client.send(MESSAGES.draftRejected, { reason });
+  }
+
+  /**
+   * Handles round-based (2, 2, 2) draft pick submissions.
+   */
+  private handleDraftPick(client: Client, payload: DraftPickIntent): void {
+    if (this.state.phase !== "drafting") return;
+
+    const role = (this.state.players.get(client.sessionId)?.role || client.userData?.role) as PlayerRole | undefined;
+    if (!role) return;
+
+    if (!payload || typeof payload.round !== "number" || !Array.isArray(payload.picks)) {
+      this.rejectDraft(client, "Invalid draft pick payload.");
+      return;
+    }
+
+    const catalog = role === "attacker" ? MOB_TYPES : TOWER_TYPES;
+    const currentDeck = this.acceptedDecks.get(client.sessionId) ?? [];
+
+    // Deduplicate picks and ensure they are valid catalog members not already in currentDeck
+    const uniquePicks = Array.from(new Set(payload.picks));
+    const validPicks = uniquePicks.filter(
+      (id) => typeof id === "string" && Object.hasOwn(catalog, id) && !currentDeck.includes(id),
+    );
+
+    // If fewer than 2 valid picks, auto-fill the rest from unpicked catalog entries
+    const available = Object.keys(catalog).filter(
+      (id) => !currentDeck.includes(id) && !validPicks.includes(id),
+    );
+    while (validPicks.length < 2 && available.length > 0) {
+      const idx = Math.floor(Math.random() * available.length);
+      validPicks.push(available.splice(idx, 1)[0]);
+    }
+
+    this.draftRoundPicks.set(client.sessionId, validPicks);
+
+    // Check if both players have submitted picks for this round
+    const bothSubmitted =
+      this.clients.length === 2 &&
+      this.clients.every((c) => this.draftRoundPicks.has(c.sessionId));
+
+    if (bothSubmitted) {
+      this.advanceDraftRound();
+    }
+  }
+
+  /**
+   * Commits the current draft round's picks, broadcasts revealed picks to both players,
+   * and advances to the next round or triggers the 5-second final reveal countdown.
+   */
+  private advanceDraftRound(): void {
+    // Commit the round picks to acceptedDecks
+    for (const client of this.clients) {
+      const current = this.acceptedDecks.get(client.sessionId) ?? [];
+      const picks = this.draftRoundPicks.get(client.sessionId) ?? [];
+      this.acceptedDecks.set(client.sessionId, [...current, ...picks]);
+    }
+    this.draftRoundPicks.clear();
+
+    const attackerClient = this.clients.find(
+      (c) => this.state.players.get(c.sessionId)?.role === "attacker" || c.userData?.role === "attacker",
+    );
+    const defenderClient = this.clients.find(
+      (c) => this.state.players.get(c.sessionId)?.role === "defender" || c.userData?.role === "defender",
+    );
+
+    const attackerPicks = attackerClient ? (this.acceptedDecks.get(attackerClient.sessionId) ?? []) : [];
+    const defenderPicks = defenderClient ? (this.acceptedDecks.get(defenderClient.sessionId) ?? []) : [];
+
+    if (this.draftRound < 3) {
+      // Broadcast mutual reveal for rounds 1 and 2
+      this.broadcast(MESSAGES.draftRoundUpdate, {
+        round: this.draftRound,
+        phaseEndsAt: 15,
+        attackerPicks,
+        defenderPicks,
+        attackerReady: true,
+        defenderReady: true,
+      });
+
+      this.draftRound++;
+      this.draftRoundTimer = 15.0;
+    } else {
+      // Round 3 complete! All 6 cards picked.
+      // Broadcast final reveal with isFinalReveal: true and 5-second countdown before building starts
+      console.log(`Room ${this.roomId}: 2-2-2 draft finished, entering 5-second post-draft countdown`);
+      this.broadcast(MESSAGES.draftRoundUpdate, {
+        round: 3,
+        phaseEndsAt: 5,
+        attackerPicks,
+        defenderPicks,
+        attackerReady: true,
+        defenderReady: true,
+        isFinalReveal: true,
+      });
+
+      this.draftFinalCountdown = 5.0;
+    }
   }
 
   /**
@@ -1170,6 +1292,80 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
+   * Handles player vote for a rematch. If both players agree, resets the game
+   * and restarts a fresh match at the drafting phase.
+   */
+  private handleRematch(client: Client): void {
+    if (this.state.phase !== "gameover") return;
+
+    this.rematchVotes.add(client.sessionId);
+    console.log(
+      `Room ${this.roomId}: Client ${client.sessionId} voted for rematch (${this.rematchVotes.size}/2)`,
+    );
+
+    this.broadcast(MESSAGES.rematchUpdate, {
+      votes: this.rematchVotes.size,
+      total: 2,
+      requesterSessionId: client.sessionId,
+    });
+
+    if (this.rematchVotes.size >= 2 && this.clients.length === 2) {
+      console.log(
+        `Room ${this.roomId}: Both players agreed to rematch! Restarting match...`,
+      );
+      this.restartMatchForRematch();
+    }
+  }
+
+  /**
+   * Fully resets entities, economy, core HP, and drafts, transitioning
+   * both players cleanly into a new drafting round 1.
+   */
+  private restartMatchForRematch(): void {
+    this.rematchVotes.clear();
+    this.clearMobs();
+    this.clearProjectiles();
+    this.resetWaveRuntime();
+    this.state.towers.clear();
+    this.stagedWaves.clear();
+    this.acceptedDecks.clear();
+    this.state.coreHp = MATCH_RULES.coreHp;
+
+    for (const player of this.state.players.values()) {
+      player.draftReady = false;
+    }
+
+    this.phases.reset();
+
+    this.draftRound = 1;
+    this.draftRoundTimer = 15.0;
+    this.draftFinalCountdown = null;
+    this.draftRoundPicks.clear();
+
+    for (const c of this.clients) {
+      const role = (this.state.players.get(c.sessionId)?.role || c.userData?.role) as PlayerRole | undefined;
+      this.economies.set(c.sessionId, this.startingGold(role ?? "defender"));
+      this.incomeRates.set(
+        c.sessionId,
+        (role ?? "defender") === "attacker"
+          ? DEFAULT_ECONOMY.attackerBaseIncome
+          : DEFAULT_ECONOMY.defenderBaseIncome,
+      );
+      this.bigWavesRemaining.set(
+        c.sessionId,
+        (role ?? "defender") === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
+      );
+    }
+
+    this.phases.beginDraft();
+    this.state.phase = "drafting";
+
+    for (const c of this.clients) {
+      this.sendPlayerState(c);
+    }
+  }
+
+  /**
    * Promotes the room's lobby listing to `"playing"` once a match is under way.
    *
    * @remarks
@@ -1245,6 +1441,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
     );
 
     if (this.clients.length === 2) {
+      this.rematchVotes.clear();
+      this.draftRound = 1;
+      this.draftRoundTimer = 15.0;
+      this.draftFinalCountdown = null;
+      this.draftRoundPicks.clear();
       this.assignRoles();
       await this.lock();
       this.phases.beginDraft();
@@ -1293,6 +1494,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.incomeRates.delete(client.sessionId);
     this.stagedWaves.delete(client.sessionId);
     this.bigWavesRemaining.delete(client.sessionId);
+    this.rematchVotes.delete(client.sessionId);
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 
@@ -1307,6 +1509,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.matchStarted = false;
       this.acceptedDecks.clear();
       this.state.phase = "drafting";
+      this.draftRound = 1;
+      this.draftRoundTimer = 15.0;
+      this.draftFinalCountdown = null;
+      this.draftRoundPicks.clear();
       this.clearMobs();
       this.clearProjectiles();
       this.resetWaveRuntime();
@@ -1372,6 +1578,48 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (event?.type === "round-expired") {
       this.onRoundExpired();
+    }
+
+    // Handle 5-second post-draft countdown before advancing to building
+    if (this.state.phase === "drafting" && this.draftFinalCountdown !== null) {
+      this.draftFinalCountdown -= dt;
+      this.state.phaseEndsAt = Math.max(0, this.draftFinalCountdown);
+
+      if (this.draftFinalCountdown <= 0) {
+        this.draftFinalCountdown = null;
+        console.log(`Room ${this.roomId}: Post-draft countdown elapsed, advancing to building`);
+        for (const client of this.clients) {
+          const player = this.state.players.get(client.sessionId);
+          if (player) player.draftReady = true;
+        }
+        this.phases.beginBuilding([]);
+        for (const c of this.clients) {
+          this.sendPlayerState(c);
+        }
+      }
+    } else if (this.state.phase === "drafting" && this.clients.length === 2) {
+      // Tick 2-2-2 draft round countdown and auto-advance on timeout
+      this.draftRoundTimer -= dt;
+      this.state.phaseEndsAt = Math.max(0, this.draftRoundTimer);
+
+      if (this.draftRoundTimer <= 0) {
+        // Auto-fill random picks for any player who hasn't submitted
+        for (const client of this.clients) {
+          if (!this.draftRoundPicks.has(client.sessionId)) {
+            const role = (this.state.players.get(client.sessionId)?.role || client.userData?.role) as PlayerRole | undefined;
+            const catalog = role === "attacker" ? MOB_TYPES : TOWER_TYPES;
+            const currentDeck = this.acceptedDecks.get(client.sessionId) ?? [];
+            const available = Object.keys(catalog).filter((id) => !currentDeck.includes(id));
+            const randomPicks: string[] = [];
+            while (randomPicks.length < 2 && available.length > 0) {
+              const idx = Math.floor(Math.random() * available.length);
+              randomPicks.push(available.splice(idx, 1)[0]);
+            }
+            this.draftRoundPicks.set(client.sessionId, randomPicks);
+          }
+        }
+        this.advanceDraftRound();
+      }
     }
 
     const phase = this.state.phase;

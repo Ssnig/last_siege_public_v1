@@ -48,11 +48,19 @@ export const MESSAGES = {
   waveRelease: "wave_release",
   /** Client → server: this side finished its deck draft. */
   draftReady: "draft_ready",
+  /** Client → server: this side submitted picks for the current draft round. */
+  draftPick: "draft_pick",
+  /** Server → client (broadcast): draft round update, revealed picks, and timer. */
+  draftRoundUpdate: "draft_round_update",
   /** Client → server: start combat phase manually. */
   startCombat: "start_combat",
 
   draftRejected: "draft_rejected",
 
+  /** Client → server: this client requests/votes for a rematch. */
+  rematch: "rematch",
+  /** Server → client (broadcast): rematch vote count and requester info. */
+  rematchUpdate: "rematch_update",
 } as const;
 
 /** Payload of the `role_assigned` private message. */
@@ -185,6 +193,27 @@ export interface DraftReadyIntent {
   deck: string[];
 }
 
+export interface DraftPickIntent {
+  round: number;
+  picks: string[];
+}
+
+export interface DraftRoundUpdatePayload {
+  round: number;
+  phaseEndsAt: number;
+  attackerPicks: string[];
+  defenderPicks: string[];
+  attackerReady: boolean;
+  defenderReady: boolean;
+  isFinalReveal?: boolean;
+}
+
 export interface StartCombatIntent {
   // No payload needed for now
+}
+
+export interface RematchUpdatePayload {
+  votes: number;
+  total: number;
+  requesterSessionId: string;
 }
