@@ -1,11 +1,19 @@
 /**
- * All tunable game numbers in one place.
+ * Tunable game numbers: types, derived values and typed re-exports of the raw
+ * data.
  *
  * @remarks
- * v1 (first pass) — placeholder values from classic tower-defense archetypes
- * (Kingdom Rush-style) for testing. Tune freely: git is the version history,
- * `test/game/balance.test.ts` guards the shape so edits can't silently break it.
+ * The values themselves live next door in `../data/` — `mobs.json`,
+ * `towers.json` and `rules.json` — so a balancing pass edits JSON rather than
+ * code. Every re-export below is annotated with its interface, so a
+ * shape-breaking edit fails `tsc` as soon as shared is rebuilt, and
+ * `app/server/test/balance.test.ts` guards the values themselves at runtime.
+ * `rules.json` keeps the rarely-touched knobs in its `constants` section, away
+ * from the sections rebalanced often.
  */
+import mobsData from "../data/mobs.json" with { type: "json" };
+import towersData from "../data/towers.json" with { type: "json" };
+import rulesData from "../data/rules.json" with { type: "json" };
 
 /** Attacker unit archetype. */
 export interface MobType {
@@ -133,42 +141,6 @@ export interface WanderConfig {
   cyclesMax: number;
 }
 
-export const DEFAULT_WANDER: WanderConfig = {
-  laneSpread: 0.65,
-  wobbleMin: 0.08,
-  wobbleMax: 0.22,
-  cyclesMin: 1.5,
-  cyclesMax: 3.5,
-};
-
-/** Server simulation rate, in steps per second. */
-export const SIM_TICK_HZ = 20;
-
-/**
- * Duration of a single simulation step, in seconds.
- *
- * @remarks Derived from {@link SIM_TICK_HZ}; the server advances mob `progress`
- * by `speed / pathLength * SIM_STEP_SEC` each step.
- */
-export const SIM_STEP_SEC = 1 / SIM_TICK_HZ;
-
-/**
- * Per-mob speed variation as a fraction (0.1 = ±10%).
- *
- * @remarks Applied once at spawn so otherwise-identical mobs spread out and
- * bunch over time, which reads as an organic crowd.
- */
-export const MOB_SPEED_JITTER = 0.1;
-
-/**
- * Extra slack, in px, added to a projectile's per-tick travel distance when
- * deciding whether it has reached its target.
- *
- * @remarks Keeps fast projectiles from overshooting a mob between ticks; a
- * larger value lands hits slightly "early" but never misses.
- */
-export const PROJECTILE_HIT_RADIUS = 12;
-
 /** Match-wide rules driven by the server tick. */
 export interface MatchRules {
   /** Core HP before the defender loses. */
@@ -194,138 +166,57 @@ export interface MatchRules {
   roundDurationSec: number;
 }
 
+/** Attacker unit archetypes, keyed by id — `../data/mobs.json`. */
+export const MOB_TYPES: Record<string, MobType> = mobsData;
 
-export const MOB_TYPES: Record<string, MobType> = {
-  grunt:       { id: "grunt",       name: "Grunt",             maxHp: 100, speed: 60,  bounty: 5,  leakDamage: 1, cost: 10 },
-  runner:      { id: "runner",      name: "Runner",            maxHp: 60,  speed: 110, bounty: 7,  leakDamage: 1, cost: 12 },
-  horse_rider: { id: "horse_rider", name: "Konbaung Cavalry", maxHp: 120, speed: 110, bounty: 8, leakDamage: 1, cost: 15 },
-  sar_bal_gyi: { id: "sar_bal_gyi", name: "Palace Royal Guard", maxHp: 420, speed: 45, bounty: 25, leakDamage: 3, cost: 40 },
-  gya_pu:      { id: "gya_pu",      name: "Winged Nat",        maxHp: 200, speed: 90,  bounty: 12, leakDamage: 2, cost: 20 },
-  a_ba:        { id: "a_ba",        name: "Nat Spirit Medium", maxHp: 320, speed: 70,  bounty: 22, leakDamage: 2, cost: 30 },
-  chon_toe:    { id: "chon_toe",    name: "Bush Sneak",        maxHp: 750, speed: 35,  bounty: 50, leakDamage: 4, cost: 55 },
-  brute:       { id: "brute",       name: "Brute",             maxHp: 400, speed: 40,  bounty: 25, leakDamage: 3, cost: 40 },
-  shade:       { id: "shade",       name: "Shade",             maxHp: 130, speed: 95,  bounty: 9,  leakDamage: 1, cost: 14 },
-  spider:      { id: "spider",      name: "Spider",            maxHp: 45,  speed: 130, bounty: 6,  leakDamage: 1, cost: 8 },
-  orc:         { id: "orc",         name: "Orc",               maxHp: 160, speed: 55,  bounty: 10, leakDamage: 1, cost: 16 },
-  gargoyle:    { id: "gargoyle",    name: "Gargoyle",          maxHp: 220, speed: 85,  bounty: 14, leakDamage: 2, cost: 22 },
-  sapper:      { id: "sapper",      name: "Sapper",            maxHp: 180, speed: 75,  bounty: 12, leakDamage: 2, cost: 18 },
-  necromancer: { id: "necromancer", name: "Necromancer",       maxHp: 320, speed: 70,  bounty: 22, leakDamage: 2, cost: 30 },
-  ogre:        { id: "ogre",        name: "Ogre",              maxHp: 700, speed: 30,  bounty: 60, leakDamage: 5, cost: 60 },
-};
+/** Defender tower archetypes, keyed by id — `../data/towers.json`. */
+export const TOWER_TYPES: Record<string, TowerType> = towersData;
 
-export const TOWER_TYPES: Record<string, TowerType> = {
-  basic: {
-    id: "basic", name: "Arrow Tower",
-    tiers: [
-      { cost: 55, damage: 12, range: 140, fireRate: 1.08, projectileSpeed: 400 },
-      { cost: 105, damage: 22, range: 160, fireRate: 1.17, projectileSpeed: 430 },
-      { cost: 185, damage: 40, range: 185, fireRate: 1.26, projectileSpeed: 460 },
-    ],
-  },
-  pitchfork: {
-    id: "pitchfork", name: "Pitchfork Turret",
-    tiers: [
-      { cost: 35, damage: 6, range: 110, fireRate: 0.9, projectileSpeed: 300 },
-      { cost: 65, damage: 12, range: 125, fireRate: 0.99, projectileSpeed: 325 },
-      { cost: 110, damage: 24, range: 140, fireRate: 1.08, projectileSpeed: 350 },
-    ],
-  },
-  poison: {
-    id: "poison", name: "Poison Dart",
-    tiers: [
-      { cost: 80, damage: 6, range: 120, fireRate: 1.44, projectileSpeed: 340 },
-      { cost: 145, damage: 12, range: 135, fireRate: 1.62, projectileSpeed: 370 },
-      { cost: 240, damage: 26, range: 150, fireRate: 1.8, projectileSpeed: 400 },
-    ],
-  },
-  crossbow: {
-    id: "crossbow", name: "Crossbow",
-    tiers: [
-      { cost: 90, damage: 8, range: 130, fireRate: 1.98, projectileSpeed: 380 },
-      { cost: 160, damage: 15, range: 145, fireRate: 2.16, projectileSpeed: 410 },
-      { cost: 275, damage: 30, range: 165, fireRate: 2.34, projectileSpeed: 440 },
-    ],
-  },
-  cannon: {
-    id: "cannon", name: "Cannon",
-    tiers: [
-      { cost: 140, damage: 40, range: 110, fireRate: 0.54, projectileSpeed: 300 },
-      { cost: 230, damage: 75, range: 120, fireRate: 0.59, projectileSpeed: 320 },
-      { cost: 390, damage: 150, range: 135, fireRate: 0.63, projectileSpeed: 340 },
-    ],
-  },
-  sniper: {
-    id: "sniper", name: "Sniper",
-    tiers: [
-      { cost: 125, damage: 35, range: 220, fireRate: 0.36, projectileSpeed: 500 },
-      { cost: 220, damage: 70, range: 250, fireRate: 0.41, projectileSpeed: 540 },
-      { cost: 380, damage: 160, range: 285, fireRate: 0.45, projectileSpeed: 580 },
-    ],
-  },
-  arcanist: {
-    id: "arcanist", name: "Arcanist",
-    tiers: [
-      { cost: 170, damage: 30, range: 120, fireRate: 0.45, projectileSpeed: 260 },
-      { cost: 300, damage: 60, range: 135, fireRate: 0.5, projectileSpeed: 280 },
-      { cost: 495, damage: 140, range: 155, fireRate: 0.54, projectileSpeed: 300 },
-    ],
-  },
-  tesla: {
-    id: "tesla", name: "Tesla",
-    tiers: [
-      { cost: 205, damage: 20, range: 100, fireRate: 1.62, projectileSpeed: 320 },
-      { cost: 345, damage: 40, range: 115, fireRate: 1.8, projectileSpeed: 350 },
-      { cost: 600, damage: 90, range: 135, fireRate: 1.98, projectileSpeed: 380 },
-    ],
-  },
-  archmage: {
-    id: "archmage", name: "Archmage",
-    tiers: [
-      { cost: 230, damage: 55, range: 150, fireRate: 0.45, projectileSpeed: 340 },
-      { cost: 390, damage: 110, range: 170, fireRate: 0.5, projectileSpeed: 360 },
-      { cost: 665, damage: 240, range: 195, fireRate: 0.54, projectileSpeed: 380 },
-    ],
-  },
-  bertha: {
-    id: "bertha", name: "Big Bertha",
-    tiers: [
-      { cost: 300, damage: 120, range: 140, fireRate: 0.32, projectileSpeed: 280 },
-      { cost: 520, damage: 240, range: 155, fireRate: 0.36, projectileSpeed: 300 },
-      { cost: 895, damage: 500, range: 175, fireRate: 0.41, projectileSpeed: 320 },
-    ],
-  },
-};
+/** Economy tuning for both sides — `../data/rules.json`, section `economy`. */
+export const DEFAULT_ECONOMY: EconomyConfig = rulesData.economy;
 
-export const DEFAULT_ECONOMY: EconomyConfig = {
-  defenderStartingGold: 160,
-  attackerStartingGold: 120,
-  attackerBaseIncome: 2.5,
-  defenderBaseIncome: 5.0,
-  attackerIncomeGainRate: 0.035,
-  goldPerSecond: 5,
-  bigWaveCount: 3,
-  leakPityRate: 0.21,
-};
+/** Wave staging caps and fees — `../data/rules.json`, section `waves`. */
+export const DEFAULT_WAVE_RULES: WaveRules = rulesData.waves;
 
-export const DEFAULT_WAVE_RULES: WaveRules = {
-  batchIntervalSec: 2.5,
-  sizes: {
-    small: { batchLimit: 10, waveLimit: 30, maxBatches: 5, fee: 15 },
-    big: { batchLimit: 15, waveLimit: 45, maxBatches: 8, fee: 55 },
-  },
-};
+/** Draft deck size — `../data/rules.json`, section `deck`. */
+export const DEFAULT_DECK_RULES: DeckRules = rulesData.deck;
 
-export const DEFAULT_DECK_RULES: DeckRules = {
-  deckSize: 6,
-};
+/** Phase durations and core HP — `../data/rules.json`, section `match`. */
+export const MATCH_RULES: MatchRules = rulesData.match;
 
-export const MATCH_RULES: MatchRules = {
-  coreHp: 45,
-  mapRevealDurationSec: 5,
-  draftDurationSec: -1,
-  buildingDurationSec: 45, // 45-second building countdown
-  roundDurationSec: 135,
-};
+/** Mob wander/drift tuning — `../data/rules.json`, section `wander`. */
+export const DEFAULT_WANDER: WanderConfig = rulesData.wander;
+
+/** Server simulation rate, in steps per second. */
+export const SIM_TICK_HZ: number = rulesData.constants.simTickHz;
+
+/**
+ * Duration of a single simulation step, in seconds.
+ *
+ * @remarks Derived from {@link SIM_TICK_HZ}; the server advances mob `progress`
+ * by `speed / pathLength * SIM_STEP_SEC` each step.
+ */
+export const SIM_STEP_SEC = 1 / SIM_TICK_HZ;
+
+/**
+ * Per-mob speed variation as a fraction (0.1 = ±10%).
+ *
+ * @remarks Applied once at spawn so otherwise-identical mobs spread out and
+ * bunch over time, which reads as an organic crowd.
+ */
+export const MOB_SPEED_JITTER: number = rulesData.constants.mobSpeedJitter;
+
+/**
+ * Extra slack, in px, added to a projectile's per-tick travel distance when
+ * deciding whether it has reached its target.
+ *
+ * @remarks Keeps fast projectiles from overshooting a mob between ticks; a
+ * larger value lands hits slightly "early" but never misses.
+ */
+export const PROJECTILE_HIT_RADIUS: number = rulesData.constants.projectileHitRadius;
+
+/** Fraction of a tower's total invested gold refunded when it is sold. */
+export const SELL_REFUND_RATE: number = rulesData.constants.sellRefundRate;
 
 export const MATCH_PHASES = {
   waiting: "waiting",
@@ -337,7 +228,6 @@ export const MATCH_PHASES = {
 } as const;
 
 export type MatchPhase = (typeof MATCH_PHASES)[keyof typeof MATCH_PHASES]
-
 
 /** Effective stats at the given level (1-based); `null` past max level. */
 export function tierAt(type: TowerType, level: number): TowerTier | null {
@@ -354,9 +244,6 @@ export function upgradeCost(type: TowerType, fromLevel: number): number | null {
   const tier = type.tiers[fromLevel];
   return tier ? tier.cost : null;
 }
-
-/** Fraction of a tower's total invested gold refunded when it is sold (70%). */
-export const SELL_REFUND_RATE = 0.55;
 
 /** Total gold invested into a tower at `level`: build cost plus every upgrade. */
 export function totalInvested(type: TowerType, level: number): number {
