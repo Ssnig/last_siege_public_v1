@@ -62,6 +62,7 @@ For production builds, `npm run build:server` and `npm run build:client` compile
 `@root/shared` holds the types, schemas, balance values and message keys both apps share. Both the server and client import it from its built `dist/` output, **not** straight from source. So:
 
 - **First clone or a fresh environment?** Run `npm run build:shared` once (or any of the `build:*` scripts above).
+- **Rebalancing?** Edit `packages/shared/src/data/` — `mobs.json`, `towers.json`, and `rules.json` (economy, waves, deck, match, wander, plus the rarely-touched `constants` section). Rebuild shared afterwards like any other edit there; `app/server/test/balance.test.ts` guards the shape, and the `tsc` build fails on a missing or mistyped field.
 - **Editing something in `packages/shared/src/`?** Rebuild it. Either keep `npm run dev:shared` running in the background (it watches and recompiles on save), or just run `npm run build:shared` after every change. Server tests (`npm test`) read from `dist/` too, so make sure it's up to date before running those.
 
 One gotcha: `tsc` never cleans up old output, so if you rename or delete a shared file, its ghost stays in `dist/`. `rm -rf packages/shared/dist` before rebuilding keeps things tidy.

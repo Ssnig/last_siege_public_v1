@@ -15,11 +15,11 @@ import {
 } from "@root/shared";
 
 /**
- * Shape guards for `@root/shared`'s `balance.ts`.
+ * Shape guards for `@root/shared`'s balance data (`src/data/*.json`).
  *
  * @remarks
- * A non-dev editor tunes numbers there; these tests keep a typo-editing of the
- * data from silently breaking the server or client. They say nothing about
+ * A non-dev editor tunes those JSON files; these tests keep a typo-editing of
+ * the data from silently breaking the server or client. They say nothing about
  * "good" balance, only about a valid shape.
  */
 describe("balance.ts shape guards", () => {

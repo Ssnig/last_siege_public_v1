@@ -1,0 +1,40 @@
+{
+  "economy": {
+    "defenderStartingGold": 160,
+    "attackerStartingGold": 120,
+    "attackerBaseIncome": 2.5,
+    "defenderBaseIncome": 5.0,
+    "attackerIncomeGainRate": 0.035,
+    "goldPerSecond": 5,
+    "bigWaveCount": 3,
+    "leakPityRate": 0.21
+  },
+  "waves": {
+    "batchIntervalSec": 2.5,
+    "sizes": {
+      "small": { "batchLimit": 10, "waveLimit": 30, "maxBatches": 5, "fee": 15 },
+      "big": { "batchLimit": 15, "waveLimit": 45, "maxBatches": 8, "fee": 55 }
+    }
+  },
+  "deck": { "deckSize": 6 },
+  "match": {
+    "coreHp": 45,
+    "mapRevealDurationSec": 5,
+    "draftDurationSec": -1,
+    "buildingDurationSec": 45,
+    "roundDurationSec": 135
+  },
+  "wander": {
+    "laneSpread": 0.65,
+    "wobbleMin": 0.08,
+    "wobbleMax": 0.22,
+    "cyclesMin": 1.5,
+    "cyclesMax": 3.5
+  },
+  "constants": {
+    "simTickHz": 20,
+    "mobSpeedJitter": 0.1,
+    "projectileHitRadius": 12,
+    "sellRefundRate": 0.55
+  }
+}
