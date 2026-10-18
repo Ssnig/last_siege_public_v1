@@ -432,16 +432,21 @@ export class GameplayStage {
       this.root?.add(placeholder);
     });
 
-    // Render base castle sprite (HP is integrated into React HUD)
-    if (this.map.base && this.map.id === "konbaung") {
-      const baseCastle = this.scene.add
-        .sprite(this.map.base.x, this.map.base.y, "base_castle")
+    // Render base structure (HP is integrated into React HUD and floating above base)
+    if (this.map.base) {
+      const perMapTexture = `base_${this.map.id}`;
+      const baseTexture = this.scene.textures.exists(perMapTexture)
+        ? perMapTexture
+        : "base_castle";
+
+      const baseSprite = this.scene.add
+        .sprite(this.map.base.x, this.map.base.y, baseTexture)
         .setOrigin(0.5, 0.5)
         .setDisplaySize(260, 260)
         .setDepth(DEPTH.BASE_LAYER);
-      this.root.add(baseCastle);
+      this.root.add(baseSprite);
 
-      // Floating HP bar above castle
+      // Floating HP bar above base
       const hpBarWidth = 120;
       const hpBarHeight = 10;
       const hpBarX = this.map.base.x;
@@ -464,7 +469,7 @@ export class GameplayStage {
         .setDepth(DEPTH.BASE_LAYER + 0.3);
 
       const hpText = this.scene.add
-        .text(hpBarX, hpBarY - 14, `BASE CASTLE: ${MATCH_RULES.coreHp}/${MATCH_RULES.coreHp} HP`, {
+        .text(hpBarX, hpBarY - 14, `BASE: ${MATCH_RULES.coreHp}/${MATCH_RULES.coreHp} HP`, {
           fontSize: "11px",
           color: "#f8fafc",
           fontStyle: "bold",
@@ -477,11 +482,6 @@ export class GameplayStage {
       this.baseHpBarWidth = hpBarWidth;
 
       this.root.add([hpBarBorder, hpBarBg, hpBarFill, hpText]);
-    } else if (this.map.base) {
-      const base = this.scene.add
-        .circle(this.map.base.x, this.map.base.y, 50, 0xff0000, 0.3)
-        .setDepth(DEPTH.BASE_LAYER);
-      this.root.add(base);
     }
   }
 
