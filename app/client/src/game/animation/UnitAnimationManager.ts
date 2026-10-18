@@ -1,3 +1,4 @@
+
 import Phaser from "phaser";
 
 export interface UnitManifest {
@@ -36,7 +37,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 341,
     frameHeight: 286,
     frameRate: 8,
-    scale: 0.35,
+    scale: 0.175,
     origin: { x: 0.5, y: 0.8 },
   },
   sar_bal_gyi: {
@@ -48,7 +49,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 800,
     frameHeight: 670,
     frameRate: 6,
-    scale: 0.16,
+    scale: 0.08,
     origin: { x: 0.5, y: 0.85 },
   },
   gya_pu: {
@@ -60,7 +61,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 341,
     frameHeight: 286,
     frameRate: 8,
-    scale: 0.32,
+    scale: 0.16,
     origin: { x: 0.5, y: 0.8 },
   },
   a_ba: {
@@ -72,7 +73,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 341,
     frameHeight: 286,
     frameRate: 7,
-    scale: 0.35,
+    scale: 0.175,
     origin: { x: 0.5, y: 0.85 },
   },
   chon_toe: {
@@ -84,7 +85,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 800,
     frameHeight: 670,
     frameRate: 6,
-    scale: 0.15,
+    scale: 0.075,
     origin: { x: 0.5, y: 0.85 },
   },
   runner: {
@@ -96,7 +97,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 341,
     frameHeight: 286,
     frameRate: 8,
-    scale: 0.35,
+    scale: 0.175,
     origin: { x: 0.5, y: 0.8 },
   },
   grunt: {
@@ -108,7 +109,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 128,
     frameHeight: 128,
     frameRate: 8,
-    scale: 0.55,
+    scale: 0.275,
     origin: { x: 0.5, y: 0.8 },
   },
   brute: {
@@ -120,7 +121,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 800,
     frameHeight: 670,
     frameRate: 6,
-    scale: 0.16,
+    scale: 0.08,
     origin: { x: 0.5, y: 0.85 },
   },
   shade: {
@@ -132,7 +133,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 128,
     frameHeight: 128,
     frameRate: 10,
-    scale: 0.5,
+    scale: 0.25,
     origin: { x: 0.5, y: 0.8 },
   },
   spider: {
@@ -144,7 +145,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 96,
     frameHeight: 96,
     frameRate: 12,
-    scale: 0.55,
+    scale: 0.275,
     origin: { x: 0.5, y: 0.8 },
   },
   orc: {
@@ -156,7 +157,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 128,
     frameHeight: 128,
     frameRate: 8,
-    scale: 0.55,
+    scale: 0.275,
     origin: { x: 0.5, y: 0.8 },
   },
   gargoyle: {
@@ -168,7 +169,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 341,
     frameHeight: 286,
     frameRate: 8,
-    scale: 0.32,
+    scale: 0.16,
     origin: { x: 0.5, y: 0.8 },
   },
   sapper: {
@@ -180,7 +181,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 128,
     frameHeight: 128,
     frameRate: 8,
-    scale: 0.55,
+    scale: 0.275,
     origin: { x: 0.5, y: 0.8 },
   },
   necromancer: {
@@ -192,7 +193,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 341,
     frameHeight: 286,
     frameRate: 7,
-    scale: 0.35,
+    scale: 0.175,
     origin: { x: 0.5, y: 0.85 },
   },
   ogre: {
@@ -204,7 +205,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameWidth: 800,
     frameHeight: 670,
     frameRate: 6,
-    scale: 0.15,
+    scale: 0.075,
     origin: { x: 0.5, y: 0.85 },
   },
 };

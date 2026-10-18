@@ -27,7 +27,7 @@ export const MatchLoadingScreen: React.FC<MatchLoadingScreenProps> = ({
     navigator.clipboard?.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   return (
@@ -49,9 +49,11 @@ export const MatchLoadingScreen: React.FC<MatchLoadingScreenProps> = ({
 
         <RoyalPanel className="p-6 sm:p-8 flex flex-col items-center text-center shadow-2xl">
           {/* Animated Swords / Beacon */}
-          <div className="relative w-16 h-16 mb-4 flex items-center justify-center">
+          {/* Animated Swords / Beacon */}
+          <div className="relative w-16 h-16 mb-4 mx-auto flex items-center justify-center">
             <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping opacity-60" />
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500/20 to-emerald-500/20 border-2 border-amber-400/50 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+
+            <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-amber-500/20 to-emerald-500/20 border-2 border-amber-400/50 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)]">
               <svg
                 className="w-7 h-7 text-amber-300 animate-pulse"
                 viewBox="0 0 24 24"

@@ -1,0 +1,1057 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Room } from '@colyseus/sdk';
+import {
+  MESSAGES,
+  MOB_TYPES,
+  TOWER_TYPES,
+  type DraftRoundUpdatePayload,
+  type MobType,
+  type TowerType,
+} from '@root/shared';
+
+import { useSmoothCountdown } from './useSmoothCountdown';
+
+interface DraftOverlayProps {
+  room: Room;
+  role: 'attacker' | 'defender';
+  serverSeconds?: number;
+  onConfirm?: (deck: string[]) => void;
+}
+
+interface TacticalData {
+  title: string;
+  isEnemy?: boolean;
+  stat1Label: string;
+  stat1Value: string | number;
+  stat2Label: string;
+  stat2Value: string | number;
+  stat3Label: string;
+  stat3Value: string | number;
+  weakness: string;
+  stacks: string;
+  iconSrc?: string;
+}
+
+const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
+  basic: {
+    title: 'ARROW TOWER',
+    weakness: 'Armored Swarms',
+    stacks: 'Max 8',
+    iconSrc: '/assets/ui/hud/slot_arrow.png',
+  },
+  pitchfork: {
+    title: 'PITCHFORK TURRET',
+    weakness: 'Heavy Cavalry',
+    stacks: 'Max 10',
+    iconSrc: '/assets/ui/hud/slot_pitchfork.png',
+  },
+  poison: {
+    title: 'POISON DART',
+    weakness: 'Immune Nat Spirits',
+    stacks: 'Max 6',
+    iconSrc: '/assets/ui/hud/slot_poison.png',
+  },
+  crossbow: {
+    title: 'CROSSBOW',
+    weakness: 'High Armor Defenses',
+    stacks: 'Max 6',
+    iconSrc: '/assets/ui/hud/slot_crossbow.png',
+  },
+  cannon: {
+    title: 'CANNON SHOOTER',
+    weakness: 'Quick Units',
+    stacks: 'Max 5',
+    iconSrc: '/assets/ui/hud/slot_cannon.png',
+  },
+  sniper: {
+    title: 'ROYAL SNIPER',
+    weakness: 'Dense Swarms',
+    stacks: 'Max 4',
+    iconSrc: '/assets/ui/hud/slot_sniper.png',
+  },
+  arcanist: {
+    title: 'ROYAL ARCANIST',
+    weakness: 'Fast Magic Wards',
+    stacks: 'Max 5',
+  },
+  tesla: {
+    title: 'TESLA COIL',
+    weakness: 'Long-Range Siege',
+    stacks: 'Max 4',
+  },
+  archmage: {
+    title: 'HIGH ARCHMAGE',
+    weakness: 'Speed Rushers',
+    stacks: 'Max 3',
+  },
+  bertha: {
+    title: 'BIG BERTHA MORTAR',
+    weakness: 'Fast Runners',
+    stacks: 'Max 2',
+  },
+};
+
+const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
+  grunt: {
+    title: 'BURMESE WARRIOR',
+    weakness: 'Area Splash Cannons',
+    stacks: 'Max 30',
+    iconSrc: '/assets/sprites/unit_warrior.png',
+  },
+  runner: {
+    title: 'SCOUT RUNNER',
+    weakness: 'Rapid Arrow Towers',
+    stacks: 'Max 25',
+    iconSrc: '/assets/units/horse_rider/face.png',
+  },
+  horse_rider: {
+    title: 'KONBAUNG CAVALRY',
+    weakness: 'Spike Pitches & Traps',
+    stacks: 'Max 15',
+    iconSrc: '/assets/units/horse_rider/face.png',
+  },
+  sar_bal_gyi: {
+    title: 'PALACE ROYAL GUARD',
+    weakness: 'Armor Piercing Bolts',
+    stacks: 'Max 10',
+    iconSrc: '/assets/units/sar_bal_gyi/face.png',
+  },
+  gya_pu: {
+    title: 'WINGED NAT SPIRIT',
+    weakness: 'Snipers & Anti-Air',
+    stacks: 'Max 12',
+    iconSrc: '/assets/units/gya_pu/face.png',
+  },
+  a_ba: {
+    title: 'SPIRIT MEDIUM (A-BA)',
+    weakness: 'Concentrated Burst',
+    stacks: 'Max 10',
+    iconSrc: '/assets/units/a_ba/face.png',
+  },
+  chon_toe: {
+    title: 'BUSH SNEAK (CHON-TOE)',
+    weakness: 'Poison & Sticky Tar',
+    stacks: 'Max 6',
+    iconSrc: '/assets/units/chon_toe/face.png',
+  },
+  brute: {
+    title: 'WAR BRUTE',
+    weakness: 'Heavy Cannon Fire',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/sar_bal_gyi/face.png',
+  },
+  shade: {
+    title: 'SHADOW INFILTRATOR',
+    weakness: 'Crossbow Rapid Fire',
+    stacks: 'Max 15',
+    iconSrc: '/assets/units/shade/face.png',
+  },
+  spider: {
+    title: 'JUNGLE ARACHNID',
+    weakness: 'Flamethrowers & Splash',
+    stacks: 'Max 40',
+    iconSrc: '/assets/units/spider/face.png',
+  },
+};
+
+/** SVG corner filigree for royal panels */
+const CornerFlourish: React.FC<{ position: 'tl' | 'tr' | 'bl' | 'br' }> = ({ position }) => {
+  const transform =
+    position === 'tr'
+      ? 'scaleX(-1)'
+      : position === 'bl'
+        ? 'scaleY(-1)'
+        : position === 'br'
+          ? 'scale(-1, -1)'
+          : undefined;
+
+  return (
+    <div
+      className={`absolute pointer-events-none z-20 ${
+        position.startsWith('t') ? 'top-0' : 'bottom-0'
+      } ${position.endsWith('l') ? 'left-0' : 'right-0'}`}
+      style={{ transform }}
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M2 22 L2 6 C2 3.8 3.8 2 6 2 L22 2"
+          stroke="#fce38a"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M6 16 L6 8 C6 6.9 6.9 6 8 6 L16 6"
+          stroke="#d4af37"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <circle cx="4" cy="4" r="2" fill="#ffe066" />
+      </svg>
+    </div>
+  );
+};
+
+export const DraftOverlay: React.FC<DraftOverlayProps> = ({
+  room,
+  role = 'defender',
+  serverSeconds,
+  onConfirm,
+}) => {
+  // Authoritative role from room state or fallback to prop
+  const effectiveRole = useMemo(() => {
+    const stateRole = room?.state?.players?.get(room?.sessionId)?.role;
+    if (stateRole === 'attacker' || stateRole === 'defender') return stateRole;
+    return role;
+  }, [room, role]);
+
+  // 10 items in player's own catalog
+  const catalogList = useMemo(() => {
+    if (effectiveRole === 'defender') {
+      return Object.values(TOWER_TYPES).slice(0, 10);
+    }
+    return Object.values(MOB_TYPES).slice(0, 10);
+  }, [effectiveRole]);
+
+  // Round tracking (1, 2, or 3)
+  const [currentRound, setCurrentRound] = useState<number>(1);
+  const [lockedPicks, setLockedPicks] = useState<string[]>([]); // Picks committed from previous rounds
+  const [roundPicks, setRoundPicks] = useState<string[]>([]);   // Picks made in current round (max 2)
+  const [roundSeconds, setRoundSeconds] = useState<number>(15);
+  const [isRoundReady, setIsRoundReady] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // 5-second post-draft countdown after round 3
+  const [isFinalCountdown, setIsFinalCountdown] = useState<boolean>(false);
+  const [finalSeconds, setFinalSeconds] = useState<number>(5);
+
+  const smoothSeconds = useSmoothCountdown(
+    serverSeconds ?? 0,
+    serverSeconds !== undefined && serverSeconds > 0,
+  );
+  const effectiveRoundSeconds = serverSeconds !== undefined ? smoothSeconds : roundSeconds;
+  const effectiveFinalSeconds = serverSeconds !== undefined ? smoothSeconds : finalSeconds;
+
+  // Opponent state & revealed enemy picks
+  const [opponentName, setOpponentName] = useState<string>('Opponent');
+  const [enemyPicks, setEnemyPicks] = useState<string[]>([]);
+
+  // 16:9 Virtual viewport scale factor for mobile devices
+  const [viewportScale, setViewportScale] = useState<number>(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      // 1260x700 virtual canvas scale-to-fit
+      const availableWidth = window.innerWidth;
+      const availableHeight = window.innerHeight;
+      const scaleX = availableWidth / 1260;
+      const scaleY = availableHeight / 700;
+      const fit = Math.min(scaleX, scaleY);
+      setViewportScale(Math.max(0.15, fit));
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    window.addEventListener('orientationchange', updateScale);
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      window.removeEventListener('orientationchange', updateScale);
+    };
+  }, []);
+
+  // Inspected item (can be own unit/tower OR an enemy unit/tower)
+  const [inspectedTarget, setInspectedTarget] = useState<{ id: string; isEnemy: boolean }>({
+    id: catalogList[0]?.id || '',
+    isEnemy: false,
+  });
+
+  // Keep a ref to current round picks to avoid stale closures in timers
+  const roundPicksRef = useRef<string[]>(roundPicks);
+  roundPicksRef.current = roundPicks;
+  const lockedPicksRef = useRef<string[]>(lockedPicks);
+  lockedPicksRef.current = lockedPicks;
+  const currentRoundRef = useRef<number>(currentRound);
+  currentRoundRef.current = currentRound;
+  const isRoundReadyRef = useRef<boolean>(isRoundReady);
+  isRoundReadyRef.current = isRoundReady;
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
+
+  // Auto-pick random units from unselected catalog entries to reach 2 picks
+  const autoPickForCurrentRound = useCallback(() => {
+    const committed = lockedPicksRef.current;
+    const current = roundPicksRef.current;
+    const available = catalogList
+      .map((c) => c.id)
+      .filter((id) => !committed.includes(id) && !current.includes(id));
+
+    const finalPicks = [...current];
+    while (finalPicks.length < 2 && available.length > 0) {
+      const idx = Math.floor(Math.random() * available.length);
+      finalPicks.push(available.splice(idx, 1)[0]);
+    }
+
+    setRoundPicks(finalPicks);
+    return finalPicks;
+  }, [catalogList]);
+
+  const autoPickRef = useRef(autoPickForCurrentRound);
+  autoPickRef.current = autoPickForCurrentRound;
+
+  // Submit picks for current round
+  const submitCurrentRoundPicks = useCallback(
+    (picksToSubmit?: string[]) => {
+      const picks = picksToSubmit ?? roundPicksRef.current;
+      if (isRoundReadyRef.current) return;
+      setIsRoundReady(true);
+      setErrorMsg(null);
+
+      // Send to server
+      room.send(MESSAGES.draftPick, {
+        round: currentRoundRef.current,
+        picks,
+      });
+
+      // Also trigger onConfirm callback if in final round
+      if (currentRoundRef.current === 3 && onConfirmRef.current) {
+        onConfirmRef.current([...lockedPicksRef.current, ...picks]);
+      }
+    },
+    [room],
+  );
+
+  const submitPicksRef = useRef(submitCurrentRoundPicks);
+  submitPicksRef.current = submitCurrentRoundPicks;
+
+  // 5-second final countdown timer when all 3 rounds conclude
+  useEffect(() => {
+    if (!isFinalCountdown) return;
+
+    const timer = setInterval(() => {
+      setFinalSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isFinalCountdown]);
+
+  // 15-second countdown timer per round
+  useEffect(() => {
+    if (isFinalCountdown) return;
+
+    setRoundSeconds(15);
+    setIsRoundReady(false);
+
+    const timer = setInterval(() => {
+      setRoundSeconds((prev) => {
+        if (prev <= 1) {
+          // Timer expired! Auto-pick and submit if not already ready
+          if (!isRoundReadyRef.current) {
+            const filled = autoPickRef.current();
+            submitPicksRef.current(filled);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentRound, isFinalCountdown]);
+
+  // Colyseus message listeners
+  useEffect(() => {
+    // Sync opponent name from state
+    if (room?.state?.players) {
+      room.state.players.forEach((p: any, sessionId: string) => {
+        if (sessionId !== room.sessionId && p.name) {
+          setOpponentName(p.name);
+        }
+      });
+    }
+
+    // Listen for draft round update broadcast from server
+    const offUpdate = room.onMessage(
+      MESSAGES.draftRoundUpdate,
+      (payload: DraftRoundUpdatePayload) => {
+        const isDefender = effectiveRole === 'defender';
+        const opponentPicks = isDefender ? payload.attackerPicks : payload.defenderPicks;
+        const myPicks = isDefender ? payload.defenderPicks : payload.attackerPicks;
+
+        if (opponentPicks) setEnemyPicks(opponentPicks);
+        if (myPicks) setLockedPicks(myPicks);
+
+        if (payload.isFinalReveal || payload.round === 3) {
+          setIsFinalCountdown(true);
+          setFinalSeconds(5);
+          setIsRoundReady(true);
+          setRoundPicks([]);
+        } else if (payload.round >= currentRoundRef.current && payload.round < 3) {
+          // Advance to next round if round has completed
+          setCurrentRound(payload.round + 1);
+          setRoundPicks([]);
+          setIsRoundReady(false);
+          setRoundSeconds(15);
+        }
+      },
+    );
+
+    const offReject = room.onMessage(MESSAGES.draftRejected, (payload: { reason?: string }) => {
+      setIsRoundReady(false);
+      setErrorMsg(payload?.reason || 'Draft selection was rejected by server.');
+    });
+
+    return () => {
+      offUpdate();
+      offReject();
+    };
+  }, [room, effectiveRole]);
+
+  // Combine locked picks + current round picks
+  const allYourSelections = useMemo(() => {
+    return [...lockedPicks, ...roundPicks];
+  }, [lockedPicks, roundPicks]);
+
+  // Toggle selection for current round
+  const toggleSelect = (id: string) => {
+    // If waiting or in final countdown, clicking cards should only inspect them
+    if (isRoundReady || isFinalCountdown) {
+      setInspectedTarget({ id, isEnemy: false });
+      return;
+    }
+
+    if (lockedPicks.includes(id)) {
+      // Already locked from previous round: inspect without re-selecting!
+      setInspectedTarget({ id, isEnemy: false });
+      return;
+    }
+
+    setErrorMsg(null);
+    setInspectedTarget({ id, isEnemy: false });
+
+    setRoundPicks((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((x) => x !== id);
+      }
+      if (prev.length >= 2) {
+        return [prev[0], id]; // Replace second pick
+      }
+      return [...prev, id];
+    });
+  };
+
+  const removeCurrentPick = (id: string) => {
+    if (isRoundReady || isFinalCountdown) return;
+    if (lockedPicks.includes(id)) return; // Cannot remove locked picks
+    setErrorMsg(null);
+    setRoundPicks((prev) => prev.filter((x) => x !== id));
+  };
+
+  const handleManualConfirm = () => {
+    if (roundPicks.length !== 2 || isRoundReady || isFinalCountdown) return;
+    submitCurrentRoundPicks(roundPicks);
+  };
+
+  // Build tactical inspector data for inspected target (can be friendly or enemy)
+  const inspectorData: TacticalData = useMemo(() => {
+    const { id, isEnemy } = inspectedTarget;
+    const isTargetTower = isEnemy ? effectiveRole === 'attacker' : effectiveRole === 'defender';
+
+    if (isTargetTower) {
+      const tower = (TOWER_TYPES[id] as TowerType) || catalogList[0];
+      const tier0 = tower?.tiers?.[0];
+      const custom = TACTICAL_TOWERS[id] || {};
+      const spd =
+        (tier0?.fireRate ?? 1) > 1.3
+          ? 'Fast'
+          : (tier0?.fireRate ?? 1) < 0.6
+            ? 'Slow'
+            : 'Medium';
+
+      return {
+        title: custom.title || tower?.name?.toUpperCase() || id.toUpperCase(),
+        isEnemy,
+        stat1Label: '⚔ ATK',
+        stat1Value: tier0?.damage ?? 15,
+        stat2Label: 'RNG',
+        stat2Value: tier0?.range ?? 120,
+        stat3Label: 'SPD',
+        stat3Value: spd,
+        weakness: custom.weakness || 'High Mobility',
+        stacks: custom.stacks || 'Max 6',
+        iconSrc: custom.iconSrc,
+      };
+    } else {
+      const mob = (MOB_TYPES[id] as MobType) || catalogList[0];
+      const custom = TACTICAL_MOBS[id] || {};
+      const spd =
+        (mob?.speed ?? 60) > 100
+          ? 'Sprint'
+          : (mob?.speed ?? 60) > 75
+            ? 'Fast'
+            : (mob?.speed ?? 60) < 50
+              ? 'Slow'
+              : 'Normal';
+
+      return {
+        title: custom.title || mob?.name?.toUpperCase() || id.toUpperCase(),
+        isEnemy,
+        stat1Label: '❤️ HP',
+        stat1Value: mob?.maxHp ?? 100,
+        stat2Label: '💰 Cost',
+        stat2Value: `${mob?.cost ?? 10}g`,
+        stat3Label: '⚡ SPD',
+        stat3Value: spd,
+        weakness: custom.weakness || 'Concentrated Fire',
+        stacks: custom.stacks || 'Max 20',
+        iconSrc: custom.iconSrc,
+      };
+    }
+  }, [inspectedTarget, role, catalogList]);
+
+  // Render illustration / sprite
+  const renderItemVisual = (id: string, isTargetEnemy: boolean = false, isBig: boolean = false) => {
+    const isTargetTower = isTargetEnemy ? role === 'attacker' : role === 'defender';
+    const custom = isTargetTower ? TACTICAL_TOWERS[id] : TACTICAL_MOBS[id];
+    const iconSrc = custom?.iconSrc;
+
+    if (iconSrc) {
+      return (
+        <img
+          src={iconSrc}
+          alt={id}
+          className={`${
+            isBig ? 'max-h-24 max-w-24' : 'max-h-12 max-w-12'
+          } object-contain pixelated filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]`}
+          style={{ imageRendering: 'pixelated' }}
+          onError={(e) => {
+            (e.target as HTMLElement).style.display = 'none';
+          }}
+        />
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center text-amber-900 font-black">
+        <svg
+          width={isBig ? 64 : 32}
+          height={isBig ? 64 : 32}
+          viewBox="0 0 32 32"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M16 2 L28 10 L28 28 L4 28 L4 10 Z"
+            fill={isTargetEnemy ? '#dc2626' : '#d97706'}
+            stroke={isTargetEnemy ? '#7f1d1d' : '#92400e'}
+            strokeWidth="2"
+          />
+          <path d="M12 28 L12 20 L20 20 L20 28 Z" fill="#450a0a" />
+          <circle cx="16" cy="12" r="3" fill="#fef08a" />
+        </svg>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 w-full h-[100dvh] overflow-hidden flex items-center justify-center select-none text-[#fff5d6]"
+      style={{
+        background: 'radial-gradient(ellipse at center, #1c1117 0%, #140d13 70%, #0a060a 100%)',
+        fontFamily: "'Cinzel', 'MedievalSharp', serif",
+      }}
+    >
+      {/* 16:9 Scale-to-Fit Canvas Frame (identical appearance on mobile & desktop) */}
+      <div
+        className="relative w-[1260px] h-[700px] shrink-0 origin-center transition-transform duration-75 flex flex-col justify-between rounded-xl overflow-hidden p-3 gap-2"
+        style={{
+          transform: `scale(${viewportScale})`,
+          border: '3px solid #d4af37',
+          boxShadow: '0 0 0 2px #420b0e, 0 0 30px rgba(0,0,0,0.9), inset 0 0 40px rgba(0,0,0,0.7)',
+          background: 'linear-gradient(180deg, #180f15 0%, #11090f 100%)',
+          WebkitTextSizeAdjust: '100%',
+        }}
+      >
+        <CornerFlourish position="tl" />
+        <CornerFlourish position="tr" />
+        <CornerFlourish position="bl" />
+        <CornerFlourish position="br" />
+
+        {/* Error Notification Toast if any */}
+        {errorMsg && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-900 border-2 border-amber-400 rounded-lg text-sm text-yellow-200 font-bold shadow-2xl animate-bounce">
+            ⚠️ {errorMsg}
+          </div>
+        )}
+
+        {/* Two-Column Grid (Left 7 cols, Right 5 cols - never stacks on mobile) */}
+        <div className="flex-1 w-full grid grid-cols-12 gap-3 min-h-0 overflow-hidden">
+          {/* ===================== LEFT COLUMN (~60%: 7 cols) ===================== */}
+          <div className="col-span-7 flex flex-col gap-2 min-h-0">
+            {/* Top Header Banner with Dynamic Round Timer */}
+            <div
+              className="relative flex items-center justify-between py-1.5 px-4 rounded-lg text-center"
+              style={{
+                background: isFinalCountdown
+                  ? 'linear-gradient(90deg, #1e3a1f 0%, #15803d 50%, #1e3a1f 100%)'
+                  : 'linear-gradient(90deg, #5b0f13 0%, #9e1b22 50%, #5b0f13 100%)',
+                border: isFinalCountdown ? '2px solid #34d399' : '2px solid #d4af37',
+                boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.3), 0 3px 10px rgba(0,0,0,0.6)',
+              }}
+            >
+              {isFinalCountdown ? (
+                <>
+                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-emerald-200">
+                    <span className="px-2.5 py-0.5 rounded bg-black/50 border border-emerald-400">
+                      DRAFT COMPLETE ✓
+                    </span>
+                  </div>
+
+                  <span
+                    className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
+                    style={{ textShadow: '2px 2px 0px #000' }}
+                  >
+                    ⚔️ BATTLE COMMENCES IN {effectiveFinalSeconds}s ⚔️
+                  </span>
+
+                  <div className="flex items-center gap-1 px-3 py-0.5 rounded-full font-black text-xs sm:text-sm border bg-emerald-950/90 border-emerald-400 text-emerald-300">
+                    <span>⏱</span>
+                    <span>{effectiveFinalSeconds}s</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#fef08a]">
+                    <span className="px-2 py-0.5 rounded bg-black/40 border border-amber-500/50">
+                      ROUND {currentRound}/3
+                    </span>
+                    <span className="text-amber-200/80 hidden sm:inline">(Pick 2)</span>
+                  </div>
+
+                  <span
+                    className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fff5d6]"
+                    style={{ textShadow: '2px 2px 0px #000' }}
+                  >
+                    {effectiveRole === 'defender' ? 'CHOOSE YOUR TOWERS' : 'CHOOSE YOUR UNITS'}
+                  </span>
+
+                  {/* 15-second countdown pill */}
+                  <div
+                    className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full font-black text-xs sm:text-sm border ${
+                      effectiveRoundSeconds <= 3
+                        ? 'bg-red-900/90 border-red-400 text-red-200 animate-pulse'
+                        : 'bg-black/60 border-amber-400 text-amber-300'
+                    }`}
+                  >
+                    <span>⏱</span>
+                    <span>{effectiveRoundSeconds}s</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Middle Panel — Details Inspector (Inspects Own or Enemy Selections) */}
+            <div
+              className="relative rounded-lg p-2 sm:p-2.5 flex items-center gap-3 sm:gap-4 shrink-0"
+              style={{
+                background: inspectorData.isEnemy
+                  ? 'linear-gradient(135deg, #3d0c11 0%, #200508 100%)'
+                  : 'linear-gradient(135deg, #2b0b0e 0%, #1e0709 100%)',
+                border: inspectorData.isEnemy ? '2px solid #ef4444' : '2px solid #d4af37',
+                boxShadow: 'inset 0 0 15px rgba(0,0,0,0.6)',
+              }}
+            >
+              <CornerFlourish position="tl" />
+              <CornerFlourish position="br" />
+
+              {/* Left side: Square portrait frame */}
+              <div
+                className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 shrink-0 rounded-lg flex items-center justify-center p-1.5 overflow-hidden"
+                style={{
+                  background: '#e6d2b5',
+                  border: inspectorData.isEnemy ? '3px solid #ef4444' : '3px solid #d4af37',
+                  boxShadow: 'inset 0 0 10px rgba(146,64,14,0.4), 0 4px 10px rgba(0,0,0,0.6)',
+                }}
+              >
+                {renderItemVisual(inspectedTarget.id, inspectorData.isEnemy, true)}
+              </div>
+
+              {/* Right side: Crimson info box with gold trim */}
+              <div
+                className="flex-1 min-w-0 rounded-lg p-2 sm:p-2.5 flex flex-col justify-center"
+                style={{
+                  background: 'linear-gradient(90deg, #420b0e 0%, #5e1116 100%)',
+                  border: inspectorData.isEnemy ? '1.5px solid #ef4444' : '1.5px solid #d4af37',
+                  boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.2)',
+                }}
+              >
+                <div className="flex items-center justify-between gap-1 truncate">
+                  <div
+                    className="text-base sm:text-lg font-black text-[#fff5d6] truncate tracking-wide"
+                    style={{ textShadow: '2px 2px 0px #000' }}
+                  >
+                    {inspectorData.title}
+                  </div>
+                  {inspectorData.isEnemy ? (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-950 border border-red-500 text-red-300">
+                      ENEMY UNIT
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-950 border border-amber-500 text-amber-300">
+                      YOUR ROSTER
+                    </span>
+                  )}
+                </div>
+
+                {/* Horizontal Gold Divider */}
+                <div className="w-full h-0.5 my-1 bg-gradient-to-r from-[#fce38a] via-[#d4af37] to-transparent" />
+
+                {/* Stats Row */}
+                <div className="text-xs sm:text-sm font-bold text-[#fef08a] flex flex-wrap items-center gap-x-2 gap-y-0.5 tracking-tight">
+                  <span>
+                    {inspectorData.stat1Label}: <span className="text-white">{inspectorData.stat1Value}</span>
+                  </span>
+                  <span className="text-amber-500/70">|</span>
+                  <span>
+                    {inspectorData.stat2Label}: <span className="text-white">{inspectorData.stat2Value}</span>
+                  </span>
+                  <span className="text-amber-500/70">|</span>
+                  <span>
+                    {inspectorData.stat3Label}: <span className="text-white">{inspectorData.stat3Value}</span>
+                  </span>
+                </div>
+
+                {/* Tactical Info Row */}
+                <div className="text-[11px] sm:text-xs text-[#e2d5be] mt-1 truncate">
+                  <span className="text-amber-300 font-semibold">Weakness:</span> {inspectorData.weakness}
+                  <span className="mx-1.5 text-amber-500/70">•</span>
+                  <span className="text-amber-300 font-semibold">Stacks:</span> {inspectorData.stacks}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Panel — 10 Selection Pool Cards (5x2 Grid) */}
+            <div
+              className="relative flex-1 rounded-lg p-2 flex flex-col justify-center min-h-[220px]"
+              style={{
+                background: 'rgba(26, 12, 17, 0.9)',
+                border: '2px solid #8a661b',
+                boxShadow: 'inset 0 0 20px rgba(0,0,0,0.8)',
+              }}
+            >
+              <div className="grid grid-cols-5 grid-rows-2 gap-1.5 sm:gap-2 h-full">
+                {catalogList.map((item) => {
+                  const isLocked = lockedPicks.includes(item.id);
+                  const isRoundPick = roundPicks.includes(item.id);
+                  const isInspected = inspectedTarget.id === item.id && !inspectedTarget.isEnemy;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleSelect(item.id)}
+                      className={`group relative rounded-md flex flex-col justify-between p-1 select-none overflow-hidden transition-all duration-150 transform ${
+                        isLocked
+                          ? 'opacity-85 cursor-default'
+                          : 'cursor-pointer hover:-translate-y-0.5 active:translate-y-0'
+                      }`}
+                      style={{
+                        background: isLocked
+                          ? 'linear-gradient(180deg, #3d1f14 0%, #20110a 100%)'
+                          : isRoundPick
+                            ? 'linear-gradient(180deg, #4a1215 0%, #2f080b 100%)'
+                            : 'linear-gradient(180deg, #241418 0%, #160a0e 100%)',
+                        border: isLocked
+                          ? '2px solid #fce38a'
+                          : isRoundPick
+                            ? '2px solid #ffe066'
+                            : isInspected
+                              ? '2px solid #d4af37'
+                              : '1.5px solid #8a661b',
+                        boxShadow: isRoundPick
+                          ? '0 0 10px rgba(255, 224, 102, 0.7), inset 0 0 6px rgba(255, 224, 102, 0.3)'
+                          : '0 2px 6px rgba(0,0,0,0.6)',
+                      }}
+                    >
+                      {/* Top-Right Info "i" Badge */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInspectedTarget({ id: item.id, isEnemy: false });
+                        }}
+                        className="absolute top-0.5 right-0.5 z-10 w-4 h-4 rounded-full bg-[#1c1117] border border-[#d4af37] text-[10px] font-black text-[#fef08a] flex items-center justify-center hover:bg-[#ffe066] hover:text-black transition"
+                        title="View details"
+                      >
+                        i
+                      </button>
+
+                      {/* Center Sprite on Parchment Frame */}
+                      <div
+                        className="w-full flex-1 min-h-[50px] rounded flex items-center justify-center p-1 overflow-hidden"
+                        style={{
+                          background: '#e6d2b5',
+                          border: '1px solid #c59b27',
+                          boxShadow: 'inset 0 0 5px rgba(146,64,14,0.3)',
+                        }}
+                      >
+                        {renderItemVisual(item.id, false)}
+                      </div>
+
+                      {/* Bottom Nameplate & Status */}
+                      <div className="mt-1 flex flex-col items-center justify-center leading-none text-center">
+                        <span
+                          className="text-[10px] sm:text-[11px] font-bold text-[#fff5d6] truncate w-full"
+                          style={{ textShadow: '1px 1px 0px #000' }}
+                        >
+                          {item.name}
+                        </span>
+                        <span
+                          className={`text-[8px] sm:text-[9px] font-black uppercase mt-0.5 tracking-wider ${
+                            isLocked
+                              ? 'text-amber-300'
+                              : isRoundPick
+                                ? 'text-emerald-400'
+                                : 'text-amber-500/80'
+                          }`}
+                        >
+                          {isLocked ? 'LOCKED IN ✓' : isRoundPick ? 'SELECTED' : 'AVAILABLE'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ===================== RIGHT COLUMN (~40%: 5 cols) ===================== */}
+          <div className="col-span-5 flex flex-col justify-between gap-2 min-h-0">
+            {/* Top-Right Panel — ENEMY SELECTIONS (Click to Inspect Enemy Unit) */}
+            <div
+              className="relative rounded-lg p-2 sm:p-2.5 flex flex-col"
+              style={{
+                background: 'linear-gradient(145deg, #2b0b0e 0%, #1a0608 100%)',
+                border: '2px solid #d4af37',
+                boxShadow: 'inset 0 0 15px rgba(0,0,0,0.7)',
+              }}
+            >
+              <CornerFlourish position="tl" />
+              <CornerFlourish position="tr" />
+
+              <div className="flex items-center justify-between pb-1 px-1">
+                <span
+                  className="text-xs sm:text-sm font-black tracking-widest text-[#fce38a]"
+                  style={{ textShadow: '2px 2px 0px #000' }}
+                >
+                  ENEMY SELECTIONS ({opponentName})
+                </span>
+                <span className="text-[10px] text-red-300 font-bold">
+                  {enemyPicks.length}/6 Revealed
+                </span>
+              </div>
+
+              {/* 3 cols x 2 rows = 6 slots */}
+              <div className="grid grid-cols-3 grid-rows-2 gap-1.5 sm:gap-2 pt-1">
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const revealedEnemyId = enemyPicks[i];
+                  const enemyCatalog = role === 'defender' ? MOB_TYPES : TOWER_TYPES;
+                  const enemyItem = revealedEnemyId ? enemyCatalog[revealedEnemyId] : null;
+
+                  if (enemyItem) {
+                    // Revealed Enemy Card (Clickable to Inspect!)
+                    return (
+                      <div
+                        key={`enemy-revealed-${i}`}
+                        onClick={() => setInspectedTarget({ id: enemyItem.id, isEnemy: true })}
+                        className="group relative h-16 sm:h-20 rounded-md flex flex-col items-center justify-between p-1 cursor-pointer transition transform hover:scale-[1.02] active:scale-95"
+                        style={{
+                          background: 'linear-gradient(180deg, #471115 0%, #290a0d 100%)',
+                          border: '1.5px solid #dc2626',
+                          boxShadow: '0 0 8px rgba(220, 38, 38, 0.6)',
+                        }}
+                        title="Click to inspect enemy stats in Details Inspector"
+                      >
+                        <div
+                          className="w-full flex-1 rounded flex items-center justify-center p-0.5 overflow-hidden"
+                          style={{ background: '#e6d2b5' }}
+                        >
+                          {renderItemVisual(enemyItem.id, true)}
+                        </div>
+                        <span className="text-[10px] font-bold text-red-200 truncate w-full text-center mt-0.5">
+                          {enemyItem.name}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  // Hidden / Selecting Slot
+                  return (
+                    <div
+                      key={`enemy-slot-${i}`}
+                      className="relative h-16 sm:h-20 rounded-md flex flex-col items-center justify-center p-1 overflow-hidden"
+                      style={{
+                        background: 'linear-gradient(180deg, #260c10 0%, #180608 100%)',
+                        border: '1px solid #7a1f26',
+                      }}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#b45309"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mb-1"
+                      >
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                      <span className="text-[9px] font-bold tracking-tighter text-amber-500 animate-pulse">
+                        SELECTING...
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Middle-Right Panel — YOUR SELECTIONS */}
+            <div
+              className="relative rounded-lg p-2 sm:p-2.5 flex flex-col"
+              style={{
+                background: 'linear-gradient(145deg, #2b0b0e 0%, #1a0608 100%)',
+                border: '2px solid #d4af37',
+                boxShadow: 'inset 0 0 15px rgba(0,0,0,0.7)',
+              }}
+            >
+              <CornerFlourish position="tl" />
+              <CornerFlourish position="tr" />
+
+              <div className="flex items-center justify-between pb-1 px-1">
+                <span
+                  className="text-xs sm:text-sm font-black tracking-widest text-[#fce38a]"
+                  style={{ textShadow: '2px 2px 0px #000' }}
+                >
+                  YOUR SELECTIONS
+                </span>
+                <span className="text-xs font-bold text-amber-200">
+                  {allYourSelections.length} / 6
+                </span>
+              </div>
+
+              {/* 3 cols x 2 rows = 6 slots */}
+              <div className="grid grid-cols-3 grid-rows-2 gap-1.5 sm:gap-2 pt-1">
+                {Array.from({ length: 6 }).map((_, index) => {
+                  const selectedId = allYourSelections[index];
+                  const item = selectedId ? catalogList.find((c) => c.id === selectedId) : null;
+                  const isCommitted = lockedPicks.includes(selectedId);
+
+                  if (item) {
+                    return (
+                      <div
+                        key={`your-slot-${index}-${selectedId}`}
+                        onClick={() => {
+                          setInspectedTarget({ id: item.id, isEnemy: false });
+                          if (!isCommitted) removeCurrentPick(selectedId);
+                        }}
+                        className="group relative h-16 sm:h-20 rounded-md flex flex-col items-center justify-between p-1 cursor-pointer transition transform hover:scale-[1.02] active:scale-95"
+                        style={{
+                          background: isCommitted
+                            ? 'linear-gradient(180deg, #3d1f14 0%, #20110a 100%)'
+                            : 'linear-gradient(180deg, #3d1014 0%, #20070a 100%)',
+                          border: isCommitted ? '1.5px solid #fce38a' : '1.5px solid #d4af37',
+                          boxShadow: '0 0 8px rgba(212, 175, 55, 0.4)',
+                        }}
+                        title={isCommitted ? 'Locked in' : 'Click to remove'}
+                      >
+                        <div
+                          className="w-full flex-1 rounded flex items-center justify-center p-0.5 overflow-hidden"
+                          style={{ background: '#e6d2b5' }}
+                        >
+                          {renderItemVisual(item.id, false)}
+                        </div>
+                        <div className="flex items-center justify-between w-full px-0.5 mt-0.5">
+                          <span className="text-[10px] font-bold text-[#fff5d6] truncate">
+                            {item.name}
+                          </span>
+                          {isCommitted && <span className="text-[8px] text-amber-300">✓</span>}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Empty Slot
+                  return (
+                    <div
+                      key={`empty-slot-${index}`}
+                      className="h-16 sm:h-20 rounded-md flex flex-col items-center justify-center border border-dashed border-amber-800/60 bg-[#160a0f]/60 text-amber-700/60 font-black text-xs"
+                    >
+                      <span>Slot {index + 1}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom-Right — CONFIRM BUTTON FOR CURRENT ROUND */}
+            <div className="pt-1">
+              {isFinalCountdown ? (
+                <button
+                  type="button"
+                  disabled
+                  className="relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-emerald-950 via-emerald-800 to-emerald-950 border-2 border-[#ffe066] text-[#fff5d6] shadow-[0_0_25px_rgba(255,224,102,0.6)] cursor-default animate-pulse"
+                  style={{ textShadow: '2px 2px 0px #000' }}
+                >
+                  <CornerFlourish position="tl" />
+                  <CornerFlourish position="tr" />
+                  <CornerFlourish position="bl" />
+                  <CornerFlourish position="br" />
+                  <span className="flex items-center gap-2">
+                    ⚔️ PREPARE FOR BATTLE ({effectiveFinalSeconds}s)
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleManualConfirm}
+                  disabled={roundPicks.length !== 2 || isRoundReady}
+                  className={`relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg transition-all duration-200 overflow-hidden flex items-center justify-center ${
+                    isRoundReady
+                      ? 'bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-900 border-2 border-emerald-400 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.5)] cursor-default'
+                      : roundPicks.length === 2
+                        ? 'bg-gradient-to-r from-[#7a1218] via-[#bd2029] to-[#7a1218] border-2 border-[#ffe066] text-[#fff5d6] shadow-[0_0_25px_rgba(255,224,102,0.6)] hover:brightness-110 active:scale-[0.99] cursor-pointer animate-pulse'
+                        : 'bg-gradient-to-r from-[#380e12] to-[#20080a] border-2 border-amber-900/60 text-amber-700/70 cursor-not-allowed'
+                  }`}
+                  style={{ textShadow: '2px 2px 0px #000' }}
+                >
+                  <CornerFlourish position="tl" />
+                  <CornerFlourish position="tr" />
+                  <CornerFlourish position="bl" />
+                  <CornerFlourish position="br" />
+
+                  {isRoundReady ? (
+                    <span className="flex items-center gap-2">
+                      ROUND {currentRound} READY <span className="text-emerald-300">✓</span> (Waiting...)
+                    </span>
+                  ) : roundPicks.length === 2 ? (
+                    <span>CONFIRM ROUND {currentRound} ({effectiveRoundSeconds}s)</span>
+                  ) : (
+                    <span>
+                      CHOOSE 2 FOR ROUND {currentRound} ({roundPicks.length}/2) [{effectiveRoundSeconds}s]
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
