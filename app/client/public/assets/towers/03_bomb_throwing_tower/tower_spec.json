@@ -1,0 +1,16 @@
+{
+  "id": "bomb",
+  "dir_name": "03_bomb_throwing_tower",
+  "name": "Bomb Throwing Tower",
+  "description": "Catapult siege platform hurling ignited ceramic gunpowder bombs with area splash damage.",
+  "projectile": {
+    "id": "bomb",
+    "name": "Gunpowder Bomb",
+    "size": [
+      34,
+      34
+    ],
+    "trailColor": "#f97316",
+    "impactEffect": "fire_blast"
+  }
+}

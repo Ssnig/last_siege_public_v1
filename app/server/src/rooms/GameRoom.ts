@@ -2002,10 +2002,17 @@ export class GameRoom extends Room<{ state: RoomState }> {
     count: number,
     batchId: number,
   ): number {
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const forkPaths = map.randomFork ? this.pathIdsFor(map) : null;
+
     for (let i = 0; i < count; i++) {
+      const assignedPathId =
+        forkPaths && forkPaths.length > 0
+          ? forkPaths[Math.floor(Math.random() * forkPaths.length)]
+          : pathId;
       const seed = (Math.random() * 0xffffffff) >>> 0;
       const jitter = 1 + (Math.random() * 2 - 1) * MOB_SPEED_JITTER;
-      const id = `mob-${batchId}-${pathId}-${i}`;
+      const id = `mob-${batchId}-${assignedPathId}-${i}`;
 
       this.state.mobs.set(
         id,
@@ -2021,7 +2028,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
           checkpoint: 0,
           state: "moving",
           seed,
-          pathId,
+          pathId: assignedPathId,
         }),
       );
     }

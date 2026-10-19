@@ -1,0 +1,16 @@
+{
+  "id": "cannon",
+  "dir_name": "02_cannon",
+  "name": "Cannon",
+  "description": "Heavy cast-bronze artillery firing explosive gunpowder cannonballs.",
+  "projectile": {
+    "id": "cannonball",
+    "name": "Cannonball",
+    "size": [
+      32,
+      32
+    ],
+    "trailColor": "#ef4444",
+    "impactEffect": "smoke_explosion"
+  }
+}

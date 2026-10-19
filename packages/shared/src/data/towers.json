@@ -90,5 +90,50 @@
       { "cost": 520, "damage": 240, "range": 155, "fireRate": 0.36, "projectileSpeed": 300 },
       { "cost": 895, "damage": 500, "range": 175, "fireRate": 0.41, "projectileSpeed": 320 }
     ]
+  },
+  "archer": {
+    "id": "archer",
+    "name": "Archer Tower",
+    "tiers": [
+      { "cost": 55, "damage": 12, "range": 140, "fireRate": 1.08, "projectileSpeed": 400 },
+      { "cost": 105, "damage": 22, "range": 160, "fireRate": 1.17, "projectileSpeed": 430 },
+      { "cost": 185, "damage": 40, "range": 185, "fireRate": 1.26, "projectileSpeed": 460 }
+    ]
+  },
+  "bomb": {
+    "id": "bomb",
+    "name": "Bomb Throwing Tower",
+    "tiers": [
+      { "cost": 110, "damage": 30, "range": 130, "fireRate": 0.65, "projectileSpeed": 280 },
+      { "cost": 190, "damage": 60, "range": 145, "fireRate": 0.72, "projectileSpeed": 300 },
+      { "cost": 320, "damage": 120, "range": 165, "fireRate": 0.80, "projectileSpeed": 320 }
+    ]
+  },
+  "bell": {
+    "id": "bell",
+    "name": "Bell Tower",
+    "tiers": [
+      { "cost": 95, "damage": 15, "range": 135, "fireRate": 1.20, "projectileSpeed": 320 },
+      { "cost": 165, "damage": 30, "range": 150, "fireRate": 1.35, "projectileSpeed": 350 },
+      { "cost": 280, "damage": 60, "range": 170, "fireRate": 1.50, "projectileSpeed": 380 }
+    ]
+  },
+  "spear": {
+    "id": "spear",
+    "name": "Spear Tower",
+    "tiers": [
+      { "cost": 45, "damage": 10, "range": 125, "fireRate": 1.00, "projectileSpeed": 350 },
+      { "cost": 85, "damage": 20, "range": 140, "fireRate": 1.10, "projectileSpeed": 375 },
+      { "cost": 150, "damage": 38, "range": 160, "fireRate": 1.20, "projectileSpeed": 400 }
+    ]
+  },
+  "gun": {
+    "id": "gun",
+    "name": "Gun Tower",
+    "tiers": [
+      { "cost": 130, "damage": 38, "range": 210, "fireRate": 0.40, "projectileSpeed": 520 },
+      { "cost": 225, "damage": 72, "range": 240, "fireRate": 0.45, "projectileSpeed": 550 },
+      { "cost": 385, "damage": 155, "range": 275, "fireRate": 0.50, "projectileSpeed": 580 }
+    ]
   }
 }

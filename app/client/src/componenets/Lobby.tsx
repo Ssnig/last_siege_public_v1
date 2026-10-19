@@ -512,7 +512,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                     </div>
                     <div className="text-[10px] text-amber-400/70">
                       {MAPS[selectedMapId]
-                        ? `${MAPS[selectedMapId].lanes || 2} Lanes`
+                        ? `${MAPS[selectedMapId].lanes || 2} ${(MAPS[selectedMapId].lanes || 2) === 1 ? 'Lane' : 'Lanes'}`
                         : 'Surprise pick'}{' '}
                       · Tap to Change
                     </div>

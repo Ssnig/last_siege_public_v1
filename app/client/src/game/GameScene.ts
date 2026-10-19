@@ -100,10 +100,19 @@ export class GameScene extends Phaser.Scene {
     this.load.image("bagan", "/assets/maps/map_2_bagan/map.jpg");
     this.load.image("inle", "/assets/maps/map_3_inle/map.jpg");
     this.load.image("mandalay", "/assets/maps/map_4_mandalay/map.jpg");
-    this.load.image("rakhine", "/assets/maps/map_5_rakhine/map.jpg");
+    this.load.image("innwa", "/assets/maps/map_5_innwa/map.jpg");
+    this.load.image("rakhine", "/assets/maps/map_5_innwa/map.jpg");
     this.load.image("bago", "/assets/maps/map_6_bago/map.jpg");
 
+    // Map base structures
     this.load.image("base_castle", "/assets/sprites/base_castle.png");
+    this.load.image("base_konbaung", "/assets/maps/map_1_konbaung/base.png");
+    this.load.image("base_bagan", "/assets/maps/map_2_bagan/base.png");
+    this.load.image("base_inle", "/assets/maps/map_3_inle/base.png");
+    this.load.image("base_mandalay", "/assets/maps/map_4_mandalay/base.png");
+    this.load.image("base_innwa", "/assets/maps/map_5_innwa/base.png");
+    this.load.image("base_bago", "/assets/maps/map_6_bago/base.png");
+    this.load.image("npc_monk", "/assets/sprites/npc_monk.png");
     this.load.image("tower_archer", "/assets/sprites/tower_archer.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
     this.load.image("arrow_proj", "/assets/sprites/arrow.png");

@@ -136,7 +136,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
                   />
                   {/* Lanes Badge */}
                   <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/80 border border-amber-500/60 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
-                    {map.lanes || 2} Lanes
+                    {(map.lanes || 2) === 1 ? '1 Lane' : `${map.lanes || 2} Lanes`}
                   </div>
 
                   {/* Selected Tick Indicator */}
