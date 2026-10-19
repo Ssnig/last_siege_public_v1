@@ -1,5 +1,5 @@
 import React from "react";
-import { MAPS, RANDOM_MAP_ID, type MapDefinition } from "@root/shared";
+import { CANONICAL_MAPS, RANDOM_MAP_ID, type MapDefinition } from "@root/shared";
 
 interface MapSelectorModalProps {
   isOpen: boolean;
@@ -16,21 +16,21 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Filter out sample test map, show canonical 6 battlefields
-  const playableMaps = Object.values(MAPS).filter((m) => m.id !== "sample");
+  // Strict 6 canonical battlefields
+  const playableMaps = CANONICAL_MAPS;
   const isRandom = selectedMapId === RANDOM_MAP_ID;
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 select-none"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 select-none"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl max-h-[90vh] bg-gradient-to-b from-slate-900 via-[#131b2e] to-slate-950 border-2 border-amber-500/80 rounded-2xl shadow-[0_0_30px_rgba(245,158,11,0.3)] flex flex-col overflow-hidden"
+        className="relative w-full max-w-4xl max-h-[92vh] bg-gradient-to-b from-slate-900 via-[#131b2e] to-slate-950 border-2 border-amber-500/80 rounded-2xl shadow-[0_0_35px_rgba(245,158,11,0.35)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-amber-600/40 bg-slate-950/60">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-amber-600/40 bg-slate-950/70 shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🗺️</span>
             <div>
@@ -38,7 +38,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
                 Select Royal Battlefield
               </h2>
               <p className="text-xs text-amber-200/60">
-                Choose the strategic arena for your match
+                Choose the strategic arena for your match (6 Canonical Maps)
               </p>
             </div>
           </div>
@@ -51,137 +51,134 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
           </button>
         </div>
 
-        {/* Maps Grid */}
-        <div className="p-4 md:p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {/* Random option: a map is drawn when the draft begins */}
+        {/* Scrollable Content */}
+        <div className="p-4 md:p-6 overflow-y-auto flex-1 flex flex-col gap-3.5">
+          {/* Quick Pick: Random Option Banner */}
           <div
-            key={RANDOM_MAP_ID}
             onClick={() => onSelectMap(RANDOM_MAP_ID)}
-            className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex flex-col bg-slate-950/70 ${
+            className={`relative rounded-xl p-3 px-4 flex items-center justify-between border-2 transition-all cursor-pointer bg-slate-950/80 ${
               isRandom
-                ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.5)] scale-[1.02]"
-                : "border-slate-700/80 hover:border-amber-600/60 hover:scale-[1.01]"
+                ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.45)] bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 scale-[1.005]"
+                : "border-slate-700/80 hover:border-amber-500/60 hover:bg-slate-900/70"
             }`}
           >
-            {/* Dice Preview */}
-            <div className="relative h-32 md:h-36 w-full overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center">
-              <span className="text-5xl transition-transform duration-300 group-hover:scale-110">
-                🎲
-              </span>
-              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/80 border border-amber-500/60 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
-                Surprise
-              </div>
-              {isRandom && (
-                <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center text-xs shadow-md">
-                  ✓
-                </div>
-              )}
-            </div>
-
-            {/* Random Info */}
-            <div className="p-3 flex flex-col gap-1 flex-1 justify-between">
+            <div className="flex items-center gap-3.5">
+              <span className="text-3xl filter drop-shadow">🎲</span>
               <div>
-                <h3
-                  className={`text-sm md:text-base font-bold transition-colors ${
-                    isRandom
-                      ? "text-amber-300 font-['Almendra',serif]"
-                      : "text-slate-100 group-hover:text-amber-200"
-                  }`}
-                >
-                  Random Battlefield
-                </h3>
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
-                  Let fate decide — a map is drawn the moment the draft begins.
+                <div className="flex items-center gap-2">
+                  <h3
+                    className={`text-sm md:text-base font-bold ${
+                      isRandom
+                        ? "text-amber-300 font-['Almendra',serif]"
+                        : "text-slate-100 group-hover:text-amber-200"
+                    }`}
+                  >
+                    Random Battlefield
+                  </h3>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-500/40 text-indigo-300 font-bold uppercase tracking-wider">
+                    Quick Pick
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-snug mt-0.5">
+                  Let fate decide — a map is drawn from the 6 royal battlefields the moment the match begins.
                 </p>
               </div>
+            </div>
 
-              <div className="pt-2 mt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500">
-                <span>{playableMaps.length} Maps</span>
-                <span
-                  className={`font-semibold ${
-                    isRandom ? "text-amber-400" : "text-slate-400"
-                  }`}
-                >
-                  {isRandom ? "Selected" : "Tap to Select"}
-                </span>
+            <div className="flex items-center gap-3 shrink-0 ml-2">
+              <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
+                6 Maps Pool
+              </span>
+              <div
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  isRandom
+                    ? "bg-amber-500 text-slate-950 font-black shadow-md"
+                    : "bg-slate-800 text-slate-300 hover:text-white"
+                }`}
+              >
+                {isRandom && <span>✓</span>}
+                <span>{isRandom ? "Selected" : "Tap to Select"}</span>
               </div>
             </div>
           </div>
 
-          {playableMaps.map((map: MapDefinition) => {
-            const isSelected = selectedMapId === map.id;
-            const thumbSrc =
-              map.thumbnail || `/assets/maps/map_1_konbaung/preview.png`;
+          {/* Symmetrical 3 × 2 Grid of Exact 6 Maps */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+            {playableMaps.map((map: MapDefinition) => {
+              const isSelected = selectedMapId === map.id;
+              const thumbSrc =
+                map.thumbnail || `/assets/maps/map_1_konbaung/preview.png`;
 
-            return (
-              <div
-                key={map.id}
-                onClick={() => onSelectMap(map.id)}
-                className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex flex-col bg-slate-950/70 ${
-                  isSelected
-                    ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.5)] scale-[1.02]"
-                    : "border-slate-700/80 hover:border-amber-600/60 hover:scale-[1.01]"
-                }`}
-              >
-                {/* Thumbnail Preview */}
-                <div className="relative h-32 md:h-36 w-full overflow-hidden bg-slate-900">
-                  <img
-                    src={thumbSrc}
-                    alt={map.name || map.id}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        "/assets/maps/map_1_konbaung/preview.png";
-                    }}
-                  />
-                  {/* Lanes Badge */}
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/80 border border-amber-500/60 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
-                    {(map.lanes || 2) === 1 ? '1 Lane' : `${map.lanes || 2} Lanes`}
-                  </div>
-
-                  {/* Selected Tick Indicator */}
-                  {isSelected && (
-                    <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center text-xs shadow-md">
-                      ✓
+              return (
+                <div
+                  key={map.id}
+                  onClick={() => onSelectMap(map.id)}
+                  className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex flex-col bg-slate-950/70 ${
+                    isSelected
+                      ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.5)] scale-[1.02]"
+                      : "border-slate-700/80 hover:border-amber-600/60 hover:scale-[1.01]"
+                  }`}
+                >
+                  {/* Thumbnail Preview */}
+                  <div className="relative h-28 sm:h-32 w-full overflow-hidden bg-slate-900">
+                    <img
+                      src={thumbSrc}
+                      alt={map.name || map.id}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src =
+                          "/assets/maps/map_1_konbaung/preview.png";
+                      }}
+                    />
+                    {/* Lanes Badge */}
+                    <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/80 border border-amber-500/60 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
+                      {(map.lanes || 2) === 1 ? "1 Lane" : `${map.lanes || 2} Lanes`}
                     </div>
-                  )}
-                </div>
 
-                {/* Map Info */}
-                <div className="p-3 flex flex-col gap-1 flex-1 justify-between">
-                  <div>
-                    <h3
-                      className={`text-sm md:text-base font-bold transition-colors ${
-                        isSelected
-                          ? "text-amber-300 font-['Almendra',serif]"
-                          : "text-slate-100 group-hover:text-amber-200"
-                      }`}
-                    >
-                      {map.name || map.id}
-                    </h3>
-                    <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
-                      {map.description || "A storied historical battleground."}
-                    </p>
+                    {/* Selected Tick Indicator */}
+                    {isSelected && (
+                      <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center text-xs shadow-md">
+                        ✓
+                      </div>
+                    )}
                   </div>
 
-                  <div className="pt-2 mt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500">
-                    <span>5 Tower Slots</span>
-                    <span
-                      className={`font-semibold ${
-                        isSelected ? "text-amber-400" : "text-slate-400"
-                      }`}
-                    >
-                      {isSelected ? "Selected" : "Tap to Select"}
-                    </span>
+                  {/* Map Info */}
+                  <div className="p-3 flex flex-col gap-1 flex-1 justify-between">
+                    <div>
+                      <h3
+                        className={`text-sm md:text-base font-bold transition-colors ${
+                          isSelected
+                            ? "text-amber-300 font-['Almendra',serif]"
+                            : "text-slate-100 group-hover:text-amber-200"
+                        }`}
+                      >
+                        {map.name || map.id}
+                      </h3>
+                      <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
+                        {map.description || "A storied historical battleground."}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 mt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500">
+                      <span>{map.slots?.length || 5} Tower Slots</span>
+                      <span
+                        className={`font-semibold ${
+                          isSelected ? "text-amber-400" : "text-slate-400"
+                        }`}
+                      >
+                        {isSelected ? "Selected" : "Tap to Select"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-amber-600/40 bg-slate-950/80 flex items-center justify-end gap-3">
+        <div className="px-6 py-3 border-t border-amber-600/40 bg-slate-950/80 flex items-center justify-end gap-3 shrink-0">
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs uppercase tracking-wider transition cursor-pointer shadow-lg"
@@ -193,3 +190,4 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
     </div>
   );
 };
+
