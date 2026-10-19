@@ -115,6 +115,35 @@ export const LandingPage: React.FC = () => {
           </svg>
         </button>
 
+        {/* Top-Right Map Editor Icon Button */}
+        <button
+          onClick={() => {
+            soundEffects.playClick();
+            navigate('/editor');
+          }}
+          onMouseEnter={() => soundEffects.playHover()}
+          className="absolute top-[3.5%] right-[7.2%] z-20 w-[4.5%] min-w-[36px] max-w-[60px] aspect-square flex items-center justify-center rounded-xl bg-slate-950/20 hover:bg-slate-950/40 backdrop-blur-xs border border-white/10 hover:border-amber-400/60 shadow-lg hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-200 cursor-pointer group active:scale-95"
+          title="Map Layout Editor"
+          aria-label="Map Editor"
+        >
+          <svg
+            className="w-[68%] h-[68%] text-amber-500/90 group-hover:text-amber-300 transition-all duration-300 group-hover:scale-110 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+            <line x1="9" y1="3" x2="9" y2="18" />
+            <line x1="15" y1="6" x2="15" y2="21" />
+          </svg>
+          <span className="absolute -bottom-8 px-2 py-0.5 rounded bg-slate-950/90 border border-amber-500/40 text-[10px] text-amber-200 font-bold tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
+            Map Editor
+          </span>
+        </button>
+
         {/* Top-Right Settings Gear Icon Button */}
         <button
           onClick={() => {

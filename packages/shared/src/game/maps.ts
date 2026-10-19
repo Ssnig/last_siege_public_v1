@@ -60,8 +60,14 @@ export interface MapDefinition {
   base: Vec2;
   /** Custom base sprite image path. Defaults to /assets/maps/<folder>/base.png or fallback base_castle. */
   baseImage?: string;
+  /** Optional custom base display size in pixels. */
+  baseDisplaySize?: { width: number; height: number };
+  /** Optional custom base origin. */
+  baseOrigin?: Vec2;
   /** Vertical offset for floating base HP bar in pixels. Defaults to -150. */
   baseHpOffsetY?: number;
+  /** Explicit portal spawn locations. If omitted, falls back to path starts. */
+  portals?: Vec2[];
   width?: number;
   height?: number;
   pathHalfWidth?: number;
@@ -114,39 +120,82 @@ export interface MapPortal {
 }
 
 /**
- * Derives the attacker's deploy portals from a map's track spawn points.
+ * Derives the attacker's deploy portals for a map.
  *
  * @param map - The map to inspect.
- * @returns One portal per *distinct* spawn point, in path authoring order.
+ * @returns One portal per deploy point, `portal-0`, `portal-1`, … in order.
  *
- * @remarks Tracks that share a start (a fork) collapse into a single portal
- * carrying both track ids, while tracks with different starts (a merge) get one
- * portal each. Keyed by rounded coordinates so duplicated heads collapse
- * together — the same rule the client uses to draw portal sprites, so the
- * server's portal ids always line up with what players see. No map JSON change
- * is ever needed to add a portal.
+ * @remarks When the map editor has exported explicit {@link MapDefinition.portals},
+ * those points are authoritative: they give the portal positions, and every
+ * track is attached to the portal nearest its spawn. Tracks left without a
+ * portal are unreachable, so the server must reject deploys for them — which is
+ * exactly what falls out of both sides calling this helper. Without explicit
+ * portals the deployment falls back to the track spawn points: tracks that
+ * share a start (a fork) collapse into a single portal carrying both track
+ * ids, while tracks with different starts (a merge) get one portal each.
+ * Keyed by rounded coordinates so duplicated heads collapse together — the same
+ * rule the client uses to draw portal sprites, so the server's portal ids
+ * always line up with what players see. No map JSON change is ever needed to
+ * add a portal.
  */
 export function mapPortals(map: MapDefinition): MapPortal[] {
+  const explicit = map.portals && map.portals.length > 0 ? map.portals : undefined;
   const byPoint = new Map<string, MapPortal>();
+  const portals: MapPortal[] = [];
+
+  if (explicit) {
+    for (let index = 0; index < explicit.length; index++) {
+      const point = explicit[index];
+      const override = map.portalOverrides?.[`portal-${index}`];
+      portals.push({
+        id: `portal-${index}`,
+        x: point.x,
+        y: point.y,
+        pathIds: [],
+        ...override,
+      });
+    }
+  }
 
   for (const pathId of mapPathIds(map)) {
     const path = mapPath(map, pathId);
     if (!path || path.length === 0) continue;
 
     const start = path[0];
-    const key = `${Math.round(start.x)},${Math.round(start.y)}`;
 
+    if (explicit) {
+      // Attach the track to whichever portal sits closest to its spawn, so a
+      // portal drawn where the editor put it still routes real units.
+      let nearest: MapPortal | undefined;
+      let nearestDistance = Infinity;
+      for (const portal of portals) {
+        const dx = portal.x - start.x;
+        const dy = portal.y - start.y;
+        const distance = dx * dx + dy * dy;
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = portal;
+        }
+      }
+      nearest?.pathIds.push(pathId);
+      continue;
+    }
+
+    const key = `${Math.round(start.x)},${Math.round(start.y)}`;
     let portal = byPoint.get(key);
     if (!portal) {
       const id = `portal-${byPoint.size}`;
       const override = map.portalOverrides?.[id];
       portal = { id, x: start.x, y: start.y, pathIds: [], ...override };
       byPoint.set(key, portal);
+      portals.push(portal);
     }
     portal.pathIds.push(pathId);
   }
 
-  return [...byPoint.values()];
+  // An explicit portal with no track attached could never be deployed through,
+  // so it never reaches the client either.
+  return explicit ? portals.filter((portal) => portal.pathIds.length > 0) : portals;
 }
 
 /**
@@ -236,45 +285,183 @@ export const BAGAN_MAP: MapDefinition = {
   id: "bagan",
   name: "Bagan Temple Plains",
   description: "Ancient red brick pagodas dotting golden plains with choke points through stupa courtyards.",
-  lanes: 2,
+  lanes: 3,
   thumbnail: "/assets/maps/map_2_bagan/preview.png",
   width: 1280,
   height: 720,
   path: [],
   paths: {
-    top: [
-      { x: 40, y: 195 },
-      { x: 260, y: 195 },
-      { x: 340, y: 140 },
-      { x: 480, y: 140 },
-      { x: 620, y: 170 },
-      { x: 710, y: 240 },
+    top_north: [
+      { x: 33, y: 148 },
+      { x: 71, y: 153 },
+      { x: 110, y: 151 },
+      { x: 148, y: 150 },
+      { x: 186, y: 147 },
+      { x: 226, y: 151 },
+      { x: 265, y: 154 },
+      { x: 298, y: 147 },
+      { x: 316, y: 111 },
+      { x: 347, y: 85 },
+      { x: 383, y: 75 },
+      { x: 421, y: 74 },
+      { x: 458, y: 81 },
+      { x: 494, y: 88 },
+      { x: 531, y: 100 },
+      { x: 564, y: 121 },
+      { x: 599, y: 136 },
+      { x: 637, y: 139 },
+      { x: 674, y: 137 },
+      { x: 712, y: 123 },
+      { x: 750, y: 109 },
+      { x: 787, y: 101 },
+      { x: 825, y: 103 },
+      { x: 859, y: 124 },
+      { x: 883, y: 153 },
+      { x: 891, y: 190 },
+      { x: 896, y: 228 },
+      { x: 878, y: 262 },
+      { x: 869, y: 275 },
+      { x: 810, y: 360 },
+    ],
+    top_south: [
+      { x: 33, y: 148 },
+      { x: 71, y: 153 },
+      { x: 110, y: 151 },
+      { x: 148, y: 150 },
+      { x: 186, y: 147 },
+      { x: 226, y: 151 },
+      { x: 265, y: 154 },
+      { x: 302, y: 164 },
+      { x: 310, y: 203 },
+      { x: 338, y: 228 },
+      { x: 376, y: 239 },
+      { x: 415, y: 244 },
+      { x: 444, y: 215 },
+      { x: 462, y: 179 },
+      { x: 460, y: 140 },
+      { x: 457, y: 100 },
+      { x: 491, y: 87 },
+      { x: 527, y: 98 },
+      { x: 562, y: 120 },
+      { x: 598, y: 136 },
+      { x: 636, y: 139 },
+      { x: 674, y: 137 },
+      { x: 712, y: 123 },
+      { x: 750, y: 109 },
+      { x: 787, y: 101 },
+      { x: 825, y: 103 },
+      { x: 859, y: 124 },
+      { x: 883, y: 153 },
+      { x: 891, y: 190 },
+      { x: 896, y: 228 },
+      { x: 878, y: 262 },
+      { x: 869, y: 275 },
       { x: 810, y: 360 },
     ],
     bottom: [
-      { x: 40, y: 550 },
-      { x: 180, y: 550 },
-      { x: 260, y: 620 },
-      { x: 380, y: 620 },
-      { x: 490, y: 520 },
-      { x: 620, y: 480 },
-      { x: 730, y: 420 },
+      { x: 20, y: 437 },
+      { x: 61, y: 443 },
+      { x: 99, y: 443 },
+      { x: 139, y: 449 },
+      { x: 168, y: 472 },
+      { x: 171, y: 510 },
+      { x: 158, y: 548 },
+      { x: 165, y: 585 },
+      { x: 198, y: 607 },
+      { x: 230, y: 628 },
+      { x: 267, y: 635 },
+      { x: 303, y: 622 },
+      { x: 331, y: 595 },
+      { x: 349, y: 560 },
+      { x: 357, y: 523 },
+      { x: 365, y: 486 },
+      { x: 380, y: 450 },
+      { x: 410, y: 427 },
+      { x: 447, y: 422 },
+      { x: 482, y: 436 },
+      { x: 502, y: 467 },
+      { x: 508, y: 507 },
+      { x: 520, y: 546 },
+      { x: 534, y: 582 },
+      { x: 552, y: 618 },
+      { x: 583, y: 639 },
+      { x: 621, y: 643 },
+      { x: 659, y: 646 },
+      { x: 697, y: 637 },
+      { x: 733, y: 627 },
+      { x: 769, y: 615 },
+      { x: 797, y: 589 },
+      { x: 831, y: 574 },
+      { x: 870, y: 574 },
+      { x: 907, y: 582 },
+      { x: 945, y: 591 },
+      { x: 983, y: 606 },
+      { x: 1020, y: 618 },
+      { x: 1058, y: 624 },
+      { x: 1093, y: 611 },
+      { x: 1123, y: 587 },
+      { x: 1139, y: 551 },
+      { x: 1140, y: 511 },
+      { x: 1136, y: 473 },
+      { x: 1123, y: 437 },
+      { x: 1104, y: 401 },
+      { x: 1072, y: 377 },
+      { x: 1035, y: 368 },
+      { x: 996, y: 371 },
+      { x: 958, y: 372 },
+      { x: 940, y: 374 },
+      { x: 810, y: 360 },
+    ],
+    bridge: [
+      { x: 1155, y: 23 },
+      { x: 1143, y: 62 },
+      { x: 1122, y: 94 },
+      { x: 1091, y: 115 },
+      { x: 1059, y: 129 },
+      { x: 1027, y: 152 },
+      { x: 1016, y: 189 },
+      { x: 1038, y: 219 },
+      { x: 1067, y: 243 },
+      { x: 1084, y: 276 },
+      { x: 1084, y: 316 },
+      { x: 1073, y: 353 },
+      { x: 1041, y: 368 },
+      { x: 1003, y: 369 },
+      { x: 963, y: 372 },
+      { x: 940, y: 374 },
       { x: 810, y: 360 },
     ],
   },
+  pathLabels: {
+    top_north: "North Stupa Loop (Upper)",
+    top_south: "North Stupa Loop (Lower)",
+    bottom: "Banyan Plains & South Road",
+    bridge: "Stone River Bridge",
+  },
+  randomFork: true,
+  portals: [
+    { x: 20, y: 437 },
+    { x: 33, y: 148 },
+    { x: 1155, y: 23 },
+  ],
   slots: [
-    { slotIndex: 0, x: 85, y: 360 },
-    { slotIndex: 1, x: 385, y: 185 },
-    { slotIndex: 2, x: 620, y: 80 },
-    { slotIndex: 3, x: 420, y: 490 },
-    { slotIndex: 4, x: 680, y: 560 },
-    { slotIndex: 5, x: 990, y: 290 },
-    { slotIndex: 6, x: 860, y: 630 },
-    { slotIndex: 7, x: 1220, y: 560 },
+    { slotIndex: 0, x: 115, y: 635 },
+    { slotIndex: 1, x: 85, y: 360 },
+    { slotIndex: 2, x: 384, y: 163 },
+    { slotIndex: 3, x: 438, y: 497 },
+    { slotIndex: 4, x: 631, y: 68 },
+    { slotIndex: 5, x: 683, y: 559 },
+    { slotIndex: 6, x: 805, y: 170 },
+    { slotIndex: 7, x: 1012, y: 292 },
+    { slotIndex: 8, x: 870, y: 641 },
+    { slotIndex: 9, x: 1210, y: 556 },
+    { slotIndex: 10, x: 1223, y: 47 },
   ],
   checkpoints: [1, 3],
   base: { x: 810, y: 360 },
   baseImage: "/assets/maps/map_2_bagan/base.png",
+  baseDisplaySize: { width: 235, height: 235 },
+  baseHpOffsetY: -100,
   pathHalfWidth: 20,
 };
 
@@ -365,50 +552,70 @@ export const INLE_MAP: MapDefinition = {
 
 export const MANDALAY_MAP: MapDefinition = {
   id: "mandalay",
-  name: "Mandalay Fortress Moat",
-  description: "Grand square water moat flanked by fortified red brick ramparts and gate bridges.",
-  lanes: 2,
+  name: "Mandalay (Royal Citadel)",
+  description: "Custom tactical layout with precision waypoints and strategic tower pads.",
+  lanes: 3,
   thumbnail: "/assets/maps/map_4_mandalay/preview.png",
-  width: 1280,
-  height: 720,
+  pathHalfWidth: 26,
   path: [],
+  portals: [
+    { x: 468, y: 38 },
+    { x: 1084, y: 180 },
+    { x: 927, y: 708 },
+  ],
   paths: {
     north_bridge: [
-      { x: 470, y: 20 },
-      { x: 470, y: 180 },
-      { x: 620, y: 180 },
-      { x: 700, y: 280 },
-      { x: 560, y: 380 },
-      { x: 400, y: 380 },
-      { x: 260, y: 380 },
+      { x: 468, y: 59 },
+      { x: 470, y: 164 },
+      { x: 707, y: 173 },
+      { x: 708, y: 268 },
+      { x: 594, y: 270 },
+      { x: 593, y: 364 },
+      { x: 456, y: 358 },
+      { x: 344, y: 360 },
     ],
     east_bridge: [
       { x: 1260, y: 180 },
       { x: 980, y: 180 },
-      { x: 980, y: 400 },
-      { x: 700, y: 400 },
-      { x: 560, y: 580 },
-      { x: 260, y: 580 },
-      { x: 260, y: 440 },
+      { x: 973, y: 360 },
+      { x: 799, y: 356 },
+      { x: 798, y: 457 },
+      { x: 592, y: 454 },
+      { x: 593, y: 368 },
+      { x: 345, y: 359 },
+    ],
+    bottom: [
+      { x: 929, y: 677 },
+      { x: 927, y: 591 },
+      { x: 399, y: 589 },
+      { x: 397, y: 625 },
+      { x: 232, y: 625 },
+      { x: 230, y: 468 },
     ],
   },
   pathLabels: {
-    north_bridge: "North Moat Gate",
-    east_bridge: "East Moat Gate",
+    north_bridge: "North Bridge",
+    east_bridge: "East Bridge",
+    bottom: "Bottom",
   },
   slots: [
-    { slotIndex: 0, x: 290, y: 220 },
-    { slotIndex: 1, x: 290, y: 560 },
-    { slotIndex: 2, x: 660, y: 180 },
-    { slotIndex: 3, x: 690, y: 360 },
-    { slotIndex: 4, x: 580, y: 620 },
-    { slotIndex: 5, x: 1040, y: 240 },
-    { slotIndex: 6, x: 980, y: 620 },
+    { slotIndex: 0, x: 437, y: 308 },
+    { slotIndex: 1, x: 286, y: 573 },
+    { slotIndex: 2, x: 650, y: 218 },
+    { slotIndex: 3, x: 702, y: 363 },
+    { slotIndex: 4, x: 586, y: 633 },
+    { slotIndex: 5, x: 1034, y: 233 },
+    { slotIndex: 6, x: 989, y: 682 },
+    { slotIndex: 7, x: 519, y: 114 },
+    { slotIndex: 8, x: 859, y: 312 },
+    { slotIndex: 9, x: 856, y: 408 },
+    { slotIndex: 10, x: 521, y: 310 },
+    { slotIndex: 11, x: 522, y: 412 },
+    { slotIndex: 12, x: 698, y: 511 },
   ],
   checkpoints: [1, 3],
-  base: { x: 210, y: 340 },
-  baseImage: "/assets/maps/map_4_mandalay/base.png",
-  pathHalfWidth: 20,
+  base: { x: 230, y: 356 },
+  baseDisplaySize: { width: 231, height: 210 },
 };
 
 export const INNWA_MAP: MapDefinition = {
@@ -611,28 +818,37 @@ export const FORK_MAP: MapDefinition = {
   pathHalfWidth: 22,
 };
 
+/**
+ * Canonical 6 historical royal battlefields playable in matches.
+ */
+export const CANONICAL_MAPS: readonly MapDefinition[] = [
+  KONBAUNG_MAP,
+  BAGAN_MAP,
+  INLE_MAP,
+  MANDALAY_MAP,
+  INNWA_MAP,
+  BAGO_MAP,
+];
+
+export const CANONICAL_MAP_IDS: readonly string[] = CANONICAL_MAPS.map((m) => m.id);
+
 export const MAPS: Record<string, MapDefinition> = {
   [SAMPLE_MAP.id]: SAMPLE_MAP,
   [KONBAUNG_MAP.id]: KONBAUNG_MAP,
-  [MERGE_MAP.id]: MERGE_MAP,
-  [FORK_MAP.id]: FORK_MAP,
   [BAGAN_MAP.id]: BAGAN_MAP,
   [INLE_MAP.id]: INLE_MAP,
   [MANDALAY_MAP.id]: MANDALAY_MAP,
   [INNWA_MAP.id]: INNWA_MAP,
-  rakhine: INNWA_MAP,
   [BAGO_MAP.id]: BAGO_MAP,
+  // Dev & test fixtures for backend multi-path integration tests
+  [MERGE_MAP.id]: MERGE_MAP,
+  [FORK_MAP.id]: FORK_MAP,
 };
 
 /**
- * Map ids eligible for random selection each match.
- *
- * @remarks `sample` is a dev fixture and deliberately excluded. Order is
- * irrelevant: {@link pickRandomMapId} samples uniformly.
+ * Map ids eligible for random selection each match. Exactly the 6 canonical battlefields.
  */
-export const MAP_POOL: readonly string[] = Object.values(MAPS)
-  .map((map) => map.id)
-  .filter((id) => id !== SAMPLE_MAP.id);
+export const MAP_POOL: readonly string[] = [...CANONICAL_MAP_IDS];
 
 /**
  * Picks a map for a fresh match.

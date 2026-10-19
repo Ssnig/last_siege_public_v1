@@ -11,6 +11,7 @@ import { LandingPage } from './componenets/landing/LandingPage';
 import { OrientationPrompt } from './componenets/mobile/OrientationPrompt';
 import { MobileFullscreenGate } from './componenets/mobile/MobileFullscreenGate';
 import { InitialLoadingScreen } from './componenets/common/InitialLoadingScreen';
+import { MapEditor } from './componenets/editor/MapEditor';
 
 /**
  * Root shell: route-based. `/` hosts the game welcome/landing page,
@@ -47,9 +48,11 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/lobby" element={<Lobby client={client} />} />
           <Route path="/game/:roomId" element={<GameRoute />} />
+          <Route path="/editor" element={<MapEditor />} />
           <Route path="*" element={<Navigate to="/lobby" replace />} />
         </Routes>
       </GameRoomContext.Provider>
     </div>
   );
 }
+
