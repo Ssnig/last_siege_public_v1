@@ -17,6 +17,7 @@ import {
   sellRefund,
   upgradeCost,
   tierAt,
+  getTowerDesign,
 } from "@root/shared";
 import { UIButton } from "../ui/UIButton";
 import { TowerCard } from "../ui/TowerCard";
@@ -310,6 +311,24 @@ export class GameplayStage {
       });
     }
 
+    // If the map defines explicit portal locations, render those directly
+    if (this.map.portals && this.map.portals.length > 0) {
+      for (const p of this.map.portals) {
+        const key = `${Math.round(p.x)},${Math.round(p.y)}`;
+        if (this.portals.has(key)) continue;
+
+        const portal = this.scene.add
+          .sprite(p.x, p.y, "spawn_2")
+          .setOrigin(0.5, 0.72)
+          .setDisplaySize(130, 130)
+          .setDepth(DEPTH.PORTAL_LAYER + p.y * 0.001)
+          .play("portal_spin");
+        this.root?.add(portal);
+        this.portals.set(key, portal);
+      }
+      return;
+    }
+
     // One portal per *distinct* spawn point: tracks that share a start (a fork)
     // get a single portal, while tracks with different starts (a merge) get one
     // each. Keyed by rounded coordinates so duplicated heads collapse together.
@@ -439,10 +458,15 @@ export class GameplayStage {
         ? perMapTexture
         : "base_castle";
 
+      const baseWidth = this.map.baseDisplaySize?.width ?? 260;
+      const baseHeight = this.map.baseDisplaySize?.height ?? 260;
+      const originX = this.map.baseOrigin?.x ?? 0.5;
+      const originY = this.map.baseOrigin?.y ?? 0.5;
+
       const baseSprite = this.scene.add
         .sprite(this.map.base.x, this.map.base.y, baseTexture)
-        .setOrigin(0.5, 0.5)
-        .setDisplaySize(260, 260)
+        .setOrigin(originX, originY)
+        .setDisplaySize(baseWidth, baseHeight)
         .setDepth(DEPTH.BASE_LAYER);
       this.root.add(baseSprite);
 
@@ -450,7 +474,7 @@ export class GameplayStage {
       const hpBarWidth = 120;
       const hpBarHeight = 10;
       const hpBarX = this.map.base.x;
-      const hpBarY = this.map.base.y + (this.map.baseHpOffsetY ?? -150);
+      const hpBarY = this.map.base.y + (this.map.baseHpOffsetY ?? -100);
 
       const hpBarBorder = this.scene.add
         .rectangle(hpBarX, hpBarY, hpBarWidth + 4, hpBarHeight + 4, 0x0f172a, 0.8)
@@ -740,10 +764,12 @@ export class GameplayStage {
     if (!typeId) return;
     this.hideGhostTower();
 
+    const design = getTowerDesign(typeId);
+
     this.ghostTower = this.scene.add
-      .sprite(slot.x, slot.y, "tower_archer")
-      .setOrigin(0.5, 0.82)
-      .setDisplaySize(135, 135)
+      .sprite(slot.x, slot.y, design.textureKey)
+      .setOrigin(design.origin.x, design.origin.y)
+      .setDisplaySize(design.displaySize.width, design.displaySize.height)
       .setAlpha(0.5)
       .setDepth(actorDepth(slot.y));
 
@@ -1236,10 +1262,12 @@ export class GameplayStage {
   private renderTower(slot: TowerSlot, tower: Tower, id: string): void {
     if (this.towers.has(slot.slotIndex)) return;
 
+    const design = getTowerDesign(tower.typeId);
+
     const sprite = this.scene.add
-      .sprite(slot.x, slot.y, "tower_archer")
-      .setOrigin(0.5, 0.82)
-      .setDisplaySize(135, 135)
+      .sprite(slot.x, slot.y, design.textureKey)
+      .setOrigin(design.origin.x, design.origin.y)
+      .setDisplaySize(design.displaySize.width, design.displaySize.height)
       .setDepth(actorDepth(slot.y));
 
     const levelBadge = this.createTowerLevelBadge(slot, tower.level);
@@ -1420,8 +1448,13 @@ export class GameplayStage {
 
     const onAdd = (value: unknown): void => {
       const projectile = value as Projectile;
+      const design = getTowerDesign(projectile.typeId);
+      const textureKey = this.scene.textures.exists(design.projectileKey)
+        ? design.projectileKey
+        : "arrow_proj";
+
       const sprite = this.scene.add
-        .sprite(projectile.x, projectile.y, "arrow_proj")
+        .sprite(projectile.x, projectile.y, textureKey)
         .setOrigin(0.5, 0.5)
         .setDisplaySize(28, 28)
         .setDepth(DEPTH.PROJECTILES_LAYER);
