@@ -1,4 +1,5 @@
 import path from 'node:path'
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
@@ -21,9 +22,86 @@ function caseInsensitiveAssetsPlugin() {
   };
 }
 
+// Dev plugin enabling one-click persistence of Map Editor changes to project files
+function devMapPersistencePlugin() {
+  return {
+    name: 'dev-map-persistence',
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        if (req.method === 'POST' && req.url === '/api/dev/save-map') {
+          let body = '';
+          req.on('data', (chunk: any) => {
+            body += chunk;
+          });
+          req.on('end', () => {
+            try {
+              const data = JSON.parse(body);
+              const { mapId, mapCode, gridMatrix, mapData } = data;
+              if (!mapId) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'mapId is required' }));
+                return;
+              }
+
+              // 1. Update packages/shared/src/game/maps.ts if mapCode provided
+              if (mapCode) {
+                const mapsFilePath = path.resolve(__dirname, '../../packages/shared/src/game/maps.ts');
+                if (fs.existsSync(mapsFilePath)) {
+                  let fileContent = fs.readFileSync(mapsFilePath, 'utf-8');
+                  const varName = `${mapId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_MAP`;
+                  const regex = new RegExp(`export const ${varName}: MapDefinition = [\\s\\S]*?\\n\\};`, 'm');
+                  if (regex.test(fileContent)) {
+                    fileContent = fileContent.replace(regex, mapCode.trim());
+                    fs.writeFileSync(mapsFilePath, fileContent, 'utf-8');
+                  }
+                }
+              }
+
+              // 2. Save JSON assets if map folder exists
+              const folderPrefixes: Record<string, string> = {
+                konbaung: 'map_1_konbaung',
+                bagan: 'map_2_bagan',
+                inle: 'map_3_inle',
+                mandalay: 'map_4_mandalay',
+                innwa: 'map_5_innwa',
+                bago: 'map_6_bago',
+              };
+              const folderName = folderPrefixes[mapId];
+              if (folderName) {
+                const mapDir = path.resolve(__dirname, `public/assets/maps/${folderName}`);
+                if (fs.existsSync(mapDir)) {
+                  if (mapData) {
+                    fs.writeFileSync(path.join(mapDir, 'map_data.json'), JSON.stringify(mapData, null, 2), 'utf-8');
+                  }
+                  if (gridMatrix) {
+                    fs.writeFileSync(path.join(mapDir, 'grid_matrix.json'), JSON.stringify(gridMatrix, null, 2), 'utf-8');
+                  }
+                }
+              }
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({
+                success: true,
+                message: `Map '${mapId}' successfully saved to packages/shared/src/game/maps.ts and assets!`,
+              }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), caseInsensitiveAssetsPlugin()],
+  plugins: [react(), tailwindcss(), caseInsensitiveAssetsPlugin(), devMapPersistencePlugin()],
   resolve: {
     alias: {
       '@root/shared': path.resolve(__dirname, '../../packages/shared/src'),
@@ -44,7 +122,5 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-
   },
-
 })
