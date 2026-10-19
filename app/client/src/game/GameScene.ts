@@ -6,6 +6,7 @@ import {
   KONBAUNG_MAP,
   type RoleAssignedPayload,
   type YouEconomyPayload,
+  type AttackerBufferPayload,
 } from "@root/shared";
 import { AttackerDraftStage } from "./stages/AttackerDraftStage";
 import { DefenderDraftStage } from "./stages/DefenderDraftStage";
@@ -187,6 +188,17 @@ export class GameScene extends Phaser.Scene {
       ),
     );
 
+    // Attacker-only: the deploy buffer + portal charges, used to light the
+    // portals so a push can be launched straight from the map.
+    this.unsubscribeRoomListeners.push(
+      room.onMessage(
+        MESSAGES.attackerBuffer,
+        (payload: AttackerBufferPayload) => {
+          this.gameplayStage?.applyAttackerBuffer(payload);
+        },
+      ),
+    );
+
     const callbacks = Callbacks.get(room);
 
     this.unsubscribeRoomListeners.push(
@@ -315,6 +327,36 @@ export class GameScene extends Phaser.Scene {
     this.unsubscribeRoomListeners = [];
     this.currentPhase = undefined;
     this.assignedRole = undefined;
+  }
+
+  /**
+   * Hit-tests the on-map portals against a page-space point.
+   *
+   * @remarks Called from the React deploy bar while dragging a unit: the drag
+   * captures the pointer, so Phaser's own input never sees it. Converts the
+   * page coordinate back into the game's 1280x720 space, then to world space
+   * through the live camera (which may be panned or zoomed).
+   *
+   * @param pageX - Pointer x in CSS pixels, relative to the page.
+   * @param pageY - Pointer y in CSS pixels, relative to the page.
+   * @returns The portal id under the point, or `null`.
+   */
+  portalAtPage(pageX: number, pageY: number): string | null {
+    if (!this.gameplayStage) return null;
+
+    const rect = this.game.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+
+    const gameX = (pageX - rect.left) * (this.scale.width / rect.width);
+    const gameY = (pageY - rect.top) * (this.scale.height / rect.height);
+    const world = this.cameras.main.getWorldPoint(gameX, gameY);
+
+    return this.gameplayStage.portalAtWorld(world.x, world.y);
+  }
+
+  /** Highlights (or clears) an on-map portal for the deploy drag. */
+  setPortalHover(portalId: string | null): void {
+    this.gameplayStage?.setPortalHover(portalId);
   }
 
   override update(time: number, delta: number): void {

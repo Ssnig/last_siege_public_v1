@@ -14,7 +14,7 @@ import {
   TOWER_TYPES,
   DEFAULT_DECK_RULES,
   DEFAULT_ECONOMY,
-  DEFAULT_WAVE_RULES,
+  DEFAULT_DEPLOY_RULES,
   MATCH_RULES,
   MOB_SPEED_JITTER,
   PROJECTILE_HIT_RADIUS,
@@ -22,35 +22,31 @@ import {
   samplePathWithLateral,
   mapPath,
   mapPathIds,
+  mapPortals,
   pickRandomMapId,
   RANDOM_MAP_ID,
   tierAt,
-  waveGoldCost,
-  waveTroopCount,
-  stageLimits,
-  validateWave,
-  type AttackerArmyPath,
-  type AttackerArmyPayload,
+  validateBufferAdd,
+  deployStaggerSec,
+  portalChargeRules,
+  type AttackerBufferPayload,
+  type AttackerPortalPath,
+  type AttackerPortalStatus,
+  type BufferAddIntent,
+  type DeployIntent,
   type DraftPickIntent,
   type DraftReadyIntent,
   type DraftRoundUpdatePayload,
   type GameOverPayload,
   type MapDefinition,
+  type MapPortal,
   type MobType,
   type PlaceTowerIntent,
   type RoomStatus,
   type SellTowerIntent,
   type UpgradeTowerIntent,
-  type StagedWave,
   type TowerTier,
   type Vec2,
-  type WaveAddBatchIntent,
-  type WaveClearIntent,
-  type WaveReleaseIntent,
-  type WaveRemoveBatchIntent,
-  type WaveReorderIntent,
-  type WaveSetCountIntent,
-  type WaveSetSizeIntent,
   type YouEconomyPayload,
   buildCost,
   sellRefund,
@@ -162,27 +158,34 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private incomeRates = new Map<string, number>();
 
   /**
-   * Attacker-only staged armies, keyed by session id then by path id.
+   * Attacker-only deploy buffers, keyed by session id.
    *
    * @remarks Deliberately off `RoomState`: the defender must never be able to
-   * read what is staged against them before it spawns.
+   * read what is queued against them before it spawns. One entry per queued
+   * unit, in spawn order, so deploying streams them out front-to-back.
    */
-  private stagedWaves = new Map<string, Map<string, StagedWave>>();
+  private attackerBuffers = new Map<string, string[]>();
 
-  /** Spawn schedule for released batches, kept ordered by `atMatchTime`. */
+  /**
+   * Portal charge state per attacker session id, then per portal id.
+   *
+   * @remarks Charges gate how often the attacker can push a buffer through a
+   * given portal. Regen is tracked as a fractional accumulator so a charge
+   * restored mid-tick is never lost.
+   */
+  private portalCharges = new Map<string, Map<string, { charges: number; regenAcc: number }>>();
+
+  /** Spawn schedule for deployed units, kept ordered by `atMatchTime`. */
   private releaseQueue: ScheduledBatch[] = [];
 
-  /** Monotonic source of staged-batch handles (`batch-<n>`). */
-  private batchSeq = 0;
+  /** Monotonic source of spawn batch ids, unique for the room's whole lifetime. */
+  private spawnSeq = 0;
 
-  /** Seconds elapsed since combat began; the release schedule is keyed to it. */
+  /** Seconds elapsed since combat began; the deploy schedule is keyed to it. */
   private matchTime = 0;
 
-  /** `true` once the round timer expired, so attacker passive income stops. */
+  /** `true` once the income window expired, so attacker passive income stops. */
   private incomeExpired = false;
-
-  /** Big-wave pool left per attacker session id. */
-  private bigWavesRemaining = new Map<string, number>();
 
   /**
    * Session ids whose socket dropped and are inside their reconnection window.
@@ -280,40 +283,17 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
 
-    [MESSAGES.waveAddBatch]: (
+    [MESSAGES.bufferAdd]: (
       client: Client,
-      payload: WaveAddBatchIntent,
-    ) => this.handleWaveAddBatch(client, payload),
+      payload: BufferAddIntent,
+    ) => this.handleBufferAdd(client, payload),
 
-    [MESSAGES.waveSetCount]: (
-      client: Client,
-      payload: WaveSetCountIntent,
-    ) => this.handleWaveSetCount(client, payload),
+    [MESSAGES.bufferClear]: (client: Client) => this.handleBufferClear(client),
 
-    [MESSAGES.waveRemoveBatch]: (
+    [MESSAGES.deploy]: (
       client: Client,
-      payload: WaveRemoveBatchIntent,
-    ) => this.handleWaveRemoveBatch(client, payload),
-
-    [MESSAGES.waveReorder]: (
-      client: Client,
-      payload: WaveReorderIntent,
-    ) => this.handleWaveReorder(client, payload),
-
-    [MESSAGES.waveSetSize]: (
-      client: Client,
-      payload: WaveSetSizeIntent,
-    ) => this.handleWaveSetSize(client, payload),
-
-    [MESSAGES.waveClear]: (
-      client: Client,
-      payload: WaveClearIntent,
-    ) => this.handleWaveClear(client, payload),
-
-    [MESSAGES.waveRelease]: (
-      client: Client,
-      payload: WaveReleaseIntent,
-    ) => this.handleWaveRelease(client, payload),
+      payload: DeployIntent,
+    ) => this.handleDeploy(client, payload),
 
     [MESSAGES.rematch]: (client: Client) => this.handleRematch(client),
   };
@@ -376,14 +356,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
         ? DEFAULT_ECONOMY.attackerBaseIncome
         : DEFAULT_ECONOMY.defenderBaseIncome,
     );
-    this.bigWavesRemaining.set(
-      creatorClient.sessionId,
-      creatorRole === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
-    );
-    this.bigWavesRemaining.set(
-      joinerClient.sessionId,
-      joinerRole === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
-    );
 
     console.log(
       `Roles assigned: Creator = ${creatorRole}, Joiner = ${joinerRole}`,
@@ -410,78 +382,60 @@ export class GameRoom extends Room<{ state: RoomState }> {
         deck = DEFAULT_ATTACKER_DECK;
       }
     }
-    const defaultIncome =
-      role === "attacker"
-        ? DEFAULT_ECONOMY.attackerBaseIncome
-        : DEFAULT_ECONOMY.defenderBaseIncome;
     const incomeRate =
-      Math.round((this.incomeRates.get(client.sessionId) ?? defaultIncome) * 10) / 10;
+      Math.round(this.effectiveIncomeRate(client.sessionId, role) * 10) / 10;
 
     const economy: YouEconomyPayload = {
       gold: Math.floor(this.economies.get(client.sessionId) ?? 0),
       deck: deck ?? [],
-      bigWavesRemaining: this.bigWavesRemaining.get(client.sessionId) ?? 0,
       incomeRate,
     };
     client.send(MESSAGES.youEconomy, economy);
   }
 
   /**
-   * Pushes the attacker's staged army plus the rules their HUD needs to price
-   * and validate a wave. No-op for the defender, who must not see the staging.
+   * Pushes the attacker's deploy buffer plus the portal charges their HUD needs
+   * to decide what to queue and where to push it. No-op for the defender, who
+   * must not see the staging.
    */
-  private sendAttackerArmy(client: Client): void {
+  private sendAttackerBuffer(client: Client): void {
     const sessionId = client.sessionId;
     if (client.userData?.role !== "attacker") return;
 
-    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const availableTroops =
       deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
-    const staged = this.stagedWaves.get(sessionId) ?? new Map<string, StagedWave>();
+    const buffer = this.attackerBuffers.get(sessionId) ?? [];
 
-    const paths: AttackerArmyPath[] = this.pathIdsFor(map).map((pathId) => {
-      const wave =
-        staged.get(pathId) ?? ({ pathId, size: "small", batches: [] } as StagedWave);
-      return {
-        pathId: wave.pathId,
-        label: map.pathLabels?.[pathId],
-        size: wave.size,
-        batches: wave.batches.map((batch) => ({ ...batch })),
-        goldCost: waveGoldCost(wave.batches, wave.size),
-        troopCount: waveTroopCount(wave.batches),
-      };
-    });
+    const currentIncome = this.effectiveIncomeRate(sessionId, "attacker");
 
-    const currentIncome =
-      this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
-
-    const payload: AttackerArmyPayload = {
+    const payload: AttackerBufferPayload = {
       gold: Math.floor(this.economies.get(sessionId) ?? 0),
       goldPerSecond: Math.round(currentIncome * 10) / 10,
       incomeExpired: this.incomeExpired,
-      bigWavesRemaining: this.bigWavesRemaining.get(sessionId) ?? 0,
       availableTroops: [...availableTroops],
-      limits: DEFAULT_WAVE_RULES.sizes,
+      buffer: [...buffer],
+      maxBufferUnits: DEFAULT_DEPLOY_RULES.maxBufferUnits,
       mobCosts: Object.fromEntries(
         Object.entries(MOB_TYPES).map(([id, type]) => [id, type.cost]),
       ),
-      paths,
+      portals: this.portalStatusFor(sessionId),
+      canDeploy: this.canDeploy(sessionId),
     };
 
-    client.send(MESSAGES.attackerArmy, payload);
+    client.send(MESSAGES.attackerBuffer, payload);
   }
 
   /** Convenience: push both private snapshots a player needs. */
   private sendPlayerState(client: Client): void {
     this.sendEconomy(client);
-    this.sendAttackerArmy(client);
+    this.sendAttackerBuffer(client);
   }
 
-  /** Sends a private explanation for a refused wave intent. */
-  private rejectWave(client: Client, reason: string): void {
-    console.log(`Wave intent from ${client.sessionId} rejected: ${reason}`);
-    client.send(MESSAGES.waveRejected, { reason });
+  /** Sends a private explanation for a refused deploy intent. */
+  private rejectDeploy(client: Client, reason: string): void {
+    console.log(`Deploy intent from ${client.sessionId} rejected: ${reason}`);
+    client.send(MESSAGES.deployRejected, { reason });
   }
 
   /**
@@ -932,41 +886,137 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Shared gate for every wave-staging intent.
+   * Shared gate for every buffer intent (queue / clear).
    *
    * @returns `null` when the request may proceed, otherwise a refusal reason.
    *
-   * @remarks Staging is open during `building` so the attacker can compose the
-   * first wave while the defender is still laying towers, but only the attacker
-   * may ever touch it. Releasing (see `handleWaveRelease`) is combat-only.
+   * @remarks Buffering is open during `building` so the attacker can compose
+   * the opening push while the defender is still laying towers, but only the
+   * attacker may ever touch it. Deploying (see `handleDeploy`) is combat-only.
+   * Buffer edits are frozen in sudden death, where nothing may reinforce the
+   * troops already on the field.
    */
-  private canStage(client: Client): string | null {
+  private canBuffer(client: Client): string | null {
     if (client.userData?.role !== "attacker") {
-      return "Only the attacker can stage a wave.";
+      return "Only the attacker can use the deploy queue.";
     }
     if (this.state.phase !== "building" && this.state.phase !== "combat") {
-      return "You cannot stage units right now.";
+      return "You cannot queue units right now.";
     }
-    if (this.incomeExpired) {
-      return "Your income has stopped; no more units can be staged.";
+    if (this.state.suddenDeath) {
+      return "Sudden death: no more units can be queued.";
     }
     return null;
   }
 
-  /** Fetches (or creates empty) staged wave for one of the attacker's paths. */
-  private ensureStagedWave(sessionId: string, pathId: string): StagedWave {
-    let staged = this.stagedWaves.get(sessionId);
-    if (!staged) {
-      staged = new Map<string, StagedWave>();
-      this.stagedWaves.set(sessionId, staged);
+  /**
+   * Whether the attacker could legally deploy their buffer right now.
+   *
+   * @remarks Cheap predicate reused by the payload so the client can grey out
+   * the deploy controls without recomputing the phase and charge rules.
+   */
+  private canDeploy(sessionId: string): boolean {
+    if (this.state.phase !== "combat") return false;
+    if (this.state.suddenDeath) return false;
+    const buffer = this.attackerBuffers.get(sessionId);
+    if (!buffer || buffer.length === 0) return false;
+
+    const charges = this.portalCharges.get(sessionId);
+    if (!charges) return false;
+    for (const status of charges.values()) {
+      if (status.charges > 0) return true;
+    }
+    return false;
+  }
+
+  /** The current map's deploy portals, resolved once per call site. */
+  private currentPortals() {
+    return mapPortals(MAPS[this.state.mapId] ?? SAMPLE_MAP);
+  }
+
+  /** Lazily creates (or fetches) an attacker's per-portal charge table. */
+  private ensurePortalCharges(sessionId: string): Map<string, { charges: number; regenAcc: number }> {
+    let table = this.portalCharges.get(sessionId);
+    if (!table) {
+      table = new Map();
+      for (const portal of this.currentPortals()) {
+        table.set(portal.id, {
+          charges: portalChargeRules(portal).maxCharges,
+          regenAcc: 0,
+        });
+      }
+      this.portalCharges.set(sessionId, table);
+    }
+    return table;
+  }
+
+  /** Display labels for the tracks leaving a portal, for the path chooser. */
+  private portalPathsFor(portal: MapPortal): AttackerPortalPath[] {
+    const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    return portal.pathIds.map((id, index) => ({
+      id,
+      label: map.pathLabels?.[id] ?? `Path ${index + 1}`,
+    }));
+  }
+
+  /** Snapshot of one attacker's portal charges for their private payload. */
+  private portalStatusFor(sessionId: string): AttackerPortalStatus[] {
+    const table = this.ensurePortalCharges(sessionId);
+    const portals = this.currentPortals();
+
+    return [...table.entries()].map(([id, status]) => {
+      const portal = portals.find((candidate) => candidate.id === id);
+      const { maxCharges, chargeSec } = portalChargeRules(portal ?? {});
+      return {
+        id,
+        charges: status.charges,
+        maxCharges,
+        chargeSec,
+        rechargeIn:
+          status.charges >= maxCharges
+            ? 0
+            : Math.max(0, chargeSec - status.regenAcc),
+        paths: portal ? this.portalPathsFor(portal) : [],
+      };
+    });
+  }
+
+  /**
+   * Refills one portal charge per its own `chargeSec`, capped at its own
+   * `maxCharges`. Both come from the map's per-portal override when present.
+   */
+  private regenPortalCharges(dt: number): void {
+    const portals = this.currentPortals();
+    let changed = false;
+
+    for (const table of this.portalCharges.values()) {
+      for (const [portalId, status] of table) {
+        const portal = portals.find((candidate) => candidate.id === portalId);
+        const { maxCharges, chargeSec } = portalChargeRules(portal ?? {});
+
+        if (status.charges >= maxCharges) {
+          status.regenAcc = 0;
+          continue;
+        }
+        status.regenAcc += dt;
+        if (status.regenAcc < chargeSec) continue;
+        status.regenAcc -= chargeSec;
+        status.charges += 1;
+        changed = true;
+      }
     }
 
-    const existing = staged.get(pathId);
-    if (existing) return existing;
+    // ~1 Hz is enough for a smooth pip fill without a per-tick push.
+    if (changed) {
+      for (const client of this.clients) {
+        this.sendAttackerBuffer(client);
+      }
+    }
+  }
 
-    const created: StagedWave = { pathId, size: "small", batches: [] };
-    staged.set(pathId, created);
-    return created;
+  /** Resolves a portal id against the current map; `undefined` when unknown. */
+  private portalFor(portalId: string) {
+    return this.currentPortals().find((portal) => portal.id === portalId);
   }
 
   /** Validates that `pathId` exists on this room's map. */
@@ -975,303 +1025,127 @@ export class GameRoom extends Room<{ state: RoomState }> {
     return this.pathIdsFor(map).includes(pathId);
   }
 
-  /** Rejects the intent when invalid, otherwise pushes a fresh army snapshot. */
-  private stageOutcome(client: Client, error: string | null): void {
-    if (error) {
-      this.rejectWave(client, error);
-      return;
-    }
-    this.sendAttackerArmy(client);
-  }
-
-  /** Stages one new batch of `count` units at the end of a path's wave. */
-  private handleWaveAddBatch(client: Client, payload: WaveAddBatchIntent): void {
-    const guard = this.canStage(client);
-    if (guard) return void this.rejectWave(client, guard);
-
-    if (!payload || !this.pathIdIsValid(payload.pathId)) {
-      return void this.rejectWave(client, "No such path on this map.");
-    }
-
-    const sessionId = client.sessionId;
-    const deck = this.acceptedDecks.get(sessionId) ?? [];
-    const allowedDeck =
-      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
-    if (!allowedDeck.includes(payload.typeId)) {
-      return void this.rejectWave(client, `${payload.typeId} is not in your deck.`);
-    }
-
-    const wave = this.ensureStagedWave(sessionId, payload.pathId);
-    const limits = stageLimits(wave.size);
-    const count = payload.count;
-
-    if (!Number.isInteger(count) || count < 1 || count > limits.batchLimit) {
-      return void this.stageOutcome(
-        client,
-        `A ${wave.size} wave allows between 1 and ${limits.batchLimit} units per batch.`,
-      );
-    }
-    if (wave.batches.length >= limits.maxBatches) {
-      return void this.stageOutcome(
-        client,
-        `A ${wave.size} wave allows at most ${limits.maxBatches} batches.`,
-      );
-    }
-    if (waveTroopCount(wave.batches) + count > limits.waveLimit) {
-      return void this.stageOutcome(
-        client,
-        `A ${wave.size} wave allows at most ${limits.waveLimit} units.`,
-      );
-    }
-
-    wave.batches.push({
-      batchId: `batch-${++this.batchSeq}`,
-      typeId: payload.typeId,
-      count,
-    });
-    this.stageOutcome(client, null);
-  }
-
-  /** Changes a staged batch's unit count within the size's limits. */
-  private handleWaveSetCount(client: Client, payload: WaveSetCountIntent): void {
-    const guard = this.canStage(client);
-    if (guard) return void this.rejectWave(client, guard);
-
-    const wave = this.stagedWaves.get(client.sessionId)?.get(payload.pathId);
-    const batch = wave?.batches.find((b) => b.batchId === payload.batchId);
-    if (!wave || !batch) {
-      return void this.rejectWave(client, "That batch is no longer staged.");
-    }
-
-    const limits = stageLimits(wave.size);
-    const count = payload.count;
-    if (!Number.isInteger(count) || count < 1 || count > limits.batchLimit) {
-      return void this.stageOutcome(
-        client,
-        `A ${wave.size} wave allows between 1 and ${limits.batchLimit} units per batch.`,
-      );
-    }
-
-    const otherTroops = waveTroopCount(wave.batches) - batch.count;
-    if (otherTroops + count > limits.waveLimit) {
-      return void this.stageOutcome(
-        client,
-        `A ${wave.size} wave allows at most ${limits.waveLimit} units.`,
-      );
-    }
-
-    batch.count = count;
-    this.stageOutcome(client, null);
-  }
-
-  /** Removes one staged batch from a path's wave. */
-  private handleWaveRemoveBatch(
-    client: Client,
-    payload: WaveRemoveBatchIntent,
-  ): void {
-    const guard = this.canStage(client);
-    if (guard) return void this.rejectWave(client, guard);
-
-    const wave = this.stagedWaves.get(client.sessionId)?.get(payload.pathId);
-    if (!wave) return void this.rejectWave(client, "Nothing is staged on that path.");
-
-    const before = wave.batches.length;
-    wave.batches = wave.batches.filter((b) => b.batchId !== payload.batchId);
-    if (wave.batches.length === before) {
-      return void this.rejectWave(client, "That batch is no longer staged.");
-    }
-
-    this.stageOutcome(client, null);
-  }
-
-  /** Moves a staged batch to a new position (drag reorder in the UI). */
-  private handleWaveReorder(client: Client, payload: WaveReorderIntent): void {
-    const guard = this.canStage(client);
-    if (guard) return void this.rejectWave(client, guard);
-
-    const wave = this.stagedWaves.get(client.sessionId)?.get(payload.pathId);
-    if (!wave) return void this.rejectWave(client, "Nothing is staged on that path.");
-
-    const from = wave.batches.findIndex((b) => b.batchId === payload.batchId);
-    if (from === -1) return void this.rejectWave(client, "That batch is no longer staged.");
-
-    const to = Math.max(0, Math.min(wave.batches.length - 1, Math.floor(payload.toIndex)));
-    const [moved] = wave.batches.splice(from, 1);
-    wave.batches.splice(to, 0, moved);
-
-    this.stageOutcome(client, null);
-  }
-
-  /** Switches a path's wave between big and small, re-checking its contents. */
-  private handleWaveSetSize(client: Client, payload: WaveSetSizeIntent): void {
-    const guard = this.canStage(client);
-    if (guard) return void this.rejectWave(client, guard);
-
-    if (payload.size !== "big" && payload.size !== "small") {
-      return void this.rejectWave(client, "Unknown wave size.");
-    }
-
-    const sessionId = client.sessionId;
-    if (!this.pathIdIsValid(payload.pathId)) {
-      return void this.rejectWave(client, "No such path on this map.");
-    }
-
-    const wave = this.ensureStagedWave(sessionId, payload.pathId);
-    if (wave.batches.length > 0) {
-      // Downgrading a big wave must keep its contents legal for the new size.
-      const deck = this.acceptedDecks.get(sessionId) ?? [];
-      const error = validateWave({ ...wave, size: payload.size }, deck);
-      if (error) return void this.rejectWave(client, error);
-    }
-
-    wave.size = payload.size;
-    this.stageOutcome(client, null);
-  }
-
-  /** Drops every staged batch on one path. */
-  private handleWaveClear(client: Client, payload: WaveClearIntent): void {
-    const guard = this.canStage(client);
-    if (guard) return void this.rejectWave(client, guard);
-
-    const staged = this.stagedWaves.get(client.sessionId);
-    if (!staged || !staged.has(payload.pathId)) {
-      return void this.rejectWave(client, "Nothing is staged on that path.");
-    }
-
-    staged.delete(payload.pathId);
-    this.stageOutcome(client, null);
-  }
-
   /**
-   * Releases staged waves: validates cost and budget, deducts gold, then queues
-   * every batch to spawn in sequence.
+   * Queues one unit into the attacker's deploy buffer.
    *
-   * @remarks Batches launch `batchIntervalSec` apart in path order, so waves
-   * staged on several paths come out one after another rather than as one blob.
+   * @remarks Gold is charged here rather than on deploy, so a full buffer is
+   * always paid for and the old "park an unaffordable army forever" stall
+   * cannot exist. Clearing the buffer refunds it in full.
    */
-  /**
-   * Core logic to release staged waves for an attacker client.
-   * Returns true if waves were successfully scheduled, or an error message if failed.
-   */
-  private executeWaveRelease(
-    client: Client,
-    pathIds?: string[],
-  ): { success: boolean; error?: string } {
+  private handleBufferAdd(client: Client, payload: BufferAddIntent): void {
+    const guard = this.canBuffer(client);
+    if (guard) return void this.rejectDeploy(client, guard);
+
     const sessionId = client.sessionId;
-    const staged = this.stagedWaves.get(sessionId);
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const allowedDeck =
       deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
-
-    const requested =
-      pathIds && pathIds.length > 0
-        ? pathIds
-        : [...(staged?.keys() ?? [])];
-
-    if (requested.length === 0) {
-      return { success: false, error: "Nothing staged to send." };
+    const typeId = payload?.typeId;
+    if (typeof typeId !== "string") {
+      return void this.rejectDeploy(client, "Malformed queue request.");
     }
 
-    const toRelease: StagedWave[] = [];
-    for (const pathId of requested) {
-      if (!this.pathIdIsValid(pathId)) {
-        return { success: false, error: `No such path: ${pathId}.` };
-      }
-      const wave = staged?.get(pathId);
-      if (!wave || wave.batches.length === 0) {
-        continue;
-      }
-      const error = validateWave(wave, allowedDeck);
-      if (error) return { success: false, error };
-      toRelease.push(wave);
+    const buffer = this.attackerBuffers.get(sessionId) ?? [];
+    const gold = Math.floor(this.economies.get(sessionId) ?? 0);
+    const error = validateBufferAdd(typeId, buffer, allowedDeck, gold);
+    if (error) return void this.rejectDeploy(client, error);
+
+    const cost = MOB_TYPES[typeId]?.cost ?? 0;
+    this.economies.set(sessionId, gold - cost);
+    this.attackerBuffers.set(sessionId, [...buffer, typeId]);
+
+    this.sendEconomy(client);
+    this.sendAttackerBuffer(client);
+  }
+
+  /** Empties the attacker's deploy buffer, refunding every queued unit. */
+  private handleBufferClear(client: Client): void {
+    const guard = this.canBuffer(client);
+    if (guard) return void this.rejectDeploy(client, guard);
+
+    const sessionId = client.sessionId;
+    const buffer = this.attackerBuffers.get(sessionId) ?? [];
+    if (buffer.length === 0) {
+      return void this.rejectDeploy(client, "The deploy queue is already empty.");
     }
 
-    if (toRelease.length === 0) {
-      return { success: false, error: "No army staged on requested paths." };
-    }
-
-    const totalCost = toRelease.reduce(
-      (total, wave) => total + waveGoldCost(wave.batches, wave.size),
+    const refund = buffer.reduce(
+      (total, typeId) => total + (MOB_TYPES[typeId]?.cost ?? 0),
       0,
     );
-    const gold = this.economies.get(sessionId) ?? 0;
-    if (gold < totalCost) {
-      return { success: false, error: "Not enough gold." };
-    }
-
-    const bigWaves = toRelease.filter((wave) => wave.size === "big").length;
-    const budget = this.bigWavesRemaining.get(sessionId) ?? 0;
-    if (bigWaves > budget) {
-      return {
-        success: false,
-        error: `Only ${budget} big wave(s) left this match.`,
-      };
-    }
-
-    // Commit: charge gold, spend big-wave budget, then schedule the spawns.
-    this.economies.set(sessionId, gold - totalCost);
-    this.bigWavesRemaining.set(sessionId, budget - bigWaves);
-
-    // Boost attacker passive income based on units' cost
-    const unitCostTotal = toRelease.reduce(
-      (total, wave) =>
-        total +
-        wave.batches.reduce(
-          (bTotal, b) => bTotal + (MOB_TYPES[b.typeId]?.cost ?? 0) * b.count,
-          0,
-        ),
-      0,
-    );
-    const incomeBoost = unitCostTotal * DEFAULT_ECONOMY.attackerIncomeGainRate;
-    if (incomeBoost > 0) {
-      const currentRate =
-        this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
-      this.incomeRates.set(sessionId, currentRate + incomeBoost);
-      console.log(
-        `Room ${this.roomId}: attacker income boosted by +${incomeBoost.toFixed(1)}g/s to ${(currentRate + incomeBoost).toFixed(1)}g/s`,
-      );
-    }
-
-    const interval = DEFAULT_WAVE_RULES.batchIntervalSec;
-    let offset = 0;
-    for (const wave of toRelease) {
-      for (const batch of wave.batches) {
-        this.releaseQueue.push({
-          atMatchTime: this.matchTime + offset * interval,
-          pathId: wave.pathId,
-          typeId: batch.typeId,
-          count: batch.count,
-        });
-        offset++;
-      }
-      staged?.delete(wave.pathId);
-    }
-
-    console.log(
-      `Room ${this.roomId}: attacker releasing ${toRelease.length} path wave(s) (-${totalCost}g)`,
+    this.attackerBuffers.set(sessionId, []);
+    this.economies.set(
+      sessionId,
+      (this.economies.get(sessionId) ?? 0) + refund,
     );
 
     this.sendEconomy(client);
-    this.sendAttackerArmy(client);
-    return { success: true };
+    this.sendAttackerBuffer(client);
   }
 
   /**
-   * Releases staged waves: validates cost and budget, deducts gold, then queues
-   * every batch to spawn in sequence.
+   * Streams the whole deploy buffer out of one portal.
+   *
+   * @remarks Units leave a fraction of a second apart so a push reads as a
+   * column pouring out of the portal rather than a single clump. Deploying is
+   * combat-only (mobs do not advance outside combat) and frozen in sudden
+   * death, so nothing can reinforce the troops already deciding the match.
    */
-  private handleWaveRelease(client: Client, payload: WaveReleaseIntent): void {
+  private handleDeploy(client: Client, payload: DeployIntent): void {
     if (client.userData?.role !== "attacker") {
-      return void this.rejectWave(client, "Only the attacker can release a wave.");
+      return void this.rejectDeploy(client, "Only the attacker can deploy.");
     }
     if (this.state.phase !== "combat") {
-      return void this.rejectWave(client, "Waves can only be released during combat.");
+      return void this.rejectDeploy(client, "Units can only be deployed during combat.");
+    }
+    if (this.state.suddenDeath) {
+      return void this.rejectDeploy(client, "Sudden death: no more deploys.");
     }
 
-    const outcome = this.executeWaveRelease(client, payload?.pathIds);
-    if (!outcome.success && outcome.error) {
-      return void this.rejectWave(client, outcome.error);
+    const sessionId = client.sessionId;
+    const buffer = this.attackerBuffers.get(sessionId) ?? [];
+    if (buffer.length === 0) {
+      return void this.rejectDeploy(client, "The deploy queue is empty.");
     }
+
+    const portal = this.portalFor(payload?.portalId);
+    if (!portal) {
+      return void this.rejectDeploy(client, "No such portal on this map.");
+    }
+
+    const charges = this.ensurePortalCharges(sessionId).get(portal.id);
+    if (!charges || charges.charges <= 0) {
+      return void this.rejectDeploy(client, "That portal has no charges left.");
+    }
+
+    let pathId = payload?.pathId;
+    if (pathId !== undefined && !portal.pathIds.includes(pathId)) {
+      return void this.rejectDeploy(client, "That path does not lead from this portal.");
+    }
+    if (pathId === undefined) pathId = portal.pathIds[0];
+    if (!this.pathIdIsValid(pathId)) {
+      return void this.rejectDeploy(client, `No such path: ${pathId}.`);
+    }
+
+    // Commit: spend the charge, schedule the spawns, empty the buffer. Units
+    // leave apart by their own stagger so a mixed push fans out instead of
+    // walking into every splash tower as one clump.
+    charges.charges -= 1;
+    charges.regenAcc = 0;
+
+    let atMatchTime = this.matchTime;
+    for (const typeId of buffer) {
+      this.releaseQueue.push({ atMatchTime, pathId, typeId, count: 1 });
+      atMatchTime += deployStaggerSec(typeId);
+    }
+
+    console.log(
+      `Room ${this.roomId}: attacker deploying ${buffer.length} unit(s) through ${portal.id} on ${pathId}`,
+    );
+
+    this.attackerBuffers.set(sessionId, []);
+    this.sendEconomy(client);
+    this.sendAttackerBuffer(client);
   }
 
   /**
@@ -1366,9 +1240,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.rematchVotes.clear();
     this.clearMobs();
     this.clearProjectiles();
-    this.resetWaveRuntime();
+    this.resetCombatRuntime();
     this.state.towers.clear();
-    this.stagedWaves.clear();
+    this.attackerBuffers.clear();
     this.acceptedDecks.clear();
     this.state.coreHp = MATCH_RULES.coreHp;
 
@@ -1391,10 +1265,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
         (role ?? "defender") === "attacker"
           ? DEFAULT_ECONOMY.attackerBaseIncome
           : DEFAULT_ECONOMY.defenderBaseIncome,
-      );
-      this.bigWavesRemaining.set(
-        c.sessionId,
-        (role ?? "defender") === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
       );
     }
 
@@ -1536,8 +1406,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     console.log(`Client ${client.sessionId} reconnected!`);
     this.pendingReconnect.delete(client.sessionId);
     this.sendPlayerState(client);
-    // Re-seed the attacker's private wave panel (no-op for the defender).
-    this.sendAttackerArmy(client);
+    // Re-seed the attacker's private deploy panel (no-op for the defender).
+    this.sendAttackerBuffer(client);
 
     const opponent = this.clients.find(
       (c) => c.sessionId !== client.sessionId,
@@ -1589,8 +1459,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.acceptedDecks.delete(client.sessionId);
     this.economies.delete(client.sessionId);
     this.incomeRates.delete(client.sessionId);
-    this.stagedWaves.delete(client.sessionId);
-    this.bigWavesRemaining.delete(client.sessionId);
+    this.attackerBuffers.delete(client.sessionId);
+    this.portalCharges.delete(client.sessionId);
     this.rematchVotes.delete(client.sessionId);
 
     const wasCreator = client.sessionId === this.creatorSessionId;
@@ -1617,7 +1487,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.draftRoundPicks.clear();
       this.clearMobs();
       this.clearProjectiles();
-      this.resetWaveRuntime();
+      this.resetCombatRuntime();
       this.state.coreHp = MATCH_RULES.coreHp;
 
       for (const player of this.state.players.values()) {
@@ -1633,10 +1503,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
         (hostRole ?? "defender") === "attacker"
           ? DEFAULT_ECONOMY.attackerBaseIncome
           : DEFAULT_ECONOMY.defenderBaseIncome,
-      );
-      this.bigWavesRemaining.set(
-        host.sessionId,
-        (hostRole ?? "defender") === "attacker" ? DEFAULT_ECONOMY.bigWaveCount : 0,
       );
       this.sendPlayerState(host);
 
@@ -1674,8 +1540,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.autoFillDecks(event.autoCompleted);
     }
 
-    if (event?.type === "round-expired") {
-      this.onRoundExpired();
+    if (event?.type === "siege-expired") {
+      this.onSiegeExpired();
     }
 
     // Handle 5-second post-draft countdown before advancing to building
@@ -1728,7 +1594,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (phase === "combat") {
       this.matchTime += dt;
+      this.updateIncomeWindow();
       this.accrueIncome(dt);
+      this.regenPortalCharges(dt);
       this.drainReleaseQueue();
       this.simulateMobs(dt);
 
@@ -1738,9 +1606,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       if (this.state.phase === "combat") {
         this.pushIncomeIfDue(dt);
 
-        // Once the income window closed, a silent field with an empty schedule
-        // means the attacker has nothing left: the defender outlasted them.
-        if (this.incomeExpired) this.checkAttackerExhausted();
+        // Sudden death resolves the moment the last troop on the field dies.
+        if (this.state.suddenDeath) this.checkSuddenDeath();
       }
     } else if (this.lastPhase === "combat") {
       this.clearMobs();
@@ -1752,11 +1619,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Resets per-match income state the moment combat begins.
+   * Resets per-match combat state the moment combat begins.
+   *
+   * @remarks Portal charges refill to full so a previous round's (or a
+   * reconnected) attacker never starts a push short of charges.
    */
   private beginCombatSim(): void {
     this.incomeExpired = false;
     this.incomePushAccumulator = 0;
+    this.state.suddenDeath = false;
+    this.portalCharges.clear();
 
     for (const client of this.clients) {
       this.sendPlayerState(client);
@@ -1764,142 +1636,147 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Reacts to the round timer hitting zero: attacker passive income stops, but
-   * the match itself carries on until someone is out.
-   *
-   * @remarks Any army still staged is flushed here (see {@link flushStagedArmy})
-   * so a player cannot park an unaffordable wave and stall the match forever.
+   * Closes the attacker's income window once `incomeDurationSec` of combat has
+   * elapsed. Attacker passive income stops; the siege timer keeps running, so
+   * gold already banked stays spendable.
    */
-  private onRoundExpired(): void {
+  private updateIncomeWindow(): void {
     if (this.incomeExpired) return;
+    if (this.matchTime < MATCH_RULES.incomeDurationSec) return;
     this.incomeExpired = true;
 
     for (const client of this.clients) {
-      if (client.userData?.role === "attacker") {
-        this.flushStagedArmy(client);
-      }
       this.sendEconomy(client);
-      this.sendAttackerArmy(client);
+      this.sendAttackerBuffer(client);
     }
 
     console.log(`Room ${this.roomId}: income window closed`);
   }
 
   /**
-   * Releases whatever the attacker still has staged when their income stops.
+   * Reacts to the siege timer hitting zero.
    *
-   * @remarks Staging never charges gold — only a send does — so a player could
-   * stage an army they can never afford and leave it parked, which keeps
-   * {@link hasStagedArmy} `true` and stalls the match. To resolve that without
-   * handing out a free army, batches are discarded newest-first until the
-   * remaining army fits the attacker's current gold, then the survivors are
-   * released through {@link executeWaveRelease} (so gold, big-wave budget and
-   * the income boost all match a normal send). Big waves beyond the leftover
-   * budget are dropped whole before that.
+   * @remarks The defender held out, so the attacker only survives this if they
+   * still have troops on the field. With none left the defender wins outright;
+   * otherwise the match enters sudden death and resolves on the field state
+   * alone (see {@link checkSuddenDeath}).
    */
-  private flushStagedArmy(client: Client): void {
-    const sessionId = client.sessionId;
-    const staged = this.stagedWaves.get(sessionId);
-    if (!staged || staged.size === 0) return;
+  private onSiegeExpired(): void {
+    if (this.state.phase !== "combat") return;
+    if (this.state.suddenDeath) return;
 
-    // Big waves are gated by a match budget that staging never checked, so any
-    // wave past the leftover budget can never legally release: drop it whole.
-    const budget = this.bigWavesRemaining.get(sessionId) ?? 0;
-    let bigKept = 0;
-    for (const pathId of [...staged.keys()].reverse()) {
-      const wave = staged.get(pathId);
-      if (!wave || wave.size !== "big" || wave.batches.length === 0) continue;
-      if (bigKept >= budget) {
-        wave.batches = [];
-      } else {
-        bigKept++;
-      }
-    }
-
-    // Discard newest batches across paths until the army fits the gold on hand.
-    const gold = this.economies.get(sessionId) ?? 0;
-    let dropped = 0;
-    for (const pathId of [...staged.keys()].reverse()) {
-      const wave = staged.get(pathId);
-      if (!wave) continue;
-      while (wave.batches.length > 0 && this.stagedTotalCost(staged) > gold) {
-        wave.batches.pop();
-        dropped++;
-      }
-    }
-
-    for (const [pathId, wave] of [...staged.entries()]) {
-      if (wave.batches.length === 0) staged.delete(pathId);
-    }
-
-    const pathIds = [...staged.keys()];
-    if (pathIds.length === 0) {
-      console.log(
-        `Room ${this.roomId}: flushed ${dropped} staged batch(es); nothing affordable to send`,
-      );
+    const hasTroops = this.state.mobs.size > 0 || this.releaseQueue.length > 0;
+    if (!hasTroops) {
+      this.declareWinner("defender", "time", "siege timer expired with no attacker units");
       return;
     }
 
-    const outcome = this.executeWaveRelease(client, pathIds);
-    if (!outcome.success) {
-      // Should not happen once affordability/budget are settled, but never let a
-      // stuck staged army soft-lock the match: drop it and let exhaustion fire.
-      console.warn(
-        `Room ${this.roomId}: staged flush release failed (${outcome.error}); discarding staged army`,
-      );
-      staged.clear();
-    } else {
-      console.log(
-        `Room ${this.roomId}: flushed staged army on ${pathIds.join(", ")} (-${dropped} batch(es))`,
-      );
-    }
-  }
+    this.state.suddenDeath = true;
 
-  /** Total gold to send every non-empty staged wave for one attacker. */
-  private stagedTotalCost(staged: Map<string, StagedWave>): number {
-    let total = 0;
-    for (const wave of staged.values()) {
-      if (wave.batches.length > 0) {
-        total += waveGoldCost(wave.batches, wave.size);
-      }
+    // Nothing may reinforce once sudden death decides the match, so drain any
+    // still-staggered deploys onto the field right now rather than dropping the
+    // gold the attacker already paid for them.
+    while (this.releaseQueue.length > 0) {
+      this.spawnScheduledBatch(this.releaseQueue.shift()!);
     }
-    return total;
+
+    console.log(
+      `Room ${this.roomId}: siege expired with ${this.state.mobs.size} unit(s) on the field; sudden death`,
+    );
+
+    for (const client of this.clients) {
+      this.sendAttackerBuffer(client);
+    }
   }
 
   /**
-   * Ends the match once the income window has closed and the attacker has
-   * neither units on the field, queued to spawn, nor staged to send.
+   * Ends sudden death once the last troop on the field dies.
+   *
+   * @remarks Guaranteed to resolve: mobs never stall (their `progress` always
+   * advances) and they always leave the field by leaking or dying, so an empty
+   * field is reachable from any sudden-death state.
    */
-  private checkAttackerExhausted(): void {
+  private checkSuddenDeath(): void {
     if (this.state.phase !== "combat") return;
     if (this.state.mobs.size > 0 || this.releaseQueue.length > 0) return;
-    if (this.hasStagedArmy()) return;
 
-    if (!this.phases.declareGameOver("defender", "time")) return;
+    this.declareWinner("defender", "suddenDeath", "all attacker units were repelled");
+  }
 
-    console.log(`Room ${this.roomId}: attacker exhausted; defender wins`);
+  /**
+   * Ends the match with `winner` and mirrors the reason into both the private
+   * `game_over` push and `RoomState.gameOverReason`.
+   */
+  private declareWinner(
+    winner: PlayerRole,
+    reason: GameOverPayload["reason"],
+    detail: string,
+  ): void {
+    if (!this.phases.declareGameOver(winner, reason)) return;
 
-    const payload: GameOverPayload = { winner: "defender", reason: "time" };
+    console.log(`Room ${this.roomId}: ${winner} wins (${detail})`);
+
+    const payload: GameOverPayload = { winner, reason };
     for (const client of this.clients) {
       client.send(MESSAGES.gameOver, payload);
     }
   }
 
-  /** Whether any path still holds an unsent, non-empty wave. */
-  private hasStagedArmy(): boolean {
-    for (const paths of this.stagedWaves.values()) {
-      for (const wave of paths.values()) {
-        if (wave.batches.length > 0) return true;
+  /**
+   * Extra passive income the attacker earns from units deep in the push.
+   *
+   * @returns Gold per second from every attacker unit past the configured
+   * progress threshold, scaled by that unit's cost.
+   *
+   * @remarks This is a bonus to passive income, not a separate payout: it only
+   * runs while the income window is open, and it vanishes the moment those
+   * units are killed or leak. Halfway down the track is where a push starts
+   * threatening the core, so that is where the attacker starts earning.
+   */
+  private deepIncomeRate(): number {
+    const threshold = DEFAULT_ECONOMY.attackerUnitIncomeThreshold ?? 0.5;
+    const unitRate = DEFAULT_ECONOMY.attackerUnitIncomeRate ?? 0;
+    if (unitRate <= 0) return 0;
+
+    let rate = 0;
+    for (const mob of this.state.mobs.values()) {
+      if (mob.progress > threshold) {
+        rate += (MOB_TYPES[mob.typeId]?.cost ?? 0) * unitRate;
       }
     }
-    return false;
+    return rate;
   }
 
   /**
-   * Credits the attacker their passive income while the round timer runs.
+   * The income rate a player is actually earning right now.
    *
-   * @remarks Attacker-only: the defender is funded by tower bounties. The gold
-   * is accumulated as a float and floored on push so the HUD shows whole numbers.
+   * @param sessionId - Player whose economy is being read.
+   * @param role - That player's match role.
+   * @returns Gold per second, including the attacker's deep-unit bonus.
+   *
+   * @remarks The client shows this so the deep bonus is visible as a rise in
+   * passive income instead of silently credited gold. After the attacker's
+   * income window closes the reported rate is zero, matching the ledger.
+   */
+  private effectiveIncomeRate(
+    sessionId: string,
+    role: PlayerRole | undefined,
+  ): number {
+    if (role === "attacker") {
+      if (this.incomeExpired) return 0;
+      const base =
+        this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
+      return base + this.deepIncomeRate();
+    }
+    return this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.defenderBaseIncome;
+  }
+
+  /**
+   * Credits the attacker their passive income while the income window runs.
+   *
+   * @remarks The defender is funded by tower bounties. The gold is accumulated
+   * as a float and floored on push so the HUD shows whole numbers. The
+   * attacker's rate includes any deep-unit bonus for the current tick.
    */
   private accrueIncome(dt: number): void {
     for (const client of this.clients) {
@@ -1907,17 +1784,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
       const role = client.userData?.role as PlayerRole | undefined;
 
       if (role === "attacker") {
-        if (!this.incomeExpired) {
-          const rate =
-            this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
-          this.economies.set(
-            sessionId,
-            (this.economies.get(sessionId) ?? 0) + rate * dt,
-          );
-        }
+        if (this.incomeExpired) continue;
+        const rate = this.effectiveIncomeRate(sessionId, role);
+        this.economies.set(
+          sessionId,
+          (this.economies.get(sessionId) ?? 0) + rate * dt,
+        );
       } else if (role === "defender") {
-        const rate =
-          this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.defenderBaseIncome;
+        const rate = this.effectiveIncomeRate(sessionId, role);
         this.economies.set(
           sessionId,
           (this.economies.get(sessionId) ?? 0) + rate * dt,
@@ -1955,7 +1829,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const type = MOB_TYPES[scheduled.typeId];
     if (!path || path.length < 2 || !type) return;
 
-    const batchId = this.state.waveIndex + 1;
+    const batchId = ++this.spawnSeq;
     const spawned = this.spawnMobsOnPath(
       path,
       scheduled.pathId,
@@ -1963,24 +1837,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
       scheduled.count,
       batchId,
     );
-    this.state.waveIndex = batchId;
 
     if (spawned > 0) {
-    console.log(
-        `Room ${this.roomId}: released batch ${batchId} (${scheduled.count}x ${type.id} on ${scheduled.pathId})`,
+      console.log(
+        `Room ${this.roomId}: spawned batch ${batchId} (${scheduled.count}x ${type.id} on ${scheduled.pathId})`,
       );
     }
   }
 
-  /** Clears all transient wave state for a fresh match. */
-  private resetWaveRuntime(): void {
-    this.stagedWaves.clear();
+  /** Clears all transient combat state for a fresh match. */
+  private resetCombatRuntime(): void {
+    this.attackerBuffers.clear();
+    this.portalCharges.clear();
     this.releaseQueue = [];
     this.matchTime = 0;
     this.incomeExpired = false;
     this.incomePushAccumulator = 0;
-    this.batchSeq = 0;
-    this.state.waveIndex = 0;
+    this.spawnSeq = 0;
+    this.state.suddenDeath = false;
     this.projectileAim.clear();
     this.projectileSplash.clear();
   }
@@ -2036,7 +1910,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
     return count;
   }
 
-  /** Advances every mob along its path; breaches damage the defender's core. */
+  /**
+   * Advances every mob along its path; breaches damage the defender's core.
+   *
+   * @remarks The attacker's deep-unit income is handled by
+   * {@link accrueIncome} as a bonus to passive income, so this only moves mobs
+   * and resolves leaks.
+   */
   private simulateMobs(dt: number): void {
     if (this.state.mobs.size === 0) return;
 

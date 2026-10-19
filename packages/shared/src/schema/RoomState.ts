@@ -16,7 +16,8 @@ export const RoomState = schema({
   mapId: t.string().default(""),
   winner: t.string().optional(),
   /**
-   * Why the match ended (`surrender` | `core` | `time`); empty while live.
+   * Why the match ended (`surrender` | `core` | `time` | `suddenDeath` |
+   * `disconnect`); empty while live.
    *
    * @remarks Mirrored out of the private `game_over` message so a client that
    * never saw the message (a rejoin after the match closed, or a message that
@@ -26,7 +27,13 @@ export const RoomState = schema({
   gameOverReason: t.string().default(""),
   phaseEndsAt: t.float64().default(0),
   serverTick: t.uint32().default(0),
-  waveIndex: t.uint16().default(0),
+  /**
+   * `true` once the siege timer expired with attacker units still on the
+   * field. The match then resolves solely on whether the defender's core
+   * stands: a leak of zero HP ends it for the attacker, all troops dying ends
+   * it for the defender.
+   */
+  suddenDeath: t.boolean().default(false),
   /**
    * Defender core HP. Each mob that reaches the base subtracts its
    * `leakDamage`; reaching zero ends the match with the attacker winning.

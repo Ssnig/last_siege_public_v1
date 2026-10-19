@@ -46,6 +46,15 @@ export interface MapDefinition {
   pathLabels?: Record<string, string>;
   /** When true, spawned wave mobs randomly divide between fork paths. */
   randomFork?: boolean;
+  /**
+   * Per-portal deploy-charge overrides, keyed by portal id (`portal-0`, …).
+   *
+   * @remarks Lets a map tune a risky portal without touching global rules — e.g.
+   * a portal sitting right next to the core can get a single charge and a much
+   * longer refill so it stays strong without being free. Missing entries fall
+   * back to {@link DEFAULT_DEPLOY_RULES}.
+   */
+  portalOverrides?: Record<string, { maxCharges?: number; chargeSec?: number }>;
   slots: TowerSlot[];
   checkpoints: number[];
   base: Vec2;
@@ -88,6 +97,56 @@ export function mapPath(map: MapDefinition, pathId: string): Vec2[] | undefined 
   const named = map.paths?.[pathId];
   if (named) return named;
   return pathId === "main" ? map.path : undefined;
+}
+
+/** One attacker deploy portal, derived from the map's track spawn points. */
+export interface MapPortal {
+  /** Stable per-map id: `portal-0`, `portal-1`, … in path authoring order. */
+  id: string;
+  x: number;
+  y: number;
+  /** Track ids whose spawn point this portal sits on. */
+  pathIds: string[];
+  /** Charges this portal starts with; `undefined` falls back to the shared default. */
+  maxCharges?: number;
+  /** Seconds to regen one charge; `undefined` falls back to the shared default. */
+  chargeSec?: number;
+}
+
+/**
+ * Derives the attacker's deploy portals from a map's track spawn points.
+ *
+ * @param map - The map to inspect.
+ * @returns One portal per *distinct* spawn point, in path authoring order.
+ *
+ * @remarks Tracks that share a start (a fork) collapse into a single portal
+ * carrying both track ids, while tracks with different starts (a merge) get one
+ * portal each. Keyed by rounded coordinates so duplicated heads collapse
+ * together — the same rule the client uses to draw portal sprites, so the
+ * server's portal ids always line up with what players see. No map JSON change
+ * is ever needed to add a portal.
+ */
+export function mapPortals(map: MapDefinition): MapPortal[] {
+  const byPoint = new Map<string, MapPortal>();
+
+  for (const pathId of mapPathIds(map)) {
+    const path = mapPath(map, pathId);
+    if (!path || path.length === 0) continue;
+
+    const start = path[0];
+    const key = `${Math.round(start.x)},${Math.round(start.y)}`;
+
+    let portal = byPoint.get(key);
+    if (!portal) {
+      const id = `portal-${byPoint.size}`;
+      const override = map.portalOverrides?.[id];
+      portal = { id, x: start.x, y: start.y, pathIds: [], ...override };
+      byPoint.set(key, portal);
+    }
+    portal.pathIds.push(pathId);
+  }
+
+  return [...byPoint.values()];
 }
 
 /**

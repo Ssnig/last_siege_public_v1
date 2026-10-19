@@ -6,6 +6,7 @@ import {
   FORK_MAP,
   mapPathIds,
   mapPath,
+  mapPortals,
   type MapDefinition,
 } from "@root/shared";
 
@@ -82,5 +83,79 @@ describe("map path helpers", () => {
 
     const afterFork = (id: string) => pt(mapPath(FORK_MAP, id)![3]);
     assert.notStrictEqual(afterFork("left"), afterFork("right"), "diverges after the head");
+  });
+});
+
+/**
+ * Unit tests for deploy portals derived from track spawn points.
+ *
+ * @remarks Portals are never authored in map JSON: they are the distinct spawn
+ * points, so the ids the server validates against always match what the client
+ * draws.
+ */
+describe("map portals", () => {
+  it("derives one portal per distinct spawn point in authoring order", () => {
+    const portals = mapPortals(MERGE_MAP);
+    assert.deepStrictEqual(
+      portals.map((portal) => portal.id),
+      ["portal-0", "portal-1", "portal-2"],
+    );
+    assert.deepStrictEqual(
+      portals.map((portal) => portal.pathIds),
+      [["upper"], ["middle"], ["lower"]],
+    );
+    assert.deepStrictEqual(pt(portals[0]), pt(mapPath(MERGE_MAP, "upper")![0]));
+  });
+
+  it("collapses fork branches sharing a spawn into a single portal", () => {
+    const portals = mapPortals(FORK_MAP);
+    assert.strictEqual(portals.length, 1, "a fork has one shared portal");
+    assert.deepStrictEqual(portals[0].pathIds, ["left", "right"]);
+  });
+
+  it("gives a single-path map one 'main' portal", () => {
+    const portals = mapPortals(SAMPLE_MAP);
+    assert.strictEqual(portals.length, 1);
+    assert.deepStrictEqual(portals[0].pathIds, ["main"]);
+    assert.deepStrictEqual(pt(portals[0]), pt(SAMPLE_MAP.path[0]));
+  });
+
+  it("ignores tracks shorter than two points", () => {
+    const map: MapDefinition = {
+      id: "degenerate",
+      path: [],
+      paths: { good: [{ x: 0, y: 0 }, { x: 10, y: 0 }], bad: [{ x: 0, y: 0 }] },
+      slots: [],
+      checkpoints: [],
+      base: { x: 0, y: 0 },
+    };
+    const portals = mapPortals(map);
+    assert.strictEqual(portals.length, 1);
+    assert.deepStrictEqual(portals[0].pathIds, ["good"]);
+  });
+
+  it("applies per-portal charge overrides from portalOverrides", () => {
+    const map: MapDefinition = {
+      id: "overridden",
+      path: [],
+      paths: {
+        near: [{ x: 0, y: 0 }, { x: 10, y: 0 }],
+        far: [{ x: 5, y: 5 }, { x: 5, y: 20 }],
+      },
+      slots: [],
+      checkpoints: [],
+      base: { x: 0, y: 0 },
+      portalOverrides: { "portal-1": { maxCharges: 1, chargeSec: 45 } },
+    };
+    const portals = mapPortals(map);
+    assert.strictEqual(portals.length, 2);
+
+    // The near portal keeps the global defaults.
+    assert.strictEqual(portals[0].maxCharges, undefined);
+    assert.strictEqual(portals[0].chargeSec, undefined);
+
+    // The far portal is the slower, single-charge one the map author configured.
+    assert.strictEqual(portals[1].maxCharges, 1);
+    assert.strictEqual(portals[1].chargeSec, 45);
   });
 });

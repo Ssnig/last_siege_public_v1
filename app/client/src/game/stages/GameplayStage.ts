@@ -6,14 +6,17 @@ import {
   samplePathWithLateral,
   mapPath,
   mapPathIds,
+  mapPortals,
   type MapDefinition,
   type Mob,
   type Projectile,
   type Tower,
   type Vec2,
   type YouEconomyPayload,
+  type AttackerBufferPayload,
   TOWER_TYPES,
   MATCH_RULES,
+  portalChargeRules,
   sellRefund,
   upgradeCost,
   tierAt,
@@ -96,11 +99,25 @@ type MobRecord = {
   hpFill: Phaser.GameObjects.Rectangle;
 };
 
+/** A portal: its spin sprite plus the charge pips drawn above it. */
+type PortalRecord = {
+  sprite: Phaser.GameObjects.Sprite;
+  pips: Phaser.GameObjects.Rectangle[];
+  glow: Phaser.GameObjects.Arc;
+};
+
 /** Mob health-bar geometry, in world px. */
 const MOB_HP_BAR = {
   width: 44,
   height: 6,
   offsetY: -46,
+} as const;
+
+/** Portal charge-pip geometry, in world px. */
+const PORTAL_PIP = {
+  radius: 4,
+  gap: 11,
+  offsetY: -72,
 } as const;
 
 /**
@@ -128,7 +145,11 @@ export class GameplayStage {
    */
   private actors?: Phaser.GameObjects.Container;
   private paths: Phaser.Curves.Path[] = [];
-  private portals: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private portals: Map<string, PortalRecord> = new Map();
+  /** Portal the deploy bar is currently dragging a unit over, if any. */
+  private hoveredPortalId?: string;
+  /** Latest attacker deploy-buffer snapshot, used to drive the portal pips. */
+  private attackerBuffer?: AttackerBufferPayload;
   private towers: Map<number, TowerRecord> = new Map();
   private mobSprites: Map<Mob, MobRecord> = new Map();
   private projectileSprites: Map<Projectile, Phaser.GameObjects.Sprite> = new Map();
@@ -287,14 +308,6 @@ export class GameplayStage {
     }
   }
 
-  updateEconomy(gold: number, deck?: string[]): void {
-    this.applyEconomy({
-      gold,
-      deck: deck ?? this.deck,
-      bigWavesRemaining: 0,
-    });
-  }
-
   private refreshGold(): void {
     if (this.goldText) {
       this.goldText.setText(`${this.gold}`);
@@ -325,27 +338,139 @@ export class GameplayStage {
       });
     }
 
-    // One portal per *distinct* spawn point: tracks that share a start (a fork)
-    // get a single portal, while tracks with different starts (a merge) get one
-    // each. Keyed by rounded coordinates so duplicated heads collapse together.
-    for (const pathId of mapPathIds(this.map)) {
-      const path = mapPath(this.map, pathId);
-      if (!path || path.length === 0) continue;
-
-      const start = path[0];
-      const key = `${Math.round(start.x)},${Math.round(start.y)}`;
-      if (this.portals.has(key)) continue;
-
-      const portal = this.scene.add
-        .sprite(start.x, start.y, "spawn_2")
+    // Portal geometry is derived from the map's track spawn points by the same
+    // shared helper the server uses, so the ids here always match the ids the
+    // deploy intents are validated against. Tracks that share a start (a fork)
+    // collapse into one portal; tracks with different starts get one each.
+    for (const portal of mapPortals(this.map)) {
+      const sprite = this.scene.add
+        .sprite(portal.x, portal.y, "spawn_2")
         .setOrigin(0.5, 0.72)
         .setDisplaySize(130, 130)
-        .setDepth(DEPTH.PORTAL_LAYER + start.y * 0.001)
+        .setDepth(DEPTH.PORTAL_LAYER + portal.y * 0.001)
         .play("portal_spin");
-      this.root?.add(portal);
-      this.portals.set(key, portal);
+      this.root?.add(sprite);
+
+      // Soft readiness glow, hidden until a portal actually has a charge.
+      const glow = this.scene.add
+        .circle(portal.x, portal.y - 26, 40, 0x22d3ee, 0.18)
+        .setDepth(DEPTH.PORTAL_LAYER + 0.002)
+        .setVisible(false);
+      this.root?.add(glow);
+
+      const maxCharges = portalChargeRules(portal).maxCharges;
+      const pipRowWidth = Math.max(0, maxCharges - 1) * PORTAL_PIP.gap;
+      const pips: Phaser.GameObjects.Rectangle[] = [];
+      for (let i = 0; i < maxCharges; i++) {
+        const pip = this.scene.add
+          .rectangle(
+            portal.x - pipRowWidth / 2 + i * PORTAL_PIP.gap,
+            portal.y + PORTAL_PIP.offsetY,
+            PORTAL_PIP.radius * 2,
+            PORTAL_PIP.radius * 2,
+            0x22d3ee,
+            0.9,
+          )
+          .setDepth(DEPTH.PORTAL_LAYER + 0.003)
+          .setVisible(false);
+        this.root?.add(pip);
+        pips.push(pip);
+      }
+
+      // The attacker taps a portal to push their queue through it.
+      if (this.role === "attacker") {
+        const hit = this.scene.add
+          .circle(portal.x, portal.y - 20, 52, 0xffffff, 0)
+          .setDepth(DEPTH.PORTAL_LAYER + 0.004)
+          .setInteractive({ useHandCursor: true });
+        hit.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => {
+          this.room.send(MESSAGES.deploy, { portalId: portal.id });
+        });
+        this.root?.add(hit);
+      }
+
+      this.portals.set(portal.id, { sprite, pips, glow });
+    }
+
+    // Re-apply the last known charge state if a re-render rebuilt the portals.
+    this.refreshPortalCharges();
+  }
+
+  /**
+   * Applies an attacker deploy-buffer push, refreshing the portal charge pips.
+   *
+   * @remarks The buffer contents live in the React deploy bar; the stage only
+   * needs the per-portal charge state so a player can tap a portal straight
+   * from the map instead of hunting for the bar.
+   */
+  applyAttackerBuffer(payload: AttackerBufferPayload): void {
+    this.attackerBuffer = payload;
+    this.refreshPortalCharges();
+  }
+
+  /** Redraws every portal's charge pips from the last buffer snapshot. */
+  private refreshPortalCharges(): void {
+    const statusById = new Map(
+      (this.attackerBuffer?.portals ?? []).map((portal) => [portal.id, portal]),
+    );
+
+    for (const [portalId, record] of this.portals) {
+      const status = statusById.get(portalId);
+      // The defender never receives the buffer, so their portals stay unlit.
+      const charges = status?.charges ?? 0;
+
+      record.glow.setVisible(charges > 0);
+      record.pips.forEach((pip, index) => {
+        pip.setVisible(!!status);
+        pip.setFillStyle(index < charges ? 0x22d3ee : 0x64748b, index < charges ? 0.95 : 0.4);
+      });
     }
   }
+
+  /**
+   * Resolves the map portal under a world point, if the point is close enough.
+   *
+   * @remarks Used by the deploy bar's drag-and-drop. The pointer is captured by
+   * React during a drag, so Phaser never sees it; this is a manual hit test
+   * matching the portal's on-screen footprint.
+   *
+   * @param x - World x coordinate.
+   * @param y - World y coordinate.
+   * @returns The portal id, or `null` when nothing is in range.
+   */
+  portalAtWorld(x: number, y: number): string | null {
+    const HIT_RADIUS = 76;
+    let best: string | null = null;
+    let bestDistance = Infinity;
+
+    for (const [id, record] of this.portals) {
+      const distance = Phaser.Math.Distance.Between(x, y, record.sprite.x, record.sprite.y - 20);
+      if (distance <= HIT_RADIUS && distance < bestDistance) {
+        bestDistance = distance;
+        best = id;
+      }
+    }
+
+    return best;
+  }
+
+  /**
+   * Highlights the portal a dragged unit is hovering, clearing the previous one.
+   *
+   * @param portalId - Portal id to highlight, or `null` to clear.
+   */
+  setPortalHover(portalId: string | null): void {
+    const next = portalId ?? undefined;
+    if (this.hoveredPortalId === next) return;
+
+    const previous = this.hoveredPortalId ? this.portals.get(this.hoveredPortalId) : undefined;
+    previous?.sprite.clearTint().setDisplaySize(130, 130);
+
+    this.hoveredPortalId = next;
+    const active = next ? this.portals.get(next) : undefined;
+    active?.sprite.setTint(0x7dd3fc).setDisplaySize(156, 156);
+  }
+
 
   private render(): void {
     // Tear down world-layer objects owned by the previous render first: root
@@ -355,6 +480,7 @@ export class GameplayStage {
     this.ambientNpcManager?.destroy();
     this.ambientNpcManager = undefined;
     this.portals.clear();
+    this.hoveredPortalId = undefined;
 
     this.root?.destroy(true);
     this.root = this.scene.add.container(0, 0);
@@ -1794,7 +1920,7 @@ export class GameplayStage {
 
     this.clearSelection();
 
-    for (const portal of this.portals.values()) portal.destroy();
+    // Portal sprites/pips/glow are children of `root`, destroyed with it.
     this.portals.clear();
     this.phaseBanner?.destroy();
     this.startButton?.destroy();
