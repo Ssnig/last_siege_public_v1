@@ -4,6 +4,7 @@ import {
   MESSAGES,
   MAPS,
   KONBAUNG_MAP,
+  TOWER_DESIGNS,
   type RoleAssignedPayload,
   type YouEconomyPayload,
 } from "@root/shared";
@@ -113,9 +114,14 @@ export class GameScene extends Phaser.Scene {
     this.load.image("base_innwa", "/assets/maps/map_5_innwa/base.png");
     this.load.image("base_bago", "/assets/maps/map_6_bago/base.png");
     this.load.image("npc_monk", "/assets/sprites/npc_monk.png");
-    this.load.image("tower_archer", "/assets/sprites/tower_archer.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
     this.load.image("arrow_proj", "/assets/sprites/arrow.png");
+
+    // Preload all 6 custom towers and their projectiles
+    for (const design of Object.values(TOWER_DESIGNS)) {
+      this.load.image(design.textureKey, design.texturePath);
+      this.load.image(design.projectileKey, design.projectilePath);
+    }
     this.load.image("spawn_1", "/assets/sprites/spawn1.png");
     this.load.image("spawn_2", "/assets/sprites/spawn2.png");
     this.load.image("spawn_3", "/assets/sprites/spawn3.png");
