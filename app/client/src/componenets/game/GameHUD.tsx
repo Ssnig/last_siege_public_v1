@@ -16,10 +16,8 @@ interface GameHUDProps {
   castleHp?: number;
   maxCastleHp?: number;
   incomeRate?: number;
-  /** Attacker-only: toggles the army-staging overlay. Omit to hide the button. */
-  onToggleArmy?: () => void;
-  /** Whether the army-staging overlay is currently open (drives the button icon). */
-  armyOpen?: boolean;
+  /** True once the siege timer has expired with troops still on the field. */
+  suddenDeath?: boolean;
 }
 
 const DEFAULT_DEFENDER_TOWERS = [
@@ -69,8 +67,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   castleHp = 45,
   maxCastleHp = 45,
   incomeRate,
-  onToggleArmy,
-  armyOpen = false,
+  suddenDeath = false,
 }) => {
   // Smooth countdown driven by the server's phaseEndsAt (see hook docs).
   const secondsRemaining = useSmoothCountdown(phaseEndsAt, phase !== 'gameover');
@@ -120,7 +117,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         {/* Top Header Row: Gold (Left), Centered Wave/Timer, Settings + Castle HP (Right) */}
         <div className="w-full flex items-start justify-between px-2.5 sm:px-4 md:px-6 pt-2 pointer-events-none">
           
-          {/* Top-Left: Gold display + (attacker) army-panel toggle */}
+          {/* Top-Left: Gold display */}
           <div className="flex items-center gap-1.5 md:gap-2">
             <div
               className="pointer-events-auto relative w-[112px] h-[34px] md:w-[156px] md:h-[44px] flex items-center justify-end pr-2 md:pr-3 shadow-lg drop-shadow transition-transform hover:scale-102"
@@ -141,21 +138,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 )}
               </div>
             </div>
-
-            {onToggleArmy && (
-              <button
-                onClick={onToggleArmy}
-                aria-label={armyOpen ? 'Close army panel' : 'Open army panel'}
-                className={`pointer-events-auto flex items-center gap-1 px-2 h-[34px] md:h-[44px] rounded-lg border text-[11px] md:text-sm font-black uppercase tracking-wide shadow-lg active:scale-95 transition font-['Almendra',serif] ${
-                  armyOpen
-                    ? 'bg-amber-500 text-slate-950 border-amber-300'
-                    : 'bg-slate-950/85 text-amber-200 border-amber-600/60 hover:bg-slate-800'
-                }`}
-              >
-                <span>⚔️</span>
-                <span>Army</span>
-              </button>
-            )}
           </div>
 
           {/* Top-Center: Exactly Centered Wave & Timer Banner with Pixel-Perfect Plaque Alignment */}
@@ -170,16 +152,24 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             {/* Phase tag — replaces the old full-text swap so the clock stays visible */}
             {phase === 'combat' && (
               <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
-                <span className="font-['Almendra',serif] font-black text-red-300 text-[10px] md:text-xs tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">
-                  ⚔ COMBAT
+                <span
+                  className={`font-['Almendra',serif] font-black text-[10px] md:text-xs tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] ${
+                    suddenDeath ? 'text-fuchsia-300' : 'text-red-300'
+                  }`}
+                >
+                  {suddenDeath ? '☠ DEATH' : '⚔ COMBAT'}
                 </span>
               </div>
             )}
 
             {/* Live Numeric Countdown Clock — Exactly aligned in the lower golden plaque */}
             <div className="absolute top-[70%] h-[22%] inset-x-0 flex items-center justify-center pointer-events-none">
-               <span className="font-['Almendra',serif] font-bold text-amber-100 text-xs md:text-[15px] tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
-                 {timeFormatted}
+               <span
+                 className={`font-['Almendra',serif] font-bold text-xs md:text-[15px] tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] ${
+                   suddenDeath ? 'text-fuchsia-200' : 'text-amber-100'
+                 }`}
+               >
+                 {suddenDeath ? 'NOW' : timeFormatted}
                </span>
             </div>
           </div>

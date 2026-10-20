@@ -4,7 +4,7 @@ import {
   TOWER_TYPES,
   DEFAULT_ECONOMY,
   DEFAULT_DECK_RULES,
-  DEFAULT_WAVE_RULES,
+  DEFAULT_DEPLOY_RULES,
   MATCH_RULES,
   buildCost,
   upgradeCost,
@@ -12,6 +12,8 @@ import {
   totalInvested,
   sellRefund,
   SELL_REFUND_RATE,
+  deployStaggerSec,
+  portalChargeRules,
 } from "@root/shared";
 
 /**
@@ -73,37 +75,85 @@ describe("balance.ts shape guards", () => {
     for (const n of [defenderStartingGold, attackerStartingGold]) {
       assert.ok(n > 0, `economy value must be > 0, got ${n}`);
     }
-    assert.ok(DEFAULT_ECONOMY.bigWaveCount > 0);
     assert.ok(DEFAULT_DECK_RULES.deckSize > 0);
     // A -1 draft duration is the "no countdown" sentinel, so only reject > 0.
     assert.ok(
       MATCH_RULES.draftDurationSec === -1 || MATCH_RULES.draftDurationSec > 0,
       `draftDurationSec must be -1 (no countdown) or > 0, got ${MATCH_RULES.draftDurationSec}`,
     );
-    for (const n of [MATCH_RULES.coreHp, MATCH_RULES.roundDurationSec]) {
+    for (const n of [
+      MATCH_RULES.coreHp,
+      MATCH_RULES.incomeDurationSec,
+      MATCH_RULES.siegeDurationSec,
+    ]) {
       assert.ok(n > 0, `match rule must be > 0, got ${n}`);
     }
   });
 
-  it("wave rules define sane, ordered caps and fees for both sizes", () => {
-    assert.ok(DEFAULT_WAVE_RULES.batchIntervalSec > 0, "batches must be spaced apart");
+  it("deploy rules define sane caps, charges and staggering", () => {
+    assert.ok(DEFAULT_DEPLOY_RULES.maxBufferUnits > 0, "the queue must hold at least one unit");
+    assert.ok(DEFAULT_DEPLOY_RULES.portalMaxCharges > 0, "portals need at least one charge");
+    assert.ok(DEFAULT_DEPLOY_RULES.portalChargeSec > 0, "charges must take time to regen");
+    assert.ok(DEFAULT_DEPLOY_RULES.staggerSec > 0, "deployed units must leave apart");
+  });
 
-    const { small, big } = DEFAULT_WAVE_RULES.sizes;
-    for (const [size, rules] of Object.entries(DEFAULT_WAVE_RULES.sizes)) {
-      assert.ok(rules.batchLimit > 0, `${size}: batchLimit must be > 0`);
-      assert.ok(rules.maxBatches > 0, `${size}: maxBatches must be > 0`);
+  it("economy rules gate the attacker's unit income on a progress threshold", () => {
+    assert.ok(
+      DEFAULT_ECONOMY.attackerUnitIncomeRate > 0,
+      "deep units must pay the attacker something",
+    );
+    assert.ok(
+      DEFAULT_ECONOMY.attackerUnitIncomeThreshold > 0
+        && DEFAULT_ECONOMY.attackerUnitIncomeThreshold < 1,
+      "the deep threshold must sit between spawn and the core",
+    );
+  });
+
+  it("deployStaggerSec scales with unit speed and stays inside a clamp band", () => {
+    for (const mob of Object.values(MOB_TYPES)) {
+      const stagger = deployStaggerSec(mob.id);
+      assert.ok(stagger > 0, `${mob.id} must still leave apart`);
+
+      // The band keeps fast/CC units from never forming an AOE clump and slow
+      // ones from straggling too far apart.
       assert.ok(
-        rules.waveLimit >= rules.batchLimit,
-        `${size}: a wave must hold at least one full batch`,
+        stagger >= 0.8 * DEFAULT_DEPLOY_RULES.staggerSec,
+        `${mob.id} stagger at least the floor`,
       );
-      assert.ok(rules.fee >= 0, `${size}: fee must not be negative`);
+      assert.ok(
+        stagger <= 2.0 * DEFAULT_DEPLOY_RULES.staggerSec,
+        `${mob.id} stagger under the ceiling`,
+      );
     }
 
-    // A big wave is strictly the more permissive (and pricier) option.
-    assert.ok(big.batchLimit >= small.batchLimit);
-    assert.ok(big.waveLimit >= small.waveLimit);
-    assert.ok(big.maxBatches >= small.maxBatches);
-    assert.ok(big.fee >= small.fee);
+    // Faster units spread out further than slower ones on the same base.
+    const fast = Object.values(MOB_TYPES).sort((a, b) => b.speed - a.speed)[0];
+    const slow = Object.values(MOB_TYPES).sort((a, b) => a.speed - b.speed)[0];
+    if (fast.speed > slow.speed) {
+      assert.ok(
+        deployStaggerSec(fast.id) >= deployStaggerSec(slow.id),
+        "faster units leave further apart",
+      );
+    }
+  });
+
+  it("portalChargeRules falls back to the global deploy defaults", () => {
+    assert.deepStrictEqual(portalChargeRules({}), {
+      maxCharges: DEFAULT_DEPLOY_RULES.portalMaxCharges,
+      chargeSec: DEFAULT_DEPLOY_RULES.portalChargeSec,
+    });
+
+    // A map-authored override wins, including a deliberately slower near-base portal.
+    assert.deepStrictEqual(portalChargeRules({ maxCharges: 1, chargeSec: 45 }), {
+      maxCharges: 1,
+      chargeSec: 45,
+    });
+
+    // Partial overrides fill the rest from the defaults.
+    assert.deepStrictEqual(portalChargeRules({ maxCharges: 5 }), {
+      maxCharges: 5,
+      chargeSec: DEFAULT_DEPLOY_RULES.portalChargeSec,
+    });
   });
 
   it("totalInvested sums build plus upgrades and sellRefund refunds a fraction", () => {

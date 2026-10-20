@@ -4,16 +4,15 @@
     "attackerStartingGold": 120,
     "attackerBaseIncome": 2.5,
     "defenderBaseIncome": 5.0,
-    "attackerIncomeGainRate": 0.035,
-    "bigWaveCount": 3,
+    "attackerUnitIncomeRate": 0.006,
+    "attackerUnitIncomeThreshold": 0.5,
     "leakPityRate": 0.21
   },
-  "waves": {
-    "batchIntervalSec": 2.5,
-    "sizes": {
-      "small": { "batchLimit": 10, "waveLimit": 30, "maxBatches": 5, "fee": 15 },
-      "big": { "batchLimit": 15, "waveLimit": 45, "maxBatches": 8, "fee": 55 }
-    }
+  "deploy": {
+    "maxBufferUnits": 6,
+    "portalMaxCharges": 3,
+    "portalChargeSec": 15,
+    "staggerSec": 0.3
   },
   "deck": { "deckSize": 6 },
   "match": {
@@ -21,7 +20,8 @@
     "mapRevealDurationSec": 5,
     "draftDurationSec": -1,
     "buildingDurationSec": 45,
-    "roundDurationSec": 135
+    "incomeDurationSec": 135,
+    "siegeDurationSec": 180
   },
   "wander": {
     "laneSpread": 0.65,

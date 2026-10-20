@@ -46,6 +46,15 @@ export interface MapDefinition {
   pathLabels?: Record<string, string>;
   /** When true, spawned wave mobs randomly divide between fork paths. */
   randomFork?: boolean;
+  /**
+   * Per-portal deploy-charge overrides, keyed by portal id (`portal-0`, …).
+   *
+   * @remarks Lets a map tune a risky portal without touching global rules — e.g.
+   * a portal sitting right next to the core can get a single charge and a much
+   * longer refill so it stays strong without being free. Missing entries fall
+   * back to {@link DEFAULT_DEPLOY_RULES}.
+   */
+  portalOverrides?: Record<string, { maxCharges?: number; chargeSec?: number }>;
   slots: TowerSlot[];
   checkpoints: number[];
   base: Vec2;
@@ -57,7 +66,14 @@ export interface MapDefinition {
   baseOrigin?: Vec2;
   /** Vertical offset for floating base HP bar in pixels. Defaults to -150. */
   baseHpOffsetY?: number;
-  /** Explicit portal spawn locations. If omitted, falls back to path starts. */
+  /**
+   * Explicit portal spawn locations, as exported by the map editor.
+   *
+   * @remarks This is the standard way to place portals: the editor writes the
+   * exact points, and {@link mapPortals} attaches each track to the nearest
+   * portal. Omitting it falls back to deriving portals from track spawn points,
+   * which only exists for fixtures and legacy maps.
+   */
   portals?: Vec2[];
   width?: number;
   height?: number;
@@ -94,6 +110,99 @@ export function mapPath(map: MapDefinition, pathId: string): Vec2[] | undefined 
   const named = map.paths?.[pathId];
   if (named) return named;
   return pathId === "main" ? map.path : undefined;
+}
+
+/** One attacker deploy portal, derived from the map's track spawn points. */
+export interface MapPortal {
+  /** Stable per-map id: `portal-0`, `portal-1`, … in path authoring order. */
+  id: string;
+  x: number;
+  y: number;
+  /** Track ids whose spawn point this portal sits on. */
+  pathIds: string[];
+  /** Charges this portal starts with; `undefined` falls back to the shared default. */
+  maxCharges?: number;
+  /** Seconds to regen one charge; `undefined` falls back to the shared default. */
+  chargeSec?: number;
+}
+
+/**
+ * Derives the attacker's deploy portals for a map.
+ *
+ * @param map - The map to inspect.
+ * @returns One portal per deploy point, `portal-0`, `portal-1`, … in order.
+ *
+ * @remarks When the map editor has exported explicit {@link MapDefinition.portals},
+ * those points are authoritative: they give the portal positions, and every
+ * track is attached to the portal nearest its spawn. Tracks left without a
+ * portal are unreachable, so the server must reject deploys for them — which is
+ * exactly what falls out of both sides calling this helper. Without explicit
+ * portals the deployment falls back to the track spawn points: tracks that
+ * share a start (a fork) collapse into a single portal carrying both track
+ * ids, while tracks with different starts (a merge) get one portal each.
+ * Keyed by rounded coordinates so duplicated heads collapse together — the same
+ * rule the client uses to draw portal sprites, so the server's portal ids
+ * always line up with what players see. No map JSON change is ever needed to
+ * add a portal.
+ */
+export function mapPortals(map: MapDefinition): MapPortal[] {
+  const explicit = map.portals && map.portals.length > 0 ? map.portals : undefined;
+  const byPoint = new Map<string, MapPortal>();
+  const portals: MapPortal[] = [];
+
+  if (explicit) {
+    for (let index = 0; index < explicit.length; index++) {
+      const point = explicit[index];
+      const override = map.portalOverrides?.[`portal-${index}`];
+      portals.push({
+        id: `portal-${index}`,
+        x: point.x,
+        y: point.y,
+        pathIds: [],
+        ...override,
+      });
+    }
+  }
+
+  for (const pathId of mapPathIds(map)) {
+    const path = mapPath(map, pathId);
+    if (!path || path.length === 0) continue;
+
+    const start = path[0];
+
+    if (explicit) {
+      // Attach the track to whichever portal sits closest to its spawn, so a
+      // portal drawn where the editor put it still routes real units.
+      let nearest: MapPortal | undefined;
+      let nearestDistance = Infinity;
+      for (const portal of portals) {
+        const dx = portal.x - start.x;
+        const dy = portal.y - start.y;
+        const distance = dx * dx + dy * dy;
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = portal;
+        }
+      }
+      nearest?.pathIds.push(pathId);
+      continue;
+    }
+
+    const key = `${Math.round(start.x)},${Math.round(start.y)}`;
+    let portal = byPoint.get(key);
+    if (!portal) {
+      const id = `portal-${byPoint.size}`;
+      const override = map.portalOverrides?.[id];
+      portal = { id, x: start.x, y: start.y, pathIds: [], ...override };
+      byPoint.set(key, portal);
+      portals.push(portal);
+    }
+    portal.pathIds.push(pathId);
+  }
+
+  // An explicit portal with no track attached could never be deployed through,
+  // so it never reaches the client either.
+  return explicit ? portals.filter((portal) => portal.pathIds.length > 0) : portals;
 }
 
 /**
@@ -138,6 +247,10 @@ export const KONBAUNG_MAP: MapDefinition = {
   width: 1280,
   height: 720,
   path: [],
+  portals: [
+    { x: 52, y: 112 },
+    { x: 52, y: 583 },
+  ],
   paths: {
     top: [
       { x: 52, y: 112 },
@@ -372,6 +485,7 @@ export const INLE_MAP: MapDefinition = {
   width: 1280,
   height: 720,
   path: [],
+  portals: [{ x: 57, y: 357 }],
   paths: {
     top: [
       { x: 57, y: 357 },
@@ -525,6 +639,10 @@ export const INNWA_MAP: MapDefinition = {
   width: 1280,
   height: 720,
   path: [],
+  portals: [
+    { x: 50, y: 180 },
+    { x: 50, y: 580 },
+  ],
   paths: {
     top: [
       { x: 50, y: 180 },
@@ -574,6 +692,10 @@ export const BAGO_MAP: MapDefinition = {
   width: 1280,
   height: 720,
   path: [],
+  portals: [
+    { x: 50, y: 200 },
+    { x: 50, y: 580 },
+  ],
   paths: {
     top: [
       { x: 50, y: 200 },

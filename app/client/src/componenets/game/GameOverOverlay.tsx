@@ -118,8 +118,13 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
     }
     if (gameOver.reason === 'time') {
       return gameOver.youWin
-        ? 'The royal defense held firm until enemy forces were depleted!'
-        : 'Your invading forces were exhausted against the stronghold!';
+        ? 'The royal defense held out for the full siege! The attackers failed to break through.'
+        : 'Your siege ran out of time before the fortress fell!';
+    }
+    if (gameOver.reason === 'suddenDeath') {
+      return gameOver.youWin
+        ? 'The siege ended and every last attacker was repelled in sudden death!'
+        : 'Sudden death! Your final assault was wiped out before the fortress fell.';
     }
     if (gameOver.reason === 'surrender') {
       return gameOver.youWin
