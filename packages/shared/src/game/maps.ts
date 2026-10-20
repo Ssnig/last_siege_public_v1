@@ -66,7 +66,14 @@ export interface MapDefinition {
   baseOrigin?: Vec2;
   /** Vertical offset for floating base HP bar in pixels. Defaults to -150. */
   baseHpOffsetY?: number;
-  /** Explicit portal spawn locations. If omitted, falls back to path starts. */
+  /**
+   * Explicit portal spawn locations, as exported by the map editor.
+   *
+   * @remarks This is the standard way to place portals: the editor writes the
+   * exact points, and {@link mapPortals} attaches each track to the nearest
+   * portal. Omitting it falls back to deriving portals from track spawn points,
+   * which only exists for fixtures and legacy maps.
+   */
   portals?: Vec2[];
   width?: number;
   height?: number;
@@ -240,6 +247,10 @@ export const KONBAUNG_MAP: MapDefinition = {
   width: 1280,
   height: 720,
   path: [],
+  portals: [
+    { x: 52, y: 112 },
+    { x: 52, y: 583 },
+  ],
   paths: {
     top: [
       { x: 52, y: 112 },
@@ -474,6 +485,7 @@ export const INLE_MAP: MapDefinition = {
   width: 1280,
   height: 720,
   path: [],
+  portals: [{ x: 57, y: 357 }],
   paths: {
     top: [
       { x: 57, y: 357 },
@@ -627,6 +639,10 @@ export const INNWA_MAP: MapDefinition = {
   width: 1280,
   height: 720,
   path: [],
+  portals: [
+    { x: 50, y: 180 },
+    { x: 50, y: 580 },
+  ],
   paths: {
     top: [
       { x: 50, y: 180 },
@@ -676,6 +692,10 @@ export const BAGO_MAP: MapDefinition = {
   width: 1280,
   height: 720,
   path: [],
+  portals: [
+    { x: 50, y: 200 },
+    { x: 50, y: 580 },
+  ],
   paths: {
     top: [
       { x: 50, y: 200 },
