@@ -10,7 +10,7 @@ export type PhaseEvent =
   | { type: "draft-started" }
   | { type: "building-started"; autoCompleted: string[] }
   | { type: "combat-started"; autoCompleted: string[] }
-  | { type: "round-expired" }
+  | { type: "siege-expired" }
   | { type: "gameover"; winner: PlayerRole };
 
 /**
@@ -20,10 +20,16 @@ export type PhaseEvent =
  * in GameRoom can react (e.g. auto-fill a laggard's deck when a team's time runs
  * out).
  *
- * Timers: a `mapRevealDurationSec`/`draftDurationSec`/`roundDurationSec` of `-1`
+ * Timers: a `mapRevealDurationSec`/`draftDurationSec`/`siegeDurationSec` of `-1`
  * (or any non-positive value) disables that countdown entirely — the phase sits
  * statically until something else advances it. This is the default draft
  * behaviour for now; a disabled reveal falls straight through to `drafting`.
+ *
+ * The combat countdown is the **siege** timer: the defender must hold out that
+ * long. Its expiry does not end the match by itself — GameRoom decides between
+ * an attacker win, sudden death and a defender win from the `siege-expired`
+ * event. Attacker income uses a separate clock (`MATCH_RULES.incomeDurationSec`)
+ * owned by GameRoom, so the two windows can differ.
  */
 export class Phases {
   phase: MatchPhase;
@@ -31,14 +37,14 @@ export class Phases {
   private mapRevealDurationSec: number;
   private draftDurationSec: number;
   private buildingDurationSec: number;
-  private roundDurationSec: number;
+  private siegeDurationSec: number;
 
   constructor(env: { state: RoomState }, rules: MatchRules = MATCH_RULES) {
     this.state = env.state;
     this.mapRevealDurationSec = rules.mapRevealDurationSec;
     this.draftDurationSec = rules.draftDurationSec;
     this.buildingDurationSec = rules.buildingDurationSec;
-    this.roundDurationSec = rules.roundDurationSec;
+    this.siegeDurationSec = rules.siegeDurationSec;
 
     const current = this.state.phase as MatchPhase;
     this.phase = this.isKnown(current) ? current : MATCH_PHASES.drafting;
@@ -82,8 +88,8 @@ export class Phases {
     return this.buildingDurationSec > 0;
   }
 
-  private isRoundArmed(): boolean {
-    return this.roundDurationSec > 0;
+  private isSiegeArmed(): boolean {
+    return this.siegeDurationSec > 0;
   }
 
   /**
@@ -174,7 +180,7 @@ export class Phases {
 
     this.phase = MATCH_PHASES.combat;
     this.state.phase = this.phase;
-    this.state.phaseEndsAt = this.isRoundArmed() ? this.roundDurationSec : 0;
+    this.state.phaseEndsAt = this.isSiegeArmed() ? this.siegeDurationSec : 0;
     return { type: "combat-started", autoCompleted };
   }
 
@@ -222,12 +228,13 @@ export class Phases {
     }
 
     if (this.phase === MATCH_PHASES.combat) {
-      if (!this.isRoundArmed() || this.state.phaseEndsAt <= 0) return null;
+      if (!this.isSiegeArmed() || this.state.phaseEndsAt <= 0) return null;
       this.state.phaseEndsAt = Math.max(0, this.state.phaseEndsAt - dt);
       if (this.state.phaseEndsAt > 0) return null;
-      // The round timer only closes the income window; GameRoom decides when the
-      // attacker is truly out (no units left) and declares the winner.
-      return { type: "round-expired" };
+      // The siege timer only ends the defender's hold-out window; GameRoom
+      // decides from the field state whether that is an attacker win, sudden
+      // death, or a defender win.
+      return { type: "siege-expired" };
     }
 
     return null;

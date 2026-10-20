@@ -6,9 +6,6 @@
  * client; the intent keys are client → server. Keeping the keys here prevents
  * typos drifting between the two apps.
  */
-import type { WaveSize, WaveSizeRules } from "./balance.js";
-import type { StagedBatch } from "./waves.js";
-
 export const MESSAGES = {
   /** Client → server: this client's HUD is listening for its role payload. */
   ready: "ready",
@@ -26,30 +23,22 @@ export const MESSAGES = {
   surrender: "surrender",
   /** Server → client (private): hidden economy snapshot for this player. */
   youEconomy: "you_economy",
-  /** Server → client (private): the attacker's staged army + wave rules. */
-  attackerArmy: "attacker_army",
-  /** Server → client (private): a wave intent was refused, with a reason. */
-  waveRejected: "wave_rejected",
+  /** Server → client (private): the attacker's deploy buffer + portal charges. */
+  attackerBuffer: "attacker_buffer",
+  /** Server → client (private): a deploy intent was refused, with a reason. */
+  deployRejected: "deploy_rejected",
   /** Client → server: defender places a tower in a slot. */
   placeTower: "place_tower",
   /** Client → server: defender upgrades a tower. */
   upgradeTower: "upgrade_tower",
   /** Client → server: defender sells a tower. */
   sellTower: "sell_tower",
-  /** Client → server: attacker stages one batch of units on a path. */
-  waveAddBatch: "wave_add_batch",
-  /** Client → server: attacker changes a staged batch's unit count. */
-  waveSetCount: "wave_set_count",
-  /** Client → server: attacker removes a staged batch. */
-  waveRemoveBatch: "wave_remove_batch",
-  /** Client → server: attacker reorders a staged batch within its path. */
-  waveReorder: "wave_reorder",
-  /** Client → server: attacker switches a path's wave between big and small. */
-  waveSetSize: "wave_set_size",
-  /** Client → server: attacker clears all staged batches on a path. */
-  waveClear: "wave_clear",
-  /** Client → server: attacker releases staged waves (all, or the listed paths). */
-  waveRelease: "wave_release",
+  /** Client → server: attacker queues one unit into the deploy buffer. */
+  bufferAdd: "buffer_add",
+  /** Client → server: attacker empties the deploy buffer (gold is refunded). */
+  bufferClear: "buffer_clear",
+  /** Client → server: attacker deploys the buffer through a portal. */
+  deploy: "deploy",
   /** Client → server: this side finished its deck draft. */
   draftReady: "draft_ready",
   /** Client → server: this side submitted picks for the current draft round. */
@@ -103,11 +92,17 @@ export interface OpponentReconnectedPayload {
  * Why a match ended.
  *
  * @remarks `core` = the defender's base was destroyed; `surrender` = a
- * concession; `time` = the round timer expired and the attacker had no units
- * left; `disconnect` = the opponent did not return inside the reconnection
- * window. Also mirrored into `RoomState.gameOverReason`.
+ * concession; `time` = the siege timer expired with no attacker units on the
+ * field; `suddenDeath` = the siege timer expired with units still on the field
+ * and the defender outlasted them; `disconnect` = the opponent did not return
+ * inside the reconnection window. Also mirrored into `RoomState.gameOverReason`.
  */
-export type GameOverReason = "surrender" | "core" | "time" | "disconnect";
+export type GameOverReason =
+  | "surrender"
+  | "core"
+  | "time"
+  | "suddenDeath"
+  | "disconnect";
 
 /** Payload of the `game_over` private message. */
 export interface GameOverPayload {
@@ -119,46 +114,64 @@ export interface GameOverPayload {
 export interface YouEconomyPayload {
   gold: number;
   deck: string[];
-  bigWavesRemaining: number;
   /** Current passive gold earned per second. */
   incomeRate?: number;
 }
 
-/** One path's staged army inside an `attacker_army` push. */
-export interface AttackerArmyPath {
-  pathId: string;
-  /** Display name from the map's `pathLabels`; UI falls back to `Path N`. */
-  label?: string;
-  size: WaveSize;
-  batches: StagedBatch[];
-  /** Total gold to send this wave (units + fee). */
-  goldCost: number;
-  troopCount: number;
+/**
+ * One portal's deploy readiness inside an `attacker_buffer` push.
+ *
+ * @remarks Charge countdown is fractional so the UI can fill a pip smoothly;
+ * `charges` itself stays whole.
+ */
+/** One track a deploy portal can send units down, for the path chooser. */
+export interface AttackerPortalPath {
+  /** Track id validated against the map's paths. */
+  id: string;
+  /** Display name from the map's `pathLabels`, falling back to `"Path N"`. */
+  label: string;
+}
+
+export interface AttackerPortalStatus {
+  /** Stable per-map portal id (see {@link mapPortals}). */
+  id: string;
+  charges: number;
+  maxCharges: number;
+  /** Seconds until the next charge restores; `0` while already full. */
+  rechargeIn: number;
+  /** Seconds this portal takes to restore one charge. */
+  chargeSec: number;
+  /** Tracks leaving this portal; more than one means a fork worth choosing. */
+  paths: AttackerPortalPath[];
 }
 
 /**
- * Payload of the `attacker_army` private message.
+ * Payload of the `attacker_buffer` private message.
  *
- * @remarks Carries everything the attacker's army-management UI needs: their
- * current gold, the per-size limits, per-unit costs and the staged composition
- * per path. Sent only to the attacker; the defender sees none of it.
+ * @remarks Carries everything the attacker's deploy UI needs: their current
+ * gold, the buffer contents (one type id per queued unit, in spawn order), the
+ * per-portal charge state, and the unit costs. Sent only to the attacker; the
+ * defender sees none of it.
  */
-export interface AttackerArmyPayload {
+export interface AttackerBufferPayload {
   gold: number;
   goldPerSecond: number;
-  /** `true` once the round timer expired and passive income stopped. */
+  /** `true` once the income window expired and passive income stopped. */
   incomeExpired: boolean;
-  bigWavesRemaining: number;
   /** The attacker's drafted unit ids (their legal choices). */
   availableTroops: string[];
-  limits: Record<WaveSize, WaveSizeRules>;
+  /** Queued units in deploy order; one type id per buffer slot. */
+  buffer: string[];
+  maxBufferUnits: number;
   /** Gold cost per unit id, mirroring `MOB_TYPES`. */
   mobCosts: Record<string, number>;
-  paths: AttackerArmyPath[];
+  portals: AttackerPortalStatus[];
+  /** `true` when the buffer could be deployed right now (combat, charges left). */
+  canDeploy: boolean;
 }
 
-/** Payload of the `wave_rejected` private message. */
-export interface WaveRejectedPayload {
+/** Payload of the `deploy_rejected` private message. */
+export interface DeployRejectedPayload {
   reason: string;
 }
 
@@ -175,41 +188,19 @@ export interface SellTowerIntent {
   towerId: string;
 }
 
-export interface WaveAddBatchIntent {
-  pathId: string;
+export interface BufferAddIntent {
   typeId: string;
-  count: number;
 }
 
-export interface WaveSetCountIntent {
-  pathId: string;
-  batchId: string;
-  count: number;
+export interface BufferClearIntent {
+  // No payload: clears the whole buffer.
 }
 
-export interface WaveRemoveBatchIntent {
-  pathId: string;
-  batchId: string;
-}
-
-export interface WaveReorderIntent {
-  pathId: string;
-  batchId: string;
-  toIndex: number;
-}
-
-export interface WaveSetSizeIntent {
-  pathId: string;
-  size: WaveSize;
-}
-
-export interface WaveClearIntent {
-  pathId: string;
-}
-
-export interface WaveReleaseIntent {
-  /** Paths to release; omit to release every non-empty staged path. */
-  pathIds?: string[];
+export interface DeployIntent {
+  /** Portal to stream the buffer out of. */
+  portalId: string;
+  /** Optional track override; defaults to the portal's first path. */
+  pathId?: string;
 }
 
 export interface DraftReadyIntent {

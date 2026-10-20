@@ -13,13 +13,13 @@ import {
   type OpponentReconnectedPayload,
   type GameOverPayload,
   type YouEconomyPayload,
-  type AttackerArmyPayload,
-  type WaveRejectedPayload,
+  type AttackerBufferPayload,
+  type DeployRejectedPayload,
 } from '@root/shared';
 import { useGameRoom } from '../network/roomContext';
 import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
-import { AttackerWavePanel } from './game/AttackerWavePanel';
+import { AttackerDeployBar } from './game/AttackerDeployBar';
 import { MapRevealOverlay } from './game/MapRevealOverlay';
 import { useSmoothCountdown } from './game/useSmoothCountdown';
 import { DraftOverlay } from './game/DraftOverlay';
@@ -123,11 +123,11 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [phaseEndsAt, setPhaseEndsAt] = useState<number>(() => room.state?.phaseEndsAt || 180);
   const [mapId, setMapId] = useState<string>(() => room.state?.mapId || 'konbaung');
   const [maxCastleHp] = useState<number>(MATCH_RULES.coreHp);
+  const [suddenDeath, setSuddenDeath] = useState<boolean>(() => !!room.state?.suddenDeath);
 
-  // Attacker wave-staging state (attacker-only private pushes)
-  const [army, setArmy] = useState<AttackerArmyPayload | null>(null);
-  const [waveError, setWaveError] = useState<string | null>(null);
-  const [armyPanelOpen, setArmyPanelOpen] = useState(false);
+  // Attacker deploy-buffer state (attacker-only private pushes)
+  const [buffer, setBuffer] = useState<AttackerBufferPayload | null>(null);
+  const [deployError, setDeployError] = useState<string | null>(null);
 
   // Connection health: drives the reconnect/disconnect overlays.
   const [connectionState, setConnectionState] = useState<
@@ -160,12 +160,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     return () => clearTimeout(timer);
   }, [gameOver, onLeaveRoom]);
 
-  // Auto-dismiss a wave refusal so the panel doesn't keep a stale message.
+  // Auto-dismiss a deploy refusal so the bar doesn't keep a stale message.
   useEffect(() => {
-    if (!waveError) return;
-    const timer = setTimeout(() => setWaveError(null), 2500);
+    if (!deployError) return;
+    const timer = setTimeout(() => setDeployError(null), 2500);
     return () => clearTimeout(timer);
-  }, [waveError]);
+  }, [deployError]);
 
   // Room wiring: listeners + the ready handshake. Runs once per room; the
   // cleanup (including room.leave()) runs only when this component unmounts.
@@ -193,17 +193,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       }
     });
 
-    const offArmy = room.onMessage(MESSAGES.attackerArmy, (data: AttackerArmyPayload) => {
-      setArmy(data);
+    const offBuffer = room.onMessage(MESSAGES.attackerBuffer, (data: AttackerBufferPayload) => {
+      setBuffer(data);
       setGold(data.gold);
-      setWaveError(null);
+      setDeployError(null);
     });
 
-    // Attacker-only: a refused wave intent, surfaced as a short-lived toast.
-    const offWaveRejected = room.onMessage(
-      MESSAGES.waveRejected,
-      (data: WaveRejectedPayload) => {
-        setWaveError(data.reason);
+    // Attacker-only: a refused deploy intent, surfaced as a short-lived toast.
+    const offDeployRejected = room.onMessage(
+      MESSAGES.deployRejected,
+      (data: DeployRejectedPayload) => {
+        setDeployError(data.reason);
       },
     );
 
@@ -294,6 +294,10 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       setCastleHp(hp);
     });
 
+    const unlistenSuddenDeath = Callbacks.get(room).listen("suddenDeath", (active: boolean) => {
+      setSuddenDeath(active);
+    });
+
     // The pre-draft reveal shows whichever map the server rolled for the match.
     const unlistenMapId = Callbacks.get(room).listen("mapId", (id: string) => {
       setMapId(id);
@@ -302,8 +306,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     return () => {
       offRoleAssigned();
       offEconomy();
-      offArmy();
-      offWaveRejected();
+      offBuffer();
+      offDeployRejected();
       offOpponentLeft();
       offOpponentReconnecting();
       offOpponentReconnected();
@@ -314,6 +318,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       unlistenPhase();
       unlistenPhaseEndsAt();
       unlistenCoreHp();
+      unlistenSuddenDeath();
       unlistenMapId();
       // Mark this as an intentional leave so `onLeave` doesn't flip the UI
       // into the "disconnected" screen on the way out.
@@ -358,6 +363,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       gameInstanceRef.current = null;
     };
   }, [room, matchStarted, playerInfo]);
+
+  /**
+   * Bridges the deploy bar's drag hit-testing into the live Phaser scene.
+   *
+   * @returns The running gameplay scene, or `null` before it exists.
+   */
+  const getGameScene = (): GameScene | null => {
+    const game = gameInstanceRef.current;
+    if (!game || !game.scene.isActive('GameScene')) return null;
+    return game.scene.getScene('GameScene') as GameScene | null;
+  };
 
   /**
    * Full-screen status layer shown while the socket is dropped or gone. It
@@ -457,25 +473,20 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           onStartBattle={() => {
             room.send(MESSAGES.startCombat, {});
           }}
-          onToggleArmy={
-            playerInfo.myRole === 'attacker' ? () => setArmyPanelOpen((open) => !open) : undefined
-          }
-          armyOpen={armyPanelOpen}
         />
       )}
 
-      {/* Attacker wave-staging panel (opened from the Army button next to gold) */}
-      {matchStarted && !gameOver && playerInfo.myRole === 'attacker' && army && armyPanelOpen && (
-        <AttackerWavePanel
-          army={army}
-          gold={gold}
-          error={waveError}
+      {/* Attacker deploy bar (queue units, then push them through a portal) */}
+      {matchStarted && !gameOver && playerInfo.myRole === 'attacker' && buffer &&
+        (phase === 'building' || phase === 'combat') && (
+        <AttackerDeployBar
+          buffer={buffer}
+          error={deployError}
           phase={phase}
-          phaseEndsAt={phaseEndsAt}
-          coreHp={castleHp}
-          maxCoreHp={MATCH_RULES.coreHp}
-          onClose={() => setArmyPanelOpen(false)}
+          suddenDeath={suddenDeath}
           send={(type, payload) => room.send(type, payload)}
+          findMapPortal={(x, y) => getGameScene()?.portalAtPage(x, y) ?? null}
+          onMapPortalHover={(portalId) => getGameScene()?.setPortalHover(portalId)}
         />
       )}
 

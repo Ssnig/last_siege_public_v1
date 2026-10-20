@@ -6,6 +6,7 @@ import {
   FORK_MAP,
   mapPathIds,
   mapPath,
+  mapPortals,
   type MapDefinition,
 } from "@root/shared";
 
@@ -82,5 +83,132 @@ describe("map path helpers", () => {
 
     const afterFork = (id: string) => pt(mapPath(FORK_MAP, id)![3]);
     assert.notStrictEqual(afterFork("left"), afterFork("right"), "diverges after the head");
+  });
+});
+
+/**
+ * Unit tests for deploy portals derived from track spawn points.
+ *
+ * @remarks Portals are never authored in map JSON: they are the distinct spawn
+ * points, so the ids the server validates against always match what the client
+ * draws.
+ */
+describe("map portals", () => {
+  it("derives one portal per distinct spawn point in authoring order", () => {
+    const portals = mapPortals(MERGE_MAP);
+    assert.deepStrictEqual(
+      portals.map((portal) => portal.id),
+      ["portal-0", "portal-1", "portal-2"],
+    );
+    assert.deepStrictEqual(
+      portals.map((portal) => portal.pathIds),
+      [["upper"], ["middle"], ["lower"]],
+    );
+    assert.deepStrictEqual(pt(portals[0]), pt(mapPath(MERGE_MAP, "upper")![0]));
+  });
+
+  it("collapses fork branches sharing a spawn into a single portal", () => {
+    const portals = mapPortals(FORK_MAP);
+    assert.strictEqual(portals.length, 1, "a fork has one shared portal");
+    assert.deepStrictEqual(portals[0].pathIds, ["left", "right"]);
+  });
+
+  it("gives a single-path map one 'main' portal", () => {
+    const portals = mapPortals(SAMPLE_MAP);
+    assert.strictEqual(portals.length, 1);
+    assert.deepStrictEqual(portals[0].pathIds, ["main"]);
+    assert.deepStrictEqual(pt(portals[0]), pt(SAMPLE_MAP.path[0]));
+  });
+
+  it("ignores tracks shorter than two points", () => {
+    const map: MapDefinition = {
+      id: "degenerate",
+      path: [],
+      paths: { good: [{ x: 0, y: 0 }, { x: 10, y: 0 }], bad: [{ x: 0, y: 0 }] },
+      slots: [],
+      checkpoints: [],
+      base: { x: 0, y: 0 },
+    };
+    const portals = mapPortals(map);
+    assert.strictEqual(portals.length, 1);
+    assert.deepStrictEqual(portals[0].pathIds, ["good"]);
+  });
+
+  it("applies per-portal charge overrides from portalOverrides", () => {
+    const map: MapDefinition = {
+      id: "overridden",
+      path: [],
+      paths: {
+        near: [{ x: 0, y: 0 }, { x: 10, y: 0 }],
+        far: [{ x: 5, y: 5 }, { x: 5, y: 20 }],
+      },
+      slots: [],
+      checkpoints: [],
+      base: { x: 0, y: 0 },
+      portalOverrides: { "portal-1": { maxCharges: 1, chargeSec: 45 } },
+    };
+    const portals = mapPortals(map);
+    assert.strictEqual(portals.length, 2);
+
+    // The near portal keeps the global defaults.
+    assert.strictEqual(portals[0].maxCharges, undefined);
+    assert.strictEqual(portals[0].chargeSec, undefined);
+
+    // The far portal is the slower, single-charge one the map author configured.
+    assert.strictEqual(portals[1].maxCharges, 1);
+    assert.strictEqual(portals[1].chargeSec, 45);
+  });
+
+  it("uses editor-exported portal positions and attaches each track to the nearest", () => {
+    const map: MapDefinition = {
+      id: "editor",
+      path: [],
+      paths: {
+        // Spawns sit a little off the authored portal positions, as the editor exports.
+        north: [{ x: 468, y: 59 }, { x: 468, y: 200 }],
+        east: [{ x: 1260, y: 180 }, { x: 900, y: 180 }],
+        south: [{ x: 929, y: 677 }, { x: 929, y: 400 }],
+      },
+      portals: [
+        { x: 468, y: 38 },
+        { x: 1084, y: 180 },
+        { x: 927, y: 708 },
+      ],
+      slots: [],
+      checkpoints: [],
+      base: { x: 0, y: 0 },
+    };
+    const portals = mapPortals(map);
+
+    // Positions come from the explicit list, not the path spawns.
+    assert.deepStrictEqual(
+      portals.map((portal) => [portal.x, portal.y]),
+      [[468, 38], [1084, 180], [927, 708]],
+    );
+
+    // Every track lands on the portal nearest its spawn, so all are deployable.
+    assert.strictEqual(portals.length, 3);
+    assert.deepStrictEqual(portals[0].pathIds, ["north"]);
+    assert.deepStrictEqual(portals[1].pathIds, ["east"]);
+    assert.deepStrictEqual(portals[2].pathIds, ["south"]);
+  });
+
+  it("drops an explicit portal no track can reach", () => {
+    const map: MapDefinition = {
+      id: "stray",
+      path: [],
+      paths: { main: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
+      portals: [
+        { x: 0, y: 0 },
+        { x: 9000, y: 9000 },
+      ],
+      slots: [],
+      checkpoints: [],
+      base: { x: 0, y: 0 },
+    };
+    const portals = mapPortals(map);
+    assert.strictEqual(portals.length, 1, "the unreachable portal is not offered");
+    // Ids stay tied to the editor's list order, so overrides keep lining up.
+    assert.strictEqual(portals[0].id, "portal-0");
   });
 });

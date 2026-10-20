@@ -185,7 +185,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span>👑</span> Victory Condition
                 </h4>
                 <p className="text-xs text-slate-300">
-                  Attacker wins if the Base Castle HP drops to 0. Defender wins if all attack waves are repelled while the castle stands.
+                  Attacker wins by breaching the Base Castle. If the siege clock runs out, any troops still on the field fight on in sudden death — the defender wins by repelling them all.
                 </p>
               </div>
             </div>

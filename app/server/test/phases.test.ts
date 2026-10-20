@@ -163,10 +163,10 @@ describe("Phases", () => {
     for (const p of state.players.values()) assert.strictEqual(p.draftReady, false);
   });
 
-  it("the combat timer expires income without ending the match", () => {
+  it("the siege timer expires without ending the match", () => {
     const { phases, state } = makeRoom(["a", "b"], {
       ...MATCH_RULES,
-      roundDurationSec: 3,
+      siegeDurationSec: 3,
     });
     phases.beginDraft();
     phases.onDraftReady("a");
@@ -178,7 +178,7 @@ describe("Phases", () => {
     assert.strictEqual(state.phaseEndsAt, 2);
 
     state.phaseEndsAt = 0.1;
-    assert.deepStrictEqual(phases.update(0.5), { type: "round-expired" });
+    assert.deepStrictEqual(phases.update(0.5), { type: "siege-expired" });
     assert.strictEqual(phases.phase, MATCH_PHASES.combat, "the timer does not end the match");
     assert.strictEqual(state.winner, "", "the timer declares no winner");
     assert.strictEqual(state.phaseEndsAt, 0);

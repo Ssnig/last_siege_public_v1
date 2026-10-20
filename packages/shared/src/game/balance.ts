@@ -26,7 +26,7 @@ export interface MobType {
   bounty: number;
   /** Core HP the defender loses when this mob reaches the base. */
   leakDamage: number;
-  /** Gold the attacker spends to field one of these in a wave. */
+  /** Gold the attacker spends to queue one of these in the deploy buffer. */
   cost: number;
 }
 
@@ -72,51 +72,64 @@ export interface EconomyConfig {
   /**
    * Passive base gold per second the attacker accrues during combat.
    *
-   * @remarks No gold accrues during building; the round timer
-   * (`roundDurationSec`) stops this income once it expires.
+   * @remarks No gold accrues during building; the income window
+   * (`incomeDurationSec`) stops this income once it expires.
    */
   attackerBaseIncome: number;
   /** Passive base gold per second the defender accrues during combat. */
   defenderBaseIncome: number;
   /**
-   * Fraction of released units' gold cost permanently converted to attacker passive income rate.
+   * Gold per second each deployed unit pays the attacker while it is still on
+   * the field, scaled by that unit's gold cost.
+   *
+   * @remarks Replaces the old permanent deploy-time income boost, which snowballed
+   * without bound. Rewarding a *live, deep* push means the attacker only earns it
+   * while actually threatening the core, so a defender who cleans up an attack
+   * also cuts off its income.
    */
-  attackerIncomeGainRate: number;
-  /** Total big waves the attacker has for the whole match. */
-  bigWaveCount: number;
+  attackerUnitIncomeRate: number;
+  /** Path progress (0..1) a unit must pass before it starts paying income. */
+  attackerUnitIncomeThreshold: number;
   /** Fraction of mob bounty refunded to defender when a mob leaks into the core. */
   leakPityRate: number;
 }
 
 /**
- * Which size of wave the attacker is staging. `big` waves allow more units per
- * batch/wave but cost a larger flat fee and consume the limited big-wave pool.
+ * Rules for building and deploying the attacker's buffer.
+ *
+ * @remarks Grouped here so all deploy tunables live with the rest of the
+ * balance numbers; the client reuses these exact values to preview costs and
+ * limits. Portals are derived from the map's path spawn points, so a map never
+ * needs portal data of its own.
  */
-export type WaveSize = "big" | "small";
-
-/** Per-size caps and flat fee for a staged wave. */
-export interface WaveSizeRules {
-  /** Maximum units in a single batch. */
-  batchLimit: number;
-  /** Maximum total units across every batch in one wave. */
-  waveLimit: number;
-  /** Maximum number of batches in one wave. */
-  maxBatches: number;
-  /** Flat gold fee added on top of the sum of the units' costs. */
-  fee: number;
+export interface DeployRules {
+  /** Maximum units the deploy buffer can hold at once. */
+  maxBufferUnits: number;
+  /** Charges a portal starts combat with and can regen back up to. */
+  portalMaxCharges: number;
+  /** Seconds to regen one portal charge. */
+  portalChargeSec: number;
+  /** Seconds between consecutive units streaming out of a portal on deploy. */
+  staggerSec: number;
 }
 
 /**
- * Rules for staging and releasing attacker waves.
+ * Resolves a portal's charge rules, honouring any per-portal override on the map.
  *
- * @remarks Grouped here so all wave tunables live with the rest of the balance
- * numbers; the client reuses these exact values to preview cost/limits.
+ * @param portal - Portal whose charges are being configured.
+ * @returns That portal's `maxCharges`/`chargeSec`, or the shared defaults.
+ *
+ * @remarks Lets a map tune a risky portal (e.g. one sitting right next to the
+ * core) down to a single slow charge without touching the global rules.
  */
-export interface WaveRules {
-  /** Seconds between consecutive batches when a wave (or several) is released. */
-  batchIntervalSec: number;
-  /** Caps and fees keyed by wave size. */
-  sizes: Record<WaveSize, WaveSizeRules>;
+export function portalChargeRules(portal: { maxCharges?: number; chargeSec?: number }): {
+  maxCharges: number;
+  chargeSec: number;
+} {
+  return {
+    maxCharges: portal.maxCharges ?? DEFAULT_DEPLOY_RULES.portalMaxCharges,
+    chargeSec: portal.chargeSec ?? DEFAULT_DEPLOY_RULES.portalChargeSec,
+  };
 }
 
 /** Draft rules: how many cards each side picks before the match. */
@@ -163,11 +176,19 @@ export interface MatchRules {
   /**
    * Seconds of attacker passive income in combat.
    *
-   * @remarks Reaching zero does **not** end the match: the attacker simply stops
-   * earning. The defender then wins once the attacker has no units left on the
-   * field and none queued to spawn.
+   * @remarks Reaching zero stops attacker income only; it does not end the
+   * match. The siege timer keeps running, so the attacker can still spend the
+   * gold they banked before the window closed.
    */
-  roundDurationSec: number;
+  incomeDurationSec: number;
+  /**
+   * Seconds the defender must hold out before the attacker's siege fails.
+   *
+   * @remarks Drives the combat countdown shown in the HUD. When it expires the
+   * attacker either wins on the spot (troops still on the field enter sudden
+   * death) or the defender wins outright.
+   */
+  siegeDurationSec: number;
 }
 
 /** Attacker unit archetypes, keyed by id — `../data/mobs.json`. */
@@ -179,11 +200,11 @@ export const TOWER_TYPES: Record<string, TowerType> = towersData;
 /** Economy tuning for both sides — `../data/rules.json`, section `economy`. */
 export const DEFAULT_ECONOMY: EconomyConfig = rulesData.economy;
 
-/** Wave staging caps and fees — `../data/rules.json`, section `waves`. */
-export const DEFAULT_WAVE_RULES: WaveRules = rulesData.waves;
-
 /** Draft deck size — `../data/rules.json`, section `deck`. */
 export const DEFAULT_DECK_RULES: DeckRules = rulesData.deck;
+
+/** Deploy buffer, portal charge and deploy stagger tuning — `../data/rules.json`, section `deploy`. */
+export const DEFAULT_DEPLOY_RULES: DeployRules = rulesData.deploy;
 
 /** Phase durations and core HP — `../data/rules.json`, section `match`. */
 export const MATCH_RULES: MatchRules = rulesData.match;
@@ -266,4 +287,53 @@ export function totalInvested(type: TowerType, level: number): number {
  */
 export function sellRefund(invested: number): number {
   return Math.floor(invested * SELL_REFUND_RATE);
+}
+
+/** Gold cost to queue one unit of `typeId` (0 for an unknown id). */
+export function mobCost(typeId: string): number {
+  return MOB_TYPES[typeId]?.cost ?? 0;
+}
+
+/**
+ * Seconds to wait before the *next* unit of `typeId` streams out on a deploy.
+ *
+ * @param typeId - Unit being released.
+ * @param base - Base stagger from {@link DEFAULT_DEPLOY_RULES}.
+ * @returns The stagger gap, clamped to `[0.8, 2.0]` of the base.
+ *
+ * @remarks Fast units leave a bigger gap than slow ones so a mixed push fans out
+ * instead of arriving as one clump. Without this, a tight cluster walks into
+ * every splash tower and single-target towers have nothing to shoot at.
+ */
+export function deployStaggerSec(typeId: string, base: number = DEFAULT_DEPLOY_RULES.staggerSec): number {
+  const speed = MOB_TYPES[typeId]?.speed ?? 60;
+  return base * Math.min(2, Math.max(0.8, speed / 60));
+}
+
+/**
+ * Validates adding one unit of `typeId` to the attacker's deploy buffer.
+ *
+ * @param typeId - Unit id the attacker wants to queue.
+ * @param buffer - The buffer's current contents, as one type id per slot.
+ * @param availableTroops - Unit ids the attacker is allowed to pick (their deck).
+ * @param gold - The attacker's current gold.
+ * @returns `null` when the request is valid, otherwise a human-readable reason.
+ *
+ * @remarks Pure and side-effect free so the server can gate the intent and the
+ * client can grey out the button with identical rules.
+ */
+export function validateBufferAdd(
+  typeId: string,
+  buffer: readonly string[],
+  availableTroops: readonly string[],
+  gold: number,
+  rules: DeployRules = DEFAULT_DEPLOY_RULES,
+): string | null {
+  if (!MOB_TYPES[typeId]) return "Unknown unit.";
+  if (!availableTroops.includes(typeId)) return `${typeId} is not in your deck.`;
+  if (buffer.length >= rules.maxBufferUnits) {
+    return `The deploy queue holds at most ${rules.maxBufferUnits} units.`;
+  }
+  if (gold < mobCost(typeId)) return "Not enough gold.";
+  return null;
 }
