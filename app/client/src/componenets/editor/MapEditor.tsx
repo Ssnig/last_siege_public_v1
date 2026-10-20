@@ -70,6 +70,23 @@ export const MapEditor: React.FC = () => {
   const [snapToGrid, setSnapToGrid] = useState<boolean>(false);
   const [zoom, setZoom] = useState<number>(1);
 
+  // UI Scaling (default 90% view)
+  const [uiScale, setUiScale] = useState<number>(() => {
+    const saved = localStorage.getItem("map_editor_ui_scale");
+    if (saved) {
+      const parsed = parseFloat(saved);
+      if (!isNaN(parsed) && parsed >= 0.7 && parsed <= 1.2) {
+        return parsed;
+      }
+    }
+    return 0.9;
+  });
+
+  const handleSetUiScale = (scale: number) => {
+    setUiScale(scale);
+    localStorage.setItem("map_editor_ui_scale", scale.toString());
+  };
+
   // Active Tool
   const [activeTool, setActiveTool] = useState<EditorTool>("brush_path");
 
@@ -380,7 +397,14 @@ export const MapEditor: React.FC = () => {
   });
 
   return (
-    <div className="w-screen h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden select-none font-sans">
+    <div
+      className="bg-slate-950 text-slate-100 flex flex-col overflow-hidden select-none font-sans"
+      style={{
+        zoom: uiScale,
+        width: `calc(100vw / ${uiScale})`,
+        height: `calc(100vh / ${uiScale})`,
+      }}
+    >
       {/* ═══ 1. Top Control Bar ═══ */}
       <header className="h-14 bg-gradient-to-r from-slate-900 via-[#161f36] to-slate-900 border-b border-amber-500/40 px-4 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center gap-4">
@@ -513,6 +537,25 @@ export const MapEditor: React.FC = () => {
                 }`}
               >
                 {z}x
+              </button>
+            ))}
+          </div>
+
+          {/* UI Scale controls */}
+          <div className="flex items-center gap-1 bg-slate-950/70 p-1 rounded-lg border border-slate-700 text-xs">
+            <span className="text-[11px] text-slate-400 px-1 font-semibold">Scale:</span>
+            {[0.8, 0.9, 1.0].map((s) => (
+              <button
+                key={s}
+                onClick={() => handleSetUiScale(s)}
+                className={`px-1.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
+                  uiScale === s
+                    ? "bg-amber-500 text-slate-950 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800"
+                }`}
+                title={`UI Scale ${Math.round(s * 100)}%`}
+              >
+                {Math.round(s * 100)}%
               </button>
             ))}
           </div>

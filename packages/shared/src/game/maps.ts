@@ -247,12 +247,12 @@ export const KONBAUNG_MAP: MapDefinition = {
   pathHalfWidth: 26,
   path: [],
   portals: [
-    { x: 26, y: 586 },
     { x: 20, y: 108 },
+    { x: 26, y: 586 },
   ],
   paths: {
     top: [
-      { x: 52, y: 112 },
+      { x: 20, y: 108 },
       { x: 256, y: 112 },
       { x: 317, y: 158 },
       { x: 338, y: 266 },
@@ -265,7 +265,7 @@ export const KONBAUNG_MAP: MapDefinition = {
       { x: 1005, y: 375 },
     ],
     bottom: [
-      { x: 52, y: 583 },
+      { x: 26, y: 586 },
       { x: 252, y: 587 },
       { x: 286, y: 517 },
       { x: 297, y: 451 },
@@ -482,16 +482,16 @@ export const INLE_MAP: MapDefinition = {
   id: "inle",
   name: "Inle (Floating Lake)",
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
-  lanes: 2,
+  lanes: 1,
   thumbnail: "/assets/maps/map_3_inle/preview.png",
   pathHalfWidth: 26,
   path: [],
   portals: [
-
+    { x: 65, y: 359 },
   ],
   paths: {
     top: [
-      { x: 57, y: 357 },
+      { x: 65, y: 359 },
       { x: 120, y: 356 },
       { x: 154, y: 326 },
       { x: 178, y: 261 },
@@ -520,7 +520,7 @@ export const INLE_MAP: MapDefinition = {
       { x: 961, y: 258 },
     ],
     bottom: [
-      { x: 57, y: 357 },
+      { x: 65, y: 359 },
       { x: 116, y: 364 },
       { x: 157, y: 356 },
       { x: 164, y: 379 },
@@ -582,7 +582,7 @@ export const MANDALAY_MAP: MapDefinition = {
   ],
   paths: {
     north_bridge: [
-      { x: 468, y: 59 },
+      { x: 468, y: 38 },
       { x: 470, y: 164 },
       { x: 707, y: 173 },
       { x: 708, y: 268 },
@@ -595,7 +595,7 @@ export const MANDALAY_MAP: MapDefinition = {
       { x: 342, y: 360 },
     ],
     east_bridge: [
-      { x: 1260, y: 180 },
+      { x: 1258, y: 179 },
       { x: 980, y: 180 },
       { x: 973, y: 360 },
       { x: 799, y: 356 },
@@ -605,7 +605,7 @@ export const MANDALAY_MAP: MapDefinition = {
       { x: 345, y: 359 },
     ],
     bottom: [
-      { x: 926, y: 712 },
+      { x: 927, y: 708 },
       { x: 927, y: 591 },
       { x: 399, y: 589 },
       { x: 397, y: 625 },
@@ -642,7 +642,7 @@ export const INNWA_MAP: MapDefinition = {
   id: "innwa",
   name: "Innwa (Golden Kingdom)",
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
-  lanes: 3,
+  lanes: 2,
   thumbnail: "/assets/maps/map_5_innwa/preview.png",
   pathHalfWidth: 26,
   path: [],
@@ -652,7 +652,7 @@ export const INNWA_MAP: MapDefinition = {
   ],
   paths: {
     top: [
-      { x: 191, y: 165 },
+      { x: 191, y: 160 },
       { x: 222, y: 274 },
       { x: 336, y: 314 },
       { x: 437, y: 246 },
@@ -666,7 +666,7 @@ export const INNWA_MAP: MapDefinition = {
       { x: 630, y: 474 },
     ],
     top_left: [
-      { x: 191, y: 163 },
+      { x: 191, y: 160 },
       { x: 217, y: 247 },
       { x: 246, y: 286 },
       { x: 309, y: 303 },
@@ -688,7 +688,7 @@ export const INNWA_MAP: MapDefinition = {
       { x: 519, y: 567 },
     ],
     top_right: [
-      { x: 1246, y: 34 },
+      { x: 1252, y: 26 },
       { x: 1202, y: 65 },
       { x: 1160, y: 99 },
       { x: 1132, y: 140 },
@@ -761,7 +761,7 @@ export const BAGO_MAP: MapDefinition = {
   ],
   paths: {
     bottom: [
-      { x: 14, y: 341 },
+      { x: 20, y: 343 },
       { x: 163, y: 344 },
       { x: 309, y: 342 },
       { x: 384, y: 352 },
@@ -771,7 +771,7 @@ export const BAGO_MAP: MapDefinition = {
       { x: 645, y: 574 },
     ],
     top: [
-      { x: 663, y: 23 },
+      { x: 664, y: 23 },
       { x: 660, y: 136 },
       { x: 638, y: 252 },
       { x: 628, y: 360 },
@@ -779,7 +779,7 @@ export const BAGO_MAP: MapDefinition = {
       { x: 656, y: 573 },
     ],
     side: [
-      { x: 1191, y: 314 },
+      { x: 1198, y: 312 },
       { x: 1070, y: 374 },
       { x: 1016, y: 388 },
       { x: 902, y: 410 },
