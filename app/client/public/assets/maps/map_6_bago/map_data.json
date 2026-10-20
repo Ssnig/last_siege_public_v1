@@ -1,9 +1,9 @@
-﻿{
-    "id":  "map_6_bago",
-    "name":  "Hanthawaddy Golden Gate",
-    "width":  1280,
-    "description":  "A wide river crossing into the monumental golden gateway of the southern kingdom.",
-    "pathHalfWidth":  20,
-    "lanes":  2,
-    "height":  720
+{
+  "id": "bago",
+  "name": "Bago (Hanthawaddy Fortress)",
+  "width": 1280,
+  "height": 720,
+  "description": "Custom tactical layout with precision waypoints and strategic tower pads.",
+  "pathHalfWidth": 26,
+  "lanes": 3
 }

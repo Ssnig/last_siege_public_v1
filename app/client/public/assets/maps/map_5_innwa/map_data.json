@@ -1,9 +1,9 @@
 {
-    "id":  "map_5_rakhine",
-    "name":  "Mrauk-U Stone Bastion",
-    "width":  1280,
-    "description":  "Misty hill paths carving through thick monolithic stone walls and jungle temples.",
-    "pathHalfWidth":  20,
-    "lanes":  2,
-    "height":  720
+  "id": "innwa",
+  "name": "Innwa (Golden Kingdom)",
+  "width": 1280,
+  "height": 720,
+  "description": "Custom tactical layout with precision waypoints and strategic tower pads.",
+  "pathHalfWidth": 26,
+  "lanes": 3
 }
