@@ -6,12 +6,43 @@ import type { Client, Room, RoomAvailable } from '@colyseus/sdk';
 import { useGameRoom } from '../network/roomContext';
 import { soundEffects } from '../audio/soundEffects';
 import { clearActiveMatch, loadActiveMatch, type ActiveMatch } from '../network/activeRoom';
+import { useAuth } from '../auth/AuthContext';
+import { AuthModal } from '../auth/AuthModal';
+import type { AuthUser } from '../auth/types';
 import { GoldCrest, GoldDivider, RoyalPanel } from './lobby/LobbyOrnaments';
 import { MapSelectorModal } from './match/MapSelectorModal';
 
 interface LobbyProps {
   client: Client;
 }
+
+/** Account avatar with an initials fallback for users without a picture. */
+const AccountAvatar: React.FC<{ user: AuthUser; className?: string }> = ({
+  user,
+  className = '',
+}) => {
+  const [failed, setFailed] = useState(false);
+
+  if (user.avatarUrl && !failed) {
+    return (
+      <img
+        src={user.avatarUrl}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        className={`rounded-full object-cover ${className}`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`rounded-full flex items-center justify-center bg-gradient-to-br from-amber-400 to-amber-700 text-slate-950 font-bold ${className}`}
+    >
+      {user.name.trim().charAt(0).toUpperCase() || '?'}
+    </div>
+  );
+};
 
 /** Reads a room's status, defaulting rooms created before the field existed to `"available"`. */
 function roomStatusOf(room: RoomAvailable): RoomStatus {
@@ -23,7 +54,8 @@ function roomStatusOf(room: RoomAvailable): RoomStatus {
  * Royal crimson & gold filigree UI matching the Konbaung Dynasty art style.
  *
  * @remarks
- * The nickname is persisted in `localStorage` under `player-name`, so the name
+ * Signed-in accounts supply the display name and avatar; guests fall back to
+ * the nickname persisted in `localStorage` under `player-name`, so the name
  * prompt is skipped on return visits (the initial state is seeded lazily from
  * storage — no extra effect). Once past the gate it joins a `lobby` LobbyRoom:
  * `"rooms"` is the initial snapshot and `+` / `-` are realtime add/remove diffs.
@@ -31,6 +63,7 @@ function roomStatusOf(room: RoomAvailable): RoomStatus {
  */
 export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   const { setRoom } = useGameRoom();
+  const { user, signOut, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState<string>(() => {
     try {
@@ -41,7 +74,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   });
   const [isNamed, setIsNamed] = useState<boolean>(() => {
     try {
-      return !!localStorage.getItem('player-name');
+      return !!localStorage.getItem('player-name')?.trim();
     } catch {
       return false;
     }
@@ -54,10 +87,15 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showNameModal, setShowNameModal] = useState<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
 
   /** A match this device still holds a seat in (seeded from storage so a hard refresh offers a reconnect). */
   const [resumable, setResumable] = useState<ActiveMatch | null>(() => loadActiveMatch());
   const [reconnecting, setReconnecting] = useState<boolean>(false);
+
+  /** Signed-in accounts always take precedence over the locally stored guest name. */
+  const effectiveName = user?.name?.trim() || name.trim() || 'Guest';
+  const canEnterLobby = !!user || isNamed;
 
   /** Trims, persists the nickname, and moves past the name gate. No-op if blank. */
   const confirmName = () => {
@@ -73,7 +111,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
 
 
   useEffect(() => {
-    if (!isNamed) return;
+    if (!canEnterLobby) return;
 
     let lobbyRoom: Room;
 
@@ -111,7 +149,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         lobbyRoom.leave();
       }
     };
-  }, [isNamed]);
+  }, [canEnterLobby]);
 
   /** Creates a `game_room` with the chosen role preference and enters the match. */
   const handleCreateRoom = async () => {
@@ -120,7 +158,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
     setErrorMessage(null);
     try {
       const room = await client.create("game_room", {
-        playerName: name,
+        playerName: effectiveName,
         roleChoice: selectedRoleChoice,
         mapId: selectedMapId,
       });
@@ -140,7 +178,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
     setErrorMessage(null);
     try {
       const room = await client.joinById(roomId, {
-        playerName: name,
+        playerName: effectiveName,
       });
       setRoom(room);
       navigate(`/game/${room.roomId}`);
@@ -153,18 +191,52 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
 
   const handleChangeName = () => {
     soundEffects.playModal();
-    setNameInput(name);
+    setNameInput(effectiveName);
     setShowNameModal(true);
   };
 
-  const handleSaveName = (e: React.FormEvent) => {
+  const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = nameInput.trim();
-    if (!trimmed) return;
+    if (!trimmed || trimmed === effectiveName) {
+      setShowNameModal(false);
+      return;
+    }
     soundEffects.playClick();
-    localStorage.setItem('player-name', trimmed);
-    setName(trimmed);
+
+    if (user) {
+      setErrorMessage(null);
+      try {
+        await updateProfile({ name: trimmed });
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : 'Unable to update your account name.',
+        );
+        return;
+      }
+    } else {
+      try {
+        localStorage.setItem('player-name', trimmed);
+      } catch {}
+      setName(trimmed);
+    }
+
     setShowNameModal(false);
+  };
+
+  const handleSignOut = () => {
+    soundEffects.playClick();
+    // Keep the player in the lobby as a guest, reusing their account name if
+    // no local guest name exists yet.
+    if (!name.trim() && user) {
+      const fallbackName = user.name.trim();
+      setName(fallbackName);
+      setIsNamed(true);
+      try {
+        localStorage.setItem('player-name', fallbackName);
+      } catch {}
+    }
+    signOut();
   };
 
   /**
@@ -205,7 +277,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   );
 
   // ──── Step 1: Royal Name Entry Gate ────
-  if (!isNamed) {
+  if (!canEnterLobby) {
     return (
       <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden select-none">
         {/* Background */}
@@ -262,6 +334,35 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
           >
             Enter The Arena
           </button>
+
+          <div className="flex items-center gap-3 my-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-600/50 to-amber-700/40" />
+            <span
+              className="text-[10px] uppercase tracking-[0.2em] text-amber-200/50"
+              style={{ fontFamily: "'Almendra SC', 'Almendra', serif" }}
+            >
+              or
+            </span>
+            <div className="flex-1 h-px bg-gradient-to-l from-transparent via-amber-600/50 to-amber-700/40" />
+          </div>
+
+          <button
+            onClick={() => {
+              soundEffects.playModal();
+              setShowAuthModal(true);
+            }}
+            onMouseEnter={() => soundEffects.playHover()}
+            className="w-full py-2.5 rounded-lg font-bold text-xs tracking-wider transition-all duration-200 cursor-pointer active:scale-[0.97] hover:brightness-110"
+            style={{
+              fontFamily: "'Almendra SC', 'Almendra', serif",
+              background: 'linear-gradient(180deg, #8c2e2c, #6b1e1e)',
+              border: '2px solid #c59b27',
+              color: '#fef3c7',
+              boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.2)',
+            }}
+          >
+            Sign In / Create Account
+          </button>
         </RoyalPanel>
       </div>
     );
@@ -291,30 +392,58 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
               boxShadow: '0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(254,240,138,0.15)',
             }}
           >
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               {/* Green status orb */}
               <div className="relative w-3.5 h-3.5 shrink-0">
                 <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
                 <div className="absolute inset-0 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2
                   className="text-lg sm:text-xl font-bold text-amber-100 tracking-wide leading-tight"
                   style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
                 >
                   Match Lobby
                 </h2>
-                <p
-                  className="text-[11px] sm:text-xs text-amber-200/60"
-                  style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
-                >
-                  Commander: <span className="text-amber-300 font-semibold">{name}</span>
-                </p>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {user ? (
+                    <AccountAvatar
+                      key={user.id}
+                      user={user}
+                      className="w-5 h-5 text-[9px] shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-amber-200/80"
+                      style={{ background: 'rgba(41,24,14,0.8)', border: '1px solid rgba(197,155,39,0.4)' }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21a8 8 0 0 1 16 0" />
+                      </svg>
+                    </div>
+                  )}
+                  <p
+                    className="text-[11px] sm:text-xs text-amber-200/60 truncate"
+                    style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
+                  >
+                    {user ? (
+                      <>
+                        Signed in as{' '}
+                        <span className="text-amber-300 font-semibold">{user.name}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-amber-300 font-semibold">Guest</span> · not signed in
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Header action buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => {
                   try {
@@ -349,6 +478,39 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
               >
                 Change Name
               </button>
+              {user ? (
+                <button
+                  onClick={handleSignOut}
+                  onMouseEnter={() => soundEffects.playHover()}
+                  className="px-3 sm:px-4 py-1 sm:py-1.5 rounded-md text-xs font-bold tracking-wider transition-all duration-200 cursor-pointer active:scale-95 hover:brightness-110"
+                  style={{
+                    fontFamily: "'Almendra SC', 'Almendra', serif",
+                    background: 'linear-gradient(180deg, #7f1d1d, #5c0f0f)',
+                    border: '2px solid rgba(248,113,113,0.6)',
+                    color: '#fecaca',
+                  }}
+                >
+                  Sign Out
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    soundEffects.playModal();
+                    setShowAuthModal(true);
+                  }}
+                  onMouseEnter={() => soundEffects.playHover()}
+                  className="px-3 sm:px-4 py-1 sm:py-1.5 rounded-md text-xs font-bold tracking-wider transition-all duration-200 cursor-pointer active:scale-95 hover:brightness-110"
+                  style={{
+                    fontFamily: "'Almendra SC', 'Almendra', serif",
+                    background: 'linear-gradient(180deg, #10b981, #059669)',
+                    border: '2px solid #d4af37',
+                    color: '#fef3c7',
+                    boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.2)',
+                  }}
+                >
+                  Sign In
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -660,7 +822,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                 className="text-lg font-bold text-amber-100 tracking-wide"
                 style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
               >
-                Change Commander Name
+                {user ? 'Change Display Name' : 'Change Commander Name'}
               </h3>
               <button
                 onClick={() => { soundEffects.playModal(); setShowNameModal(false); }}
@@ -675,7 +837,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
             <form onSubmit={handleSaveName} className="space-y-4">
               <input
                 type="text"
-                maxLength={20}
+                maxLength={40}
                 autoFocus
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
@@ -721,6 +883,11 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
             </form>
           </RoyalPanel>
         </div>
+      )}
+
+      {/* Account Sign In / Registration Modal */}
+      {showAuthModal && (
+        <AuthModal isOpen onClose={() => setShowAuthModal(false)} />
       )}
 
       {/* Battlefield Selector Modal */}

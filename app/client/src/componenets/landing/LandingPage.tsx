@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { soundEffects } from '../../audio/soundEffects';
+import { useAuth } from '../../auth/AuthContext';
 import { SettingsModal } from './SettingsModal';
 import { SocialModal } from './SocialModal';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [playerName, setPlayerName] = useState<string>(() => {
     try {
       return localStorage.getItem('player-name') || '';
@@ -31,6 +33,10 @@ export const LandingPage: React.FC = () => {
 
   const handleStartClick = () => {
     soundEffects.playClick();
+    if (user) {
+      navigate('/lobby');
+      return;
+    }
     let storedName = '';
     try {
       storedName = localStorage.getItem('player-name') || '';

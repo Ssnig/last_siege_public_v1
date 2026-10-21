@@ -75,6 +75,9 @@ dist/
 build/
 out/
 
+# Local MongoDB data directory
+mongo-data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

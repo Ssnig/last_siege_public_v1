@@ -8,6 +8,7 @@ import {
   LobbyRoom,
 } from "colyseus";
 
+import { authRouter } from "./auth/routes.js";
 /**
  * Import your Room files
  */
@@ -46,6 +47,9 @@ const server = defineServer({
    * Read more: https://expressjs.com/en/starter/basic-routing.html
    */
   express: (app) => {
+
+    app.disable("x-powered-by");
+    app.use("/api/auth", authRouter);
 
     app.get("/hi", (req, res) => {
       res.send("It's time to kick ass and chew bubblegum!");
