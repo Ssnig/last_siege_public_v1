@@ -24,7 +24,6 @@ interface AttackerDeployBarProps {
   findMapPortal?: (pageX: number, pageY: number) => string | null;
   /** Highlight (or clear) the on-map portal under a drag. */
   onMapPortalHover?: (portalId: string | null) => void;
-  isUIHidden?: boolean;
 }
 
 const NEON = 'rgba(0, 240, 255, 0.55)';
@@ -59,32 +58,6 @@ const UnitIcon: React.FC<{ typeId: string; className?: string }> = ({ typeId, cl
     );
   }
   return <span className={`rounded ${className ?? ''}`} style={thumbStyle(typeId)} aria-hidden />;
-};
-
-/** Small radial progress ring for a portal still charging its next use. */
-const ChargeRing: React.FC<{ progress: number }> = ({ progress }) => {
-  const radius = 8;
-  const circumference = 2 * Math.PI * radius;
-  const clamped = Math.min(1, Math.max(0, progress));
-
-
-  return (
-    <svg width={20} height={20} viewBox="0 0 20 20" aria-hidden>
-      <circle cx={10} cy={10} r={radius} fill="none" stroke="rgba(100,116,139,0.45)" strokeWidth={2.5} />
-      <circle
-        cx={10}
-        cy={10}
-        r={radius}
-        fill="none"
-        stroke="rgba(34,211,238,0.95)"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={circumference * (1 - clamped)}
-        transform="rotate(-90 10 10)"
-      />
-    </svg>
-  );
 };
 
 interface DragState {
@@ -122,7 +95,6 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
   send,
   findMapPortal,
   onMapPortalHover,
-  isUIHidden = false,
 }) => {
   const repeatRef = useRef<number | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
@@ -136,7 +108,6 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
   } | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [pendingDeploy, setPendingDeploy] = useState<PendingDeploy | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
   function stopHold() {
     if (holdTimeoutRef.current !== null) {
@@ -288,28 +259,12 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
 
   const pendingPaths = pendingDeploy ? (portalById(pendingDeploy.portalId)?.paths ?? []) : [];
 
-  if (isUIHidden) return null;
-
-
-
   return (
     <>
       <div
-        className={`pointer-events-auto fixed bottom-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] left-1/2 z-40 w-[min(96vw,760px)] -translate-x-1/2 flex flex-col items-center transition-transform duration-200 ${
-          isCollapsed ? 'translate-y-[calc(100%-18px)]' : 'translate-y-0'
-        }`}
+        className="pointer-events-auto fixed bottom-2 left-1/2 z-40 w-[min(96vw,760px)] -translate-x-1/2"
         {...suppressDefaults}
       >
-        {/* Collapse / Expand Tab Button */}
-        <button
-          onClick={() => setIsCollapsed((prev) => !prev)}
-          aria-label={isCollapsed ? 'Expand Deploy Controls' : 'Collapse Deploy Controls'}
-          className="px-2.5 py-0.5 rounded-t-md bg-[#101b3b]/95 border-t border-x border-cyan-400/60 text-[10px] text-cyan-300 font-bold uppercase tracking-wider shadow-md hover:bg-slate-900 transition flex items-center gap-1 cursor-pointer select-none"
-        >
-          <span>{isCollapsed ? '▲' : '▼'}</span>
-          <span className="text-[9px]">{isCollapsed ? 'Deploy Army' : 'Hide Bar'}</span>
-        </button>
-
         {error && (
           <div className="mb-1 rounded-lg border border-red-500/60 bg-red-950/90 px-3 py-1 text-center text-[11px] font-bold text-red-200 shadow-lg">
             {error}
@@ -338,10 +293,10 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                   onPointerLeave={stopHold}
                   onPointerCancel={stopHold}
                   disabled={disabled}
-                  className="flex w-[44px] sm:w-[52px] flex-shrink-0 flex-col items-center gap-0.5 rounded p-0.5 transition active:scale-95 disabled:opacity-40"
+                  className="flex w-[52px] flex-shrink-0 flex-col items-center gap-0.5 rounded p-0.5 transition active:scale-95 disabled:opacity-40"
                   title={`Queue ${MOB_TYPES[typeId]?.name ?? typeId} (${cost}g)`}
                 >
-                  <UnitIcon typeId={typeId} className="h-6 w-6 sm:h-7 sm:w-7" />
+                  <UnitIcon typeId={typeId} className="h-7 w-7" />
                   <span className="w-full truncate text-center text-[9px] font-bold leading-none text-white">
                     {MOB_TYPES[typeId]?.name ?? typeId}
                   </span>
@@ -456,7 +411,27 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                         }}
                       />
                     ))}
-                    {charging && <ChargeRing progress={chargeProgress} />}
+                  </span>
+                  {/* Recharge bar: always drawn (also at full charge) so the button
+                      never changes size while a portal is recharging. */}
+                  <span
+                    className="h-1 w-7 overflow-hidden rounded-full"
+                    style={{ background: 'rgba(100,116,139,0.35)' }}
+                    title={
+                      charging
+                        ? `Next charge in ${Math.ceil(portal.rechargeIn)}s`
+                        : 'Portal fully charged'
+                    }
+                  >
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${Math.round(chargeProgress * 100)}%`,
+                        background: charging
+                          ? 'rgba(34,211,238,0.95)'
+                          : 'rgba(34,211,238,0.55)',
+                      }}
+                    />
                   </span>
                 </button>
               );
@@ -494,7 +469,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
             <div
               className="pointer-events-auto fixed left-0 top-0 z-[70]"
               style={{
-                transform: `translate(${Math.max(60, Math.min((typeof window !== 'undefined' ? window.innerWidth : 800) - 60, pendingDeploy.x))}px, ${Math.max(50, pendingDeploy.y)}px) translate(-50%, -100%)`,
+                transform: `translate(${pendingDeploy.x}px, ${pendingDeploy.y}px) translate(-50%, -100%)`,
               }}
             >
               <div

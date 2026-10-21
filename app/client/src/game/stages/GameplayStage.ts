@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Callbacks, Room } from "@colyseus/sdk";
 import {
   MESSAGES,
+  EFFECT_TYPES,
   samplePath,
   samplePathWithLateral,
   mapPath,
@@ -68,6 +69,14 @@ const actorDepth = (y: number): number => DEPTH.ACTORS_LAYER + y * 0.001;
 export const MIN_CAMERA_ZOOM = 0.85;
 export const MAX_CAMERA_ZOOM = 1.6;
 
+/**
+ * Pointer travel, in px, before a press counts as a camera drag.
+ *
+ * @remarks Keeps a click on a tower (select) or a slot (build) from nudging
+ * the camera, while a real drag still pans right away.
+ */
+const CAMERA_DRAG_THRESHOLD = 6;
+
 export interface GameplayStageOptions {
   room: Room;
   map: MapDefinition;
@@ -89,6 +98,10 @@ type TowerRecord = {
 
 /** A mob and the sprites that render it: body plus its health bar. */
 type MobRecord = {
+  /** Server id of the mob, used to resolve a tower's current target. */
+  id: string;
+  /** Last computed world x of the mob body. */
+  x: number;
   sprite: Phaser.GameObjects.Sprite;
   hpBg: Phaser.GameObjects.Rectangle;
   hpFill: Phaser.GameObjects.Rectangle;
@@ -147,6 +160,8 @@ export class GameplayStage {
   private attackerBuffer?: AttackerBufferPayload;
   private towers: Map<number, TowerRecord> = new Map();
   private mobSprites: Map<Mob, MobRecord> = new Map();
+  /** Mob records by server id, so a tower can find the mob it is shooting. */
+  private mobsById: Map<string, MobRecord> = new Map();
   private projectileSprites: Map<Projectile, Phaser.GameObjects.Sprite> = new Map();
 
   private gold = 200;
@@ -191,7 +206,11 @@ export class GameplayStage {
   private lastPointerY = 0;
   private cameraVelocityX = 0;
   private cameraVelocityY = 0;
-  private isTouchingSlot = false;
+  /** Pointer position where the current drag started, for the move threshold. */
+  private dragOriginX = 0;
+  private dragOriginY = 0;
+  /** `true` once the drag moved far enough to count as a camera pan. */
+  private dragActive = false;
   private onCameraPointerDown?: (pointer: Phaser.Input.Pointer) => void;
   private onCameraPointerMove?: (pointer: Phaser.Input.Pointer) => void;
   private onCameraPointerUp?: () => void;
@@ -205,6 +224,7 @@ export class GameplayStage {
   private onSceneUpdate = (): void => {
     this.updateMobs();
     this.updateProjectiles();
+    this.updateTowerFacing();
 
     // Mobs move every frame, so the y-sort has to run with them: this is what
     // applies `actorDepth`, since Phaser ignores `depth` on Container children.
@@ -549,13 +569,9 @@ export class GameplayStage {
             event: Phaser.Types.Input.EventData,
           ) => {
             event?.stopPropagation();
-            this.isTouchingSlot = true;
             this.handleSlotClick(slot);
           },
         );
-        placeholder.on("pointerup", () => {
-          this.isTouchingSlot = false;
-        });
       }
 
       this.root?.add(placeholder);
@@ -909,6 +925,9 @@ export class GameplayStage {
 
   /**
    * Renders the floating status panel and the upgrade/sell action buttons.
+   *
+   * @remarks Attackers may inspect a tower's range and type; they never get
+   * upgrade/sell controls.
    */
   private renderTowerSelection(slot: TowerSlot, record: TowerRecord): void {
     const towerType = TOWER_TYPES[record.tower.typeId];
@@ -918,14 +937,15 @@ export class GameplayStage {
     const nextTier = towerType && !isMax ? towerType.tiers[record.tower.level] : null;
     const upgradePrice = towerType ? upgradeCost(towerType, record.tower.level) : null;
     const refund = towerType ? sellRefund(record.tower.invested) : 0;
+    const isAttackerInspect = this.role === "attacker";
 
-    // Draw range ring matching current tier range
+    // Draw range ellipse (horizontally flat) matching current tier range
     const range = currentTier?.range ?? 0;
     if (range > 0) {
       this.rangeCircle = this.scene.add
-        .circle(slot.x, slot.y, range, 0x38bdf8, 0.12)
-        .setStrokeStyle(2, 0x38bdf8, 0.6);
-      this.root?.add(this.rangeCircle);
+        .ellipse(slot.x, slot.y, range * 1.25, range * 0.78, 0x38bdf8, 0.12)
+        .setStrokeStyle(2, 0x38bdf8, 0.6) as unknown as Phaser.GameObjects.Arc;
+      this.root?.add(this.rangeCircle as Phaser.GameObjects.Arc);
     }
 
     // Geometry layout: clamp horizontally and anchor above tower
@@ -943,7 +963,7 @@ export class GameplayStage {
 
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x0a0f1d, 0.94);
-    bg.lineStyle(1.5, 0xca8a04, 0.95);
+    bg.lineStyle(1.5, isAttackerInspect ? 0x38bdf8 : 0xca8a04, 0.95);
     bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
     bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
 
@@ -971,15 +991,24 @@ export class GameplayStage {
     bg.lineStyle(1, 0x334155, 0.7);
     bg.lineBetween(-panelW / 2 + 8, 0, panelW / 2 - 8, 0);
 
+    const dmgMin = currentTier?.damage ?? 0;
+    const dmgMax = currentTier?.damageMax ?? currentTier?.damage ?? 0;
+    const dmgLabel = dmgMax > dmgMin ? `${dmgMin}-${dmgMax}` : `${dmgMin}`;
+    const damageTypeLabel =
+      towerType?.damageType === "mental" ? "Mental" : "Physical";
+
     let statsText: Phaser.GameObjects.Text;
     if (!isMax && nextTier && currentTier) {
+      const ndMin = nextTier.damage ?? 0;
+      const ndMax = nextTier.damageMax ?? nextTier.damage ?? 0;
+      const ndLabel = ndMax > ndMin ? `${ndMin}-${ndMax}` : `${ndMin}`;
       statsText = this.scene.add
         .text(
           0,
           12,
-          `DMG ${currentTier.damage}➔${nextTier.damage}   RNG ${currentTier.range}➔${nextTier.range}   SPD ${currentTier.fireRate}➔${nextTier.fireRate}/s`,
+          `DMG ${dmgLabel}➔${ndLabel} (${damageTypeLabel})   RNG ${currentTier.range}➔${nextTier.range}   SPD ${currentTier.fireRate}➔${nextTier.fireRate}/s`,
           {
-            fontSize: "10.5px",
+            fontSize: "10px",
             fontStyle: "bold",
             color: "#cbd5e1",
           },
@@ -990,9 +1019,9 @@ export class GameplayStage {
         .text(
           0,
           12,
-          `DMG ${currentTier.damage}   RNG ${currentTier.range}   SPD ${currentTier.fireRate}/s`,
+          `DMG ${dmgLabel} (${damageTypeLabel})   RNG ${currentTier.range}   SPD ${currentTier.fireRate}/s`,
           {
-            fontSize: "11px",
+            fontSize: "10px",
             fontStyle: "bold",
             color: "#94a3b8",
           },
@@ -1008,6 +1037,16 @@ export class GameplayStage {
     }
 
     this.towerInfoPanel.add([bg, nameText, tierBadgeText, statsText]);
+
+    if (isAttackerInspect) {
+      // Attackers can inspect towers but not upgrade or sell them.
+      return;
+    }
+
+    if (isAttackerInspect) {
+      // Attackers can inspect towers but not upgrade or sell them.
+      return;
+    }
 
     // --- Action Buttons (UPGRADE on left, SELL on right) ---
     const btnWidth = 116;
@@ -1026,7 +1065,6 @@ export class GameplayStage {
         fontSize: 13,
         labelColor: canAfford ? "#ffffff" : "#94a3b8",
         onClick: () => {
-          this.isTouchingSlot = true;
           this.requestUpgrade(record);
         },
       });
@@ -1043,9 +1081,7 @@ export class GameplayStage {
         label: "MAX TIER",
         fontSize: 12,
         labelColor: "#94a3b8",
-        onClick: () => {
-          this.isTouchingSlot = true;
-        },
+        onClick: () => {},
       });
       this.upgradeButton.setEnabled(false);
     }
@@ -1063,7 +1099,6 @@ export class GameplayStage {
       fontSize: 13,
       labelColor: "#ffffff",
       onClick: () => {
-        this.isTouchingSlot = true;
         this.requestSell(record);
       },
     });
@@ -1107,7 +1142,6 @@ export class GameplayStage {
       this.upgradeButton.setFontSize(13);
       this.upgradeButton.setEnabled(canAfford);
       this.upgradeButton.setOnClick(() => {
-        this.isTouchingSlot = true;
         this.requestUpgrade(record);
       });
     } else {
@@ -1139,7 +1173,6 @@ export class GameplayStage {
       fontSize: confirm ? 16 : 14,
       labelColor: confirm ? "#4ade80" : "#ffffff",
       onClick: () => {
-        this.isTouchingSlot = true;
         onClick();
       },
     });
@@ -1175,7 +1208,6 @@ export class GameplayStage {
     this.sellButton.setLabelColor("#ffffff");
     this.sellButton.setFontSize(13);
     this.sellButton.setOnClick(() => {
-      this.isTouchingSlot = true;
       this.requestSell(record);
     });
   }
@@ -1383,26 +1415,20 @@ export class GameplayStage {
 
     const levelBadge = this.createTowerLevelBadge(slot, tower.level);
 
-    if (this.role === "defender") {
-      sprite.setInteractive({ useHandCursor: true });
-      sprite.on(
-        "pointerdown",
-        (
-          _pointer: Phaser.Input.Pointer,
-          _localX: number,
-          _localY: number,
-          event: Phaser.Types.Input.EventData,
-        ) => {
-          event?.stopPropagation();
-          this.isTouchingSlot = true;
-          const record = this.towers.get(slot.slotIndex);
-          if (record) this.selectTower(slot, record);
-        },
-      );
-      sprite.on("pointerup", () => {
-        this.isTouchingSlot = false;
-      });
-    }
+    sprite.setInteractive({ useHandCursor: true });
+    sprite.on(
+      "pointerdown",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event?.stopPropagation();
+        const record = this.towers.get(slot.slotIndex);
+        if (record) this.selectTower(slot, record);
+      },
+    );
 
     this.towers.set(slot.slotIndex, { id, tower, sprite, levelBadge });
     // Towers sort against mobs every frame; see `onSceneUpdate`.
@@ -1456,7 +1482,7 @@ export class GameplayStage {
 
     const callbacks = Callbacks.get(this.room);
 
-    const onAdd = (value: unknown): void => {
+    const onAdd = (value: unknown, key: unknown): void => {
       const mob = value as Mob;
       const sprite = UnitAnimationManager.spawnMobSprite(this.scene, mob.typeId)
         .setDepth(DEPTH.ACTORS_LAYER);
@@ -1471,8 +1497,9 @@ export class GameplayStage {
         .setOrigin(0, 0.5)
         .setDepth(DEPTH.ACTORS_LAYER + 2);
 
-      const record: MobRecord = { sprite, hpBg, hpFill };
+      const record: MobRecord = { id: String(key), x: 0, sprite, hpBg, hpFill };
       this.mobSprites.set(mob, record);
+      this.mobsById.set(record.id, record);
       // Same y-sorted layer as towers, so the two occlude by world y.
       (this.actors ?? this.root)?.add([sprite, hpBg, hpFill]);
       this.updateMobSprite(mob, record);
@@ -1484,6 +1511,7 @@ export class GameplayStage {
       record.sprite.destroy();
       record.hpBg.destroy();
       record.hpFill.destroy();
+      this.mobsById.delete(record.id);
       this.mobSprites.delete(value as Mob);
     };
 
@@ -1498,7 +1526,45 @@ export class GameplayStage {
     this.mobSprites.forEach((record, mob) => this.updateMobSprite(mob, record));
   }
 
-  /** Places one mob (body + health bar) at the path position for its progress. */
+  /**
+   * Turns each tower to face the mob it is shooting.
+   *
+   * @remarks Only towers that visibly rotate with their barrel (cannon/bomb)
+   * are flipped; fixed emplacements like the archer keep their orientation.
+   */
+  private updateTowerFacing(): void {
+    if (this.destroyed || this.towers.size === 0) return;
+
+    for (const record of this.towers.values()) {
+      const design = getTowerDesign(record.tower.typeId);
+      if (design.id !== "cannon" && design.id !== "bomb") continue;
+
+      const targetId = record.tower.targetId;
+      if (!targetId) continue;
+
+      const target = this.mobsById.get(targetId);
+      if (!target) continue;
+
+      const dx = target.x - record.sprite.x;
+      if (Math.abs(dx) > 0.5) record.sprite.setFlipX(dx < 0);
+    }
+  }
+
+  /**
+   * Tint that shows a mob's status at a glance.
+   *
+   * @remarks A slowed mob reads cold blue, a mob whose resolve was cracked by
+   * mental damage reads violet, and an untouched mob keeps its natural colors.
+   */
+  private mobEffectTint(mob: Mob): number {
+    if (mob.effects.has(EFFECT_TYPES.slow)) return 0x93c5fd;
+    if (mob.effects.has(EFFECT_TYPES.debuff)) return 0xd8b4fe;
+    return 0xffffff;
+  }
+
+  /**
+   * Places one mob (body + health bar) at the path position for its progress.
+   */
   private updateMobSprite(mob: Mob, record: MobRecord): void {
     const path = this.pathFor(mob.pathId);
     if (!path || path.length < 2) return;
@@ -1508,6 +1574,10 @@ export class GameplayStage {
 
     record.sprite.setPosition(point.x, point.y);
     record.sprite.setDepth(actorDepth(point.y));
+    record.x = point.x;
+
+    // Status tint: a slowed mob reads cold blue, a cracked one violet.
+    record.sprite.setTint(this.mobEffectTint(mob));
 
     // Face the direction of travel (art is a side-view sprite, so flip, not rotate).
     const ahead = samplePath(path, Math.min(1, mob.progress + 0.02));
@@ -1658,6 +1728,11 @@ export class GameplayStage {
 
   /**
    * Initializes drag & pan camera controls with pinch-to-zoom, boundary clamping, and momentum friction.
+   *
+   * @remarks The pan is driven by the primary mouse button (or a finger): press
+   * and drag to move the camera, and the map follows the pointer. A short
+   * movement threshold separates a tap from a drag, so clicking a tower still
+   * selects it instead of nudging the camera.
    */
   private setupCameraControls(): void {
     const cam = this.scene.cameras.main;
@@ -1671,6 +1746,7 @@ export class GameplayStage {
       if (p1.isDown && p2.isDown) {
         this.isPinching = true;
         this.isDragging = false;
+        this.dragActive = false;
         this.initialPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
         this.initialZoom = cam.zoom;
         this.cameraVelocityX = 0;
@@ -1678,9 +1754,13 @@ export class GameplayStage {
         return;
       }
 
-      if (this.isTouchingSlot) return;
+      // Only the primary button pans the camera.
+      if (!pointer.primaryDown) return;
 
       this.isDragging = true;
+      this.dragActive = false;
+      this.dragOriginX = pointer.x;
+      this.dragOriginY = pointer.y;
       this.lastPointerX = pointer.x;
       this.lastPointerY = pointer.y;
       this.cameraVelocityX = 0;
@@ -1693,8 +1773,17 @@ export class GameplayStage {
 
       // Handle two-finger pinch-to-zoom
       if (p1.isDown && p2.isDown) {
-        this.isPinching = true;
-        this.isDragging = false;
+        if (!this.isPinching) {
+          // The pinch can start without a pointerdown event (a finger landing on
+          // a tower cancels it), so seed the gesture here instead.
+          this.isPinching = true;
+          this.isDragging = false;
+          this.dragActive = false;
+          this.initialPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+          this.initialZoom = cam.zoom;
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
+        }
         const currentDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
         if (this.initialPinchDistance > 10) {
           const factor = currentDist / this.initialPinchDistance;
@@ -1705,8 +1794,38 @@ export class GameplayStage {
         return;
       }
 
-      // Handle single-finger map dragging / panning
-      if (!this.isDragging || this.isPinching || !pointer.isDown || this.isTouchingSlot) return;
+      // A drag can start on a tower or a slot too: those objects cancel the
+      // scene's pointerdown event, so the press is picked up from the pointer's
+      // own state here.
+      if (!this.isDragging) {
+        if (!pointer.isDown || !pointer.primaryDown) return;
+        this.isDragging = true;
+        this.dragActive = false;
+        this.dragOriginX = pointer.x;
+        this.dragOriginY = pointer.y;
+        this.lastPointerX = pointer.x;
+        this.lastPointerY = pointer.y;
+        this.cameraVelocityX = 0;
+        this.cameraVelocityY = 0;
+      }
+
+      if (this.isPinching || !pointer.isDown) return;
+
+      // A tap must stay a tap: the camera only starts panning once the pointer
+      // has travelled past the threshold.
+      if (!this.dragActive) {
+        const travelX = pointer.x - this.dragOriginX;
+        const travelY = pointer.y - this.dragOriginY;
+        if (Math.hypot(travelX, travelY) < CAMERA_DRAG_THRESHOLD) {
+          this.lastPointerX = pointer.x;
+          this.lastPointerY = pointer.y;
+          return;
+        }
+        this.dragActive = true;
+        this.lastPointerX = pointer.x;
+        this.lastPointerY = pointer.y;
+        return;
+      }
 
       const dx = pointer.x - this.lastPointerX;
       const dy = pointer.y - this.lastPointerY;
@@ -1731,7 +1850,7 @@ export class GameplayStage {
       }
 
       this.isDragging = false;
-      this.isTouchingSlot = false;
+      this.dragActive = false;
     };
 
     this.onCameraWheel = (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
@@ -1750,6 +1869,13 @@ export class GameplayStage {
    * Per-frame update for camera glide physics (friction: 0.1 decay).
    */
   update(_time: number, _delta: number): void {
+    // The pointer can be released without a pointerup event reaching the scene
+    // (a tower cancels it), so the drag is also closed from the pointer state.
+    if (this.isDragging && !this.scene.input.pointer1.isDown) {
+      this.isDragging = false;
+      this.dragActive = false;
+    }
+
     if (!this.isDragging && !this.isPinching && (Math.abs(this.cameraVelocityX) > 0.05 || Math.abs(this.cameraVelocityY) > 0.05)) {
       const cam = this.scene.cameras.main;
       cam.scrollX += this.cameraVelocityX;
@@ -1775,6 +1901,7 @@ export class GameplayStage {
       record.hpFill.destroy();
     }
     this.mobSprites.clear();
+    this.mobsById.clear();
 
     for (const sprite of this.projectileSprites.values()) sprite.destroy();
     this.projectileSprites.clear();

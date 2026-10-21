@@ -156,7 +156,7 @@ export interface AttackerPortalStatus {
 export interface AttackerBufferPayload {
   gold: number;
   goldPerSecond: number;
-  /** `true` once the income window expired and passive income stopped. */
+  /** `true` once sudden death stopped the attacker's passive income. */
   incomeExpired: boolean;
   /** The attacker's drafted unit ids (their legal choices). */
   availableTroops: string[];

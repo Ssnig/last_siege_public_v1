@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { TOWER_TYPES } from '@root/shared';
+import { MATCH_RULES, TOWER_TYPES } from '@root/shared';
 import { useSmoothCountdown } from './useSmoothCountdown';
+import { DamageTypeBadge } from './DamageTypeBadge';
+import { damageTypeOfTower } from '../../game/damageTypes';
 
 interface GameHUDProps {
   gold: number;
@@ -13,7 +15,6 @@ interface GameHUDProps {
   phaseEndsAt?: number;
   role?: 'attacker' | 'defender';
   isUIHidden?: boolean;
-  onToggleUI?: () => void;
   castleHp?: number;
   maxCastleHp?: number;
   incomeRate?: number;
@@ -65,9 +66,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   phaseEndsAt = 30,
   role = 'defender',
   isUIHidden = false,
-  onToggleUI,
-  castleHp = 45,
-  maxCastleHp = 45,
+  castleHp = MATCH_RULES.coreHp,
+  maxCastleHp = MATCH_RULES.coreHp,
   incomeRate,
   suddenDeath = false,
 }) => {
@@ -76,7 +76,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   // Brief toast notification on UI toggle
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isTrayCollapsed, setIsTrayCollapsed] = useState<boolean>(false);
 
   // Show a quick toast tip when UI visibility flips (skip on initial mount)
   const isFirstRender = useRef(true);
@@ -103,18 +102,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   return (
     <>
-      {/* Persistent Show UI button when HUD is hidden */}
-      {isUIHidden && onToggleUI && (
-        <button
-          onClick={onToggleUI}
-          aria-label="Show Game UI"
-          className="fixed top-2 right-2 z-50 px-2.5 py-1 rounded-full bg-slate-950/90 border border-amber-500/70 text-amber-300 text-xs font-bold shadow-2xl hover:bg-slate-900 transition flex items-center gap-1.5 cursor-pointer backdrop-blur-sm"
-        >
-          <span>👁</span>
-          <span>Show UI</span>
-        </button>
-      )}
-
       {/* Toast notification indicator for Double-Tap UI toggle */}
       {toastMessage && (
         <div className="pointer-events-none fixed top-20 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full bg-slate-950/85 border border-amber-500/50 shadow-2xl text-[11px] md:text-xs font-bold text-amber-200 backdrop-blur-sm transition-opacity duration-300">
@@ -130,12 +117,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         }`}
       >
         {/* Top Header Row: Gold (Left), Centered Wave/Timer, Settings + Castle HP (Right) */}
-        <div className="w-full flex items-start justify-between px-[max(0.625rem,env(safe-area-inset-left,0.625rem))] pr-[max(0.625rem,env(safe-area-inset-right,0.625rem))] sm:px-4 md:px-6 pt-2 pointer-events-none">
+        <div className="w-full flex items-start justify-between px-2.5 sm:px-4 md:px-6 pt-2 pointer-events-none">
           
           {/* Top-Left: Gold display */}
           <div className="flex items-center gap-1.5 md:gap-2">
             <div
-              className="pointer-events-auto relative w-[96px] h-[30px] sm:w-[112px] sm:h-[34px] md:w-[156px] md:h-[44px] flex items-center justify-end pr-2 md:pr-3 shadow-lg drop-shadow transition-transform hover:scale-102"
+              className="pointer-events-auto relative w-[112px] h-[34px] md:w-[156px] md:h-[44px] flex items-center justify-end pr-2 md:pr-3 shadow-lg drop-shadow transition-transform hover:scale-102"
               style={{
                 backgroundImage: "url('/assets/ui/hud/hud_gold_badge_clean.png')",
                 backgroundSize: '100% 100%',
@@ -143,7 +130,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               }}
             >
               <div className="flex flex-col items-end justify-center leading-none">
-                <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-[11px] sm:text-xs md:text-[15px] tracking-wide font-['Almendra',serif]">
+                <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-[15px] tracking-wide font-['Almendra',serif]">
                   GOLD: {gold}g
                 </span>
                 {incomeRate !== undefined && (
@@ -157,7 +144,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* Top-Center: Exactly Centered Wave & Timer Banner with Pixel-Perfect Plaque Alignment */}
           <div
-            className="pointer-events-auto fixed top-1 sm:top-1.5 md:top-3 left-1/2 -translate-x-1/2 w-20 h-[50px] sm:w-24 sm:h-[60px] md:w-36 md:h-[88px] drop-shadow-[0_6px_14px_rgba(0,0,0,0.9)] transition-transform select-none"
+            className="pointer-events-auto fixed top-1.5 md:top-3 left-1/2 -translate-x-1/2 w-24 h-[60px] md:w-36 md:h-[88px] drop-shadow-[0_6px_14px_rgba(0,0,0,0.9)] transition-transform select-none"
             style={{
               backgroundImage: "url('/assets/ui/hud/hud_wave_banner.png')",
               backgroundSize: '100% 100%',
@@ -168,7 +155,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             {phase === 'combat' && (
               <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
                 <span
-                  className={`font-['Almendra',serif] font-black text-[9px] sm:text-[10px] md:text-xs tracking-[0.15em] sm:tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] ${
+                  className={`font-['Almendra',serif] font-black text-[10px] md:text-xs tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] ${
                     suddenDeath ? 'text-fuchsia-300' : 'text-red-300'
                   }`}
                 >
@@ -180,7 +167,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             {/* Live Numeric Countdown Clock — Exactly aligned in the lower golden plaque */}
             <div className="absolute top-[70%] h-[22%] inset-x-0 flex items-center justify-center pointer-events-none">
                <span
-                 className={`font-['Almendra',serif] font-bold text-[10px] sm:text-xs md:text-[15px] tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] ${
+                 className={`font-['Almendra',serif] font-bold text-xs md:text-[15px] tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] ${
                    suddenDeath ? 'text-fuchsia-200' : 'text-amber-100'
                  }`}
                >
@@ -191,21 +178,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* Top-Right: Settings Medallion + Dynamic Castle HP Indicator */}
           <div className="pointer-events-auto flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1.5">
-              {onToggleUI && (
-                <button
-                  onClick={onToggleUI}
-                  title="Hide HUD"
-                  aria-label="Hide HUD"
-                  className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full bg-slate-950/80 border border-amber-500/50 hover:border-amber-400 text-amber-300/80 hover:text-amber-200 active:scale-95 transition shadow drop-shadow cursor-pointer flex items-center justify-center text-xs"
-                >
-                  👁
-                </button>
-              )}
             <button
               onClick={onOpenMenu}
               aria-label="Open Game Settings"
-              className="w-6 h-6 sm:w-7 sm:h-7 md:w-9 md:h-9 rounded-full active:scale-95 hover:scale-105 transition shadow-lg drop-shadow cursor-pointer flex items-center justify-center p-0 border-0 bg-transparent"
+              className="w-7 h-7 md:w-9 md:h-9 rounded-full active:scale-95 hover:scale-105 transition shadow-lg drop-shadow cursor-pointer flex items-center justify-center p-0 border-0 bg-transparent"
             >
               <img
                 src="/assets/ui/hud/hud_settings_btn.png"
@@ -213,7 +189,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 className="w-full h-full object-contain"
               />
             </button>
-            </div>
 
             {/* Compact Base Castle HP Badge */}
              <div className="flex items-center gap-1.5 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-slate-950/85 border border-amber-600/50 shadow-md text-[11px] md:text-sm text-amber-100 font-bold">
@@ -231,20 +206,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
         {/* Bottom-Center: Defender Building Hotbar (Horizontal Scrollable, Responsive) */}
         {role === 'defender' && (
-          <div
-            className={`pointer-events-auto fixed bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center max-w-[96vw] transition-transform duration-200 ${
-              isTrayCollapsed ? 'translate-y-[calc(100%-18px)]' : 'translate-y-0'
-            }`}
-          >
-            {/* Collapse / Expand Tab Button */}
-            <button
-              onClick={() => setIsTrayCollapsed((prev) => !prev)}
-              aria-label={isTrayCollapsed ? 'Expand Tower Hotbar' : 'Collapse Tower Hotbar'}
-              className="px-2.5 py-0.5 rounded-t-md bg-red-950/95 border-t border-x border-amber-600/70 text-[10px] text-amber-300 font-bold uppercase tracking-wider shadow-md hover:bg-red-900 transition flex items-center gap-1 cursor-pointer select-none"
-            >
-              <span>{isTrayCollapsed ? '▲' : '▼'}</span>
-              <span className="text-[9px]">{isTrayCollapsed ? 'Towers' : 'Hide Tray'}</span>
-            </button>
+          <div className="pointer-events-auto fixed bottom-2 left-1/2 -translate-x-1/2 flex items-center justify-center max-w-[96vw]">
             <div
               className="relative flex items-center gap-1 sm:gap-1.5 md:gap-2 px-2 py-1 md:px-3 md:py-1.5 rounded-lg shadow-2xl drop-shadow-[0_8px_20px_rgba(0,0,0,0.9)] bg-gradient-to-r from-red-950/95 via-[#450a0a]/95 to-red-950/95 border border-amber-600/80 overflow-x-auto scrollbar-none touch-pan-x"
               style={{
@@ -260,23 +222,27 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 const shortName = TOWER_SHORT_NAMES[towerId] || tower?.name?.slice(0, 3) || towerId.slice(0, 3);
 
                 return (
-
-            <button
+                  <button
                     key={towerId}
                     onClick={() => onSelectTower(towerId)}
-                    className={`relative flex-shrink-0 w-[34px] h-[36px] sm:w-[38px] sm:h-[40px] md:w-[50px] md:h-[54px] flex flex-col items-center justify-between p-0.5 rounded transition-all cursor-pointer ${
+                    className={`relative flex-shrink-0 w-[38px] h-[40px] md:w-[50px] md:h-[54px] flex flex-col items-center justify-between p-0.5 rounded transition-all cursor-pointer ${
                       isSelected ? 'scale-105 z-10' : 'hover:scale-102 opacity-95'
                     } ${!canAfford ? 'opacity-55 saturate-50' : ''}`}
                     title={`${tower?.name ?? towerId} (${cost}g)`}
                   >
                     {/* Tower Icon */}
-                    <div className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 flex items-center justify-center overflow-hidden rounded">
+                    <div className="w-5 h-5 md:w-7 md:h-7 flex items-center justify-center overflow-hidden rounded">
                       <img
                         src={iconSrc}
                         alt={tower?.name ?? towerId}
                         className="w-full h-full object-cover"
                       />
                     </div>
+
+                    {/* Damage-type badge on the card border */}
+                    <span className="absolute -top-1 -left-1 z-10">
+                      <DamageTypeBadge type={damageTypeOfTower(towerId)} size={16} />
+                    </span>
 
                     {/* Golden Glowing Selection Halo */}
                     {isSelected && (
@@ -291,7 +257,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
                     {/* Stacked Title & Cost (e.g. "Twr / 50g") */}
                     <div className="w-full text-center bg-black/75 rounded-b py-[1px] px-0.5">
-                       <span className="text-[7px] sm:text-[8px] md:text-[10px] font-bold text-amber-200 leading-none truncate block">
+                       <span className="text-[8px] md:text-[10px] font-bold text-amber-200 leading-none truncate block">
                          {shortName} / {cost}g
                        </span>
                     </div>
@@ -316,7 +282,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <button
             onClick={onStartBattle}
             aria-label="Start Battle"
-             className="pointer-events-auto fixed bottom-2 sm:bottom-2.5 md:bottom-4 right-[max(0.5rem,env(safe-area-inset-right,0.5rem))] sm:right-2.5 md:right-4 z-40 px-2.5 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-[11px] sm:text-xs md:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.5)] border-2 border-amber-300 flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer font-['Almendra',serif]"
+             className="pointer-events-auto fixed bottom-2.5 right-2.5 md:bottom-4 md:right-4 z-40 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.5)] border-2 border-amber-300 flex items-center gap-1.5 transition-all cursor-pointer font-['Almendra',serif]"
           >
             <span className="text-xs md:text-sm">⚔️</span>
             <span>Start Battle</span>
