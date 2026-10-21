@@ -65,7 +65,7 @@ export const DEPTH = {
  */
 const actorDepth = (y: number): number => DEPTH.ACTORS_LAYER + y * 0.001;
 
-export const MIN_CAMERA_ZOOM = 1.0;
+export const MIN_CAMERA_ZOOM = 0.85;
 export const MAX_CAMERA_ZOOM = 1.6;
 
 export interface GameplayStageOptions {
@@ -930,8 +930,9 @@ export class GameplayStage {
 
     // Geometry layout: clamp horizontally and anchor above tower
     const clampedX = Phaser.Math.Clamp(slot.x, 140, 1280 - 140);
-    const buttonY = Math.max(88, slot.y - 88);
-    const panelY = buttonY - 54;
+    const isTopHalf = slot.y < 340;
+    const buttonY = isTopHalf ? slot.y + 76 : Math.max(88, slot.y - 76);
+    const panelY = isTopHalf ? buttonY + 52 : buttonY - 52;
     const panelW = 246;
     const panelH = 50;
 
@@ -1130,8 +1131,8 @@ export class GameplayStage {
 
     const button = new UIButton({
       scene: this.scene,
-      x: slot.x,
-      y: slot.y - 90,
+      x: Phaser.Math.Clamp(slot.x, 80, 1200),
+      y: slot.y < 280 ? slot.y + 75 : slot.y - 75,
       width: buttonWidth,
       height: buttonWidth / UI_ASPECT.button,
       label,

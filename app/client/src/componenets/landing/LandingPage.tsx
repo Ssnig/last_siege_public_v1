@@ -58,6 +58,14 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="relative w-screen h-screen bg-slate-950 flex items-center justify-center overflow-hidden select-none">
+      {/* Expansive Ambient Background for Ultrawide Viewports */}
+      <img
+        src="/assets/ui/bg.jpg"
+        alt=""
+        aria-hidden="true"
+        decoding="async"
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none blur-sm opacity-50 scale-105"
+      />
       {/* Aspect Ratio Master Container matching 2752x1536 resolution */}
       <div className="relative w-full max-w-[2752px] aspect-[2752/1536] max-h-screen overflow-hidden shadow-2xl bg-black">
         {/* Layer 1: Base Landscape */}

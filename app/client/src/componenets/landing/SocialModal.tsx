@@ -44,12 +44,12 @@ export const SocialModal: React.FC<SocialModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fadeIn">
-      <div className="relative w-full max-w-md bg-slate-900/95 border-2 border-cyan-500/60 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.3)] overflow-hidden text-white flex flex-col">
+      <div className="relative w-full max-w-md max-h-[92vh] bg-slate-900/95 border-2 border-cyan-500/60 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.3)] overflow-hidden text-white flex flex-col">
         {/* Cyan Top Bar */}
         <div className="h-1.5 w-full bg-gradient-to-r from-cyan-600 via-teal-300 to-cyan-600" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-800 bg-slate-950/60">
           <div className="flex items-center gap-3">
             <svg className="w-6 h-6 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -69,7 +69,7 @@ export const SocialModal: React.FC<SocialModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
           {/* Nickname Form */}
           <form onSubmit={handleSave} className="space-y-3">
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
@@ -121,7 +121,7 @@ export const SocialModal: React.FC<SocialModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-800/80 bg-slate-950/80 flex items-center justify-between text-xs text-slate-500">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 border-t border-slate-800/80 bg-slate-950/80 flex items-center justify-between text-xs text-slate-500">
           <span>Rank: Recruit</span>
           <span>Region: Global</span>
         </div>

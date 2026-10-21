@@ -201,11 +201,11 @@ ${formattedSlots}
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl max-h-[90vh] bg-slate-900 border-2 border-amber-500/80 rounded-2xl shadow-[0_0_40px_rgba(245,158,11,0.35)] flex flex-col overflow-hidden"
+        className="relative w-full max-w-3xl max-h-[92vh] bg-slate-900 border-2 border-amber-500/80 rounded-2xl shadow-[0_0_40px_rgba(245,158,11,0.35)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-amber-600/40 bg-slate-950/80 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 border-b border-amber-600/40 bg-slate-950/80 shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="text-xl">💾</span>
             <h2 className="text-base font-black text-amber-300 uppercase tracking-wider font-['Almendra',serif]">
@@ -221,7 +221,7 @@ ${formattedSlots}
         </div>
 
         {/* Tab Switcher */}
-        <div className="px-6 pt-3 pb-2 bg-slate-950/40 flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div className="px-4 sm:px-6 pt-2.5 pb-2 bg-slate-950/40 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab("ts")}
@@ -288,7 +288,7 @@ ${formattedSlots}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-2.5 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+        <div className="px-4 sm:px-6 py-2 sm:py-2.5 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
           <div className="flex items-center gap-3">
             {saveStatus ? (
               <span
