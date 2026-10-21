@@ -611,6 +611,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       return;
     }
 
+    if (payload.round !== this.draftRound) {
+      console.log(`Room ${this.roomId}: Client ${client.sessionId} sent pick for round ${payload.round}, but room is in round ${this.draftRound}. Ignoring stale submission.`);
+      return;
+    }
+
     const catalog = role === "attacker" ? MOB_TYPES : TOWER_TYPES;
     const currentDeck = this.acceptedDecks.get(client.sessionId) ?? [];
 
