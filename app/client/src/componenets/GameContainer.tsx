@@ -128,6 +128,19 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   // Attacker deploy-buffer state (attacker-only private pushes)
   const [buffer, setBuffer] = useState<AttackerBufferPayload | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
+  const [isUIHidden, setIsUIHidden] = useState<boolean>(false);
+  const lastTapRef = useRef<number>(0);
+
+  const handleContainerTap = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, select, [role="button"]')) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      setIsUIHidden((prev) => !prev);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
 
   // Connection health: drives the reconnect/disconnect overlays.
   const [connectionState, setConnectionState] = useState<
@@ -342,7 +355,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       backgroundColor: '#020617',
       parent: gameRef.current,
       scale: {
-        mode: Phaser.Scale.ENVELOP,
+        mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 1280,
         height: 720,
@@ -424,7 +437,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
 
   return (
-    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#020617] flex items-center justify-center">
+    <div onPointerDown={handleContainerTap} className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#020617] flex items-center justify-center">
+      {/* Ambient background for wide viewports */}
+      <div
+        className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-20 blur-md scale-105"
+        style={{ backgroundImage: "url('/assets/ui/bg.jpg')" }}
+      />
       {/* Phaser Canvas Container (fullscreen ENVELOP) */}
       <div ref={gameRef} id="phaser-game" className="w-full h-full flex items-center justify-center overflow-hidden" />
 
@@ -470,6 +488,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           phase={phase}
           phaseEndsAt={phaseEndsAt}
           role={playerInfo.myRole as 'attacker' | 'defender'}
+          isUIHidden={isUIHidden}
+          onToggleUI={() => setIsUIHidden((prev) => !prev)}
+
           onStartBattle={() => {
             room.send(MESSAGES.startCombat, {});
           }}
@@ -484,6 +505,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           error={deployError}
           phase={phase}
           suddenDeath={suddenDeath}
+          isUIHidden={isUIHidden}
+
           send={(type, payload) => room.send(type, payload)}
           findMapPortal={(x, y) => getGameScene()?.portalAtPage(x, y) ?? null}
           onMapPortalHover={(portalId) => getGameScene()?.setPortalHover(portalId)}

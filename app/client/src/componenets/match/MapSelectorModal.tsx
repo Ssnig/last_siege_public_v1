@@ -22,7 +22,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 select-none"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 select-none"
       onClick={onClose}
     >
       <div
@@ -30,7 +30,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-amber-600/40 bg-slate-950/70 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 border-b border-amber-600/40 bg-slate-950/70 shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🗺️</span>
             <div>
@@ -52,7 +52,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-4 md:p-6 overflow-y-auto flex-1 flex flex-col gap-3.5">
+        <div className="p-3 sm:p-4 md:p-6 overflow-y-auto flex-1 flex flex-col gap-2.5 sm:gap-3.5">
           {/* Quick Pick: Random Option Banner */}
           <div
             onClick={() => onSelectMap(RANDOM_MAP_ID)}
@@ -120,7 +120,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
                   }`}
                 >
                   {/* Thumbnail Preview */}
-                  <div className="relative h-28 sm:h-32 w-full overflow-hidden bg-slate-900">
+                  <div className="relative h-24 sm:h-32 w-full overflow-hidden bg-slate-900">
                     <img
                       src={thumbSrc}
                       alt={map.name || map.id}
@@ -178,7 +178,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-amber-600/40 bg-slate-950/80 flex items-center justify-end gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 border-t border-amber-600/40 bg-slate-950/80 flex items-center justify-end gap-3 shrink-0">
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs uppercase tracking-wider transition cursor-pointer shadow-lg"

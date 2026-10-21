@@ -55,12 +55,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-slate-900/95 border-2 border-amber-600/70 rounded-2xl shadow-[0_0_50px_rgba(217,119,6,0.3)] overflow-hidden text-white flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-lg bg-slate-900/95 border-2 border-amber-600/70 rounded-2xl shadow-[0_0_50px_rgba(217,119,6,0.3)] overflow-hidden text-white flex flex-col max-h-[92vh]">
         {/* Ornate Gold Top Bar */}
         <div className="h-1.5 w-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600" />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 border-b border-slate-800 bg-slate-950/60">
           <div className="flex items-center gap-3">
             <svg className="w-6 h-6 text-amber-400 animate-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
@@ -78,7 +78,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 bg-slate-950/40 px-6">
+        <div className="flex border-b border-slate-800 bg-slate-950/40 px-4 sm:px-6">
           <button
             onClick={() => { soundEffects.playHover(); setActiveTab('audio'); }}
             className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
@@ -102,7 +102,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1">
           {activeTab === 'audio' ? (
             <>
               {/* Volume Slider */}

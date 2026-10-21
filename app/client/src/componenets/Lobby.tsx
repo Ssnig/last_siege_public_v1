@@ -216,22 +216,22 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         />
         <div className="absolute inset-0 backdrop-blur-[4px] bg-black/30 pointer-events-none" />
 
-        <RoyalPanel className="relative z-10 w-full max-w-md p-8">
-          <div className="text-center mb-6">
+        <RoyalPanel className="relative z-10 w-full max-w-md p-4 sm:p-8 max-h-[94vh] overflow-y-auto">
+          <div className="text-center mb-3 sm:mb-6">
             <h1
-              className="text-3xl font-bold tracking-wide text-amber-200"
+              className="text-2xl sm:text-3xl font-bold tracking-wide text-amber-200"
               style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
             >
               Welcome, Warrior
             </h1>
             <p
-              className="text-sm text-amber-100/60 mt-1"
+              className="text-xs sm:text-sm text-amber-100/60 mt-0.5 sm:mt-1"
               style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
             >
               Enter your battle name to proceed
             </p>
           </div>
-          <GoldDivider className="mb-6" />
+          <GoldDivider className="mb-3 sm:mb-6" />
           <input
             type="text"
             placeholder="Your Commander Name..."
@@ -239,7 +239,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && confirmName()}
-            className="w-full px-4 py-3 rounded-lg text-amber-100 placeholder-amber-900/50 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition"
+            className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-lg text-amber-100 placeholder-amber-900/50 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition text-sm sm:text-[15px]"
             style={{
               fontFamily: "'Almendra', 'Georgia', serif",
               fontSize: '15px',
@@ -251,7 +251,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
             disabled={!name.trim()}
             onClick={confirmName}
             onMouseEnter={() => soundEffects.playHover()}
-            className="w-full mt-5 py-3 rounded-lg font-bold text-sm tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
+            className="w-full mt-3 sm:mt-5 py-2.5 sm:py-3 rounded-lg font-bold text-xs sm:text-sm tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
             style={{
               fontFamily: "'Almendra SC', 'Almendra', serif",
               background: 'linear-gradient(180deg, #10b981, #059669, #047857)',
@@ -279,7 +279,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
       <div className="absolute inset-0 backdrop-blur-[3px] bg-black/20 pointer-events-none" />
 
       {/* Main Content Frame */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-3 sm:px-6 flex flex-col gap-2.5 sm:gap-4 max-h-[96vh] sm:max-h-[90vh]">
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-3 sm:px-6 flex flex-col gap-2 sm:gap-4 max-h-[96vh] sm:max-h-[90vh] overflow-y-auto">
         {/* ═══ Top Header Bar ═══ */}
         <div className="relative">
           <GoldCrest />
@@ -438,17 +438,17 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         )}
 
         {/* ═══ Two Panel Grid ═══ */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1.8fr] gap-3 sm:gap-4 flex-1 min-h-0">
+        <div className="grid grid-cols-1 sm:grid-cols-[1.1fr_1.9fr] gap-2.5 sm:gap-4 flex-1 min-h-0">
 
           {/* ─── Left Panel: Create Matchroom ─── */}
-          <RoyalPanel className="flex flex-col p-3.5 sm:p-5">
+          <RoyalPanel className="flex flex-col p-3 sm:p-5">
             <h3
-              className="text-base sm:text-lg font-bold text-amber-100 tracking-wide mb-1"
+              className="text-sm sm:text-lg font-bold text-amber-100 tracking-wide mb-0.5 sm:mb-1"
               style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
             >
               Create Matchroom
             </h3>
-            <GoldDivider className="mb-2 sm:mb-5" />
+            <GoldDivider className="mb-1.5 sm:mb-4" />
 
             <div className="flex flex-col gap-1.5 sm:gap-2 flex-1 justify-center">
               <label
@@ -466,7 +466,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                     soundEffects.playHover();
                     setSelectedRoleChoice(e.target.value as RoleChoice);
                   }}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition pr-10"
+                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-md text-xs sm:text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition pr-10"
                   style={{
                     fontFamily: "'Almendra', 'Georgia', serif",
                     fontWeight: 'bold',
@@ -489,7 +489,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
             </div>
 
             {/* Battlefield Selector Trigger */}
-            <div className="mt-2.5 sm:mt-3">
+            <div className="mt-1.5 sm:mt-3">
               <label
                 className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-amber-200/80 mb-1 block"
                 style={{ fontFamily: "'Almendra', 'Cinzel', serif" }}
@@ -502,7 +502,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                   soundEffects.playClick();
                   setShowMapModal(true);
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-amber-600/60 bg-slate-900/80 hover:bg-slate-800 text-left transition cursor-pointer"
+                className="w-full flex items-center justify-between px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-amber-600/60 bg-slate-900/80 hover:bg-slate-800 text-left transition cursor-pointer"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-base">🗺️</span>
@@ -527,7 +527,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
               disabled={loading}
               onClick={handleCreateRoom}
               onMouseEnter={() => soundEffects.playHover()}
-              className="w-full mt-3 sm:mt-5 py-2 sm:py-3 rounded-lg font-bold text-xs sm:text-sm tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] hover:brightness-110"
+              className="w-full mt-2 sm:mt-5 py-2 sm:py-3 rounded-lg font-bold text-xs sm:text-sm tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] hover:brightness-110"
               style={{
                 fontFamily: "'Almendra SC', 'Almendra', serif",
                 background: 'linear-gradient(180deg, #10b981 0%, #059669 50%, #047857 100%)',
@@ -541,14 +541,14 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
           </RoyalPanel>
 
           {/* ─── Right Panel: Active Lobbies ─── */}
-          <RoyalPanel className="flex flex-col p-3.5 sm:p-5 min-h-[180px] md:min-h-0">
+          <RoyalPanel className="flex flex-col p-3 sm:p-5 min-h-[160px] sm:min-h-0">
             <h3
-              className="text-base sm:text-lg font-bold text-amber-100 tracking-wide mb-1"
+              className="text-sm sm:text-lg font-bold text-amber-100 tracking-wide mb-0.5 sm:mb-1"
               style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
             >
               Active Lobbies ({rooms.length})
             </h3>
-            <GoldDivider className="mb-4" />
+            <GoldDivider className="mb-2 sm:mb-4" />
 
             <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2.5">
               {rooms.length === 0 ? (
@@ -574,7 +574,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                   return (
                     <div
                       key={room.roomId}
-                      className={`flex items-center justify-between rounded-lg px-4 py-3 transition-all ${
+                      className={`flex items-center justify-between rounded-lg px-3 sm:px-4 py-2 sm:py-3 transition-all ${
                         isPlaying ? 'opacity-55' : 'hover:brightness-110'
                       }`}
                       style={{
@@ -627,7 +627,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                         disabled={loading || isPlaying}
                         onClick={() => handleJoinRoom(room.roomId)}
                         onMouseEnter={() => soundEffects.playHover()}
-                        className="px-5 py-2 rounded-md font-bold text-xs tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:brightness-110"
+                        className="px-3 sm:px-5 py-1.5 sm:py-2 rounded-md font-bold text-xs tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:brightness-110"
                         style={{
                           fontFamily: "'Almendra SC', 'Almendra', serif",
                           background: isPlaying
