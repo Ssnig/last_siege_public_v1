@@ -578,6 +578,8 @@ describe("testing your Colyseus app", () => {
     );
 
     const sold = waitForEconomy(defender, (gold) => gold === afterSell);
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
     defender.send(MESSAGES.sellTower, { towerId });
     await sold;
 
@@ -626,6 +628,8 @@ describe("testing your Colyseus app", () => {
     // Verify sell refund is based on the updated invested amount
     const afterSell = afterUpgrade + sellRefund(costBuild + costUpgrade);
     const sold = waitForEconomy(defender, (gold) => gold === afterSell);
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
     defender.send(MESSAGES.sellTower, { towerId });
     await sold;
   });
@@ -809,8 +813,8 @@ describe("testing your Colyseus app", () => {
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
 
-    // A deck of expensive units: an ogre costs 60g against the attacker's 150g,
-    // so only two fit before the purse runs dry.
+    // A deck of expensive units: an ogre costs 60g against the attacker's
+    // 200g, so only three fit before the purse runs dry.
     attacker.send(MESSAGES.draftReady, { deck: ["ogre"] });
     defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
     await waitForPhase(room, "building");
@@ -818,9 +822,10 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "combat");
 
     const rejected = attacker.waitForMessage(MESSAGES.deployRejected);
-    attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
+    const affordable = Math.floor(DEFAULT_ECONOMY.attackerStartingGold / MOB_TYPES.ogre.cost);
+    for (let i = 0; i <= affordable; i++) {
+      attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
+    }
     const msg = await rejected;
     assert.match(msg.reason, /gold/i);
   });
@@ -1358,7 +1363,7 @@ describe("testing your Colyseus app", () => {
 
   it("a mental hit ignores armor and cracks the mob it lands on", async function () {
     // The bell tower is a mental tower: the palace guard's armor (8) does not
-    // blunt its shot (15), and the hit cracks a mob with no mental strength.
+    // blunt its 12-18 shot, and the hit cracks a mob with no mental strength.
     this.timeout(40000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
@@ -1393,10 +1398,10 @@ describe("testing your Colyseus app", () => {
 
     const mob = [...room.state.mobs.values()].find((m) => m.hp < m.maxHp);
     assert.ok(mob, "the mob took a hit");
-    assert.strictEqual(
-      (mob.maxHp - mob.hp) % 15,
-      0,
-      `mental damage ignores armor, so the loss is a multiple of 15 (was ${mob.maxHp - mob.hp})`,
+    const loss = mob.maxHp - mob.hp;
+    assert.ok(
+      loss >= 12 && loss <= 18,
+      `a mental hit ignores armor, so the loss stays in the bell's 12-18 band (was ${loss})`,
     );
 
     const debuff = mob.effects.get("debuff");
