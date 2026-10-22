@@ -96,6 +96,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
   send,
   findMapPortal,
   onMapPortalHover,
+  isUIHidden = false,
 }) => {
   const repeatRef = useRef<number | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
