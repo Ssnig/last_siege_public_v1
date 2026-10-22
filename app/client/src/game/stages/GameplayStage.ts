@@ -953,7 +953,6 @@ export class GameplayStage {
     const currentTier = towerType ? tierAt(towerType, record.tower.level) : null;
     const maxLevel = towerType?.tiers.length ?? 1;
     const isMax = record.tower.level >= maxLevel;
-    const nextTier = towerType && !isMax ? towerType.tiers[record.tower.level] : null;
     const upgradePrice = towerType ? upgradeCost(towerType, record.tower.level) : null;
     const refund = towerType ? sellRefund(record.tower.invested) : 0;
     const isAttackerInspect = this.role === "attacker";
@@ -968,163 +967,96 @@ export class GameplayStage {
     }
 
     // Geometry layout: clamp horizontally and anchor above tower
-    const clampedX = Phaser.Math.Clamp(slot.x, 160, 1280 - 160);
+    const clampedX = Phaser.Math.Clamp(slot.x, 175, 1280 - 175);
     const isTopHalf = slot.y < 340;
     const buttonY = isTopHalf ? slot.y + 82 : Math.max(92, slot.y - 82);
-    const panelY = isTopHalf ? buttonY + 58 : buttonY - 58;
+    const panelY = isTopHalf ? buttonY + 78 : buttonY - 78;
     const panelW = 290;
-    const panelH = 58;
 
     // --- Status Panel ---
+    // Both roles see the exact same three-row layout: name + damage type,
+    // damage + range, then firing rate + tier. Only the border colour and the
+    // action buttons below differ.
     this.towerInfoPanel = this.scene.add.container(clampedX, panelY);
     this.towerInfoPanel.setDepth(DEPTH.UI_LAYER);
     this.root?.add(this.towerInfoPanel);
 
+    const pw = Math.max(panelW, 300);
+    const ph = 96;
+
     const bg = this.scene.add.graphics();
-    bg.fillStyle(0x0a0f1d, 0.94);
-    bg.lineStyle(1.5, isAttackerInspect ? 0x38bdf8 : 0xca8a04, 0.95);
-    bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
-    bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
-
-    const nameText = this.scene.add
-      .text(-panelW / 2 + 12, -14, towerType?.name ?? record.tower.typeId, {
-        fontSize: "13px",
-        fontStyle: "bold",
-        color: "#f8fafc",
-      })
-      .setOrigin(0, 0.5);
-
-    const tierBadgeText = this.scene.add
-      .text(
-        panelW / 2 - 12,
-        -14,
-        isMax ? "TIER MAX" : `TIER ${record.tower.level}/${maxLevel}`,
-        {
-          fontSize: "12px",
-          fontStyle: "bold",
-          color: isMax ? "#fbbf24" : "#38bdf8",
-        },
-      )
-      .setOrigin(1, 0.5);
-
+    bg.fillStyle(0x0a0f1d, 0.95);
+    bg.lineStyle(1.8, isAttackerInspect ? 0x38bdf8 : 0xca8a04, 0.95);
+    bg.fillRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
+    bg.strokeRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
     bg.lineStyle(1, 0x334155, 0.7);
-    bg.lineBetween(-panelW / 2 + 12, 0, panelW / 2 - 12, 0);
+    bg.lineBetween(-pw / 2 + 16, -ph / 2 + 42, pw / 2 - 16, -ph / 2 + 42);
 
     const dmgMin = currentTier?.damage ?? 0;
     const dmgMax = currentTier?.damageMax ?? currentTier?.damage ?? 0;
     const dmgLabel = dmgMax > dmgMin ? `${dmgMin}-${dmgMax}` : `${dmgMin}`;
-    const damageTypeLabel =
-      towerType?.damageType === "mental" ? "Mental" : "Physical";
+    const isMental = towerType?.damageType === "mental";
+    const damageTypeLabel = isMental ? "Mental" : "Physical";
+    const tierLabel = isMax ? "TIER MAX" : `TIER ${record.tower.level}/${maxLevel}`;
 
-    let statsText: Phaser.GameObjects.Text;
-    if (!isMax && nextTier && currentTier) {
-      const ndMin = nextTier.damage ?? 0;
-      const ndMax = nextTier.damageMax ?? nextTier.damage ?? 0;
-      const ndLabel = ndMax > ndMin ? `${ndMin}-${ndMax}` : `${ndMin}`;
-      statsText = this.scene.add
-        .text(
-          0,
-          14,
-          `DMG ${dmgLabel}➔${ndLabel} (${damageTypeLabel})   RNG ${currentTier.range}➔${nextTier.range}   SPD ${currentTier.fireRate}➔${nextTier.fireRate}/s`,
-          {
-            fontSize: "11px",
-            fontStyle: "bold",
-            color: "#cbd5e1",
-          },
-        )
-        .setOrigin(0.5, 0.5);
-    } else if (currentTier) {
-      statsText = this.scene.add
-        .text(
-          0,
-          14,
-          `DMG ${dmgLabel} (${damageTypeLabel})   RNG ${currentTier.range}   SPD ${currentTier.fireRate}/s`,
-          {
-            fontSize: "11px",
-            fontStyle: "bold",
-            color: "#94a3b8",
-          },
-        )
-        .setOrigin(0.5, 0.5);
-    } else {
-      statsText = this.scene.add
-        .text(0, 14, "NO STATS", {
-          fontSize: "12px",
-          color: "#94a3b8",
-        })
-        .setOrigin(0.5, 0.5);
-    }
+    // Row 1: tower name and the damage-type indicator.
+    const nameText = this.scene.add
+      .text(
+        -pw / 2 + 16,
+        -ph / 2 + 22,
+        towerType?.name ?? record.tower.typeId,
+        {
+          fontSize: "16px",
+          fontFamily: "Arial, sans-serif",
+          fontStyle: "bold",
+          color: "#f8fafc",
+        },
+      )
+      .setOrigin(0, 0.5);
 
-    this.towerInfoPanel.add([bg, nameText, tierBadgeText, statsText]);
+    const damageTypeText = this.scene.add
+      .text(pw / 2 - 16, -ph / 2 + 22, damageTypeLabel, {
+        fontSize: "13px",
+        fontFamily: "Arial, sans-serif",
+        fontStyle: "bold",
+        color: isMental ? "#c084fc" : "#38bdf8",
+      })
+      .setOrigin(1, 0.5);
 
-    this.towerInfoPanel.add([bg, nameText, tierBadgeText, statsText]);
+    // Row 2: damage and range.
+    const dmgRangeText = this.scene.add
+      .text(
+        -pw / 2 + 16,
+        -ph / 2 + 60,
+        `DMG: ${dmgLabel}    RNG: ${currentTier?.range ?? 0}`,
+        {
+          fontSize: "14px",
+          fontFamily: "Arial, sans-serif",
+          fontStyle: "normal",
+          color: "#e2e8f0",
+        },
+      )
+      .setOrigin(0, 0.5);
+
+    // Row 3: firing rate and tier.
+    const spdTierText = this.scene.add
+      .text(
+        -pw / 2 + 16,
+        -ph / 2 + 82,
+        `SPD: ${currentTier?.fireRate ?? 0}/s    ${tierLabel}`,
+        {
+          fontSize: "14px",
+          fontFamily: "Arial, sans-serif",
+          fontStyle: "normal",
+          color: isMax ? "#fbbf24" : "#e2e8f0",
+        },
+      )
+      .setOrigin(0, 0.5);
+
+    this.towerInfoPanel.add([bg, nameText, damageTypeText, dmgRangeText, spdTierText]);
 
     if (isAttackerInspect) {
       // Attackers can inspect towers but not upgrade or sell them.
-      const panelBg = this.towerInfoPanel.list[0] as Phaser.GameObjects.Graphics;
-      const panelName = this.towerInfoPanel.list[1] as Phaser.GameObjects.Text;
-      const panelBadge = this.towerInfoPanel.list[2] as Phaser.GameObjects.Text;
-      panelBg.clear();
-      panelBg.fillStyle(0x0a0f1d, 0.95);
-      panelBg.lineStyle(1.8, 0x38bdf8, 0.95);
-      const pw = Math.max(panelW + 60, 300);
-      const ph = panelH + 70;
-      panelBg.fillRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
-      panelBg.strokeRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
-      panelBg.lineStyle(1, 0x334155, 0.7);
-      panelBg.lineBetween(-pw / 2 + 14, -14, pw / 2 - 14, -14);
-      panelName.setFontSize(16);
-      panelName.setX(-pw / 2 + 14);
-      panelName.setY(-ph / 2 + 20);
-      panelName.setFontFamily("Arial, sans-serif");
-      panelName.setFontStyle("normal");
-      panelName.setColor("#f8fafc");
-      if (panelBadge) panelBadge.destroy();
-      if (this.towerInfoPanel.list[3]) {
-        this.towerInfoPanel.remove(this.towerInfoPanel.list[3], true);
-      }
-    if (isAttackerInspect) {
-      // Attackers can inspect towers but not upgrade or sell them.
-      const panelBg = this.towerInfoPanel.list[0] as Phaser.GameObjects.Graphics;
-      const panelName = this.towerInfoPanel.list[1] as Phaser.GameObjects.Text;
-      const panelBadge = this.towerInfoPanel.list[2] as Phaser.GameObjects.Text;
-      panelBg.clear();
-      panelBg.fillStyle(0x0a0f1d, 0.95);
-      panelBg.lineStyle(1.8, 0x38bdf8, 0.95);
-      const pw = Math.max(panelW + 60, 300);
-      const ph = panelH + 70;
-      panelBg.fillRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
-      panelBg.strokeRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
-      panelBg.lineStyle(1, 0x334155, 0.7);
-      panelBg.lineBetween(-pw / 2 + 14, -14, pw / 2 - 14, -14);
-      panelName.setFontSize(16);
-      panelName.setX(-pw / 2 + 14);
-      panelName.setY(-ph / 2 + 20);
-      panelName.setFontFamily("Arial, sans-serif");
-      panelName.setFontStyle("normal");
-      panelName.setColor("#f8fafc");
-      if (panelBadge) panelBadge.destroy();
-      if (this.towerInfoPanel.list[3]) {
-        this.towerInfoPanel.remove(this.towerInfoPanel.list[3], true);
-      }
-      const tierLabel = isMax ? "TIER MAX" : `TIER ${record.tower.level}/${maxLevel}`;
-      const nameLine = `${towerType?.name ?? record.tower.typeId} • ${damageTypeLabel}`;
-      const inspectStats = this.scene.add
-        .text(
-          -pw / 2 + 14,
-          14,
-          `${nameLine}\nDMG: ${dmgLabel}   RNG: ${currentTier?.range ?? 0}\nSPD: ${currentTier?.fireRate ?? 0}/s   ${tierLabel}`,
-          {
-            fontSize: "14px",
-            fontFamily: "Arial, sans-serif",
-            fontStyle: "normal",
-            color: "#e2e8f0",
-            lineSpacing: 10,
-            wordWrap: { width: pw - 28, useAdvancedWrap: true },
-          },
-        )
-        .setOrigin(0, 0.5);
-      this.towerInfoPanel.add(inspectStats);
       return;
     }
 
