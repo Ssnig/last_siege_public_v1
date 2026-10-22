@@ -389,7 +389,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
       <div className="absolute inset-0 backdrop-blur-[3px] bg-black/20 pointer-events-none" />
 
       {/* Main Content Frame */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-3 sm:px-6 flex flex-col gap-2 sm:gap-4 max-h-[96vh] sm:max-h-[90vh] overflow-y-auto">
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-2.5 sm:px-6 flex flex-col gap-2 sm:gap-3.5 max-h-[98vh] py-1 sm:py-2 overflow-y-auto">
         {/* ═══ Top Header Bar ═══ */}
         <div className="relative">
           <GoldCrest />
@@ -612,93 +612,102 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         <div className="grid grid-cols-1 sm:grid-cols-[1.1fr_1.9fr] gap-2.5 sm:gap-4 flex-1 min-h-0">
 
           {/* ─── Left Panel: Create Matchroom ─── */}
-          <RoyalPanel className="flex flex-col p-3 sm:p-5">
-            <h3
-              className="text-sm sm:text-lg font-bold text-amber-100 tracking-wide mb-0.5 sm:mb-1"
-              style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
-            >
-              Create Matchroom
-            </h3>
-            <GoldDivider className="mb-1.5 sm:mb-4" />
-
-            <div className="flex flex-col gap-1.5 sm:gap-2 flex-1 justify-center">
-              <label
-                className="text-[11px] sm:text-xs font-bold text-amber-200/70 uppercase tracking-[0.15em]"
-                style={{ fontFamily: "'Almendra SC', 'Almendra', serif" }}
+          <RoyalPanel
+            className="flex flex-col p-2.5 sm:p-5 h-full"
+            contentClassName="flex flex-col justify-between h-full"
+          >
+            <div className="shrink-0">
+              <h3
+                className="text-sm sm:text-lg font-bold text-amber-100 tracking-wide mb-0.5 sm:mb-1"
+                style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
               >
-                Role Preference
-              </label>
+                Create Matchroom
+              </h3>
+              <GoldDivider className="mb-1.5 sm:mb-3" />
+            </div>
 
-              {/* Carved Wood Dropdown */}
-              <div className="relative">
-                <select
-                  value={selectedRoleChoice}
-                  onChange={(e) => {
-                    soundEffects.playHover();
-                    setSelectedRoleChoice(e.target.value as RoleChoice);
-                  }}
-                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-md text-xs sm:text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition pr-10"
-                  style={{
-                    fontFamily: "'Almendra', 'Georgia', serif",
-                    fontWeight: 'bold',
-                    background: 'linear-gradient(135deg, #3f2719, #29180e)',
-                    border: '2px solid #785128',
-                    color: '#ffebc3',
-                  }}
+            {/* Scrollable controls body if viewport height is constrained */}
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin flex flex-col gap-1.5 sm:gap-3 py-1 pr-0.5">
+              {/* Role Preference */}
+              <div>
+                <label
+                  className="text-[11px] sm:text-xs font-bold text-amber-200/70 uppercase tracking-[0.15em] block mb-1"
+                  style={{ fontFamily: "'Almendra SC', 'Almendra', serif" }}
                 >
-                  <option value="random">Randomized</option>
-                  <option value="attacker">Attacker</option>
-                  <option value="defender">Defender</option>
-                </select>
-                {/* Gold chevron */}
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M3 5L7 9L11 5" stroke="#d4af37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  Role Preference
+                </label>
+
+                {/* Carved Wood Dropdown */}
+                <div className="relative">
+                  <select
+                    value={selectedRoleChoice}
+                    onChange={(e) => {
+                      soundEffects.playHover();
+                      setSelectedRoleChoice(e.target.value as RoleChoice);
+                    }}
+                    className="w-full px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-md text-xs sm:text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition pr-10"
+                    style={{
+                      fontFamily: "'Almendra', 'Georgia', serif",
+                      fontWeight: 'bold',
+                      background: 'linear-gradient(135deg, #3f2719, #29180e)',
+                      border: '2px solid #785128',
+                      color: '#ffebc3',
+                    }}
+                  >
+                    <option value="random">Randomized</option>
+                    <option value="attacker">Attacker</option>
+                    <option value="defender">Defender</option>
+                  </select>
+                  {/* Gold chevron */}
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M3 5L7 9L11 5" stroke="#d4af37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
                 </div>
+              </div>
+
+              {/* Battlefield Selector Trigger */}
+              <div>
+                <label
+                  className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-amber-200/80 mb-1 block"
+                  style={{ fontFamily: "'Almendra', 'Cinzel', serif" }}
+                >
+                  Battlefield
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setShowMapModal(true);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-amber-600/60 bg-slate-900/80 hover:bg-slate-800 text-left transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🗺️</span>
+                    <div>
+                      <div className="text-xs font-bold text-amber-200">
+                        {mapDisplayName(selectedMapId)}
+                      </div>
+                      <div className="text-[10px] text-amber-400/70">
+                        {MAPS[selectedMapId]
+                          ? `${MAPS[selectedMapId].lanes || 2} ${(MAPS[selectedMapId].lanes || 2) === 1 ? 'Lane' : 'Lanes'}`
+                          : 'Surprise pick'}{' '}
+                        · Tap to Change
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-amber-400 text-xs font-bold">Change ❯</span>
+                </button>
               </div>
             </div>
 
-            {/* Battlefield Selector Trigger */}
-            <div className="mt-1.5 sm:mt-3">
-              <label
-                className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-amber-200/80 mb-1 block"
-                style={{ fontFamily: "'Almendra', 'Cinzel', serif" }}
-              >
-                Battlefield
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  soundEffects.playClick();
-                  setShowMapModal(true);
-                }}
-                className="w-full flex items-center justify-between px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-amber-600/60 bg-slate-900/80 hover:bg-slate-800 text-left transition cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🗺️</span>
-                  <div>
-                    <div className="text-xs font-bold text-amber-200">
-                      {mapDisplayName(selectedMapId)}
-                    </div>
-                    <div className="text-[10px] text-amber-400/70">
-                      {MAPS[selectedMapId]
-                        ? `${MAPS[selectedMapId].lanes || 2} ${(MAPS[selectedMapId].lanes || 2) === 1 ? 'Lane' : 'Lanes'}`
-                        : 'Surprise pick'}{' '}
-                      · Tap to Change
-                    </div>
-                  </div>
-                </div>
-                <span className="text-amber-400 text-xs font-bold">Change ❯</span>
-              </button>
-            </div>
-
-            {/* Host New Match Button */}
+            {/* Host New Match Button: Pinned to bottom with shrink-0, min-h-[42px] */}
             <button
               disabled={loading}
               onClick={handleCreateRoom}
               onMouseEnter={() => soundEffects.playHover()}
-              className="w-full mt-2 sm:mt-5 py-2 sm:py-3 rounded-lg font-bold text-xs sm:text-sm tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] hover:brightness-110"
+              className="w-full shrink-0 mt-2 sm:mt-3 py-2 sm:py-2.5 min-h-[42px] rounded-lg font-bold text-xs sm:text-sm tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] hover:brightness-110 flex items-center justify-center"
               style={{
                 fontFamily: "'Almendra SC', 'Almendra', serif",
                 background: 'linear-gradient(180deg, #10b981 0%, #059669 50%, #047857 100%)',
@@ -712,14 +721,19 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
           </RoyalPanel>
 
           {/* ─── Right Panel: Active Lobbies ─── */}
-          <RoyalPanel className="flex flex-col p-3 sm:p-5 min-h-[160px] sm:min-h-0">
-            <h3
-              className="text-sm sm:text-lg font-bold text-amber-100 tracking-wide mb-0.5 sm:mb-1"
-              style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
-            >
-              Active Lobbies ({rooms.length})
-            </h3>
-            <GoldDivider className="mb-2 sm:mb-4" />
+          <RoyalPanel
+            className="flex flex-col p-2.5 sm:p-5 min-h-[160px] sm:min-h-0 h-full"
+            contentClassName="flex flex-col h-full"
+          >
+            <div className="shrink-0">
+              <h3
+                className="text-sm sm:text-lg font-bold text-amber-100 tracking-wide mb-0.5 sm:mb-1"
+                style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
+              >
+                Active Lobbies ({rooms.length})
+              </h3>
+              <GoldDivider className="mb-2 sm:mb-4" />
+            </div>
 
             <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2.5">
               {rooms.length === 0 ? (

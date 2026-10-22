@@ -46,6 +46,15 @@ interface GameOverInfo {
 /** Safety net: return a finished match to the lobby after this idle timeout. */
 const GAME_OVER_AUTO_RETURN_MS = 3 * 60 * 1000;
 
+const MAP_IMAGE_URLS: Record<string, string> = {
+  konbaung: '/assets/maps/map_1_konbaung/map.jpg',
+  bagan: '/assets/maps/map_2_bagan/map.jpg',
+  inle: '/assets/maps/map_3_inle/map.jpg',
+  mandalay: '/assets/maps/map_4_mandalay/map.jpg',
+  innwa: '/assets/maps/map_5_innwa/map.jpg',
+  bago: '/assets/maps/map_6_bago/map.jpg',
+};
+
 type PlayerRole = "attacker" | "defender";
 
 /** True when this client's own role is already authoritative on the schema. */
@@ -448,15 +457,20 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   }
 
 
+  const ambientBgUrl = (mapId && MAP_IMAGE_URLS[mapId]) || '/assets/maps/map_1_konbaung/map.jpg';
+
   return (
-    <div onPointerDown={handleContainerTap} className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#020617] flex items-center justify-center">
-      {/* Ambient background for wide viewports */}
+    <div onPointerDown={handleContainerTap} className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-slate-950 flex items-center justify-center select-none">
+      {/* Ambient map-aware backdrop bleed for widescreen devices */}
       <div
-        className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-20 blur-md scale-105"
-        style={{ backgroundImage: "url('/assets/ui/bg.jpg')" }}
+        className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-60 blur-xl scale-110 transition-opacity duration-700"
+        style={{ backgroundImage: `url('${ambientBgUrl}')` }}
       />
-      {/* Phaser Canvas Container (fullscreen ENVELOP) */}
-      <div ref={gameRef} id="phaser-game" className="w-full h-full flex items-center justify-center overflow-hidden" />
+      {/* Soft horizontal vignette so canvas seamlessly transitions into ambient bleed */}
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-black/60 via-transparent to-black/60 z-0" />
+
+      {/* Phaser Canvas Container */}
+      <div ref={gameRef} id="phaser-game" className="relative z-10 w-full h-full flex items-center justify-center overflow-hidden" />
 
       {/* Pre-draft map reveal (covers the idle canvas while the map is shown) */}
       {matchStarted && phase === 'mapReveal' && (

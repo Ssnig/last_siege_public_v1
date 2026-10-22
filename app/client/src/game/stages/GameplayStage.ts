@@ -170,6 +170,7 @@ export class GameplayStage {
 
   private selectedSlotIndex?: number;
   private rangeCircle?: Phaser.GameObjects.Arc;
+  private selectionHalo?: Phaser.GameObjects.Arc;
   private actionButton?: UIButton;
   private upgradeButton?: UIButton;
   private sellButton?: UIButton;
@@ -919,14 +920,21 @@ export class GameplayStage {
     const upgradePrice = towerType ? upgradeCost(towerType, record.tower.level) : null;
     const refund = towerType ? sellRefund(record.tower.invested) : 0;
 
-    // Draw range ring matching current tier range
+    // Draw golden range ring matching current tier range
     const range = currentTier?.range ?? 0;
     if (range > 0) {
       this.rangeCircle = this.scene.add
-        .circle(slot.x, slot.y, range, 0x38bdf8, 0.12)
-        .setStrokeStyle(2, 0x38bdf8, 0.6);
+        .circle(slot.x, slot.y, range, 0xfbbf24, 0.1)
+        .setStrokeStyle(2, 0xfbbf24, 0.75);
       this.root?.add(this.rangeCircle);
     }
+
+    // Glowing selection halo directly around the active tower base
+    this.selectionHalo = this.scene.add
+      .circle(slot.x, slot.y, 42, 0xfbbf24, 0.22)
+      .setStrokeStyle(2.5, 0xfbbf24, 0.9)
+      .setDepth(DEPTH.SLOTS_LAYER + 0.1);
+    this.root?.add(this.selectionHalo);
 
     // Geometry layout: clamp horizontally and anchor above tower
     const clampedX = Phaser.Math.Clamp(slot.x, 140, 1280 - 140);
@@ -1022,7 +1030,7 @@ export class GameplayStage {
         y: buttonY,
         width: btnWidth,
         height: btnHeight,
-        label: `UPG -${upgradePrice}g`,
+        label: `🔨 UPG -${upgradePrice}g`,
         fontSize: 13,
         labelColor: canAfford ? "#ffffff" : "#94a3b8",
         onClick: () => {
@@ -1040,7 +1048,7 @@ export class GameplayStage {
         y: buttonY,
         width: btnWidth,
         height: btnHeight,
-        label: "MAX TIER",
+        label: "👑 MAX TIER",
         fontSize: 12,
         labelColor: "#94a3b8",
         onClick: () => {
@@ -1059,7 +1067,7 @@ export class GameplayStage {
       y: buttonY,
       width: btnWidth,
       height: btnHeight,
-      label: `SELL +${refund}g`,
+      label: `💰 SELL +${refund}g`,
       fontSize: 13,
       labelColor: "#ffffff",
       onClick: () => {
@@ -1078,7 +1086,7 @@ export class GameplayStage {
     if (!this.upgradeButton) return;
     this.resetSellButton(record);
 
-    this.upgradeButton.setLabel("✓ UPGRADE");
+    this.upgradeButton.setLabel("✓ CONFIRM");
     this.upgradeButton.setLabelColor("#4ade80");
     this.upgradeButton.setFontSize(14);
     this.upgradeButton.setOnClick(() => this.confirmUpgrade(record));
@@ -1102,7 +1110,7 @@ export class GameplayStage {
     const upgradePrice = towerType ? upgradeCost(towerType, record.tower.level) : null;
     if (!isMax && upgradePrice !== null) {
       const canAfford = this.gold >= upgradePrice;
-      this.upgradeButton.setLabel(`UPG -${upgradePrice}g`);
+      this.upgradeButton.setLabel(`🔨 UPG -${upgradePrice}g`);
       this.upgradeButton.setLabelColor(canAfford ? "#ffffff" : "#94a3b8");
       this.upgradeButton.setFontSize(13);
       this.upgradeButton.setEnabled(canAfford);
@@ -1111,7 +1119,7 @@ export class GameplayStage {
         this.requestUpgrade(record);
       });
     } else {
-      this.upgradeButton.setLabel("MAX TIER");
+      this.upgradeButton.setLabel("👑 MAX TIER");
       this.upgradeButton.setLabelColor("#94a3b8");
       this.upgradeButton.setFontSize(12);
       this.upgradeButton.setEnabled(false);
@@ -1154,9 +1162,9 @@ export class GameplayStage {
     if (!this.sellButton) return;
     this.resetUpgradeButton(record);
 
-    this.sellButton.setLabel("✓ SELL");
-    this.sellButton.setLabelColor("#4ade80");
-    this.sellButton.setFontSize(14);
+    this.sellButton.setLabel("⚠️ CONFIRM?");
+    this.sellButton.setLabelColor("#ef4444");
+    this.sellButton.setFontSize(13);
     this.sellButton.setOnClick(() => this.confirmSell(record));
   }
 
@@ -1171,7 +1179,7 @@ export class GameplayStage {
     if (!this.sellButton) return;
     const towerType = TOWER_TYPES[record.tower.typeId];
     const refund = towerType ? sellRefund(record.tower.invested) : 0;
-    this.sellButton.setLabel(`SELL +${refund}g`);
+    this.sellButton.setLabel(`💰 SELL +${refund}g`);
     this.sellButton.setLabelColor("#ffffff");
     this.sellButton.setFontSize(13);
     this.sellButton.setOnClick(() => {
@@ -1187,6 +1195,8 @@ export class GameplayStage {
     if (this.selectedSlotIndex !== slot.slotIndex) return;
     this.rangeCircle?.destroy();
     this.rangeCircle = undefined;
+    this.selectionHalo?.destroy();
+    this.selectionHalo = undefined;
     this.upgradeButton?.destroy();
     this.upgradeButton = undefined;
     this.sellButton?.destroy();
@@ -1205,6 +1215,8 @@ export class GameplayStage {
     this.pendingBuild = undefined;
     this.rangeCircle?.destroy();
     this.rangeCircle = undefined;
+    this.selectionHalo?.destroy();
+    this.selectionHalo = undefined;
     this.buildHighlight?.destroy();
     this.buildHighlight = undefined;
     this.actionButton?.destroy();

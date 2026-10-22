@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import {
   Router,
   json,
@@ -121,6 +122,20 @@ export const authRouter = Router();
 authRouter.use(json({ limit: "64kb" }));
 authRouter.use((_req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
+  next();
+});
+
+// Guard against database downtime: Google config remains public, but mutating routes fail fast
+authRouter.use((req, res, next) => {
+  if (req.path === "/google/config") {
+    return next();
+  }
+  if (mongoose.connection.readyState !== 1) {
+    res.status(503).json({
+      error: "Authentication service is unavailable (database not connected).",
+    });
+    return;
+  }
   next();
 });
 

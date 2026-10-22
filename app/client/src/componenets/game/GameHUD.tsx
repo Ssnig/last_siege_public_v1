@@ -155,7 +155,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         }`}
       >
         {/* Top Header Row: Gold (Left), Centered Wave/Timer, Settings + Castle HP (Right) */}
-        <div className="w-full flex items-start justify-between px-[max(0.625rem,env(safe-area-inset-left,0.625rem))] pr-[max(0.625rem,env(safe-area-inset-right,0.625rem))] sm:px-4 md:px-6 pt-2 pointer-events-none">
+        {/* Constrained to max-w-[min(100vw,calc(100dvh*16/9))] so HUD frames the 16:9 arena on ultrawide viewports */}
+        <div className="w-full max-w-[min(100vw,calc(100dvh*16/9))] mx-auto flex items-start justify-between px-[max(0.625rem,env(safe-area-inset-left,0.625rem))] pr-[max(0.625rem,env(safe-area-inset-right,0.625rem))] sm:px-4 md:px-6 pt-2 pointer-events-none">
           
           {/* Top-Left: Gold display */}
           <div className="flex items-center gap-1.5 md:gap-2">

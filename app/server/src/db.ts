@@ -9,7 +9,7 @@ export async function connectDatabase(): Promise<void> {
     throw new Error("Missing required environment variable: MONGO_URI");
   }
 
-  await mongoose.connect(uri, { serverSelectionTimeoutMS: 10_000 });
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 2_500 });
   console.log(`Connected to MongoDB database "${mongoose.connection.name}".`);
 }
 
