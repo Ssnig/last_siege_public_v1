@@ -1067,32 +1067,31 @@ export class GameplayStage {
       panelBg.clear();
       panelBg.fillStyle(0x0a0f1d, 0.95);
       panelBg.lineStyle(2, 0x38bdf8, 0.95);
-      panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH + 28, 10);
-      panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH + 28, 10);
+      panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW + 80, panelH + 90, 12);
+      panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW + 80, panelH + 90, 12);
       panelBg.lineStyle(1, 0x334155, 0.7);
-      panelBg.lineBetween(-panelW / 2 + 12, -10, panelW / 2 - 12, -10);
-      panelName.setFontSize(15);
-      panelName.setX(-panelW / 2 + 12);
-      panelName.setY(-32);
+      panelBg.lineBetween(-panelW / 2 + 20, -24, panelW / 2 + 60, -24);
+      panelName.setFontSize(19);
+      panelName.setX(-panelW / 2 + 20);
+      panelName.setY(-panelH / 2 - 10);
       if (panelBadge) panelBadge.destroy();
       if (this.towerInfoPanel.list[3]) {
         this.towerInfoPanel.remove(this.towerInfoPanel.list[3], true);
       }
       const inspectStats = this.scene.add
         .text(
-          -panelW / 2 + 14,
-          14,
-          `DMG\n  ${dmgLabel} (${damageTypeLabel})\nRNG\n  ${currentTier?.range ?? 0}\nSPD\n  ${currentTier?.fireRate ?? 0}/s`,
+          -panelW / 2 + 20,
+          20,
+          `DMG: ${dmgLabel} (${damageTypeLabel})\nRNG: ${currentTier?.range ?? 0}\nSPD: ${currentTier?.fireRate ?? 0}/s`,
           {
-            fontSize: "13px",
+            fontSize: "15px",
             fontStyle: "bold",
-            color: "#f1f5f9",
-            lineSpacing: 8,
-            wordWrap: { width: panelW + 30, useAdvancedWrap: true },
+            color: "#f8fafc",
+            lineSpacing: 14,
+            wordWrap: { width: panelW + 60, useAdvancedWrap: true },
           },
         )
         .setOrigin(0, 0.5);
-      this.towerInfoPanel.add(inspectStats);
       this.towerInfoPanel.add(inspectStats);
       return;
     }
