@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TOWER_TYPES } from '@root/shared';
 import { useSmoothCountdown } from './useSmoothCountdown';
+import { soundEffects } from '../../audio/soundEffects';
 
 interface GameHUDProps {
   gold: number;
@@ -86,12 +87,36 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       isFirstRender.current = false;
       return;
     }
-    setToastMessage(isUIHidden ? 'UI Hidden (Double-tap map to show)' : 'UI Visible');
+    setToastMessage(isUIHidden ? 'UI Hidden (Tap 👁 to show)' : 'UI Visible');
     const timer = setTimeout(() => {
       setToastMessage(null);
     }, 1500);
     return () => clearTimeout(timer);
   }, [isUIHidden]);
+
+  // War drum countdown cadence and battle start gong
+  const prevSecondsRef = useRef<number>(secondsRemaining);
+  const prevPhaseRef = useRef<string>(phase);
+
+  useEffect(() => {
+    // Phase change from building to combat triggers grand war drum + ceremonial gong
+    if (prevPhaseRef.current === 'building' && phase === 'combat') {
+      soundEffects.playWarDrum('battleStart');
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    // Building phase countdown war drums (seconds 5 down to 1)
+    if (phase === 'building' && secondsRemaining !== prevSecondsRef.current) {
+      if (secondsRemaining <= 5 && secondsRemaining >= 4) {
+        soundEffects.playWarDrum('light');
+      } else if (secondsRemaining <= 3 && secondsRemaining >= 1) {
+        soundEffects.playWarDrum('heavy');
+      }
+    }
+    prevSecondsRef.current = secondsRemaining;
+  }, [phase, secondsRemaining]);
 
   // Format MM:SS
   const minutes = Math.floor(secondsRemaining / 60);
@@ -203,7 +228,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 </button>
               )}
             <button
-              onClick={onOpenMenu}
+              onClick={() => { soundEffects.playModal(); onOpenMenu(); }}
               aria-label="Open Game Settings"
               className="w-6 h-6 sm:w-7 sm:h-7 md:w-9 md:h-9 rounded-full active:scale-95 hover:scale-105 transition shadow-lg drop-shadow cursor-pointer flex items-center justify-center p-0 border-0 bg-transparent"
             >
@@ -263,7 +288,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
             <button
                     key={towerId}
-                    onClick={() => onSelectTower(towerId)}
+                    onClick={() => { soundEffects.playHover(); onSelectTower(towerId); }}
                     className={`relative flex-shrink-0 w-[34px] h-[36px] sm:w-[38px] sm:h-[40px] md:w-[50px] md:h-[54px] flex flex-col items-center justify-between p-0.5 rounded transition-all cursor-pointer ${
                       isSelected ? 'scale-105 z-10' : 'hover:scale-102 opacity-95'
                     } ${!canAfford ? 'opacity-55 saturate-50' : ''}`}
@@ -314,7 +339,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         {/* Bottom-Right: Start Battle Button for Defender during Building Phase */}
         {phase === 'building' && role === 'defender' && onStartBattle && (
           <button
-            onClick={onStartBattle}
+            onClick={() => { soundEffects.playWarDrum('battleStart'); onStartBattle(); }}
             aria-label="Start Battle"
              className="pointer-events-auto fixed bottom-2 sm:bottom-2.5 md:bottom-4 right-[max(0.5rem,env(safe-area-inset-right,0.5rem))] sm:right-2.5 md:right-4 z-40 px-2.5 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-[11px] sm:text-xs md:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.5)] border-2 border-amber-300 flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer font-['Almendra',serif]"
           >

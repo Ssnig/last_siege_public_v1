@@ -132,7 +132,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const lastTapRef = useRef<number>(0);
 
   const handleContainerTap = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('button, input, select, [role="button"]')) return;
+    if ((e.target as HTMLElement).closest('button, input, select, [role="button"], canvas')) return;
     const now = Date.now();
     if (now - lastTapRef.current < 320) {
       setIsUIHidden((prev) => !prev);
@@ -224,6 +224,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     room.send(MESSAGES.ready);
 
     const offOpponentLeft = room.onMessage(MESSAGES.opponentLeft, (data: OpponentLeftPayload) => {
+      setGameOver(null);
       setPlayerInfo({});
       setMatchStarted(false);
       setStatusText(
@@ -290,6 +291,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       setPhase(p);
       if (p !== "gameover") {
         setGameOver(null);
+        if (p === "drafting") {
+          setDeck([]);
+        }
         return;
       }
       const winner = room.state.winner as "attacker" | "defender" | undefined;

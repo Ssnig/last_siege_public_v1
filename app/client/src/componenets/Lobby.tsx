@@ -75,38 +75,47 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   useEffect(() => {
     if (!isNamed) return;
 
-    let lobbyRoom: Room;
+    let unmounted = false;
+    let lobbyRoom: Room | undefined;
 
     (async () => {
       try {
-        lobbyRoom = await client.joinOrCreate("lobby");
+        const room = await client.joinOrCreate("lobby");
+        if (unmounted) {
+          room.leave();
+          return;
+        }
+        lobbyRoom = room;
 
         lobbyRoom.onMessage("rooms", (availableRooms) => {
-          setRooms(availableRooms);
+          if (!unmounted) setRooms(availableRooms);
         });
 
         // "+" is an upsert: replace if we already track the room, else append.
-        lobbyRoom.onMessage("+", ([roomId, room]) => {
+        lobbyRoom.onMessage("+", ([roomId, roomItem]) => {
+          if (unmounted) return;
           setRooms((prev) => {
             const index = prev.findIndex((r) => r.roomId === roomId);
-            if (index === -1) return [...prev, room];
+            if (index === -1) return [...prev, roomItem];
             const updated = [...prev];
-            updated[index] = room;
+            updated[index] = roomItem;
             return updated;
           });
         });
 
         lobbyRoom.onMessage("-", (roomId) => {
-          setRooms((prev) => prev.filter((r) => r.roomId !== roomId));
+          if (!unmounted) setRooms((prev) => prev.filter((r) => r.roomId !== roomId));
         });
       } catch (e: any) {
-        console.error("Failed to join lobby room:", e);
-        setErrorMessage(e?.message || "Failed to connect to matchmaking server.");
+        if (!unmounted) {
+          console.error("Failed to join lobby room:", e);
+          setErrorMessage(e?.message || "Failed to connect to matchmaking server.");
+        }
       }
     })();
 
-
     return () => {
+      unmounted = true;
       if (lobbyRoom) {
         lobbyRoom.leave();
       }

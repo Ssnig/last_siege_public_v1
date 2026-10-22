@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Room } from '@colyseus/sdk';
 import { MESSAGES, type RematchUpdatePayload } from '@root/shared';
+import { soundEffects } from '../../audio/soundEffects';
 
 export interface GameOverOverlayProps {
   gameOver: {
@@ -54,6 +55,15 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   // 16:9 Virtual viewport scale factor for responsive presentation on all devices
   const [viewportScale, setViewportScale] = useState<number>(1);
 
+  // Play royal fanfare or defeat dirge on game over mount
+  useEffect(() => {
+    if (gameOver.youWin) {
+      soundEffects.playVictory();
+    } else {
+      soundEffects.playDefeat();
+    }
+  }, [gameOver.youWin]);
+
   // Rematch status tracking
   const [hasVotedRematch, setHasVotedRematch] = useState<boolean>(false);
   const [rematchVotes, setRematchVotes] = useState<number>(0);
@@ -100,6 +110,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
 
   const handleRematchClick = () => {
     if (hasVotedRematch) return;
+    soundEffects.playClick();
     setHasVotedRematch(true);
     setRematchVotes((prev) => Math.max(1, prev + 1));
     if (onRematch) {
@@ -270,7 +281,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
           {/* "EXIT" Button */}
           <button
             type="button"
-            onClick={onExit}
+            onClick={() => { soundEffects.playClick(); onExit(); }}
             className="group relative py-3.5 sm:py-4 px-6 rounded-xl font-black tracking-widest text-base sm:text-lg transition-all duration-200 overflow-hidden flex items-center justify-center bg-gradient-to-r from-[#4a0d11] via-[#7a1218] to-[#4a0d11] border-2 border-[#d4af37] text-[#fce38a] shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:brightness-125 hover:border-[#ffe066] active:scale-95 cursor-pointer"
             style={{ textShadow: '2px 2px 0px #000' }}
           >
