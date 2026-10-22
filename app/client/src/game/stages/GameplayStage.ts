@@ -1132,7 +1132,7 @@ export class GameplayStage {
     const button = new UIButton({
       scene: this.scene,
       x: Phaser.Math.Clamp(slot.x, 80, 1200),
-      y: slot.y < 280 ? slot.y + 75 : slot.y - 75,
+      y: slot.y < 340 ? slot.y + 75 : slot.y - 75,
       width: buttonWidth,
       height: buttonWidth / UI_ASPECT.button,
       label,
