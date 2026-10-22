@@ -103,7 +103,6 @@ export class GameScene extends Phaser.Scene {
     this.load.image("inle", "/assets/maps/map_3_inle/map.jpg");
     this.load.image("mandalay", "/assets/maps/map_4_mandalay/map.jpg");
     this.load.image("innwa", "/assets/maps/map_5_innwa/map.jpg");
-    this.load.image("rakhine", "/assets/maps/map_5_innwa/map.jpg");
     this.load.image("bago", "/assets/maps/map_6_bago/map.jpg");
 
     // Map base structures
@@ -253,11 +252,13 @@ export class GameScene extends Phaser.Scene {
         // The map is shown by a React overlay; clear any draft UI a joiner may
         // have started before the server rolled the reveal into place.
         this.destroyDraftStages();
+        this.destroyGameplayStage();
         break;
 
       case "drafting":
         // Drafting UI is presented by the React DraftOverlay; keep Phaser canvas clean.
         this.destroyDraftStages();
+        this.destroyGameplayStage();
         break;
 
       case "building":
@@ -293,6 +294,12 @@ export class GameScene extends Phaser.Scene {
 
     this.defenderDraft?.destroy();
     this.defenderDraft = undefined;
+  }
+
+  /** Destroys the active gameplay stage when returning to draft or reveal. */
+  private destroyGameplayStage(): void {
+    this.gameplayStage?.destroy();
+    this.gameplayStage = undefined;
   }
 
   private startGameplay(): void {

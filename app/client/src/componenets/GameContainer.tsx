@@ -153,6 +153,14 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     seconds: number;
   } | null>(null);
 
+
+  // Synchronize selected tower with newly drafted/updated deck
+  useEffect(() => {
+    if (deck && deck.length > 0 && !deck.includes(selectedTowerType)) {
+      handleSelectTower(deck[0]);
+    }
+  }, [deck, selectedTowerType]);
+
   const handleSelectTower = (id: string) => {
     setSelectedTowerType(id);
     if (gameInstanceRef.current) {

@@ -190,6 +190,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             }}
           >
             {/* Phase tag — replaces the old full-text swap so the clock stays visible */}
+            {phase === 'building' && (
+              <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
+                <span className="font-['Almendra',serif] font-black text-[9px] sm:text-[10px] md:text-xs tracking-[0.15em] sm:tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-amber-300">
+                  🛠 BUILD
+                </span>
+              </div>
+            )}
             {phase === 'combat' && (
               <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
                 <span
