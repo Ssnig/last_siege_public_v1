@@ -263,7 +263,9 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
   return (
     <>
       <div
-        className="pointer-events-auto fixed bottom-2 left-1/2 z-40 w-[min(96vw,760px)] -translate-x-1/2"
+        className={`pointer-events-auto fixed bottom-2 left-1/2 z-40 w-[min(96vw,760px)] -translate-x-1/2 transition-opacity duration-300 ${
+          isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
         {...suppressDefaults}
       >
         {error && (

@@ -545,18 +545,22 @@ export class GameplayStage {
     this.map.slots.forEach((slot) => {
       const placeholder = this.scene.add
         .circle(slot.x, slot.y, 36, 0x8b4513, 0.5)
-        .setDepth(DEPTH.SLOTS_LAYER);
+        .setDepth(DEPTH.SLOTS_LAYER)
+        .setName("tower-slot");
+      placeholder.setData("slotIndex", slot.slotIndex);
 
       if (this.role === "defender") {
         placeholder.setInteractive({ useHandCursor: true });
 
         placeholder.on("pointerover", () => {
+          this.scene.registry.set("ui:overTowerSlot", true);
           if (!this.towers.has(slot.slotIndex)) {
             placeholder.setFillStyle(0xd2691e, 0.7);
             this.showGhostTower(slot);
           }
         });
         placeholder.on("pointerout", () => {
+          this.scene.registry.set("ui:overTowerSlot", false);
           placeholder.setFillStyle(0x8b4513, 0.5);
           this.hideGhostTower();
         });
@@ -568,8 +572,23 @@ export class GameplayStage {
             _localY: number,
             event: Phaser.Types.Input.EventData,
           ) => {
+            this.scene.registry.set("ui:overTowerSlot", true);
             event?.stopPropagation();
             this.handleSlotClick(slot);
+          },
+        );
+      } else {
+        placeholder.on("pointerover", () => {
+          this.scene.registry.set("ui:overTowerSlot", true);
+        });
+        placeholder.on("pointerout", () => {
+          this.scene.registry.set("ui:overTowerSlot", false);
+        });
+        placeholder.on(
+          "pointerdown",
+          (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
+            this.scene.registry.set("ui:overTowerSlot", true);
+            event?.stopPropagation();
           },
         );
       }
@@ -1038,6 +1057,8 @@ export class GameplayStage {
 
     this.towerInfoPanel.add([bg, nameText, tierBadgeText, statsText]);
 
+    this.towerInfoPanel.add([bg, nameText, tierBadgeText, statsText]);
+
     if (isAttackerInspect) {
       // Attackers can inspect towers but not upgrade or sell them.
       const panelBg = this.towerInfoPanel.list[0] as Phaser.GameObjects.Graphics;
@@ -1046,29 +1067,32 @@ export class GameplayStage {
       panelBg.clear();
       panelBg.fillStyle(0x0a0f1d, 0.95);
       panelBg.lineStyle(2, 0x38bdf8, 0.95);
-      panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 10);
-      panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 10);
+      panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH + 28, 10);
+      panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH + 28, 10);
       panelBg.lineStyle(1, 0x334155, 0.7);
-      panelBg.lineBetween(-panelW / 2 + 12, 0, panelW / 2 - 12, 0);
-      panelName.setFontSize(13);
+      panelBg.lineBetween(-panelW / 2 + 12, -10, panelW / 2 - 12, -10);
+      panelName.setFontSize(15);
       panelName.setX(-panelW / 2 + 12);
-      panelName.setY(-14);
-      panelBadge.destroy();
+      panelName.setY(-32);
+      if (panelBadge) panelBadge.destroy();
       if (this.towerInfoPanel.list[3]) {
         this.towerInfoPanel.remove(this.towerInfoPanel.list[3], true);
       }
       const inspectStats = this.scene.add
         .text(
-          0,
+          -panelW / 2 + 14,
           14,
-          `DMG ${dmgLabel} (${damageTypeLabel})   RNG ${currentTier?.range ?? 0}   SPD ${currentTier?.fireRate ?? 0}/s`,
+          `DMG\n  ${dmgLabel} (${damageTypeLabel})\nRNG\n  ${currentTier?.range ?? 0}\nSPD\n  ${currentTier?.fireRate ?? 0}/s`,
           {
-            fontSize: "11px",
+            fontSize: "13px",
             fontStyle: "bold",
-            color: "#cbd5e1",
+            color: "#f1f5f9",
+            lineSpacing: 8,
+            wordWrap: { width: panelW + 30, useAdvancedWrap: true },
           },
         )
-        .setOrigin(0.5, 0.5);
+        .setOrigin(0, 0.5);
+      this.towerInfoPanel.add(inspectStats);
       this.towerInfoPanel.add(inspectStats);
       return;
     }
