@@ -28,8 +28,8 @@ export type PhaseEvent =
  * The combat countdown is the **siege** timer: the defender must hold out that
  * long. Its expiry does not end the match by itself — GameRoom decides between
  * an attacker win, sudden death and a defender win from the `siege-expired`
- * event. Attacker income uses a separate clock (`MATCH_RULES.incomeDurationSec`)
- * owned by GameRoom, so the two windows can differ.
+ * event. Passive income runs for the whole siege and stops when sudden death
+ * begins, so the two clocks only differ in the closing stretch of the match.
  */
 export class Phases {
   phase: MatchPhase;

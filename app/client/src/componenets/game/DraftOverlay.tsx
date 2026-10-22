@@ -10,6 +10,8 @@ import {
 } from '@root/shared';
 
 import { useSmoothCountdown } from './useSmoothCountdown';
+import { DamageTypeBadge } from './DamageTypeBadge';
+import { damageTypeOfTower } from '../../game/damageTypes';
 import { soundEffects } from '../../audio/soundEffects';
 
 interface DraftOverlayProps {
@@ -31,6 +33,8 @@ interface TacticalData {
   weakness: string;
   stacks: string;
   iconSrc?: string;
+  /** Extra stat pairs shown under the tactical row (damage type, armor, ...). */
+  traits?: { label: string; value: string }[];
 }
 
 const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
@@ -522,6 +526,12 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         weakness: custom.weakness || 'High Mobility',
         stacks: custom.stacks || 'Max 6',
         iconSrc: custom.iconSrc,
+        traits: [
+          {
+            label: 'Damage',
+            value: damageTypeOfTower(id) === 'mental' ? 'Mental' : 'Physical',
+          },
+        ],
       };
     } else {
       const mob = (MOB_TYPES[id] as MobType) || catalogList[0];
@@ -547,9 +557,19 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         weakness: custom.weakness || 'Concentrated Fire',
         stacks: custom.stacks || 'Max 20',
         iconSrc: custom.iconSrc,
+        traits: [
+          { label: 'Armor', value: String(mob?.armor ?? 0) },
+          { label: 'Mental', value: `${Math.round((mob?.mentalStrength ?? 0.5) * 100)}%` },
+        ],
       };
     }
   }, [inspectedTarget, effectiveRole, catalogList]);
+
+  // Damage-type badge for tower cards (mobs have no damage channel)
+  const renderDamageBadge = (id: string) => {
+    if (!TOWER_TYPES[id]) return null;
+    return <DamageTypeBadge type={damageTypeOfTower(id)} size={18} />;
+  };
 
   // Render illustration / sprite
   const renderItemVisual = (id: string, isTargetEnemy: boolean = false, isBig: boolean = false) => {
@@ -769,6 +789,18 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   <span className="mx-1.5 text-amber-500/70">•</span>
                   <span className="text-amber-300 font-semibold">Stacks:</span> {inspectorData.stacks}
                 </div>
+
+                {/* Combat traits (damage channel, armor, mental strength) */}
+                {inspectorData.traits && inspectorData.traits.length > 0 && (
+                  <div className="text-[11px] sm:text-xs text-[#e2d5be] mt-0.5 truncate">
+                    {inspectorData.traits.map((trait, index) => (
+                      <span key={trait.label}>
+                        {index > 0 && <span className="mx-1.5 text-amber-500/70">•</span>}
+                        <span className="text-amber-300 font-semibold">{trait.label}:</span> {trait.value}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -826,6 +858,13 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                       >
                         i
                       </button>
+
+                      {/* Damage-type badge on the card border */}
+                      {renderDamageBadge(item.id) && (
+                        <span className="absolute -top-1.5 -left-1.5 z-10">
+                          {renderDamageBadge(item.id)}
+                        </span>
+                      )}
 
                       {/* Center Sprite on Parchment Frame */}
                       <div
@@ -913,6 +952,11 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                         }}
                         title="Click to inspect enemy stats in Details Inspector"
                       >
+                        {renderDamageBadge(enemyItem.id) && (
+                          <span className="absolute -top-1.5 -left-1.5 z-10">
+                            {renderDamageBadge(enemyItem.id)}
+                          </span>
+                        )}
                         <div
                           className="w-full flex-1 rounded flex items-center justify-center p-0.5 overflow-hidden"
                           style={{ background: '#e6d2b5' }}
@@ -1008,6 +1052,11 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                         }}
                         title={isCommitted ? 'Locked in' : 'Click to remove'}
                       >
+                        {renderDamageBadge(item.id) && (
+                          <span className="absolute -top-1.5 -left-1.5 z-10">
+                            {renderDamageBadge(item.id)}
+                          </span>
+                        )}
                         <div
                           className="w-full flex-1 rounded flex items-center justify-center p-0.5 overflow-hidden"
                           style={{ background: '#e6d2b5' }}

@@ -6,6 +6,7 @@ import {
   Player,
   Tower,
   Mob,
+  MobEffect,
   Projectile,
   MESSAGES,
   MAPS,
@@ -15,6 +16,7 @@ import {
   DEFAULT_DECK_RULES,
   DEFAULT_ECONOMY,
   DEFAULT_DEPLOY_RULES,
+  DEFAULT_COMBAT_RULES,
   MATCH_RULES,
   MOB_SPEED_JITTER,
   PROJECTILE_HIT_RADIUS,
@@ -29,14 +31,23 @@ import {
   validateBufferAdd,
   deployStaggerSec,
   portalChargeRules,
+  DAMAGE_TYPES,
+  EFFECT_TYPES,
+  combineEffectMagnitude,
+  effectiveSpeed,
+  mentalDamageTaken,
+  mentalDebuffMagnitude,
+  physicalDamageTaken,
   type AttackerBufferPayload,
   type AttackerPortalPath,
   type AttackerPortalStatus,
   type BufferAddIntent,
+  type DamageType,
   type DeployIntent,
   type DraftPickIntent,
   type DraftReadyIntent,
   type DraftRoundUpdatePayload,
+  type EffectType,
   type GameOverPayload,
   type MapDefinition,
   type MapPortal,
@@ -782,6 +793,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * Only the tower's owner may sell it, and only while the match is in the
    * building or combat phase. The refund is `sellRefund` of the tower's own
    * `invested` gold, so the client reads the same field to predict the price.
+   * During the building phase selling is 100% to discourage accidental builds.
    */
   private handleSellTower(client: Client, payload: SellTowerIntent): void {
     if (this.state.phase !== "building" && this.state.phase !== "combat") return;
@@ -798,7 +810,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
       return;
     }
 
-    const refund = sellRefund(tower.invested);
+    const refund =
+      this.state.phase === "building"
+        ? Math.floor(tower.invested)
+        : sellRefund(tower.invested);
 
     this.state.towers.delete(payload.towerId);
     this.economies.set(
@@ -1600,7 +1615,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (phase === "combat") {
       this.matchTime += dt;
-      this.updateIncomeWindow();
       this.accrueIncome(dt);
       this.regenPortalCharges(dt);
       this.drainReleaseQueue();
@@ -1642,13 +1656,15 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Closes the attacker's income window once `incomeDurationSec` of combat has
-   * elapsed. Attacker passive income stops; the siege timer keeps running, so
-   * gold already banked stays spendable.
+   * Stops the attacker's passive income.
+   *
+   * @remarks Called when sudden death begins: nothing may reinforce once the
+   * troops already on the field decide the match, so the gold that buys more
+   * troops stops flowing. The siege timer keeps running, so gold already banked
+   * stays spendable.
    */
-  private updateIncomeWindow(): void {
+  private closeIncomeWindow(): void {
     if (this.incomeExpired) return;
-    if (this.matchTime < MATCH_RULES.incomeDurationSec) return;
     this.incomeExpired = true;
 
     for (const client of this.clients) {
@@ -1686,11 +1702,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.spawnScheduledBatch(this.releaseQueue.shift()!);
     }
 
-    console.log(
-      `Room ${this.roomId}: siege expired with ${this.state.mobs.size} unit(s) on the field; sudden death`,
-    );
+    // No more gold for reinforcements once the field decides the match.
+    this.closeIncomeWindow();
 
     for (const client of this.clients) {
+      this.sendEconomy(client);
       this.sendAttackerBuffer(client);
     }
   }
@@ -1735,9 +1751,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * progress threshold, scaled by that unit's cost.
    *
    * @remarks This is a bonus to passive income, not a separate payout: it only
-   * runs while the income window is open, and it vanishes the moment those
-   * units are killed or leak. Halfway down the track is where a push starts
-   * threatening the core, so that is where the attacker starts earning.
+   * runs while the attacker's income is live (that is, until sudden death), and
+   * it vanishes the moment those units are killed or leak. Halfway down the
+   * track is where a push starts threatening the core, so that is where the
+   * attacker starts earning.
    */
   private deepIncomeRate(): number {
     const threshold = DEFAULT_ECONOMY.attackerUnitIncomeThreshold ?? 0.5;
@@ -1761,8 +1778,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * @returns Gold per second, including the attacker's deep-unit bonus.
    *
    * @remarks The client shows this so the deep bonus is visible as a rise in
-   * passive income instead of silently credited gold. After the attacker's
-   * income window closes the reported rate is zero, matching the ledger.
+   * passive income instead of silently credited gold. In sudden death the
+   * attacker's reported rate is zero, matching the ledger, and the closing
+   * stretch of the siege pays both sides at a multiplier.
    */
   private effectiveIncomeRate(
     sessionId: string,
@@ -1772,17 +1790,39 @@ export class GameRoom extends Room<{ state: RoomState }> {
       if (this.incomeExpired) return 0;
       const base =
         this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
-      return base + this.deepIncomeRate();
+      return (base + this.deepIncomeRate()) * this.siegeEndIncomeMultiplier();
     }
-    return this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.defenderBaseIncome;
+    const base = this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.defenderBaseIncome;
+    return base * this.siegeEndIncomeMultiplier();
   }
 
   /**
-   * Credits the attacker their passive income while the income window runs.
+   * Multiplier applied to passive income in the closing stretch of the siege.
+   *
+   * @returns `siegeEndIncomeMultiplier` while the siege clock is inside the
+   * closing window, `1` for the rest of the match.
+   *
+   * @remarks Measured against the siege clock (`phaseEndsAt` counts the siege
+   * down during combat), so the last minute of a 180s siege pays double. Sudden
+   * death sits outside that window: by then the match is decided by the field.
+   */
+  private siegeEndIncomeMultiplier(): number {
+    if (this.state.suddenDeath) return 1;
+    if (this.state.phase !== "combat") return 1;
+
+    const remaining = this.state.phaseEndsAt;
+    if (remaining <= 0) return 1;
+    if (remaining > DEFAULT_ECONOMY.siegeEndIncomeWindowSec) return 1;
+    return DEFAULT_ECONOMY.siegeEndIncomeMultiplier;
+  }
+
+  /**
+   * Credits both players their passive income during combat.
    *
    * @remarks The defender is funded by tower bounties. The gold is accumulated
    * as a float and floored on push so the HUD shows whole numbers. The
-   * attacker's rate includes any deep-unit bonus for the current tick.
+   * attacker's rate includes any deep-unit bonus for the current tick, and both
+   * sides pay at the closing multiplier near the end of the siege.
    */
   private accrueIncome(dt: number): void {
     for (const client of this.clients) {
@@ -1938,7 +1978,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
         continue;
       }
 
-      mob.progress += (mob.speed / total) * dt;
+      this.tickMobEffects(mob, dt);
+
+      mob.progress += (this.mobSpeed(mob) / total) * dt;
 
       if (mob.progress >= 1) {
         const mobType = MOB_TYPES[mob.typeId];
@@ -2065,6 +2107,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
+  /** Picks a random damage value for a tower shot within its tier range. */
+  private towerDamage(tier: TowerTier): number {
+    const min = Math.max(1, tier.damage);
+    const max = Math.max(min, tier.damageMax ?? tier.damage);
+    if (max === min) return min;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
   /** Spawns a homing projectile from a tower's slot toward `target`. */
   private spawnProjectile(
     tower: Tower,
@@ -2082,7 +2132,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
         x: slot.x,
         y: slot.y,
         targetId: target.id,
-        damage: tier.damage,
+        damage: this.towerDamage(tier),
         speed: tier.projectileSpeed,
       }),
     );
@@ -2168,20 +2218,141 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
 
     for (const mobId of hit) {
-      this.damageMob(mobId, projectile.damage, ownerId);
+      const damageType =
+        TOWER_TYPES[projectile.typeId]?.damageType ?? DAMAGE_TYPES.physical;
+      this.damageMob(mobId, projectile.damage, ownerId, damageType);
     }
   }
 
-  /** Applies projectile damage and, on a kill, pays the defender the bounty. */
-  private damageMob(mobId: string, damage: number, ownerId: string): void {
+  /**
+   * Applies projectile damage and, on a kill, pays the defender the bounty.
+   *
+   * @remarks Damage is typed. Physical damage is blunted by the mob's armor,
+   * so a heavily armored troop shrugs off arrows. Mental damage ignores armor
+   * but cracks the mob: the hit lands at face value and every later mental
+   * hit from any source hits harder (see {@link applyMentalDebuff}).
+   */
+  private damageMob(
+    mobId: string,
+    damage: number,
+    ownerId: string,
+    damageType: DamageType,
+  ): void {
     const mob = this.state.mobs.get(mobId);
     if (!mob) return;
 
-    mob.hp -= damage;
+    const type = MOB_TYPES[mob.typeId];
+    const applied =
+      damageType === DAMAGE_TYPES.mental
+        ? mentalDamageTaken(damage, this.debuffMagnitude(mob))
+        : physicalDamageTaken(damage, type?.armor ?? 0);
+
+    mob.hp = Math.max(0, mob.hp - Math.round(applied));
+
+    if (damageType === DAMAGE_TYPES.mental) {
+      this.applyMentalDebuff(mob, type, ownerId);
+    }
+
     if (mob.hp > 0) return;
 
     this.state.mobs.delete(mobId);
     this.awardBounty(ownerId, mob.bounty);
+  }
+
+  /**
+   * Magnitude of the mental debuff riding on a mob.
+   *
+   * @remarks `0` means the mob is untouched: mental damage lands at face
+   * value. Anything higher multiplies incoming mental damage.
+   */
+  private debuffMagnitude(mob: Mob): number {
+    return mob.effects.get(EFFECT_TYPES.debuff)?.magnitude ?? 0;
+  }
+
+  /**
+   * Cracks a mob that just took mental damage.
+   *
+   * @remarks The debuff is based on the mob's mental strength: a mob with full
+   * resolve negates it completely, a half-resolute mob takes 1.5x mental
+   * damage from then on, and a shattered one takes 2x — and is dragged down to
+   * {@link DEFAULT_COMBAT_RULES.mentalBreakSlowFactor} of its speed.
+   */
+  private applyMentalDebuff(
+    mob: Mob,
+    type: MobType | undefined,
+    sourceId: string,
+  ): void {
+    const strength = type?.mentalStrength ?? 0.5;
+    const magnitude = mentalDebuffMagnitude(strength);
+
+    // A mob with full mental strength shrugs the crack off completely.
+    if (magnitude <= 0) return;
+
+    this.applyMobEffect(
+      mob,
+      EFFECT_TYPES.debuff,
+      magnitude,
+      DEFAULT_COMBAT_RULES.debuffDurationSec,
+      sourceId,
+    );
+
+    // A fully broken mob also loses its footing.
+    if (strength <= 0) {
+      this.applyMobEffect(
+        mob,
+        EFFECT_TYPES.slow,
+        1 - DEFAULT_COMBAT_RULES.mentalBreakSlowFactor,
+        DEFAULT_COMBAT_RULES.slowDurationSec,
+        sourceId,
+      );
+    }
+  }
+
+  /**
+   * Puts a status effect on a mob.
+   *
+   * @remarks One effect per type at a time: re-applying refreshes the
+   * remaining time and keeps the stronger magnitude, so a weak slow can never
+   * dilute a heavy one.
+   */
+  private applyMobEffect(
+    mob: Mob,
+    type: EffectType,
+    magnitude: number,
+    durationSec: number,
+    sourceId: string,
+  ): void {
+    const existing = mob.effects.get(type);
+
+    if (existing) {
+      existing.magnitude = combineEffectMagnitude(existing.magnitude, magnitude);
+      existing.remaining = Math.max(existing.remaining, durationSec);
+      if (sourceId) existing.sourceId = sourceId;
+      return;
+    }
+
+    mob.effects.set(
+      type,
+      new MobEffect({ type, magnitude, remaining: durationSec, sourceId }),
+    );
+  }
+
+  /** Counts a mob's effects down and drops the ones that ran out. */
+  private tickMobEffects(mob: Mob, dt: number): void {
+    if (mob.effects.size === 0) return;
+
+    for (const [key, effect] of [...mob.effects]) {
+      effect.remaining -= dt;
+      if (effect.remaining <= 0) mob.effects.delete(key);
+    }
+  }
+
+  /** A mob's speed right now, after slows and stuns. */
+  private mobSpeed(mob: Mob): number {
+    if (mob.effects.has(EFFECT_TYPES.stun)) return 0;
+
+    const slow = mob.effects.get(EFFECT_TYPES.slow);
+    return effectiveSpeed(mob.speed, slow ? [slow.magnitude] : []);
   }
 
   /** Credits a defender's hidden gold and pushes them a fresh snapshot. */
