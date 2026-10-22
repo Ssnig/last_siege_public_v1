@@ -943,7 +943,7 @@ export class GameplayStage {
     const range = currentTier?.range ?? 0;
     if (range > 0) {
       this.rangeCircle = this.scene.add
-        .ellipse(slot.x, slot.y, range * 1.25, range * 0.78, 0x38bdf8, 0.12)
+        .ellipse(slot.x, slot.y, range * 2, range * 1.25, 0x38bdf8, 0.12)
         .setStrokeStyle(2, 0x38bdf8, 0.6) as unknown as Phaser.GameObjects.Arc;
       this.root?.add(this.rangeCircle as Phaser.GameObjects.Arc);
     }

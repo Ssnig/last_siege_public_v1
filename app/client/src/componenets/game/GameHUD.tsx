@@ -20,6 +20,7 @@ interface GameHUDProps {
   incomeRate?: number;
   /** True once the siege timer has expired with troops still on the field. */
   suddenDeath?: boolean;
+  onToggleUI?: () => void;
 }
 
 const DEFAULT_DEFENDER_TOWERS = [

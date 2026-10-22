@@ -24,6 +24,7 @@ interface AttackerDeployBarProps {
   findMapPortal?: (pageX: number, pageY: number) => string | null;
   /** Highlight (or clear) the on-map portal under a drag. */
   onMapPortalHover?: (portalId: string | null) => void;
+  isUIHidden?: boolean;
 }
 
 const NEON = 'rgba(0, 240, 255, 0.55)';
