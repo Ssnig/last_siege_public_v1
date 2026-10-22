@@ -578,6 +578,8 @@ describe("testing your Colyseus app", () => {
     );
 
     const sold = waitForEconomy(defender, (gold) => gold === afterSell);
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
     defender.send(MESSAGES.sellTower, { towerId });
     await sold;
 
@@ -626,6 +628,8 @@ describe("testing your Colyseus app", () => {
     // Verify sell refund is based on the updated invested amount
     const afterSell = afterUpgrade + sellRefund(costBuild + costUpgrade);
     const sold = waitForEconomy(defender, (gold) => gold === afterSell);
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
     defender.send(MESSAGES.sellTower, { towerId });
     await sold;
   });
@@ -809,8 +813,8 @@ describe("testing your Colyseus app", () => {
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
 
-    // A deck of expensive units: an ogre costs 60g against the attacker's 150g,
-    // so only two fit before the purse runs dry.
+    // A deck of expensive units: an ogre costs 60g against the attacker's
+    // 200g, so only three fit before the purse runs dry.
     attacker.send(MESSAGES.draftReady, { deck: ["ogre"] });
     defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
     await waitForPhase(room, "building");
@@ -818,9 +822,10 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "combat");
 
     const rejected = attacker.waitForMessage(MESSAGES.deployRejected);
-    attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
+    const affordable = Math.floor(DEFAULT_ECONOMY.attackerStartingGold / MOB_TYPES.ogre.cost);
+    for (let i = 0; i <= affordable; i++) {
+      attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
+    }
     const msg = await rejected;
     assert.match(msg.reason, /gold/i);
   });
@@ -996,7 +1001,9 @@ describe("testing your Colyseus app", () => {
     assert.strictEqual(room.state.gameOverReason, "time");
   });
 
-  it("closing the income window stops passive income without ending the match", async () => {
+  it("keeps the attacker's income running through the siege and stops it in sudden death", async function () {
+    this.timeout(30000);
+
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
     });
@@ -1008,16 +1015,109 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    // The income window is driven by `matchTime`, so jump the clock rather than
-    // wait out the full duration.
-    (room as unknown as { matchTime: number }).matchTime = MATCH_RULES.incomeDurationSec;
+    // A runner keeps the field alive, so the siege can expire into sudden death.
+    attacker.send(MESSAGES.bufferAdd, { typeId: "runner" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0, 3000);
 
-    const buffer = await waitForBuffer(attacker, (payload) => payload.incomeExpired, 5000);
-    assert.strictEqual(buffer.incomeExpired, true);
+    // Jump most of the way through the siege: the attacker's income must still
+    // be running there, so their gold keeps climbing.
+    room.state.phaseEndsAt = 90;
+    const purse =
+      DEFAULT_ECONOMY.attackerStartingGold - MOB_TYPES.runner.cost;
+    await waitForEconomy(attacker, (gold) => gold > purse, 8000);
+
+    assert.strictEqual(
+      (room as unknown as { incomeExpired: boolean }).incomeExpired,
+      false,
+    );
+
+    // Sudden death is what closes the income window.
+    room.state.phaseEndsAt = 0.05;
+    await waitFor(
+      () =>
+        (room as unknown as { incomeExpired: boolean }).incomeExpired === true,
+      5000,
+    );
+
     // Give the update loop a few ticks to (wrongly) declare game over.
     await new Promise((resolve) => setTimeout(resolve, 300));
     assert.strictEqual(room.state.phase, "combat", "income expiry never ends the match");
     assert.strictEqual(room.state.winner, "");
+  });
+
+  it("pays both sides double in the closing minute of the siege", async function () {
+    this.timeout(30000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    const base = await waitForEconomy(attacker, (gold) => gold > 0, 5000);
+    assert.strictEqual(
+      base.incomeRate,
+      DEFAULT_ECONOMY.attackerBaseIncome,
+      "the siege opens at the plain base rate",
+    );
+
+    // Move the siege clock into the closing window: both sides pay double.
+    room.state.phaseEndsAt = DEFAULT_ECONOMY.siegeEndIncomeWindowSec - 1;
+    const doubled = await new Promise<YouEconomyPayload>((resolve, reject) => {
+      const unsubscribe = attacker.onMessage(MESSAGES.youEconomy, (payload) => {
+        if (
+          Math.abs(
+            payload.incomeRate -
+              DEFAULT_ECONOMY.attackerBaseIncome *
+                DEFAULT_ECONOMY.siegeEndIncomeMultiplier,
+          ) < 1e-6
+        ) {
+          clearInterval(timer);
+          unsubscribe();
+          resolve(payload);
+        }
+      });
+      const timer = setInterval(() => {
+        clearInterval(timer);
+        unsubscribe();
+        reject(new Error("doubled economy not received"));
+      }, 5000);
+    });
+    assert.strictEqual(
+      doubled.incomeRate,
+      DEFAULT_ECONOMY.attackerBaseIncome * DEFAULT_ECONOMY.siegeEndIncomeMultiplier,
+    );
+
+    const defenderDoubled = await new Promise<YouEconomyPayload>((resolve, reject) => {
+      const unsubscribe = defender.onMessage(MESSAGES.youEconomy, (payload) => {
+        if (
+          Math.abs(
+            payload.incomeRate -
+              DEFAULT_ECONOMY.defenderBaseIncome *
+                DEFAULT_ECONOMY.siegeEndIncomeMultiplier,
+          ) < 1e-6
+        ) {
+          clearInterval(timer);
+          unsubscribe();
+          resolve(payload);
+        }
+      });
+      const timer = setInterval(() => {
+        clearInterval(timer);
+        unsubscribe();
+        reject(new Error("defender doubled economy not received"));
+      }, 5000);
+    });
+    assert.strictEqual(
+      defenderDoubled.incomeRate,
+      DEFAULT_ECONOMY.defenderBaseIncome * DEFAULT_ECONOMY.siegeEndIncomeMultiplier,
+    );
   });
 
   it("enters sudden death when the siege expires with troops on the field", async function () {
@@ -1218,5 +1318,101 @@ describe("testing your Colyseus app", () => {
     assert.deepStrictEqual(payload, { winner: remainingRole, reason: "disconnect" });
     await waitForPhase(room, "gameover");
     assert.strictEqual(room.state.gameOverReason, "disconnect");
+  });
+
+  it("armor stops a physical shot that is weaker than it", async function () {
+    // The palace guard's armor (8) is heavier than a pitchfork's shot (6), so
+    // the mob has to shrug those off entirely.
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["grunt", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["basic", "pitchfork"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    for (const slot of [slots[0], slots[1]]) {
+      defender.send(MESSAGES.placeTower, { typeId: "pitchfork", slotIndex: slot.slotIndex });
+    }
+    await waitFor(() => room.state.towers.size === 2);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "sar_bal_gyi" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    // The towers do shoot; the mob simply does not care.
+    await waitFor(() => room.state.projectiles.size > 0, 10000);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const mob = [...room.state.mobs.values()][0];
+    assert.strictEqual(mob.typeId, "sar_bal_gyi");
+    assert.strictEqual(
+      mob.hp,
+      mob.maxHp,
+      "armor heavier than the shot absorbs the whole hit",
+    );
+  });
+
+  it("a mental hit ignores armor and cracks the mob it lands on", async function () {
+    // The bell tower is a mental tower: the palace guard's armor (8) does not
+    // blunt its 12-18 shot, and the hit cracks a mob with no mental strength.
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["grunt", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["basic", "bell", "pitchfork"] });
+    await waitForPhase(room, "building");
+
+    // The bell tower is a mental tower, so the palace guard's armor (8) does
+    // not blunt its shot (15). The pitchfork's shot (6) is blunted to nothing,
+    // which keeps the mob's health loss a clean multiple of the bell's damage.
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "bell", slotIndex: slots[0].slotIndex });
+    defender.send(MESSAGES.placeTower, { typeId: "pitchfork", slotIndex: slots[1].slotIndex });
+    await waitFor(() => room.state.towers.size === 2);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "sar_bal_gyi" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    await waitFor(
+      () => [...room.state.mobs.values()].some((mob) => mob.hp < mob.maxHp),
+      15000,
+    );
+
+    const mob = [...room.state.mobs.values()].find((m) => m.hp < m.maxHp);
+    assert.ok(mob, "the mob took a hit");
+    const loss = mob.maxHp - mob.hp;
+    assert.ok(
+      loss >= 12 && loss <= 18,
+      `a mental hit ignores armor, so the loss stays in the bell's 12-18 band (was ${loss})`,
+    );
+
+    const debuff = mob.effects.get("debuff");
+    assert.ok(debuff, "the mob carries a mental debuff");
+    assert.strictEqual(debuff.magnitude, 1, "a mob with no mental strength is fully cracked");
+
+    const slow = mob.effects.get("slow");
+    assert.ok(slow, "a fully broken mob is slowed as well");
+    assert.ok(
+      Math.abs(slow.magnitude - 0.2) < 1e-6,
+      `the slow keeps 80% of the speed (magnitude ${slow.magnitude})`,
+    );
   });
 });

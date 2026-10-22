@@ -2,6 +2,7 @@
 import Phaser from "phaser";
 import type { TowerType } from "@root/shared";
 import { UI_TEXTURE_KEY } from "./uiAtlas";
+import { createDamageBadge } from "./damageBadge";
 
 /**
  * Selectable portrait card for one defender tower archetype.
@@ -166,6 +167,17 @@ export class TowerCard {
       .setOrigin(0.5);
 
     this.container.add(nameText);
+
+    // Damage-type badge on the card border, top-left (the info button owns the
+    // top-right corner).
+    const badgeSize = Math.max(12, Math.min(20, width * 0.16));
+    const badge = createDamageBadge(
+      scene,
+      tower.damageType ?? "physical",
+      badgeSize,
+    );
+    badge.setPosition(badgeSize / 2 - 2, badgeSize / 2 - 2);
+    this.container.add(badge);
 
     if (showStatus) {
       this.statusText = scene.add

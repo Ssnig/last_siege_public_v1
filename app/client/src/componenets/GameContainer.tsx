@@ -132,7 +132,10 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const lastTapRef = useRef<number>(0);
 
   const handleContainerTap = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('button, input, select, [role="button"], canvas')) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, select, [role="button"]')) return;
+    if (target.closest('.tower-slot')) return;
+    if (gameInstanceRef.current?.registry?.get('ui:overTowerSlot')) return;
     const now = Date.now();
     if (now - lastTapRef.current < 320) {
       setIsUIHidden((prev) => !prev);

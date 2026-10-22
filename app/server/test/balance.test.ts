@@ -83,11 +83,25 @@ describe("balance.ts shape guards", () => {
     );
     for (const n of [
       MATCH_RULES.coreHp,
-      MATCH_RULES.incomeDurationSec,
       MATCH_RULES.siegeDurationSec,
     ]) {
       assert.ok(n > 0, `match rule must be > 0, got ${n}`);
     }
+  });
+
+  it("the closing stretch of the siege pays both sides more", () => {
+    assert.ok(
+      DEFAULT_ECONOMY.siegeEndIncomeMultiplier >= 1,
+      `siegeEndIncomeMultiplier must be >= 1, got ${DEFAULT_ECONOMY.siegeEndIncomeMultiplier}`,
+    );
+    assert.ok(
+      DEFAULT_ECONOMY.siegeEndIncomeWindowSec > 0,
+      `siegeEndIncomeWindowSec must be > 0, got ${DEFAULT_ECONOMY.siegeEndIncomeWindowSec}`,
+    );
+    assert.ok(
+      DEFAULT_ECONOMY.siegeEndIncomeWindowSec <= MATCH_RULES.siegeDurationSec,
+      "the doubled-income window must fit inside the siege",
+    );
   });
 
   it("deploy rules define sane caps, charges and staggering", () => {

@@ -1,26 +1,32 @@
 {
   "economy": {
-    "defenderStartingGold": 160,
-    "attackerStartingGold": 120,
+    "defenderStartingGold": 225,
+    "attackerStartingGold": 200,
     "attackerBaseIncome": 2.5,
     "defenderBaseIncome": 5.0,
-    "attackerUnitIncomeRate": 0.006,
+    "attackerUnitIncomeRate": 0.015,
     "attackerUnitIncomeThreshold": 0.5,
-    "leakPityRate": 0.21
+    "leakPityRate": 0.21,
+    "siegeEndIncomeMultiplier": 2,
+    "siegeEndIncomeWindowSec": 60
   },
   "deploy": {
     "maxBufferUnits": 6,
     "portalMaxCharges": 3,
-    "portalChargeSec": 15,
+    "portalChargeSec": 25,
     "staggerSec": 0.3
   },
   "deck": { "deckSize": 6 },
+  "combat": {
+    "debuffDurationSec": 6,
+    "slowDurationSec": 6,
+    "mentalBreakSlowFactor": 0.8
+  },
   "match": {
     "coreHp": 45,
     "mapRevealDurationSec": 5,
     "draftDurationSec": -1,
     "buildingDurationSec": 45,
-    "incomeDurationSec": 135,
     "siegeDurationSec": 180
   },
   "wander": {
@@ -34,6 +40,6 @@
     "simTickHz": 20,
     "mobSpeedJitter": 0.1,
     "projectileHitRadius": 12,
-    "sellRefundRate": 0.55
+    "sellRefundRate": 0.8
   }
 }
