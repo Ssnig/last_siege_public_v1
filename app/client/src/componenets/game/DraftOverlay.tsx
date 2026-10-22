@@ -12,6 +12,7 @@ import {
 import { useSmoothCountdown } from './useSmoothCountdown';
 import { DamageTypeBadge } from './DamageTypeBadge';
 import { damageTypeOfTower } from '../../game/damageTypes';
+import { soundEffects } from '../../audio/soundEffects';
 
 interface DraftOverlayProps {
   room: Room;
@@ -253,6 +254,21 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   const effectiveRoundSeconds = serverSeconds !== undefined ? smoothSeconds : roundSeconds;
   const effectiveFinalSeconds = serverSeconds !== undefined ? smoothSeconds : finalSeconds;
 
+  // War drum cadence during final countdown
+  const prevFinalSecRef = useRef<number>(effectiveFinalSeconds);
+  useEffect(() => {
+    if (isFinalCountdown && effectiveFinalSeconds !== prevFinalSecRef.current) {
+      if (effectiveFinalSeconds <= 5 && effectiveFinalSeconds >= 4) {
+        soundEffects.playWarDrum('light');
+      } else if (effectiveFinalSeconds <= 3 && effectiveFinalSeconds >= 1) {
+        soundEffects.playWarDrum('heavy');
+      } else if (effectiveFinalSeconds === 0) {
+        soundEffects.playWarDrum('battleStart');
+      }
+    }
+    prevFinalSecRef.current = effectiveFinalSeconds;
+  }, [isFinalCountdown, effectiveFinalSeconds]);
+
   // Opponent state & revealed enemy picks
   const [opponentName, setOpponentName] = useState<string>('Opponent');
   const [enemyPicks, setEnemyPicks] = useState<string[]>([]);
@@ -442,15 +458,18 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   const toggleSelect = (id: string) => {
     // If waiting or in final countdown, clicking cards should only inspect them
     if (isRoundReady || isFinalCountdown) {
+      soundEffects.playHover();
       setInspectedTarget({ id, isEnemy: false });
       return;
     }
 
     if (lockedPicks.includes(id)) {
-      // Already locked from previous round: inspect without re-selecting!
+      soundEffects.playHover();
       setInspectedTarget({ id, isEnemy: false });
       return;
     }
+
+    soundEffects.playClick();
 
     setErrorMsg(null);
     setInspectedTarget({ id, isEnemy: false });
@@ -475,6 +494,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
   const handleManualConfirm = () => {
     if (roundPicks.length !== 2 || isRoundReady || isFinalCountdown) return;
+    soundEffects.playClick();
     submitCurrentRoundPicks(roundPicks);
   };
 

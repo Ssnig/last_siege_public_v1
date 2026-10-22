@@ -227,6 +227,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     room.send(MESSAGES.ready);
 
     const offOpponentLeft = room.onMessage(MESSAGES.opponentLeft, (data: OpponentLeftPayload) => {
+      setGameOver(null);
       setPlayerInfo({});
       setMatchStarted(false);
       setStatusText(
@@ -293,6 +294,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       setPhase(p);
       if (p !== "gameover") {
         setGameOver(null);
+        if (p === "drafting") {
+          setDeck([]);
+        }
         return;
       }
       const winner = room.state.winner as "attacker" | "defender" | undefined;
