@@ -1036,23 +1036,28 @@ export class GameplayStage {
         .setOrigin(0.5, 0.5);
     }
 
+    this.towerInfoPanel.add([bg, nameText, tierBadgeText, statsText]);
+
     if (isAttackerInspect) {
       // Attackers can inspect towers but not upgrade or sell them.
-      const bg = this.towerInfoPanel.list[0] as Phaser.GameObjects.Graphics;
-      const nameText = this.towerInfoPanel.list[1] as Phaser.GameObjects.Text;
-      const tierBadgeText = this.towerInfoPanel.list[2] as Phaser.GameObjects.Text;
-      bg.clear();
-      bg.fillStyle(0x0a0f1d, 0.95);
-      bg.lineStyle(2, 0x38bdf8, 0.95);
-      bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 10);
-      bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 10);
-      bg.lineStyle(1, 0x334155, 0.7);
-      bg.lineBetween(-panelW / 2 + 12, 0, panelW / 2 - 12, 0);
-      nameText.setFontSize(13);
-      nameText.setX(-panelW / 2 + 12);
-      nameText.setY(-14);
-      tierBadgeText.destroy();
-      const statsText = this.scene.add
+      const panelBg = this.towerInfoPanel.list[0] as Phaser.GameObjects.Graphics;
+      const panelName = this.towerInfoPanel.list[1] as Phaser.GameObjects.Text;
+      const panelBadge = this.towerInfoPanel.list[2] as Phaser.GameObjects.Text;
+      panelBg.clear();
+      panelBg.fillStyle(0x0a0f1d, 0.95);
+      panelBg.lineStyle(2, 0x38bdf8, 0.95);
+      panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 10);
+      panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 10);
+      panelBg.lineStyle(1, 0x334155, 0.7);
+      panelBg.lineBetween(-panelW / 2 + 12, 0, panelW / 2 - 12, 0);
+      panelName.setFontSize(13);
+      panelName.setX(-panelW / 2 + 12);
+      panelName.setY(-14);
+      panelBadge.destroy();
+      if (this.towerInfoPanel.list[3]) {
+        this.towerInfoPanel.remove(this.towerInfoPanel.list[3], true);
+      }
+      const inspectStats = this.scene.add
         .text(
           0,
           14,
@@ -1064,7 +1069,7 @@ export class GameplayStage {
           },
         )
         .setOrigin(0.5, 0.5);
-      this.towerInfoPanel.add(statsText);
+      this.towerInfoPanel.add(inspectStats);
       return;
     }
 
