@@ -12,6 +12,11 @@ import {
   toPublicUser,
   type UserDocument,
 } from "../models/User.js";
+import {
+  GuestUserModel,
+  toPublicGuestUser,
+} from "../models/GuestUser.js";
+import { RANKING_CONFIG } from "@root/shared";
 import { bcryptSaltRounds, googleClientId } from "./config.js";
 import { HttpError } from "./errors.js";
 import { verifyGoogleCredential } from "./google.js";
@@ -249,6 +254,58 @@ authRouter.patch(
 
     await user.save();
     res.json({ user: toPublicUser(user) });
+  }),
+);
+
+authRouter.get(
+  "/guest/:guestId",
+  route(async (req, res) => {
+    const rawId = req.params.guestId;
+    if (!rawId || typeof rawId !== "string" || rawId.length > 100) {
+      throw new HttpError(400, "Invalid guest ID.");
+    }
+    const guestId = rawId.trim();
+    let guest = await GuestUserModel.findOne({ guestId });
+    if (!guest) {
+      guest = await GuestUserModel.create({
+        guestId,
+        name: "Guest",
+        elo: RANKING_CONFIG.defaultElo,
+      });
+    }
+    res.json({ guest: toPublicGuestUser(guest) });
+  }),
+);
+
+authRouter.post(
+  "/guest/sync",
+  json(),
+  route(async (req, res) => {
+    const rawId = req.body?.guestId;
+    if (!rawId || typeof rawId !== "string" || rawId.length > 100) {
+      throw new HttpError(400, "Invalid guest ID.");
+    }
+    const guestId = rawId.trim();
+    const name = typeof req.body?.name === "string" ? cleanName(req.body.name) : undefined;
+    const localElo = typeof req.body?.elo === "number" ? req.body.elo : undefined;
+
+    let guest = await GuestUserModel.findOne({ guestId });
+    if (!guest) {
+      guest = await GuestUserModel.create({
+        guestId,
+        name: name || "Guest",
+        elo: localElo ?? RANKING_CONFIG.defaultElo,
+        lastActiveAt: new Date(),
+      });
+    } else {
+      if (name && guest.name !== name) {
+        guest.name = name;
+      }
+      guest.lastActiveAt = new Date();
+      await guest.save();
+    }
+
+    res.json({ guest: toPublicGuestUser(guest) });
   }),
 );
 

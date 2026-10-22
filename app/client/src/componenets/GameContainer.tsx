@@ -12,11 +12,13 @@ import {
   type OpponentReconnectingPayload,
   type OpponentReconnectedPayload,
   type GameOverPayload,
+  type RatingUpdateInfo,
   type YouEconomyPayload,
   type AttackerBufferPayload,
   type DeployRejectedPayload,
 } from '@root/shared';
 import { useGameRoom } from '../network/roomContext';
+import { setGuestElo } from '../auth/guest';
 import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
 import { AttackerDeployBar } from './game/AttackerDeployBar';
@@ -41,6 +43,7 @@ interface GameOverInfo {
   winner: string;
   reason: string;
   youWin: boolean;
+  ratingUpdate?: RatingUpdateInfo;
 }
 
 /** Safety net: return a finished match to the lobby after this idle timeout. */
@@ -282,7 +285,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         winner: payload.winner,
         reason: payload.reason,
         youWin: payload.winner === myRole,
+        ratingUpdate: payload.ratingUpdate,
       });
+
+      if (payload.ratingUpdate?.newElo) {
+        setGuestElo(payload.ratingUpdate.newElo);
+      }
     });
 
     // Authoritative phase updates. `game_over` may arrive before or after this

@@ -49,6 +49,7 @@ import {
   type DraftRoundUpdatePayload,
   type EffectType,
   type GameOverPayload,
+  type GameOverReason,
   type MapDefinition,
   type MapPortal,
   type MobType,
@@ -59,10 +60,20 @@ import {
   type TowerTier,
   type Vec2,
   type YouEconomyPayload,
+  type RatingUpdateInfo,
+  RANKING_CONFIG,
+  getRankForElo,
+  getNextRank,
+  getRankProgress,
+  calculateEloChange,
   buildCost,
   sellRefund,
   upgradeCost,
 } from "@root/shared";
+import mongoose from "mongoose";
+import { UserModel } from "../models/User.js";
+import { GuestUserModel } from "../models/GuestUser.js";
+import { verifyAuthToken } from "../auth/tokens.js";
 import { Phases } from "../game/phases.js";
 import { selectTarget, type TargetCandidate } from "../game/targeting.js";
 
@@ -128,6 +139,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private creatorSessionId?: string;
   private readyClients = new Set<string>();
   private matchStarted = false;
+  private matchRatingResolved = false;
 
   /**
    * Whether the host pinned a map via the lobby selector.
@@ -1220,10 +1232,191 @@ export class GameRoom extends Room<{ state: RoomState }> {
       `Room ${this.roomId}: ${client.sessionId} (${loser}) surrendered; ${winner} wins`,
     );
 
-    const payload: GameOverPayload = { winner, reason: "surrender" };
-    for (const c of this.clients) {
-      c.send(MESSAGES.gameOver, payload);
+    this.finishMatch(winner, "surrender").catch((e) =>
+      console.error(`Room ${this.roomId}: error finishing match:`, e),
+    );
+  }
+
+  /**
+   * Calculates Elo shifts, persists updated ratings to MongoDB (for users and guests),
+   * updates Player state, and dispatches private game over payloads with rating summaries.
+   */
+  private async finishMatch(
+    winner: PlayerRole,
+    reason: GameOverReason,
+  ): Promise<void> {
+    const ratingUpdates = await this.resolveMatchRatings(winner);
+    for (const client of this.clients) {
+      const payload: GameOverPayload = {
+        winner,
+        reason,
+        ratingUpdate: ratingUpdates.get(client.sessionId),
+      };
+      client.send(MESSAGES.gameOver, payload);
     }
+  }
+
+  private async resolveMatchRatings(
+    winner: PlayerRole,
+  ): Promise<Map<string, RatingUpdateInfo>> {
+    const updates = new Map<string, RatingUpdateInfo>();
+    if (this.matchRatingResolved) return updates;
+    this.matchRatingResolved = true;
+
+    const attackerClient = this.clients.find(
+      (c) => c.userData?.role === "attacker",
+    );
+    const defenderClient = this.clients.find(
+      (c) => c.userData?.role === "defender",
+    );
+
+    if (!attackerClient || !defenderClient) {
+      return updates;
+    }
+
+    const attackerElo = attackerClient.userData?.elo ?? RANKING_CONFIG.defaultElo;
+    const defenderElo = defenderClient.userData?.elo ?? RANKING_CONFIG.defaultElo;
+
+    const attackerScore: 1 | 0 = winner === "attacker" ? 1 : 0;
+    const defenderScore: 1 | 0 = winner === "defender" ? 1 : 0;
+
+    const attackerCalc = calculateEloChange(
+      attackerElo,
+      defenderElo,
+      attackerScore,
+      RANKING_CONFIG.kFactor,
+    );
+    const defenderCalc = calculateEloChange(
+      defenderElo,
+      attackerElo,
+      defenderScore,
+      RANKING_CONFIG.kFactor,
+    );
+
+    attackerClient.userData.elo = attackerCalc.newElo;
+    defenderClient.userData.elo = defenderCalc.newElo;
+
+    const attackerPlayer = this.state.players.get(attackerClient.sessionId);
+    if (attackerPlayer) {
+      attackerPlayer.elo = attackerCalc.newElo;
+      attackerPlayer.rankId = getRankForElo(attackerCalc.newElo).id;
+    }
+
+    const defenderPlayer = this.state.players.get(defenderClient.sessionId);
+    if (defenderPlayer) {
+      defenderPlayer.elo = defenderCalc.newElo;
+      defenderPlayer.rankId = getRankForElo(defenderCalc.newElo).id;
+    }
+
+    const attackerRank = getRankForElo(attackerCalc.newElo);
+    const attackerNextRank = getNextRank(attackerCalc.newElo);
+    const attackerProgress = getRankProgress(attackerCalc.newElo);
+
+    const defenderRank = getRankForElo(defenderCalc.newElo);
+    const defenderNextRank = getNextRank(defenderCalc.newElo);
+    const defenderProgress = getRankProgress(defenderCalc.newElo);
+
+    updates.set(attackerClient.sessionId, {
+      oldElo: attackerCalc.oldElo,
+      newElo: attackerCalc.newElo,
+      delta: attackerCalc.delta,
+      rank: {
+        id: attackerRank.id,
+        tier: attackerRank.tier,
+        name: attackerRank.name,
+        badgeAsset: attackerRank.badgeAsset,
+        color: attackerRank.color,
+      },
+      nextRank: attackerNextRank
+        ? {
+            id: attackerNextRank.id,
+            tier: attackerNextRank.tier,
+            name: attackerNextRank.name,
+            minElo: attackerNextRank.minElo,
+          }
+        : null,
+      progressPercent: attackerProgress.progressPercent,
+    });
+
+    updates.set(defenderClient.sessionId, {
+      oldElo: defenderCalc.oldElo,
+      newElo: defenderCalc.newElo,
+      delta: defenderCalc.delta,
+      rank: {
+        id: defenderRank.id,
+        tier: defenderRank.tier,
+        name: defenderRank.name,
+        badgeAsset: defenderRank.badgeAsset,
+        color: defenderRank.color,
+      },
+      nextRank: defenderNextRank
+        ? {
+            id: defenderNextRank.id,
+            tier: defenderNextRank.tier,
+            name: defenderNextRank.name,
+            minElo: defenderNextRank.minElo,
+          }
+        : null,
+      progressPercent: defenderProgress.progressPercent,
+    });
+
+    if (mongoose.connection?.readyState === 1) {
+      try {
+        // Persist attacker rating
+        if (attackerClient.userData?.accountType === "user") {
+          await UserModel.findByIdAndUpdate(attackerClient.userData.accountId, {
+            $set: { elo: attackerCalc.newElo },
+            $inc: {
+              matchesPlayed: 1,
+              wins: attackerScore === 1 ? 1 : 0,
+              losses: attackerScore === 0 ? 1 : 0,
+            },
+          });
+        } else if (attackerClient.userData?.accountType === "guest") {
+          await GuestUserModel.findOneAndUpdate(
+            { guestId: attackerClient.userData.accountId },
+            {
+              $set: { elo: attackerCalc.newElo, lastActiveAt: new Date() },
+              $inc: {
+                matchesPlayed: 1,
+                wins: attackerScore === 1 ? 1 : 0,
+                losses: attackerScore === 0 ? 1 : 0,
+              },
+            },
+            { upsert: true },
+          );
+        }
+
+        // Persist defender rating
+        if (defenderClient.userData?.accountType === "user") {
+          await UserModel.findByIdAndUpdate(defenderClient.userData.accountId, {
+            $set: { elo: defenderCalc.newElo },
+            $inc: {
+              matchesPlayed: 1,
+              wins: defenderScore === 1 ? 1 : 0,
+              losses: defenderScore === 0 ? 1 : 0,
+            },
+          });
+        } else if (defenderClient.userData?.accountType === "guest") {
+          await GuestUserModel.findOneAndUpdate(
+            { guestId: defenderClient.userData.accountId },
+            {
+              $set: { elo: defenderCalc.newElo, lastActiveAt: new Date() },
+              $inc: {
+                matchesPlayed: 1,
+                wins: defenderScore === 1 ? 1 : 0,
+                losses: defenderScore === 0 ? 1 : 0,
+              },
+            },
+            { upsert: true },
+          );
+        }
+      } catch (err) {
+        console.error(`Room ${this.roomId}: Failed to persist ratings to database:`, err);
+      }
+    }
+
+    return updates;
   }
 
   /**
@@ -1258,6 +1451,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private restartMatchForRematch(): void {
     this.rematchVotes.clear();
+    this.matchRatingResolved = false;
     this.clearMobs();
     this.clearProjectiles();
     this.resetCombatRuntime();
@@ -1356,9 +1550,52 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   async onJoin(client: Client, options: any): Promise<void> {
+    let accountType: "user" | "guest" | "anonymous" = "anonymous";
+    let accountId = "";
+    let playerElo = typeof options?.playerElo === "number" ? options.playerElo : RANKING_CONFIG.defaultElo;
+    let playerName = (typeof options?.playerName === "string" && options.playerName.trim())
+      ? options.playerName.trim()
+      : "Anonymous";
+
+    if (mongoose.connection?.readyState === 1) {
+      try {
+        if (options?.token && typeof options.token === "string") {
+          const decoded = verifyAuthToken(options.token);
+          const user = await UserModel.findById(decoded.id);
+          if (user) {
+            accountType = "user";
+            accountId = user._id.toString();
+            playerElo = user.elo ?? RANKING_CONFIG.defaultElo;
+            playerName = user.name || playerName;
+          }
+        } else if (options?.guestId && typeof options.guestId === "string") {
+          const guestId = options.guestId.trim();
+          if (guestId) {
+            accountType = "guest";
+            accountId = guestId;
+            let guest = await GuestUserModel.findOne({ guestId });
+            if (!guest) {
+              guest = await GuestUserModel.create({
+                guestId,
+                name: playerName !== "Anonymous" ? playerName : "Guest",
+                elo: playerElo,
+              });
+            } else {
+              playerElo = guest.elo ?? RANKING_CONFIG.defaultElo;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`Room ${this.roomId}: Could not load account for player in onJoin:`, err);
+      }
+    }
+
     client.userData = {
-      playerName: options.playerName || "Anonymous",
+      playerName,
       role: null,
+      accountType,
+      accountId,
+      elo: playerElo,
     };
 
     if (!this.creatorSessionId) {
@@ -1370,11 +1607,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
       new Player({
         name: client.userData.playerName,
         role: "",
+        elo: client.userData.elo,
+        rankId: getRankForElo(client.userData.elo).id,
       }),
     );
 
     console.log(
-      `Player ${client.sessionId} (${client.userData.playerName}) joined room ${this.roomId}`,
+      `Player ${client.sessionId} (${client.userData.playerName}, Elo: ${client.userData.elo}) joined room ${this.roomId}`,
     );
 
     if (this.clients.length === 2) {
@@ -1459,10 +1698,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       `Room ${this.roomId}: ${leaver.sessionId} did not reconnect; ${winner} wins by disconnect`,
     );
 
-    const payload: GameOverPayload = { winner, reason: "disconnect" };
-    for (const c of this.clients) {
-      c.send(MESSAGES.gameOver, payload);
-    }
+    this.finishMatch(winner, "disconnect").catch((e) =>
+      console.error(`Room ${this.roomId}: error finishing match:`, e),
+    );
   }
 
   /**
@@ -1737,10 +1975,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     console.log(`Room ${this.roomId}: ${winner} wins (${detail})`);
 
-    const payload: GameOverPayload = { winner, reason };
-    for (const client of this.clients) {
-      client.send(MESSAGES.gameOver, payload);
-    }
+    this.finishMatch(winner, reason).catch((e) =>
+      console.error(`Room ${this.roomId}: error finishing match:`, e),
+    );
   }
 
   /**
@@ -2029,10 +2266,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       `Room ${this.roomId}: defender core destroyed; attacker wins`,
     );
 
-    const payload: GameOverPayload = { winner: "attacker", reason: "core" };
-    for (const client of this.clients) {
-      client.send(MESSAGES.gameOver, payload);
-    }
+    this.finishMatch("attacker", "core").catch((e) =>
+      console.error(`Room ${this.roomId}: error finishing match:`, e),
+    );
   }
 
   /** Resolves a mob's `pathId` against the map's tracks. */
