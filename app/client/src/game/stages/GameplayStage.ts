@@ -1066,32 +1066,67 @@ export class GameplayStage {
       const panelBadge = this.towerInfoPanel.list[2] as Phaser.GameObjects.Text;
       panelBg.clear();
       panelBg.fillStyle(0x0a0f1d, 0.95);
-      panelBg.lineStyle(2, 0x38bdf8, 0.95);
-      panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW + 80, panelH + 90, 12);
-      panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW + 80, panelH + 90, 12);
+      panelBg.lineStyle(1.8, 0x38bdf8, 0.95);
+      const pw = Math.max(panelW + 60, 300);
+      const ph = panelH + 70;
+      panelBg.fillRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
+      panelBg.strokeRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
       panelBg.lineStyle(1, 0x334155, 0.7);
-      panelBg.lineBetween(-panelW / 2 + 20, -24, panelW / 2 + 60, -24);
-      panelName.setFontSize(19);
-      panelName.setX(-panelW / 2 + 20);
-      panelName.setY(-panelH / 2 - 10);
+      panelBg.lineBetween(-pw / 2 + 14, -14, pw / 2 - 14, -14);
+      panelName.setFontSize(16);
+      panelName.setX(-pw / 2 + 14);
+      panelName.setY(-ph / 2 + 20);
+      panelName.setFontFamily("Arial, sans-serif");
+      panelName.setFontStyle("normal");
+      panelName.setColor("#f8fafc");
       if (panelBadge) panelBadge.destroy();
       if (this.towerInfoPanel.list[3]) {
         this.towerInfoPanel.remove(this.towerInfoPanel.list[3], true);
       }
+    if (isAttackerInspect) {
+      // Attackers can inspect towers but not upgrade or sell them.
+      const panelBg = this.towerInfoPanel.list[0] as Phaser.GameObjects.Graphics;
+      const panelName = this.towerInfoPanel.list[1] as Phaser.GameObjects.Text;
+      const panelBadge = this.towerInfoPanel.list[2] as Phaser.GameObjects.Text;
+      panelBg.clear();
+      panelBg.fillStyle(0x0a0f1d, 0.95);
+      panelBg.lineStyle(1.8, 0x38bdf8, 0.95);
+      const pw = Math.max(panelW + 60, 300);
+      const ph = panelH + 70;
+      panelBg.fillRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
+      panelBg.strokeRoundedRect(-pw / 2, -ph / 2, pw, ph, 8);
+      panelBg.lineStyle(1, 0x334155, 0.7);
+      panelBg.lineBetween(-pw / 2 + 14, -14, pw / 2 - 14, -14);
+      panelName.setFontSize(16);
+      panelName.setX(-pw / 2 + 14);
+      panelName.setY(-ph / 2 + 20);
+      panelName.setFontFamily("Arial, sans-serif");
+      panelName.setFontStyle("normal");
+      panelName.setColor("#f8fafc");
+      if (panelBadge) panelBadge.destroy();
+      if (this.towerInfoPanel.list[3]) {
+        this.towerInfoPanel.remove(this.towerInfoPanel.list[3], true);
+      }
+      const tierLabel = isMax ? "TIER MAX" : `TIER ${record.tower.level}/${maxLevel}`;
+      const nameLine = `${towerType?.name ?? record.tower.typeId} • ${damageTypeLabel}`;
       const inspectStats = this.scene.add
         .text(
-          -panelW / 2 + 20,
-          20,
-          `DMG: ${dmgLabel} (${damageTypeLabel})\nRNG: ${currentTier?.range ?? 0}\nSPD: ${currentTier?.fireRate ?? 0}/s`,
+          -pw / 2 + 14,
+          14,
+          `${nameLine}\nDMG: ${dmgLabel}   RNG: ${currentTier?.range ?? 0}\nSPD: ${currentTier?.fireRate ?? 0}/s   ${tierLabel}`,
           {
-            fontSize: "15px",
-            fontStyle: "bold",
-            color: "#f8fafc",
-            lineSpacing: 14,
-            wordWrap: { width: panelW + 60, useAdvancedWrap: true },
+            fontSize: "14px",
+            fontFamily: "Arial, sans-serif",
+            fontStyle: "normal",
+            color: "#e2e8f0",
+            lineSpacing: 10,
+            wordWrap: { width: pw - 28, useAdvancedWrap: true },
           },
         )
         .setOrigin(0, 0.5);
+      this.towerInfoPanel.add(inspectStats);
+      return;
+    }
       this.towerInfoPanel.add(inspectStats);
       return;
     }
