@@ -949,12 +949,12 @@ export class GameplayStage {
     }
 
     // Geometry layout: clamp horizontally and anchor above tower
-    const clampedX = Phaser.Math.Clamp(slot.x, 140, 1280 - 140);
+    const clampedX = Phaser.Math.Clamp(slot.x, 160, 1280 - 160);
     const isTopHalf = slot.y < 340;
-    const buttonY = isTopHalf ? slot.y + 76 : Math.max(88, slot.y - 76);
-    const panelY = isTopHalf ? buttonY + 52 : buttonY - 52;
-    const panelW = 246;
-    const panelH = 50;
+    const buttonY = isTopHalf ? slot.y + 82 : Math.max(92, slot.y - 82);
+    const panelY = isTopHalf ? buttonY + 58 : buttonY - 58;
+    const panelW = 290;
+    const panelH = 58;
 
     // --- Status Panel ---
     this.towerInfoPanel = this.scene.add.container(clampedX, panelY);
@@ -968,8 +968,8 @@ export class GameplayStage {
     bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 8);
 
     const nameText = this.scene.add
-      .text(-panelW / 2 + 10, -12, towerType?.name ?? record.tower.typeId, {
-        fontSize: "12px",
+      .text(-panelW / 2 + 12, -14, towerType?.name ?? record.tower.typeId, {
+        fontSize: "13px",
         fontStyle: "bold",
         color: "#f8fafc",
       })
@@ -977,11 +977,11 @@ export class GameplayStage {
 
     const tierBadgeText = this.scene.add
       .text(
-        panelW / 2 - 10,
-        -12,
+        panelW / 2 - 12,
+        -14,
         isMax ? "TIER MAX" : `TIER ${record.tower.level}/${maxLevel}`,
         {
-          fontSize: "11px",
+          fontSize: "12px",
           fontStyle: "bold",
           color: isMax ? "#fbbf24" : "#38bdf8",
         },
@@ -989,7 +989,7 @@ export class GameplayStage {
       .setOrigin(1, 0.5);
 
     bg.lineStyle(1, 0x334155, 0.7);
-    bg.lineBetween(-panelW / 2 + 8, 0, panelW / 2 - 8, 0);
+    bg.lineBetween(-panelW / 2 + 12, 0, panelW / 2 - 12, 0);
 
     const dmgMin = currentTier?.damage ?? 0;
     const dmgMax = currentTier?.damageMax ?? currentTier?.damage ?? 0;
@@ -1005,10 +1005,10 @@ export class GameplayStage {
       statsText = this.scene.add
         .text(
           0,
-          12,
+          14,
           `DMG ${dmgLabel}➔${ndLabel} (${damageTypeLabel})   RNG ${currentTier.range}➔${nextTier.range}   SPD ${currentTier.fireRate}➔${nextTier.fireRate}/s`,
           {
-            fontSize: "10px",
+            fontSize: "11px",
             fontStyle: "bold",
             color: "#cbd5e1",
           },
@@ -1018,10 +1018,10 @@ export class GameplayStage {
       statsText = this.scene.add
         .text(
           0,
-          12,
+          14,
           `DMG ${dmgLabel} (${damageTypeLabel})   RNG ${currentTier.range}   SPD ${currentTier.fireRate}/s`,
           {
-            fontSize: "10px",
+            fontSize: "11px",
             fontStyle: "bold",
             color: "#94a3b8",
           },
@@ -1029,22 +1029,42 @@ export class GameplayStage {
         .setOrigin(0.5, 0.5);
     } else {
       statsText = this.scene.add
-        .text(0, 12, "NO STATS", {
-          fontSize: "11px",
+        .text(0, 14, "NO STATS", {
+          fontSize: "12px",
           color: "#94a3b8",
         })
         .setOrigin(0.5, 0.5);
     }
 
-    this.towerInfoPanel.add([bg, nameText, tierBadgeText, statsText]);
-
     if (isAttackerInspect) {
       // Attackers can inspect towers but not upgrade or sell them.
-      return;
-    }
-
-    if (isAttackerInspect) {
-      // Attackers can inspect towers but not upgrade or sell them.
+      const bg = this.towerInfoPanel.list[0] as Phaser.GameObjects.Graphics;
+      const nameText = this.towerInfoPanel.list[1] as Phaser.GameObjects.Text;
+      const tierBadgeText = this.towerInfoPanel.list[2] as Phaser.GameObjects.Text;
+      bg.clear();
+      bg.fillStyle(0x0a0f1d, 0.95);
+      bg.lineStyle(2, 0x38bdf8, 0.95);
+      bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 10);
+      bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 10);
+      bg.lineStyle(1, 0x334155, 0.7);
+      bg.lineBetween(-panelW / 2 + 12, 0, panelW / 2 - 12, 0);
+      nameText.setFontSize(13);
+      nameText.setX(-panelW / 2 + 12);
+      nameText.setY(-14);
+      tierBadgeText.destroy();
+      const statsText = this.scene.add
+        .text(
+          0,
+          14,
+          `DMG ${dmgLabel} (${damageTypeLabel})   RNG ${currentTier?.range ?? 0}   SPD ${currentTier?.fireRate ?? 0}/s`,
+          {
+            fontSize: "11px",
+            fontStyle: "bold",
+            color: "#cbd5e1",
+          },
+        )
+        .setOrigin(0.5, 0.5);
+      this.towerInfoPanel.add(statsText);
       return;
     }
 
