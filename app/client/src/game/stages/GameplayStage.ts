@@ -1127,9 +1127,6 @@ export class GameplayStage {
       this.towerInfoPanel.add(inspectStats);
       return;
     }
-      this.towerInfoPanel.add(inspectStats);
-      return;
-    }
 
     // --- Action Buttons (UPGRADE on left, SELL on right) ---
     const btnWidth = 116;
