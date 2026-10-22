@@ -2,138 +2,468 @@
   "basic": {
     "id": "basic",
     "name": "Arrow Tower",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 55, "damage": 12, "range": 140, "fireRate": 1.08, "projectileSpeed": 400 },
-      { "cost": 105, "damage": 22, "range": 160, "fireRate": 1.17, "projectileSpeed": 430 },
-      { "cost": 185, "damage": 40, "range": 185, "fireRate": 1.26, "projectileSpeed": 460 }
+      {
+        "cost": 55,
+        "damage": 10,
+        "range": 140,
+        "fireRate": 1.08,
+        "projectileSpeed": 400,
+        "damageMax": 14
+      },
+      {
+        "cost": 105,
+        "damage": 18,
+        "range": 160,
+        "fireRate": 1.17,
+        "projectileSpeed": 430,
+        "damageMax": 26
+      },
+      {
+        "cost": 185,
+        "damage": 32,
+        "range": 185,
+        "fireRate": 1.26,
+        "projectileSpeed": 460,
+        "damageMax": 48
+      }
     ]
   },
   "pitchfork": {
     "id": "pitchfork",
     "name": "Pitchfork Turret",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 35, "damage": 6, "range": 110, "fireRate": 0.9, "projectileSpeed": 300 },
-      { "cost": 65, "damage": 12, "range": 125, "fireRate": 0.99, "projectileSpeed": 325 },
-      { "cost": 110, "damage": 24, "range": 140, "fireRate": 1.08, "projectileSpeed": 350 }
+      {
+        "cost": 35,
+        "damage": 5,
+        "range": 110,
+        "fireRate": 0.9,
+        "projectileSpeed": 300,
+        "damageMax": 7
+      },
+      {
+        "cost": 65,
+        "damage": 10,
+        "range": 125,
+        "fireRate": 0.99,
+        "projectileSpeed": 325,
+        "damageMax": 14
+      },
+      {
+        "cost": 110,
+        "damage": 19,
+        "range": 140,
+        "fireRate": 1.08,
+        "projectileSpeed": 350,
+        "damageMax": 29
+      }
     ]
   },
   "poison": {
     "id": "poison",
     "name": "Poison Dart",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 80, "damage": 6, "range": 120, "fireRate": 1.44, "projectileSpeed": 340 },
-      { "cost": 145, "damage": 12, "range": 135, "fireRate": 1.62, "projectileSpeed": 370 },
-      { "cost": 240, "damage": 26, "range": 150, "fireRate": 1.8, "projectileSpeed": 400 }
+      {
+        "cost": 80,
+        "damage": 5,
+        "range": 120,
+        "fireRate": 1.44,
+        "projectileSpeed": 340,
+        "damageMax": 7
+      },
+      {
+        "cost": 145,
+        "damage": 10,
+        "range": 135,
+        "fireRate": 1.62,
+        "projectileSpeed": 370,
+        "damageMax": 14
+      },
+      {
+        "cost": 240,
+        "damage": 21,
+        "range": 150,
+        "fireRate": 1.8,
+        "projectileSpeed": 400,
+        "damageMax": 31
+      }
     ]
   },
   "crossbow": {
     "id": "crossbow",
     "name": "Crossbow",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 90, "damage": 8, "range": 130, "fireRate": 1.98, "projectileSpeed": 380 },
-      { "cost": 160, "damage": 15, "range": 145, "fireRate": 2.16, "projectileSpeed": 410 },
-      { "cost": 275, "damage": 30, "range": 165, "fireRate": 2.34, "projectileSpeed": 440 }
+      {
+        "cost": 90,
+        "damage": 6,
+        "range": 130,
+        "fireRate": 1.98,
+        "projectileSpeed": 380,
+        "damageMax": 10
+      },
+      {
+        "cost": 160,
+        "damage": 12,
+        "range": 145,
+        "fireRate": 2.16,
+        "projectileSpeed": 410,
+        "damageMax": 18
+      },
+      {
+        "cost": 275,
+        "damage": 24,
+        "range": 165,
+        "fireRate": 2.34,
+        "projectileSpeed": 440,
+        "damageMax": 36
+      }
     ]
   },
   "cannon": {
     "id": "cannon",
     "name": "Cannon",
+    "damageType": "physical",
     "splashRadius": 60,
     "tiers": [
-      { "cost": 140, "damage": 40, "range": 110, "fireRate": 0.54, "projectileSpeed": 300 },
-      { "cost": 230, "damage": 75, "range": 120, "fireRate": 0.59, "projectileSpeed": 320 },
-      { "cost": 390, "damage": 150, "range": 135, "fireRate": 0.63, "projectileSpeed": 340 }
+      {
+        "cost": 140,
+        "damage": 32,
+        "range": 110,
+        "fireRate": 0.54,
+        "projectileSpeed": 300,
+        "damageMax": 48
+      },
+      {
+        "cost": 230,
+        "damage": 60,
+        "range": 120,
+        "fireRate": 0.59,
+        "projectileSpeed": 320,
+        "damageMax": 90
+      },
+      {
+        "cost": 390,
+        "damage": 120,
+        "range": 135,
+        "fireRate": 0.63,
+        "projectileSpeed": 340,
+        "damageMax": 180
+      }
     ]
   },
   "sniper": {
     "id": "sniper",
     "name": "Sniper",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 125, "damage": 35, "range": 220, "fireRate": 0.36, "projectileSpeed": 500 },
-      { "cost": 220, "damage": 70, "range": 250, "fireRate": 0.41, "projectileSpeed": 540 },
-      { "cost": 380, "damage": 160, "range": 285, "fireRate": 0.45, "projectileSpeed": 580 }
+      {
+        "cost": 125,
+        "damage": 28,
+        "range": 220,
+        "fireRate": 0.36,
+        "projectileSpeed": 500,
+        "damageMax": 42
+      },
+      {
+        "cost": 220,
+        "damage": 56,
+        "range": 250,
+        "fireRate": 0.41,
+        "projectileSpeed": 540,
+        "damageMax": 84
+      },
+      {
+        "cost": 380,
+        "damage": 128,
+        "range": 285,
+        "fireRate": 0.45,
+        "projectileSpeed": 580,
+        "damageMax": 192
+      }
     ]
   },
   "arcanist": {
     "id": "arcanist",
     "name": "Arcanist",
+    "damageType": "mental",
     "tiers": [
-      { "cost": 170, "damage": 30, "range": 120, "fireRate": 0.45, "projectileSpeed": 260 },
-      { "cost": 300, "damage": 60, "range": 135, "fireRate": 0.5, "projectileSpeed": 280 },
-      { "cost": 495, "damage": 140, "range": 155, "fireRate": 0.54, "projectileSpeed": 300 }
+      {
+        "cost": 170,
+        "damage": 24,
+        "range": 120,
+        "fireRate": 0.45,
+        "projectileSpeed": 260,
+        "damageMax": 36
+      },
+      {
+        "cost": 300,
+        "damage": 48,
+        "range": 135,
+        "fireRate": 0.5,
+        "projectileSpeed": 280,
+        "damageMax": 72
+      },
+      {
+        "cost": 495,
+        "damage": 112,
+        "range": 155,
+        "fireRate": 0.54,
+        "projectileSpeed": 300,
+        "damageMax": 168
+      }
     ]
   },
   "tesla": {
     "id": "tesla",
     "name": "Tesla",
+    "damageType": "mental",
     "tiers": [
-      { "cost": 205, "damage": 20, "range": 100, "fireRate": 1.62, "projectileSpeed": 320 },
-      { "cost": 345, "damage": 40, "range": 115, "fireRate": 1.8, "projectileSpeed": 350 },
-      { "cost": 600, "damage": 90, "range": 135, "fireRate": 1.98, "projectileSpeed": 380 }
+      {
+        "cost": 205,
+        "damage": 16,
+        "range": 100,
+        "fireRate": 1.62,
+        "projectileSpeed": 320,
+        "damageMax": 24
+      },
+      {
+        "cost": 345,
+        "damage": 32,
+        "range": 115,
+        "fireRate": 1.8,
+        "projectileSpeed": 350,
+        "damageMax": 48
+      },
+      {
+        "cost": 600,
+        "damage": 72,
+        "range": 135,
+        "fireRate": 1.98,
+        "projectileSpeed": 380,
+        "damageMax": 108
+      }
     ]
   },
   "archmage": {
     "id": "archmage",
     "name": "Archmage",
+    "damageType": "mental",
     "tiers": [
-      { "cost": 230, "damage": 55, "range": 150, "fireRate": 0.45, "projectileSpeed": 340 },
-      { "cost": 390, "damage": 110, "range": 170, "fireRate": 0.5, "projectileSpeed": 360 },
-      { "cost": 665, "damage": 240, "range": 195, "fireRate": 0.54, "projectileSpeed": 380 }
+      {
+        "cost": 230,
+        "damage": 44,
+        "range": 150,
+        "fireRate": 0.45,
+        "projectileSpeed": 340,
+        "damageMax": 66
+      },
+      {
+        "cost": 390,
+        "damage": 88,
+        "range": 170,
+        "fireRate": 0.5,
+        "projectileSpeed": 360,
+        "damageMax": 132
+      },
+      {
+        "cost": 665,
+        "damage": 192,
+        "range": 195,
+        "fireRate": 0.54,
+        "projectileSpeed": 380,
+        "damageMax": 288
+      }
     ]
   },
   "bertha": {
     "id": "bertha",
     "name": "Big Bertha",
+    "damageType": "physical",
     "splashRadius": 90,
     "tiers": [
-      { "cost": 300, "damage": 120, "range": 140, "fireRate": 0.32, "projectileSpeed": 280 },
-      { "cost": 520, "damage": 240, "range": 155, "fireRate": 0.36, "projectileSpeed": 300 },
-      { "cost": 895, "damage": 500, "range": 175, "fireRate": 0.41, "projectileSpeed": 320 }
+      {
+        "cost": 300,
+        "damage": 96,
+        "range": 140,
+        "fireRate": 0.32,
+        "projectileSpeed": 280,
+        "damageMax": 144
+      },
+      {
+        "cost": 520,
+        "damage": 192,
+        "range": 155,
+        "fireRate": 0.36,
+        "projectileSpeed": 300,
+        "damageMax": 288
+      },
+      {
+        "cost": 895,
+        "damage": 400,
+        "range": 175,
+        "fireRate": 0.41,
+        "projectileSpeed": 320,
+        "damageMax": 600
+      }
     ]
   },
   "archer": {
     "id": "archer",
     "name": "Archer Tower",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 55, "damage": 12, "range": 140, "fireRate": 1.08, "projectileSpeed": 400 },
-      { "cost": 105, "damage": 22, "range": 160, "fireRate": 1.17, "projectileSpeed": 430 },
-      { "cost": 185, "damage": 40, "range": 185, "fireRate": 1.26, "projectileSpeed": 460 }
+      {
+        "cost": 55,
+        "damage": 10,
+        "range": 140,
+        "fireRate": 1.08,
+        "projectileSpeed": 400,
+        "damageMax": 14
+      },
+      {
+        "cost": 105,
+        "damage": 18,
+        "range": 160,
+        "fireRate": 1.17,
+        "projectileSpeed": 430,
+        "damageMax": 26
+      },
+      {
+        "cost": 185,
+        "damage": 32,
+        "range": 185,
+        "fireRate": 1.26,
+        "projectileSpeed": 460,
+        "damageMax": 48
+      }
     ]
   },
   "bomb": {
     "id": "bomb",
     "name": "Bomb Throwing Tower",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 110, "damage": 30, "range": 130, "fireRate": 0.65, "projectileSpeed": 280 },
-      { "cost": 190, "damage": 60, "range": 145, "fireRate": 0.72, "projectileSpeed": 300 },
-      { "cost": 320, "damage": 120, "range": 165, "fireRate": 0.80, "projectileSpeed": 320 }
+      {
+        "cost": 110,
+        "damage": 24,
+        "range": 130,
+        "fireRate": 0.65,
+        "projectileSpeed": 280,
+        "damageMax": 36
+      },
+      {
+        "cost": 190,
+        "damage": 48,
+        "range": 145,
+        "fireRate": 0.72,
+        "projectileSpeed": 300,
+        "damageMax": 72
+      },
+      {
+        "cost": 320,
+        "damage": 96,
+        "range": 165,
+        "fireRate": 0.8,
+        "projectileSpeed": 320,
+        "damageMax": 144
+      }
     ]
   },
   "bell": {
     "id": "bell",
     "name": "Bell Tower",
+    "damageType": "mental",
     "tiers": [
-      { "cost": 95, "damage": 15, "range": 135, "fireRate": 1.20, "projectileSpeed": 320 },
-      { "cost": 165, "damage": 30, "range": 150, "fireRate": 1.35, "projectileSpeed": 350 },
-      { "cost": 280, "damage": 60, "range": 170, "fireRate": 1.50, "projectileSpeed": 380 }
+      {
+        "cost": 95,
+        "damage": 12,
+        "range": 135,
+        "fireRate": 1.2,
+        "projectileSpeed": 320,
+        "damageMax": 18
+      },
+      {
+        "cost": 165,
+        "damage": 24,
+        "range": 150,
+        "fireRate": 1.35,
+        "projectileSpeed": 350,
+        "damageMax": 36
+      },
+      {
+        "cost": 280,
+        "damage": 48,
+        "range": 170,
+        "fireRate": 1.5,
+        "projectileSpeed": 380,
+        "damageMax": 72
+      }
     ]
   },
   "spear": {
     "id": "spear",
     "name": "Spear Tower",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 45, "damage": 10, "range": 125, "fireRate": 1.00, "projectileSpeed": 350 },
-      { "cost": 85, "damage": 20, "range": 140, "fireRate": 1.10, "projectileSpeed": 375 },
-      { "cost": 150, "damage": 38, "range": 160, "fireRate": 1.20, "projectileSpeed": 400 }
+      {
+        "cost": 45,
+        "damage": 8,
+        "range": 125,
+        "fireRate": 1.0,
+        "projectileSpeed": 350,
+        "damageMax": 12
+      },
+      {
+        "cost": 85,
+        "damage": 16,
+        "range": 140,
+        "fireRate": 1.1,
+        "projectileSpeed": 375,
+        "damageMax": 24
+      },
+      {
+        "cost": 150,
+        "damage": 30,
+        "range": 160,
+        "fireRate": 1.2,
+        "projectileSpeed": 400,
+        "damageMax": 46
+      }
     ]
   },
   "gun": {
     "id": "gun",
     "name": "Gun Tower",
+    "damageType": "physical",
     "tiers": [
-      { "cost": 130, "damage": 38, "range": 210, "fireRate": 0.40, "projectileSpeed": 520 },
-      { "cost": 225, "damage": 72, "range": 240, "fireRate": 0.45, "projectileSpeed": 550 },
-      { "cost": 385, "damage": 155, "range": 275, "fireRate": 0.50, "projectileSpeed": 580 }
+      {
+        "cost": 130,
+        "damage": 30,
+        "range": 210,
+        "fireRate": 0.4,
+        "projectileSpeed": 520,
+        "damageMax": 46
+      },
+      {
+        "cost": 225,
+        "damage": 58,
+        "range": 240,
+        "fireRate": 0.45,
+        "projectileSpeed": 550,
+        "damageMax": 86
+      },
+      {
+        "cost": 385,
+        "damage": 124,
+        "range": 275,
+        "fireRate": 0.5,
+        "projectileSpeed": 580,
+        "damageMax": 186
+      }
     ]
   }
 }

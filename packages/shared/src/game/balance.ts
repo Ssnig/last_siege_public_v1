@@ -14,6 +14,7 @@
 import mobsData from "../data/mobs.json" with { type: "json" };
 import towersData from "../data/towers.json" with { type: "json" };
 import rulesData from "../data/rules.json" with { type: "json" };
+import type { DamageType } from "./combat.js";
 
 /** Attacker unit archetype. */
 export interface MobType {
@@ -28,13 +29,32 @@ export interface MobType {
   leakDamage: number;
   /** Gold the attacker spends to queue one of these in the deploy buffer. */
   cost: number;
+  /**
+   * Flat physical damage absorbed from every physical hit.
+   *
+   * @remarks `0` (the default) means the mob takes full damage. Armor only
+   * blunts physical damage — mental damage ignores it entirely.
+   */
+  armor?: number;
+  /**
+   * Mental resolve, as a fraction (`0` = shattered, `1` = unshaken).
+   *
+   * @remarks Decides how a mob reacts to mental damage. The first mental hit
+   * lands at face value; it also cracks the mob, and every later mental hit is
+   * amplified by the crack: a strength of `1` shrugs it off (`1x`), `0.5` takes
+   * `1.5x`, and `0` takes `2x` and is slowed to 80% speed. Defaults to `0.5`.
+   */
+  mentalStrength?: number;
 }
 
 /** One level of a tower: full stats *and* the gold cost to reach it. */
 export interface TowerTier {
   /** Gold to reach this level. `tiers[0].cost` is the build cost. */
   cost: number;
+  /** Base damage (or minimum of damage range). */
   damage: number;
+  /** Maximum damage if using a damage range; falls back to `damage` if omitted. */
+  damageMax?: number;
   /** Targeting range, in px. */
   range: number;
   /** Shots per second. */
@@ -55,6 +75,14 @@ export interface TowerType {
   name: string;
   tiers: TowerTier[];
   /**
+   * Which damage channel this tower deals.
+   *
+   * @remarks `"physical"` (the default) is blunted by a mob's armor; `"mental"`
+   * ignores armor but cracks the mob's resolve, so every later mental hit hits
+   * harder.
+   */
+  damageType?: DamageType;
+  /**
    * Impact blast radius, in px, for artillery-style towers.
    *
    * @remarks Omitted (or `0`) means a single-target shot: its projectile only
@@ -72,8 +100,8 @@ export interface EconomyConfig {
   /**
    * Passive base gold per second the attacker accrues during combat.
    *
-   * @remarks No gold accrues during building; the income window
-   * (`incomeDurationSec`) stops this income once it expires.
+   * @remarks No gold accrues during building. During the siege this keeps
+   * running for both sides; only sudden death stops the attacker's income.
    */
   attackerBaseIncome: number;
   /** Passive base gold per second the defender accrues during combat. */
@@ -92,6 +120,20 @@ export interface EconomyConfig {
   attackerUnitIncomeThreshold: number;
   /** Fraction of mob bounty refunded to defender when a mob leaks into the core. */
   leakPityRate: number;
+  /**
+   * Multiplier applied to both players' passive income near the end of the siege.
+   *
+   * @remarks Makes the closing stretch of a siege worth fighting for: the last
+   * {@link siegeEndIncomeWindowSec} seconds of the siege pay out at this rate.
+   */
+  siegeEndIncomeMultiplier: number;
+  /**
+   * Length of the closing window, in seconds, before the siege timer runs out.
+   *
+   * @remarks Measured backwards from the siege clock, so with a 180s siege and a
+   * 60s window the doubled income starts at the 120s mark.
+   */
+  siegeEndIncomeWindowSec: number;
 }
 
 /**
@@ -174,14 +216,6 @@ export interface MatchRules {
   /** Seconds allocated to the building phase. */
   buildingDurationSec: number;
   /**
-   * Seconds of attacker passive income in combat.
-   *
-   * @remarks Reaching zero stops attacker income only; it does not end the
-   * match. The siege timer keeps running, so the attacker can still spend the
-   * gold they banked before the window closed.
-   */
-  incomeDurationSec: number;
-  /**
    * Seconds the defender must hold out before the attacker's siege fails.
    *
    * @remarks Drives the combat countdown shown in the HUD. When it expires the
@@ -195,7 +229,8 @@ export interface MatchRules {
 export const MOB_TYPES: Record<string, MobType> = mobsData;
 
 /** Defender tower archetypes, keyed by id — `../data/towers.json`. */
-export const TOWER_TYPES: Record<string, TowerType> = towersData;
+export const TOWER_TYPES: Record<string, TowerType> =
+  towersData as Record<string, TowerType>;
 
 /** Economy tuning for both sides — `../data/rules.json`, section `economy`. */
 export const DEFAULT_ECONOMY: EconomyConfig = rulesData.economy;
@@ -211,6 +246,23 @@ export const MATCH_RULES: MatchRules = rulesData.match;
 
 /** Mob wander/drift tuning — `../data/rules.json`, section `wander`. */
 export const DEFAULT_WANDER: WanderConfig = rulesData.wander;
+
+/**
+ * Status effect tuning — `../data/rules.json`, section `combat`.
+ *
+ * @remarks `debuffDurationSec` is how long a mental hit keeps a mob cracked
+ * (and therefore how long it keeps taking amplified mental damage).
+ * `slowDurationSec` is how long the heavy slow from a fully broken mob lasts.
+ * `mentalBreakSlowFactor` is the speed a fully broken mob keeps (`0.8` = 80%).
+ */
+export interface CombatRules {
+  debuffDurationSec: number;
+  slowDurationSec: number;
+  mentalBreakSlowFactor: number;
+}
+
+/** Status effect tuning — `../data/rules.json`, section `combat`. */
+export const DEFAULT_COMBAT_RULES: CombatRules = rulesData.combat;
 
 /** Server simulation rate, in steps per second. */
 export const SIM_TICK_HZ: number = rulesData.constants.simTickHz;

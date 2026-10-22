@@ -1,4 +1,5 @@
 import { schema, t, type SchemaType } from "@colyseus/schema";
+import { MobEffect } from "./MobEffect.js";
 
 /**
  * An attacker-owned mob travelling the map path.
@@ -29,6 +30,15 @@ export const Mob = schema({
   seed: t.uint32().default(0),
   /** Which track of the map this mob follows (e.g. "top"/"bottom"/"main"). */
   pathId: t.string().default("main"),
+  /**
+   * Status effects currently riding on the mob, keyed by effect type.
+   *
+   * @remarks One entry per effect type at a time, so a mob cannot stack two
+   * of the same status; a re-applied effect refreshes the stronger one. The
+   * map is synced so the client can show the mob's state (a slowed troop, a
+   * cracked one) without simulating combat itself.
+   */
+  effects: t.map(MobEffect),
 }, "Mob");
 
 export type Mob = SchemaType<typeof Mob>;
