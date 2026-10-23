@@ -11,6 +11,7 @@ interface ExportModalProps {
   portals: Vec2[];
   base: Vec2;
   baseDisplaySize: { width: number; height: number };
+  holderScale?: number;
   gridMatrix: number[][];
   gridCols: number;
   gridRows: number;
@@ -27,6 +28,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   portals,
   base,
   baseDisplaySize,
+  holderScale = 1.0,
   gridMatrix,
   gridCols,
   gridRows,
@@ -75,8 +77,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   name: "${mapName}",
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
   lanes: ${Object.keys(paths).length},
-  thumbnail: "/assets/maps/map_${mapId === 'bagan' ? '2_bagan' : mapId === 'mandalay' ? '4_mandalay' : mapId === 'inle' ? '3_inle' : mapId === 'innwa' ? '5_innwa' : mapId === 'bago' ? '6_bago' : '1_konbaung'}/preview.png",
+  thumbnail: "/assets/maps/map_${mapId === 'bagan' ? '2_bagan' : mapId === 'mandalay' ? '4_mandalay' : mapId === 'inle' ? '3_inle' : mapId === 'innwa' ? '5_innwa' : mapId === 'bago' ? '6_bago' : mapId === 'deserted' ? '7_deserted' : mapId === 'twister' ? '8_twister' : mapId === 'river' ? '9_river' : '1_konbaung'}/preview.png",
   pathHalfWidth: 26,
+  holderScale: ${holderScale},
   path: [],
   portals: [
 ${formattedPortals}
@@ -123,6 +126,7 @@ ${formattedSlots}
     return JSON.stringify(
       {
         mapId,
+        holderScale,
         base,
         baseDisplaySize,
         portals,
@@ -178,6 +182,7 @@ ${formattedSlots}
             description: "Custom tactical layout with precision waypoints and strategic tower pads.",
             pathHalfWidth: 26,
             lanes: Object.keys(paths).length,
+            holderScale,
           },
         }),
       });

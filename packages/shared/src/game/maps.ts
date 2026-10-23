@@ -78,6 +78,7 @@ export interface MapDefinition {
   width?: number;
   height?: number;
   pathHalfWidth?: number;
+  holderScale?: number;
 }
 
 /**
@@ -285,9 +286,12 @@ export const KONBAUNG_MAP: MapDefinition = {
   slots: [
     { slotIndex: 0, x: 246, y: 184 },
     { slotIndex: 1, x: 394, y: 218 },
-    { slotIndex: 2, x: 756, y: 218 },
-    { slotIndex: 3, x: 394, y: 500 },
-    { slotIndex: 4, x: 1034, y: 539 },
+    { slotIndex: 2, x: 758, y: 219 },
+    { slotIndex: 3, x: 394, y: 509 },
+    { slotIndex: 4, x: 1035, y: 550 },
+    { slotIndex: 5, x: 169, y: 651 },
+    { slotIndex: 6, x: 383, y: 378 },
+    { slotIndex: 7, x: 191, y: 484 },
   ],
   checkpoints: [1, 3],
   base: { x: 1119, y: 370 },
@@ -296,13 +300,18 @@ export const KONBAUNG_MAP: MapDefinition = {
 
 export const BAGAN_MAP: MapDefinition = {
   id: "bagan",
-  name: "Bagan Temple Plains",
-  description: "Ancient red brick pagodas dotting golden plains with choke points through stupa courtyards.",
-  lanes: 3,
+  name: "Bagan (Ancient Plains)",
+  description: "Custom tactical layout with precision waypoints and strategic tower pads.",
+  lanes: 4,
   thumbnail: "/assets/maps/map_2_bagan/preview.png",
-  width: 1280,
-  height: 720,
+  pathHalfWidth: 26,
+  holderScale: 1.5,
   path: [],
+  portals: [
+    { x: 20, y: 437 },
+    { x: 33, y: 148 },
+    { x: 1155, y: 23 },
+  ],
   paths: {
     top_north: [
       { x: 33, y: 148 },
@@ -446,36 +455,31 @@ export const BAGAN_MAP: MapDefinition = {
     ],
   },
   pathLabels: {
-    top_north: "North Stupa Loop (Upper)",
-    top_south: "North Stupa Loop (Lower)",
-    bottom: "Banyan Plains & South Road",
-    bridge: "Stone River Bridge",
+    top_north: "Top North",
+    top_south: "Top South",
+    bottom: "Bottom",
+    bridge: "Bridge",
   },
-  randomFork: true,
-  portals: [
-    { x: 20, y: 437 },
-    { x: 33, y: 148 },
-    { x: 1155, y: 23 },
-  ],
   slots: [
-    { slotIndex: 0, x: 115, y: 635 },
-    { slotIndex: 1, x: 85, y: 360 },
-    { slotIndex: 2, x: 384, y: 163 },
-    { slotIndex: 3, x: 438, y: 497 },
-    { slotIndex: 4, x: 631, y: 68 },
-    { slotIndex: 5, x: 683, y: 559 },
-    { slotIndex: 6, x: 805, y: 170 },
-    { slotIndex: 7, x: 1012, y: 292 },
-    { slotIndex: 8, x: 870, y: 641 },
-    { slotIndex: 9, x: 1210, y: 556 },
-    { slotIndex: 10, x: 1223, y: 47 },
+    { slotIndex: 0, x: 118, y: 639 },
+    { slotIndex: 1, x: 90, y: 363 },
+    { slotIndex: 2, x: 389, y: 168 },
+    { slotIndex: 3, x: 440, y: 506 },
+    { slotIndex: 4, x: 634, y: 79 },
+    { slotIndex: 5, x: 686, y: 563 },
+    { slotIndex: 6, x: 809, y: 177 },
+    { slotIndex: 7, x: 1013, y: 297 },
+    { slotIndex: 8, x: 874, y: 642 },
+    { slotIndex: 9, x: 1214, y: 566 },
+    { slotIndex: 10, x: 1226, y: 54 },
+    { slotIndex: 11, x: 195, y: 397 },
+    { slotIndex: 12, x: 1159, y: 178 },
+    { slotIndex: 13, x: 1013, y: 82 },
+    { slotIndex: 14, x: 954, y: 228 },
   ],
   checkpoints: [1, 3],
   base: { x: 810, y: 360 },
-  baseImage: "/assets/maps/map_2_bagan/base.png",
   baseDisplaySize: { width: 235, height: 235 },
-  baseHpOffsetY: -100,
-  pathHalfWidth: 20,
 };
 
 export const INLE_MAP: MapDefinition = {
@@ -795,16 +799,15 @@ export const BAGO_MAP: MapDefinition = {
     side: "Side",
   },
   slots: [
-    { slotIndex: 0, x: 315, y: 444 },
-    { slotIndex: 1, x: 271, y: 189 },
+    { slotIndex: 0, x: 316, y: 440 },
+    { slotIndex: 1, x: 275, y: 197 },
     { slotIndex: 2, x: 729, y: 325 },
-    { slotIndex: 3, x: 571, y: 103 },
+    { slotIndex: 3, x: 573, y: 104 },
     { slotIndex: 4, x: 839, y: 519 },
     { slotIndex: 5, x: 1075, y: 512 },
-    { slotIndex: 6, x: 1220, y: 70 },
-    { slotIndex: 7, x: 1220, y: 540 },
-    { slotIndex: 8, x: 975, y: 291 },
-    { slotIndex: 9, x: 747, y: 120 },
+    { slotIndex: 6, x: 750, y: 121 },
+    { slotIndex: 7, x: 1207, y: 548 },
+    { slotIndex: 8, x: 973, y: 294 },
   ],
   checkpoints: [1, 3],
   base: { x: 654, y: 641 },

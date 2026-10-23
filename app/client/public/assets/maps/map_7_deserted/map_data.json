@@ -1,0 +1,10 @@
+{
+  "id": "deserted",
+  "name": "Map 7: Deserted Sands",
+  "width": 1280,
+  "height": 720,
+  "description": "Custom tactical layout with precision waypoints and strategic tower pads.",
+  "pathHalfWidth": 26,
+  "lanes": 5,
+  "holderScale": 1
+}

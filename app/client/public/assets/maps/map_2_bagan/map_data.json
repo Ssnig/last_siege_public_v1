@@ -1,9 +1,10 @@
 {
   "id": "bagan",
-  "name": "Bagan Temple Plains",
+  "name": "Bagan (Ancient Plains)",
   "width": 1280,
   "height": 720,
-  "description": "Ancient red brick pagodas dotting golden plains with choke points through stupa courtyards.",
-  "pathHalfWidth": 20,
-  "lanes": 3
+  "description": "Custom tactical layout with precision waypoints and strategic tower pads.",
+  "pathHalfWidth": 26,
+  "lanes": 4,
+  "holderScale": 1.5
 }

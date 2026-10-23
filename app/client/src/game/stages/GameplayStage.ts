@@ -542,11 +542,22 @@ export class GameplayStage {
       this.paths.push(curve);
     }
 
-    // Render interactive tower slots (radius 36)
+    // Render interactive tower slots with authentic Burmese lotus stone dais
     this.map.slots.forEach((slot) => {
+      // 1. High-fidelity stone foundation dais
+      const baseSprite = this.scene.textures.exists("tower_placeholder_1")
+        ? this.scene.add
+            .image(slot.x, slot.y, "tower_placeholder_1")
+            .setDisplaySize(88, 68)
+            .setDepth(DEPTH.SLOTS_LAYER)
+            .setName("tower-slot-base")
+        : null;
+      if (baseSprite) this.root?.add(baseSprite);
+
+      // 2. Interactive hit area
       const placeholder = this.scene.add
-        .circle(slot.x, slot.y, 36, 0x8b4513, 0.5)
-        .setDepth(DEPTH.SLOTS_LAYER)
+        .circle(slot.x, slot.y, 36, 0x000000, 0.001)
+        .setDepth(DEPTH.SLOTS_LAYER + 0.01)
         .setName("tower-slot");
       placeholder.setData("slotIndex", slot.slotIndex);
 
@@ -556,13 +567,13 @@ export class GameplayStage {
         placeholder.on("pointerover", () => {
           this.scene.registry.set("ui:overTowerSlot", true);
           if (!this.towers.has(slot.slotIndex)) {
-            placeholder.setFillStyle(0xd2691e, 0.7);
+            baseSprite?.setTint(0xffe082);
             this.showGhostTower(slot);
           }
         });
         placeholder.on("pointerout", () => {
           this.scene.registry.set("ui:overTowerSlot", false);
-          placeholder.setFillStyle(0x8b4513, 0.5);
+          baseSprite?.clearTint();
           this.hideGhostTower();
         });
         placeholder.on(

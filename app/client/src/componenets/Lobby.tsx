@@ -117,39 +117,48 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
     let lobbyRoom: Room | undefined;
 
     (async () => {
-      try {
-        const room = await client.joinOrCreate("lobby");
-        if (unmounted) {
-          room.leave();
-          return;
-        }
-        lobbyRoom = room;
-
-        lobbyRoom.onMessage("rooms", (availableRooms) => {
-          if (!unmounted) setRooms(availableRooms);
-        });
-
-        // "+" is an upsert: replace if we already track the room, else append.
-        lobbyRoom.onMessage("+", ([roomId, roomItem]) => {
+      let room: Room | undefined;
+      // Dev server retry loop (recovers seamlessly if server is restarting during HMR)
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+          room = await client.joinOrCreate("lobby");
+          break;
+        } catch (err) {
           if (unmounted) return;
-          setRooms((prev) => {
-            const index = prev.findIndex((r) => r.roomId === roomId);
-            if (index === -1) return [...prev, roomItem];
-            const updated = [...prev];
-            updated[index] = roomItem;
-            return updated;
-          });
-        });
-
-        lobbyRoom.onMessage("-", (roomId) => {
-          if (!unmounted) setRooms((prev) => prev.filter((r) => r.roomId !== roomId));
-        });
-      } catch (e: any) {
-        if (!unmounted) {
-          console.error("Failed to join lobby room:", e);
-          setErrorMessage(e?.message || "Failed to connect to matchmaking server.");
+          if (attempt === 4) {
+            console.error("Failed to join lobby room:", err);
+            setErrorMessage("Connecting to game server... Please refresh if this persists.");
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 600 * attempt));
         }
       }
+
+      if (!room || unmounted) {
+        room?.leave();
+        return;
+      }
+      lobbyRoom = room;
+
+      lobbyRoom.onMessage("rooms", (availableRooms) => {
+        if (!unmounted) setRooms(availableRooms);
+      });
+
+      // "+" is an upsert: replace if we already track the room, else append.
+      lobbyRoom.onMessage("+", ([roomId, roomItem]) => {
+        if (unmounted) return;
+        setRooms((prev) => {
+          const index = prev.findIndex((r) => r.roomId === roomId);
+          if (index === -1) return [...prev, roomItem];
+          const updated = [...prev];
+          updated[index] = roomItem;
+          return updated;
+        });
+      });
+
+      lobbyRoom.onMessage("-", (roomId) => {
+        if (!unmounted) setRooms((prev) => prev.filter((r) => r.roomId !== roomId));
+      });
     })();
 
     return () => {

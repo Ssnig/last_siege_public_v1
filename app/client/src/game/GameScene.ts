@@ -113,6 +113,7 @@ export class GameScene extends Phaser.Scene {
     this.load.image("base_mandalay", "/assets/maps/map_4_mandalay/base.png");
     this.load.image("base_innwa", "/assets/maps/map_5_innwa/base.png");
     this.load.image("base_bago", "/assets/maps/map_6_bago/base.png");
+    this.load.image("tower_placeholder_1", "/assets/tower_placeholder/tower_placeholder_1.png");
     this.load.image("npc_monk", "/assets/sprites/npc_monk.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
     this.load.image("arrow_proj", "/assets/sprites/arrow.png");
