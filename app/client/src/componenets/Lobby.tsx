@@ -11,6 +11,8 @@ import { AuthModal } from '../auth/AuthModal';
 import type { AuthUser } from '../auth/types';
 import { GoldCrest, GoldDivider, RoyalPanel } from './lobby/LobbyOrnaments';
 import { MapSelectorModal } from './match/MapSelectorModal';
+import { RankBadge } from './rank/RankBadge';
+import { getOrCreateGuestId, getGuestElo, syncGuestWithServer } from '../auth/guest';
 
 interface LobbyProps {
   client: Client;
@@ -93,8 +95,20 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   const [resumable, setResumable] = useState<ActiveMatch | null>(() => loadActiveMatch());
   const [reconnecting, setReconnecting] = useState<boolean>(false);
 
+  const [guestElo, setGuestEloState] = useState<number>(() => getGuestElo());
+
+  // Sync guest user with server/database when in guest mode
+  useEffect(() => {
+    if (!user) {
+      syncGuestWithServer(name.trim()).then((profile) => {
+        setGuestEloState(profile.elo);
+      });
+    }
+  }, [user, name]);
+
   /** Signed-in accounts always take precedence over the locally stored guest name. */
   const effectiveName = user?.name?.trim() || name.trim() || 'Guest';
+  const effectiveElo = user?.elo ?? guestElo;
   const canEnterLobby = !!user || isNamed;
 
   /** Trims, persists the nickname, and moves past the name gate. No-op if blank. */
@@ -175,10 +189,16 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
     setLoading(true);
     setErrorMessage(null);
     try {
+      const storedToken = localStorage.getItem('auth-token');
+      const guestId = getOrCreateGuestId();
+
       const room = await client.create("game_room", {
         playerName: effectiveName,
         roleChoice: selectedRoleChoice,
         mapId: selectedMapId,
+        token: storedToken || undefined,
+        guestId: !storedToken ? guestId : undefined,
+        playerElo: effectiveElo,
       });
       setRoom(room);
       navigate(`/game/${room.roomId}`);
@@ -195,8 +215,14 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
     setLoading(true);
     setErrorMessage(null);
     try {
+      const storedToken = localStorage.getItem('auth-token');
+      const guestId = getOrCreateGuestId();
+
       const room = await client.joinById(roomId, {
         playerName: effectiveName,
+        token: storedToken || undefined,
+        guestId: !storedToken ? guestId : undefined,
+        playerElo: effectiveElo,
       });
       setRoom(room);
       navigate(`/game/${room.roomId}`);
@@ -456,6 +482,9 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                       </>
                     )}
                   </p>
+                  <div className="flex items-center pl-1.5 sm:pl-2.5 ml-1 sm:ml-2 border-l border-amber-900/50">
+                    <RankBadge elo={effectiveElo} showProgress={true} size="sm" />
+                  </div>
                 </div>
               </div>
             </div>

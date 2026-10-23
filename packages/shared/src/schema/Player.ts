@@ -14,6 +14,8 @@ export const Player = schema({
   connected: t.boolean().default(true),
   hp: t.int32().default(0),
   draftReady: t.boolean().default(false),
+  elo: t.int32().default(1000),
+  rankId: t.string().default("rank_1"),
 }, "Player");
 
 export type Player = SchemaType<typeof Player>;

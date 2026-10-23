@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <radialGradient id="bgGlow1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#d97706" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#1e0508" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="shieldGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b45309" />
+      <stop offset="50%" stop-color="#78350f" />
+      <stop offset="100%" stop-color="#451a03" />
+    </linearGradient>
+    <linearGradient id="bronzeTrim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="50%" stop-color="#b45309" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+  </defs>
+
+  <!-- Ambient Glow -->
+  <circle cx="64" cy="64" r="58" fill="url(#bgGlow1)" />
+
+  <!-- Shield Base Outline -->
+  <path d="M64 12 L106 28 C106 72 64 112 64 112 C64 112 22 72 22 28 Z"
+        fill="url(#shieldGrad1)"
+        stroke="url(#bronzeTrim)"
+        stroke-width="5"
+        stroke-linejoin="round"
+        filter="drop-shadow(0 4px 8px rgba(0,0,0,0.6))" />
+
+  <!-- Inner Inset Shield -->
+  <path d="M64 22 L96 34 C96 68 64 100 64 100 C64 100 32 68 32 34 Z"
+        fill="#2a1208"
+        stroke="#d97706"
+        stroke-width="2"
+        opacity="0.9" />
+
+  <!-- Star Emblems / Tier 1 (1 Star) -->
+  <polygon points="64,36 67,46 77,46 69,52 72,62 64,56 56,62 59,52 51,46 61,46"
+           fill="#fbbf24"
+           stroke="#78350f"
+           stroke-width="1.5" />
+
+  <!-- Tier Badge Plate -->
+  <rect x="42" y="68" width="44" height="22" rx="4"
+        fill="#1e0a05"
+        stroke="#d97706"
+        stroke-width="2" />
+
+  <!-- Roman Numeral "I" -->
+  <text x="64" y="85"
+        font-family="'MedievalSharp', 'Cinzel', serif, sans-serif"
+        font-size="18"
+        font-weight="900"
+        fill="#fef3c7"
+        text-anchor="middle">I</text>
+
+  <!-- Subtitle Tag -->
+  <text x="64" y="122"
+        font-family="sans-serif"
+        font-size="9"
+        font-weight="bold"
+        letter-spacing="1.5"
+        fill="#d97706"
+        text-anchor="middle">BRONZE</text>
+</svg>

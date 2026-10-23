@@ -1,7 +1,7 @@
 // app/client/src/componenets/game/GameOverOverlay.tsx
 import React, { useEffect, useState } from 'react';
 import { Room } from '@colyseus/sdk';
-import { MESSAGES, type RematchUpdatePayload } from '@root/shared';
+import { MESSAGES, type RematchUpdatePayload, type RatingUpdateInfo } from '@root/shared';
 import { soundEffects } from '../../audio/soundEffects';
 
 export interface GameOverOverlayProps {
@@ -9,6 +9,7 @@ export interface GameOverOverlayProps {
     winner: string;
     reason: string;
     youWin: boolean;
+    ratingUpdate?: RatingUpdateInfo;
   };
   room: Room;
   onExit: () => void;
@@ -228,6 +229,102 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
               The {gameOver.winner === 'attacker' ? 'Attacker' : 'Defender'} emerged triumphant.
             </p>
           </div>
+
+          {/* Royal Elo Rating & Rank Progression Card */}
+          {gameOver.ratingUpdate && (
+            <div
+              className="relative w-full max-w-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl flex flex-col gap-2 my-1"
+              style={{
+                background: 'linear-gradient(135deg, rgba(20,4,6,0.95) 0%, rgba(55,10,14,0.9) 100%)',
+                border: '1.5px solid #d4af37',
+                boxShadow: '0 0 20px rgba(0,0,0,0.8), inset 0 0 15px rgba(212,175,55,0.15)',
+              }}
+            >
+              <CornerFlourish position="tl" />
+              <CornerFlourish position="tr" />
+              <CornerFlourish position="bl" />
+              <CornerFlourish position="br" />
+
+              <div className="flex items-center justify-between gap-4">
+                {/* Rank Badge & Tier Info */}
+                <div className="flex items-center gap-3">
+                  <div className="relative w-11 h-11 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center">
+                    <div
+                      className="absolute inset-0 rounded-full blur-[8px] opacity-70"
+                      style={{ backgroundColor: gameOver.ratingUpdate.rank.color }}
+                    />
+                    <img
+                      src={gameOver.ratingUpdate.rank.badgeAsset}
+                      alt={gameOver.ratingUpdate.rank.name}
+                      className="relative z-10 w-full h-full object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
+                    />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span
+                      className="text-sm sm:text-base font-black tracking-wide"
+                      style={{
+                        color: gameOver.ratingUpdate.rank.color,
+                        fontFamily: "'MedievalSharp', 'Cinzel', serif",
+                        textShadow: '1px 1px 2px #000',
+                      }}
+                    >
+                      {gameOver.ratingUpdate.rank.name}
+                    </span>
+                    <span className="text-[11px] sm:text-xs text-amber-200/70 font-semibold">
+                      Rating: <strong className="text-amber-100">{gameOver.ratingUpdate.newElo} Elo</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Rating Delta */}
+                <div className="flex flex-col items-end">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-xl sm:text-2xl font-black font-mono tracking-tight ${
+                        gameOver.ratingUpdate.delta >= 0
+                          ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+                          : 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.6)]'
+                      }`}
+                    >
+                      {gameOver.ratingUpdate.delta >= 0 ? `+${gameOver.ratingUpdate.delta}` : gameOver.ratingUpdate.delta}
+                    </span>
+                    <span className="text-xs font-bold text-amber-200/80">
+                      {gameOver.ratingUpdate.delta >= 0 ? '▲' : '▼'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-amber-200/50 uppercase tracking-widest font-bold">
+                    {gameOver.ratingUpdate.oldElo} → {gameOver.ratingUpdate.newElo}
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress bar towards Next Rank */}
+              <div className="w-full pt-1.5 border-t border-amber-900/40">
+                <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-amber-200/80 mb-1">
+                  <span>
+                    {gameOver.ratingUpdate.nextRank
+                      ? `Progress to ${gameOver.ratingUpdate.nextRank.name}`
+                      : '🏆 Master Rank'}
+                  </span>
+                  <span className="font-mono text-amber-300 font-bold">
+                    {gameOver.ratingUpdate.nextRank
+                      ? `${gameOver.ratingUpdate.progressPercent}% (${Math.max(0, gameOver.ratingUpdate.nextRank.minElo - gameOver.ratingUpdate.newElo)} pts to next)`
+                      : 'Max Tier Achieved'}
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-black/60 border border-amber-900/60 rounded-full overflow-hidden p-0.5">
+                  <div
+                    className="h-full rounded-full transition-all duration-1000 ease-out"
+                    style={{
+                      width: `${gameOver.ratingUpdate.progressPercent}%`,
+                      backgroundColor: gameOver.ratingUpdate.rank.color,
+                      boxShadow: `0 0 8px ${gameOver.ratingUpdate.rank.color}`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Rematch Notification Banner if Opponent requested */}
           {opponentWantsRematch && !hasVotedRematch && (

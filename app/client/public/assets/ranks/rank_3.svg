@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <radialGradient id="bgGlow3" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.5" />
+      <stop offset="60%" stop-color="#b45309" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#1e0508" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="shieldGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="35%" stop-color="#f59e0b" />
+      <stop offset="70%" stop-color="#b45309" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+    <linearGradient id="goldTrim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="goldPlate" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#451a03" />
+      <stop offset="50%" stop-color="#78350f" />
+      <stop offset="100%" stop-color="#451a03" />
+    </linearGradient>
+  </defs>
+
+  <!-- Ambient Golden Radiance -->
+  <circle cx="64" cy="64" r="62" fill="url(#bgGlow3)" />
+
+  <!-- Crown / Crest Accents at the top -->
+  <path d="M42 16 L52 24 L64 12 L76 24 L86 16 L82 30 L46 30 Z"
+        fill="#fef08a"
+        stroke="#b45309"
+        stroke-width="1.5"
+        filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))" />
+
+  <!-- Shield Base Outline -->
+  <path d="M64 20 L110 34 C110 80 64 116 64 116 C64 116 18 80 18 34 Z"
+        fill="url(#shieldGrad3)"
+        stroke="url(#goldTrim)"
+        stroke-width="5"
+        stroke-linejoin="round"
+        filter="drop-shadow(0 4px 12px rgba(245,158,11,0.6))" />
+
+  <!-- Inner Inset Shield -->
+  <path d="M64 30 L100 42 C100 76 64 105 64 105 C64 105 28 76 28 42 Z"
+        fill="#1e0508"
+        stroke="#f59e0b"
+        stroke-width="2.5"
+        opacity="0.95" />
+
+  <!-- 3 Stars for Tier 3 -->
+  <polygon points="40,42 42,48 49,48 44,52 46,59 40,55 34,59 36,52 31,48 38,48"
+           fill="#fef08a"
+           stroke="#b45309"
+           stroke-width="1" />
+  <polygon points="64,36 67,44 76,44 69,49 72,57 64,52 56,57 59,49 52,44 61,44"
+           fill="#fffbeb"
+           stroke="#d97706"
+           stroke-width="1.2" />
+  <polygon points="88,42 90,48 97,48 92,52 94,59 88,55 82,59 84,52 79,48 86,48"
+           fill="#fef08a"
+           stroke="#b45309"
+           stroke-width="1" />
+
+  <!-- Tier Badge Plate -->
+  <rect x="38" y="68" width="52" height="24" rx="5"
+        fill="url(#goldPlate)"
+        stroke="#fde047"
+        stroke-width="2.5"
+        filter="drop-shadow(0 2px 4px rgba(0,0,0,0.8))" />
+
+  <!-- Roman Numeral "III" -->
+  <text x="64" y="86"
+        font-family="'MedievalSharp', 'Cinzel', serif, sans-serif"
+        font-size="18"
+        font-weight="900"
+        fill="#fffbeb"
+        text-anchor="middle">III</text>
+
+  <!-- Subtitle Tag -->
+  <text x="64" y="123"
+        font-family="sans-serif"
+        font-size="9"
+        font-weight="900"
+        letter-spacing="1.5"
+        fill="#fbbf24"
+        text-anchor="middle">GOLD</text>
+</svg>

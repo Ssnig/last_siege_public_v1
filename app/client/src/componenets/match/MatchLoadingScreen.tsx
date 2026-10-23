@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Room } from '@colyseus/sdk';
 import { GoldCrest, GoldDivider, RoyalPanel } from '../lobby/LobbyOrnaments';
 import { soundEffects } from '../../audio/soundEffects';
+import { RankBadge } from '../rank/RankBadge';
 
 interface MatchLoadingScreenProps {
   room: Room;
@@ -86,6 +87,36 @@ export const MatchLoadingScreen: React.FC<MatchLoadingScreenProps> = ({
           </p>
 
           <GoldDivider className="mb-4" />
+
+          {/* Chamber Roster */}
+          <div className="w-full mb-4 flex flex-col gap-2">
+            {(() => {
+              const roster: Array<{ sessionId: string; name: string; elo: number }> = [];
+              if (room.state?.players?.forEach) {
+                room.state.players.forEach((player: any, sessionId: string) => {
+                  roster.push({
+                    sessionId,
+                    name: player.name || 'Anonymous',
+                    elo: typeof player.elo === 'number' ? player.elo : 1000,
+                  });
+                });
+              }
+              return roster.map((player) => (
+                <div
+                  key={player.sessionId}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-black/40 border border-amber-900/50 text-left"
+                >
+                  <div className="flex items-center gap-2 truncate pr-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    <span className="text-xs font-bold text-amber-100 truncate">
+                      {player.name} {player.sessionId === room.sessionId ? '(You)' : ''}
+                    </span>
+                  </div>
+                  <RankBadge elo={player.elo} size="sm" showProgress={false} />
+                </div>
+              ));
+            })()}
+          </div>
 
           {/* Room ID Badge & Copy Invite */}
           <div

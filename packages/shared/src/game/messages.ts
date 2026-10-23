@@ -104,10 +104,32 @@ export type GameOverReason =
   | "suddenDeath"
   | "disconnect";
 
+/** Rating shift and rank progression delivered upon game over. */
+export interface RatingUpdateInfo {
+  oldElo: number;
+  newElo: number;
+  delta: number;
+  rank: {
+    id: string;
+    tier: number;
+    name: string;
+    badgeAsset: string;
+    color: string;
+  };
+  nextRank: {
+    id: string;
+    tier: number;
+    name: string;
+    minElo: number;
+  } | null;
+  progressPercent: number;
+}
+
 /** Payload of the `game_over` private message. */
 export interface GameOverPayload {
   winner: "attacker" | "defender";
   reason: GameOverReason;
+  ratingUpdate?: RatingUpdateInfo;
 }
 
 /** Payload of the `you_economy` private message (hidden from the opponent). */
