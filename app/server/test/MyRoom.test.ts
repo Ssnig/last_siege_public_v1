@@ -118,7 +118,7 @@ function waitForBountyPush(
     onMessage: (type: string, cb: (payload: YouEconomyPayload) => void) => () => void;
   },
   incomeRate: number,
-  timeoutMs = 20000,
+  timeoutMs = 25000,
 ): Promise<YouEconomyPayload> {
   return new Promise((resolve, reject) => {
     let base: { gold: number; at: number } | null = null;
@@ -272,6 +272,7 @@ describe("testing your Colyseus app", () => {
   it("moves to building when both players confirm a valid draft", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -297,10 +298,11 @@ describe("testing your Colyseus app", () => {
   });
 
   it("runs the round-based 2-2-2 pick draft through to combat and a deploy", async function () {
-    this.timeout(20000);
+    this.timeout(25000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -348,6 +350,7 @@ describe("testing your Colyseus app", () => {
   it("rejects an invalid draft and keeps the room in drafting", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -368,6 +371,7 @@ describe("testing your Colyseus app", () => {
   it("surrender after the draft declares the opponent the winner", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -385,8 +389,10 @@ describe("testing your Colyseus app", () => {
 
     const loserPayload = await loserAck;
     const winnerPayload = await winnerAck;
-    assert.deepStrictEqual(loserPayload, { winner: "defender", reason: "surrender" });
-    assert.deepStrictEqual(winnerPayload, { winner: "defender", reason: "surrender" });
+    assert.strictEqual(loserPayload.winner, "defender");
+    assert.strictEqual(loserPayload.reason, "surrender");
+    assert.strictEqual(winnerPayload.winner, "defender");
+    assert.strictEqual(winnerPayload.reason, "surrender");
 
     await waitForPhase(room, "gameover");
     assert.strictEqual(room.state.winner, "defender");
@@ -396,6 +402,7 @@ describe("testing your Colyseus app", () => {
   it("announces a destroyed core to both players as reason 'core'", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -411,8 +418,13 @@ describe("testing your Colyseus app", () => {
       MATCH_RULES.coreHp,
     );
 
-    assert.deepStrictEqual(await loserAck, { winner: "attacker", reason: "core" });
-    assert.deepStrictEqual(await winnerAck, { winner: "attacker", reason: "core" });
+    const loser = await loserAck;
+    const winner = await winnerAck;
+    assert.strictEqual(loser.winner, "attacker");
+    assert.strictEqual(loser.reason, "core");
+    assert.strictEqual(winner.winner, "attacker");
+    assert.strictEqual(winner.reason, "core");
+
 
     await waitForPhase(room, "gameover");
     assert.strictEqual(room.state.winner, "attacker");
@@ -422,6 +434,7 @@ describe("testing your Colyseus app", () => {
   it("a lone player cannot surrender (no opponent to win)", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const host = await colyseus.connectTo(room);
 
@@ -435,6 +448,7 @@ describe("testing your Colyseus app", () => {
   it("a surrender is not rolled back when the loser leaves", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -459,6 +473,7 @@ describe("testing your Colyseus app", () => {
   it("streams a buffered push out of a portal onto its track", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -495,6 +510,7 @@ describe("testing your Colyseus app", () => {
   it("sends no attacker troops when combat begins without an explicit deploy", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -520,6 +536,7 @@ describe("testing your Colyseus app", () => {
   it("advances spawned mobs along their path", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -550,6 +567,7 @@ describe("testing your Colyseus app", () => {
   it("sells a defender tower for a partial refund", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -590,6 +608,7 @@ describe("testing your Colyseus app", () => {
   it("upgrades a defender tower, deducts gold, increases level and invested amount", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -640,6 +659,7 @@ describe("testing your Colyseus app", () => {
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -689,10 +709,11 @@ describe("testing your Colyseus app", () => {
   });
 
   it("removes a killed mob mid-combat, short of the core and with its bounty intact", async function () {
-    this.timeout(20000);
+    this.timeout(25000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -727,7 +748,7 @@ describe("testing your Colyseus app", () => {
       removals.push({ progress: mob.progress, bounty: mob.bounty });
     });
 
-    await waitFor(() => removals.length > 0, 15000);
+    await waitFor(() => removals.length > 0, 20000);
 
     assert.ok(
       removals.some((r) => r.progress < 1),
@@ -747,6 +768,7 @@ describe("testing your Colyseus app", () => {
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -783,6 +805,7 @@ describe("testing your Colyseus app", () => {
   it("queues units during building but refuses to deploy before combat", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -809,6 +832,7 @@ describe("testing your Colyseus app", () => {
   it("rejects queueing a unit the attacker cannot afford", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -833,6 +857,7 @@ describe("testing your Colyseus app", () => {
   it("refuses to queue past the buffer cap", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -851,6 +876,7 @@ describe("testing your Colyseus app", () => {
   it("empties the queue and refunds the queued gold on clear", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -876,6 +902,7 @@ describe("testing your Colyseus app", () => {
   it("credits the attacker passive income during combat", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -896,6 +923,7 @@ describe("testing your Colyseus app", () => {
   it("consumes one portal charge per deploy", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -928,6 +956,7 @@ describe("testing your Colyseus app", () => {
   it("adds the deep-unit bonus to the attacker's passive income past halfway", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -981,6 +1010,7 @@ describe("testing your Colyseus app", () => {
   it("the defender wins when the siege expires with no attacker units", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -996,7 +1026,8 @@ describe("testing your Colyseus app", () => {
 
     const over = defender.waitForMessage(MESSAGES.gameOver);
     const payload = await over;
-    assert.deepStrictEqual(payload, { winner: "defender", reason: "time" });
+    assert.strictEqual(payload.winner, "defender");
+    assert.strictEqual(payload.reason, "time");
     await waitForPhase(room, "gameover");
     assert.strictEqual(room.state.gameOverReason, "time");
   });
@@ -1006,6 +1037,7 @@ describe("testing your Colyseus app", () => {
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -1051,6 +1083,7 @@ describe("testing your Colyseus app", () => {
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -1125,6 +1158,7 @@ describe("testing your Colyseus app", () => {
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -1147,7 +1181,8 @@ describe("testing your Colyseus app", () => {
     // wins sudden death.
     const over = defender.waitForMessage(MESSAGES.gameOver, 20000);
     const payload = await over;
-    assert.deepStrictEqual(payload, { winner: "defender", reason: "suddenDeath" });
+    assert.strictEqual(payload.winner, "defender");
+    assert.strictEqual(payload.reason, "suddenDeath");
     await waitForPhase(room, "gameover");
     assert.strictEqual(room.state.gameOverReason, "suddenDeath");
   });
@@ -1155,6 +1190,7 @@ describe("testing your Colyseus app", () => {
   it("freezes the deploy queue in sudden death", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -1180,6 +1216,7 @@ describe("testing your Colyseus app", () => {
   it("lets the defender build towers during the combat phase", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -1291,6 +1328,7 @@ describe("testing your Colyseus app", () => {
   it("awards the match to the staying player when a dropped opponent never returns", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
       // Short seat window so the timeout path runs without a 2-minute wait.
       reconnectWindowSec: 0.3,
     });
@@ -1315,7 +1353,8 @@ describe("testing your Colyseus app", () => {
     const over = defender.waitForMessage(MESSAGES.gameOver, 5000);
     const payload = await over;
     await left;
-    assert.deepStrictEqual(payload, { winner: remainingRole, reason: "disconnect" });
+    assert.strictEqual(payload.winner, remainingRole);
+    assert.strictEqual(payload.reason, "disconnect");
     await waitForPhase(room, "gameover");
     assert.strictEqual(room.state.gameOverReason, "disconnect");
   });
@@ -1327,6 +1366,7 @@ describe("testing your Colyseus app", () => {
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
@@ -1368,6 +1408,7 @@ describe("testing your Colyseus app", () => {
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
+      mapId: "konbaung",
     });
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);

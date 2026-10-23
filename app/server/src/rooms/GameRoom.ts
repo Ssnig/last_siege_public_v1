@@ -605,6 +605,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
       });
 
     if (bothReady) {
+      if (this.draftFinalCountdown !== null) {
+        console.log(`Room ${this.roomId}: both confirmed draft ready; waiting for final reveal countdown (${this.draftFinalCountdown.toFixed(1)}s remaining)`);
+        return;
+      }
       this.phases.beginBuilding([]);
       console.log(`Room ${this.roomId}: drafting -> building`);
 
@@ -705,6 +709,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
       this.draftRound++;
       this.draftRoundTimer = 15.0;
+      this.state.phaseEndsAt = 15.0;
     } else {
       // Round 3 complete! All 6 cards picked.
       // Broadcast final reveal with isFinalReveal: true and 5-second countdown before building starts
@@ -720,6 +725,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       });
 
       this.draftFinalCountdown = 5.0;
+      this.state.phaseEndsAt = 5.0;
     }
   }
 
@@ -1621,6 +1627,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.rematchVotes.clear();
       this.draftRound = 1;
       this.draftRoundTimer = 15.0;
+      this.state.phaseEndsAt = 15.0;
       this.draftFinalCountdown = null;
       this.draftRoundPicks.clear();
       this.assignRoles();
@@ -1742,6 +1749,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.state.phase = "drafting";
       this.draftRound = 1;
       this.draftRoundTimer = 15.0;
+      this.state.phaseEndsAt = 15.0;
       this.draftFinalCountdown = null;
       this.draftRoundPicks.clear();
       this.clearMobs();
