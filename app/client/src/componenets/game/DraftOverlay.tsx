@@ -423,7 +423,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         if (opponentPicks) setEnemyPicks(opponentPicks);
         if (myPicks) setLockedPicks(myPicks);
 
-        if (payload.isFinalReveal || payload.round === 3) {
+        if (payload.isFinalReveal) {
           setIsFinalCountdown(true);
           setFinalSeconds(5);
           setIsRoundReady(true);
