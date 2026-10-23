@@ -27,6 +27,19 @@ export const UNIT_FOLDER_MAP: Record<string, string> = {
   ogre: "chon_toe",
 };
 
+export const UNITS_WITH_SPRITESHEET = new Set([
+  "a_ba",
+  "chon_toe",
+  "gya_pu",
+  "horse_rider",
+  "sar_bal_gyi",
+  "runner",
+  "brute",
+  "gargoyle",
+  "necromancer",
+  "ogre",
+]);
+
 export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   horse_rider: {
     id: "horse_rider",
@@ -221,9 +234,9 @@ export class UnitAnimationManager {
     for (const [unitId, manifest] of Object.entries(UNIT_MANIFESTS)) {
       const folder = UNIT_FOLDER_MAP[unitId] || unitId;
 
-      // Spritesheet (6 frames)
+      // Spritesheet (only for units with physical spritesheets on disk)
       const sheetKey = `unit_${unitId}_sheet`;
-      if (!scene.textures.exists(sheetKey)) {
+      if (UNITS_WITH_SPRITESHEET.has(unitId) && !scene.textures.exists(sheetKey)) {
         scene.load.spritesheet(sheetKey, `/assets/units/${folder}/spritesheet.png`, {
           frameWidth: manifest.frameWidth,
           frameHeight: manifest.frameHeight,
@@ -233,7 +246,11 @@ export class UnitAnimationManager {
       // Face icon for draft and HUD
       const faceKey = `unit-face-${unitId}`;
       if (!scene.textures.exists(faceKey)) {
-        scene.load.image(faceKey, `/assets/units/${folder}/face.png`);
+        if (unitId === "grunt") {
+          scene.load.image(faceKey, "/assets/sprites/unit_warrior.png");
+        } else {
+          scene.load.image(faceKey, `/assets/units/${folder}/face.png`);
+        }
       }
     }
   }

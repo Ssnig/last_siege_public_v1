@@ -2,7 +2,7 @@
 export type RoleChoice = "attacker" | "defender" | "random";
 export type AssignedRole = "attacker" | "defender";
 
-/**
+/**r
  * Lifecycle status of a match room in the lobby browser.
  *
  * @remarks

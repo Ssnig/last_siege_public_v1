@@ -32,6 +32,8 @@ interface EditorCanvasProps {
   gridOpacity: number;
   snapToGrid: boolean;
   zoom: number;
+  previewTowers?: boolean;
+  holderScale?: number;
   onHoverCoord: (coord: {
     x: number;
     y: number;
@@ -77,11 +79,35 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   gridOpacity,
   snapToGrid,
   zoom,
+  previewTowers = false,
+  holderScale = 1.0,
   onHoverCoord,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const [isImageLoaded, setIsImageLoaded] = useState<boolean>(false);
+
+  // Tower Base & Tower Preview assets
+  const towerBaseImgRef = useRef<HTMLImageElement | null>(null);
+  const [isTowerBaseLoaded, setIsTowerBaseLoaded] = useState<boolean>(false);
+  const archerTowerImgRef = useRef<HTMLImageElement | null>(null);
+  const [isArcherTowerLoaded, setIsArcherTowerLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    const baseImg = new Image();
+    baseImg.src = "/assets/tower_placeholder/tower_placeholder_1.png";
+    baseImg.onload = () => {
+      towerBaseImgRef.current = baseImg;
+      setIsTowerBaseLoaded(true);
+    };
+
+    const towerImg = new Image();
+    towerImg.src = "/assets/towers/01_archer_tower/tower.png";
+    towerImg.onload = () => {
+      archerTowerImgRef.current = towerImg;
+      setIsArcherTowerLoaded(true);
+    };
+  }, []);
 
   // Mouse interaction state
   const isMouseDownRef = useRef<boolean>(false);
@@ -245,34 +271,78 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       });
     });
 
-    // 5. Draw Tower Slots (S0..Sn) with build foundation radius
+    // 5. Draw Tower Holders (H0..Hn) with authentic Burmese Lotus Stone Dais
     slots.forEach((s) => {
-      // Clearance footprint ring
+      const baseW = 52 * holderScale;
+      const baseH = 40 * holderScale;
+
+      if (towerBaseImgRef.current && isTowerBaseLoaded) {
+        // Draw authentic Konbaung lotus stone foundation dais
+        ctx.drawImage(
+          towerBaseImgRef.current,
+          s.x - baseW / 2,
+          s.y - baseH / 2,
+          baseW,
+          baseH
+        );
+      } else {
+        // Fallback procedural dais
+        ctx.beginPath();
+        ctx.ellipse(s.x, s.y, 26 * holderScale, 20 * holderScale, 0, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(180, 83, 9, 0.4)";
+        ctx.fill();
+        ctx.strokeStyle = "#d97706";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // If dragging this slot, render glowing feedback halo
+      const isDraggingThis =
+        draggedItemRef.current?.type === "slot" &&
+        draggedItemRef.current?.index === s.slotIndex;
+      if (isDraggingThis) {
+        ctx.beginPath();
+        ctx.ellipse(s.x, s.y, 30 * holderScale, 24 * holderScale, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = "#fef08a";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Tower model mounted atop holder dais, scaled proportionally
+      if (previewTowers && archerTowerImgRef.current && isArcherTowerLoaded) {
+        ctx.save();
+        ctx.globalAlpha = 0.88;
+        const tW = 58 * holderScale;
+        const tH = 58 * holderScale;
+        ctx.drawImage(
+          archerTowerImgRef.current,
+          s.x - tW / 2,
+          s.y - tH * 0.82,
+          tW,
+          tH
+        );
+        ctx.restore();
+      }
+
+      // Tower Holder badge (H0, H1) - Ornate Konbaung pill
+      const badgeY = previewTowers ? s.y - 56 * holderScale : s.y - 28 * holderScale;
+      const badgeW = Math.max(28, 34 * holderScale);
+      const badgeH = Math.max(16, 20 * holderScale);
       ctx.beginPath();
-      ctx.arc(s.x, s.y, 28, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(245, 158, 11, 0.25)";
+      ctx.roundRect(s.x - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 6);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
       ctx.fill();
       ctx.strokeStyle = "#f59e0b";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = 1.5;
       ctx.stroke();
-      ctx.setLineDash([]);
 
-      // Center pad
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 10, 0, Math.PI * 2);
       ctx.fillStyle = "#fbbf24";
-      ctx.fill();
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Label
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 11px sans-serif";
+      ctx.font = `bold ${Math.max(8, Math.round(10 * holderScale))}px monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(`S${s.slotIndex}`, s.x, s.y);
+      ctx.fillText(`H${s.slotIndex}`, s.x, badgeY);
     });
 
     // 6. Draw Portals (P0..Pn)
@@ -321,6 +391,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     ctx.fillText("🏛️ Base", base.x, base.y - bH / 2 - 8);
   }, [
     isImageLoaded,
+    isTowerBaseLoaded,
+    isArcherTowerLoaded,
+    previewTowers,
     cellSize,
     gridCols,
     gridRows,
@@ -373,7 +446,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
     // Check hit on Tower Slots
     for (let i = 0; i < slots.length; i++) {
-      if (Math.hypot(coords.x - slots[i].x, coords.y - slots[i].y) <= 28) {
+      if (Math.hypot(coords.x - slots[i].x, coords.y - slots[i].y) <= 24 * holderScale) {
         draggedItemRef.current = { type: "slot", index: i };
         return;
       }

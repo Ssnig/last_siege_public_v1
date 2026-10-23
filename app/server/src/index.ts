@@ -17,11 +17,24 @@ import { connectDatabase } from "./db.js";
 import app from "./app.config.js";
 
 async function main(): Promise<void> {
-  // Fail fast on missing or weak auth configuration.
-  jwtSecret();
+  const mongoUri = process.env.MONGO_URI?.trim();
+  const jwt = process.env.JWT_SECRET?.trim();
 
-  // Authenticated accounts live in MongoDB, so refuse to start without it.
-  await connectDatabase();
+  if (mongoUri && jwt) {
+    try {
+      jwtSecret();
+      await connectDatabase();
+    } catch (error) {
+      console.warn(
+        "⚠️  MongoDB connection failed. Continuing in guest mode without account persistence:",
+        error,
+      );
+    }
+  } else {
+    console.warn(
+      "ℹ️  MONGO_URI or JWT_SECRET not configured. Server starting in guest mode.",
+    );
+  }
 
   // Create and listen on 2567 (or PORT environment variable.)
   listen(app);

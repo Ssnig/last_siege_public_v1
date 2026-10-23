@@ -563,7 +563,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         ],
       };
     }
-  }, [inspectedTarget, role, catalogList]);
+  }, [inspectedTarget, effectiveRole, catalogList]);
 
   // Damage-type badge for tower cards (mobs have no damage channel)
   const renderDamageBadge = (id: string) => {
@@ -573,7 +573,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
   // Render illustration / sprite
   const renderItemVisual = (id: string, isTargetEnemy: boolean = false, isBig: boolean = false) => {
-    const isTargetTower = isTargetEnemy ? role === 'attacker' : role === 'defender';
+    const isTargetTower = isTargetEnemy ? effectiveRole === 'attacker' : effectiveRole === 'defender';
     const custom = isTargetTower ? TACTICAL_TOWERS[id] : TACTICAL_MOBS[id];
     const iconSrc = custom?.iconSrc;
 

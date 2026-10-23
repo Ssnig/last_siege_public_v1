@@ -69,6 +69,7 @@ export const MapEditor: React.FC = () => {
   const [gridOpacity, setGridOpacity] = useState<number>(0.35);
   const [snapToGrid, setSnapToGrid] = useState<boolean>(false);
   const [zoom, setZoom] = useState<number>(1);
+  const [previewTowers, setPreviewTowers] = useState<boolean>(false);
 
   // UI Scaling (default 90% view)
   const [uiScale, setUiScale] = useState<number>(() => {
@@ -242,7 +243,20 @@ export const MapEditor: React.FC = () => {
 
   const handleUpdateSlots = (newSlots: TowerSlot[]) => {
     setSlots(newSlots);
-    pushHistory(gridMatrix, paths, newSlots, portals, base);
+    let nextMatrix = gridMatrix;
+    // When a slot is newly added, auto-stamp 3x3 footprint in gridMatrix as 2 (Tower Slot Pad)
+    if (newSlots.length > slots.length) {
+      const added = newSlots[newSlots.length - 1];
+      const centerCol = Math.floor(added.x / cellSize);
+      const centerRow = Math.floor(added.y / cellSize);
+      nextMatrix = gridMatrix.map((row, rIdx) =>
+        Math.abs(rIdx - centerRow) <= 1
+          ? row.map((val, cIdx) => (Math.abs(cIdx - centerCol) <= 1 ? 2 : val))
+          : [...row]
+      );
+      setGridMatrix(nextMatrix);
+    }
+    pushHistory(nextMatrix, paths, newSlots, portals, base);
   };
 
   const handleUpdatePortals = (newPortals: Vec2[]) => {
@@ -523,6 +537,20 @@ export const MapEditor: React.FC = () => {
             🧲 Snap
           </button>
 
+          {/* Tower Preview Toggle */}
+          <button
+            onClick={() => setPreviewTowers(!previewTowers)}
+            className={`px-2.5 py-1 rounded text-xs font-bold transition border flex items-center gap-1.5 cursor-pointer ${
+              previewTowers
+                ? "bg-amber-600/80 border-amber-400 text-white shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                : "bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-200"
+            }`}
+            title="Toggle Tower Sprite Previews on Placed Bases"
+          >
+            <span>🏰</span>
+            <span>Preview Towers</span>
+          </button>
+
           {/* Zoom controls */}
           <div className="flex items-center gap-1 bg-slate-950/70 p-1 rounded-lg border border-slate-700 text-xs">
             <span className="text-[11px] text-slate-400 px-1 font-semibold">Zoom:</span>
@@ -663,6 +691,7 @@ export const MapEditor: React.FC = () => {
               base={base}
               onUpdateBase={handleUpdateBase}
               baseDisplaySize={baseDisplaySize}
+              previewTowers={previewTowers}
               showGrid={showGrid}
               gridOpacity={gridOpacity}
               snapToGrid={snapToGrid}

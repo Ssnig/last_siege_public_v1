@@ -76,11 +76,13 @@ export const GoldCrest: React.FC = () => (
 
 /**
  * Royal panel container with crimson gradient, double gold border, and corner ornaments.
+ * Supports passing `contentClassName` to configure the inner z-10 layout.
  */
 export const RoyalPanel: React.FC<{
   children: React.ReactNode;
   className?: string;
-}> = ({ children, className = '' }) => (
+  contentClassName?: string;
+}> = ({ children, className = '', contentClassName = '' }) => (
   <div
     className={`relative rounded-lg overflow-hidden ${className}`}
     style={{
@@ -97,6 +99,6 @@ export const RoyalPanel: React.FC<{
       }}
     />
     <GoldCorners />
-    <div className="relative z-10">{children}</div>
+    <div className={`relative z-10 h-full flex flex-col ${contentClassName}`}>{children}</div>
   </div>
 );

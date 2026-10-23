@@ -1468,6 +1468,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.draftRound = 1;
     this.draftRoundTimer = 15.0;
+    this.state.phaseEndsAt = 15;
     this.draftFinalCountdown = null;
     this.draftRoundPicks.clear();
 
