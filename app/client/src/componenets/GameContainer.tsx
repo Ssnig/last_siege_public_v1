@@ -56,6 +56,9 @@ const MAP_IMAGE_URLS: Record<string, string> = {
   mandalay: '/assets/maps/map_4_mandalay/map.jpg',
   innwa: '/assets/maps/map_5_innwa/map.jpg',
   bago: '/assets/maps/map_6_bago/map.jpg',
+  deserted: '/assets/maps/map_7_deserted/map.jpg',
+  twister: '/assets/maps/map_8_twister/map.jpg',
+  river: '/assets/maps/map_9_river/map.jpg',
 };
 
 type PlayerRole = "attacker" | "defender";

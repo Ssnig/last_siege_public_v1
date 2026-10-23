@@ -1,0 +1,10 @@
+{
+  "id": "twister",
+  "name": "Map 8: Twister (Canyon)",
+  "width": 1280,
+  "height": 720,
+  "description": "Custom tactical layout with precision waypoints and strategic tower pads.",
+  "pathHalfWidth": 26,
+  "lanes": 7,
+  "holderScale": 1
+}
