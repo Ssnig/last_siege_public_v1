@@ -617,7 +617,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-40 w-full h-[100dvh] overflow-hidden flex items-center justify-center select-none text-[#fff5d6]"
+      className="fixed inset-0 z-40 w-full h-[100dvh] overflow-hidden flex items-center justify-center select-none text-[#fff5d6] animate-fadeIn"
       style={{
         background: 'radial-gradient(ellipse at center, #1c1117 0%, #140d13 70%, #0a060a 100%)',
         fontFamily: "'Cinzel', 'MedievalSharp', serif",
@@ -625,7 +625,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
     >
       {/* 16:9 Scale-to-Fit Canvas Frame (identical appearance on mobile & desktop) */}
       <div
-        className="relative w-[1260px] h-[700px] shrink-0 origin-center transition-transform duration-75 flex flex-col justify-between rounded-xl overflow-hidden p-3 gap-2"
+        className="relative w-[1260px] h-[700px] shrink-0 origin-center transition-transform duration-75 flex flex-col justify-between rounded-xl overflow-hidden p-3 gap-2 animate-scaleIn"
         style={{
           transform: `scale(${viewportScale})`,
           border: '3px solid #d4af37',

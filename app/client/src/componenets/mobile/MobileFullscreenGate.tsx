@@ -87,7 +87,7 @@ export const MobileFullscreenGate: React.FC = () => {
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6 select-none cursor-pointer animate-fadeIn"
       style={{ touchAction: 'manipulation' }}
     >
-      <div className="relative w-full max-w-sm rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-amber-500/70 p-6 flex flex-col items-center text-center shadow-[0_0_50px_rgba(245,158,11,0.3)]">
+      <div className="relative w-full max-w-sm rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-amber-500/70 p-6 flex flex-col items-center text-center shadow-[0_0_50px_rgba(245,158,11,0.3)] animate-modalPop">
         {/* Ornate Gold Top Bar */}
         <div className="h-1.5 w-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 rounded-full mb-5" />
 

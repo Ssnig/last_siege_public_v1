@@ -9,6 +9,7 @@ import {
 } from "colyseus";
 
 import { authRouter } from "./auth/routes.js";
+import { disconnectDatabase } from "./db.js";
 /**
  * Import your Room files
  */
@@ -72,6 +73,10 @@ const server = defineServer({
       app.use("/", playground());
     }
   }
+});
+
+server.onShutdown(async () => {
+  await disconnectDatabase();
 });
 
 export default server;

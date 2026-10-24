@@ -11,7 +11,7 @@ import { listen } from "@colyseus/tools";
 
 // Load .env before anything reads configuration.
 import { jwtSecret } from "./auth/config.js";
-import { connectDatabase } from "./db.js";
+import { connectDatabase, disconnectDatabase } from "./db.js";
 
 // Import Colyseus config
 import app from "./app.config.js";
@@ -37,10 +37,11 @@ async function main(): Promise<void> {
   }
 
   // Create and listen on 2567 (or PORT environment variable.)
-  listen(app);
+  await listen(app);
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error("Failed to start server:", error);
+  await disconnectDatabase().catch(() => {});
   process.exit(1);
 });

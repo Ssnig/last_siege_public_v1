@@ -32,7 +32,7 @@ export const MatchLoadingScreen: React.FC<MatchLoadingScreenProps> = ({
   };
 
   return (
-    <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden select-none">
+    <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden select-none animate-fadeIn">
       {/* Background with blur */}
       <img
         src="/assets/ui/bg2.jpg"
@@ -48,7 +48,7 @@ export const MatchLoadingScreen: React.FC<MatchLoadingScreenProps> = ({
           <GoldCrest />
         </div>
 
-        <RoyalPanel className="p-6 sm:p-8 flex flex-col items-center text-center shadow-2xl">
+        <RoyalPanel className="p-6 sm:p-8 flex flex-col items-center text-center shadow-2xl animate-modalPop shadow-[0_0_50px_rgba(212,175,55,0.35)]">
           {/* Animated Swords / Beacon */}
           {/* Animated Swords / Beacon */}
           <div className="relative w-16 h-16 mb-4 mx-auto flex items-center justify-center">

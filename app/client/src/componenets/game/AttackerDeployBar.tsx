@@ -338,7 +338,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                   onPointerLeave={stopHold}
                   onPointerCancel={stopHold}
                   disabled={disabled}
-                  className="flex w-[44px] sm:w-[52px] flex-shrink-0 flex-col items-center gap-0.5 rounded p-0.5 transition active:scale-95 disabled:opacity-40"
+                  className="flex w-[44px] sm:w-[52px] flex-shrink-0 flex-col items-center gap-0.5 rounded p-0.5 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 active:scale-95 disabled:opacity-40"
                   title={`Queue ${MOB_TYPES[typeId]?.name ?? typeId} (${cost}g)`}
                 >
                   <UnitIcon typeId={typeId} className="h-6 w-6 sm:h-7 sm:w-7" />
@@ -421,9 +421,9 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                     requestDeploy(portal.id, rect.left + rect.width / 2, rect.top);
                   }}
                   disabled={!canPush && !idlePulse}
-                  className={`flex flex-col items-center gap-0.5 rounded border px-2 py-1 transition active:scale-95 ${
+                  className={`flex flex-col items-center gap-0.5 rounded border px-2 py-1 transition-all duration-200 hover:scale-105 active:scale-95 ${
                     idlePulse && !highlighted ? 'animate-pulse' : ''
-                  } ${canPush || idlePulse ? '' : 'opacity-40'}`}
+                  } ${canPush || idlePulse ? 'hover:shadow-[0_0_12px_rgba(0,240,255,0.4)]' : 'opacity-40'}`}
                   style={{
                     borderColor: highlighted ? '#67e8f9' : canPush ? NEON : 'rgba(148,163,184,0.35)',
                     background: highlighted

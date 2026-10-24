@@ -475,6 +475,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       myRole: client.userData.role,
       opponentName: opponent?.userData.playerName,
       opponentRole: opponent?.userData.role,
+      phase: this.state.phase,
+      phaseEndsAt: this.state.phaseEndsAt,
+      mapId: this.state.mapId,
     });
   }
 

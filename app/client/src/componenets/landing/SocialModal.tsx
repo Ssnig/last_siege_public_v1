@@ -44,7 +44,7 @@ export const SocialModal: React.FC<SocialModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fadeIn">
-      <div className="relative w-full max-w-md max-h-[92vh] bg-slate-900/95 border-2 border-cyan-500/60 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.3)] overflow-hidden text-white flex flex-col">
+      <div className="relative w-full max-w-md max-h-[92vh] bg-slate-900/95 border-2 border-cyan-500/60 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.3)] overflow-hidden text-white flex flex-col animate-modalPop">
         {/* Cyan Top Bar */}
         <div className="h-1.5 w-full bg-gradient-to-r from-cyan-600 via-teal-300 to-cyan-600" />
 

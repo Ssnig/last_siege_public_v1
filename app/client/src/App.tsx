@@ -1,5 +1,5 @@
-import  { useEffect, useRef, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { Room } from '@colyseus/sdk';
 import { Lobby } from './componenets/Lobby';
 import { GameRoute } from './componenets/GameRoute';
@@ -12,6 +12,7 @@ import { OrientationPrompt } from './componenets/mobile/OrientationPrompt';
 import { MobileFullscreenGate } from './componenets/mobile/MobileFullscreenGate';
 import { InitialLoadingScreen } from './componenets/common/InitialLoadingScreen';
 import { MapEditor } from './componenets/editor/MapEditor';
+import { EffectsOverlay } from './componenets/common/EffectsOverlay';
 
 /**
  * Root shell: route-based. `/` hosts the game welcome/landing page,
@@ -24,6 +25,7 @@ import { MapEditor } from './componenets/editor/MapEditor';
 export default function App() {
   const [room, setRoom] = useState<Room | null>(null);
   const roomContext: GameRoomContextValue = { room, setRoom };
+  const location = useLocation();
 
   // Track the previously held room so a transition *back* to null (an
   // intentional leave) clears the stored reconnect, while the initial null on a
@@ -39,20 +41,22 @@ export default function App() {
   }, [room]);
 
   return (
-    <div className="w-screen h-screen bg-slate-900 text-white overflow-hidden flex items-center justify-center">
+    <div className="w-screen h-screen bg-slate-900 text-white overflow-hidden flex items-center justify-center relative">
       <InitialLoadingScreen />
       <MobileFullscreenGate />
       <OrientationPrompt />
+      <EffectsOverlay />
       <GameRoomContext.Provider value={roomContext}>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/lobby" element={<Lobby client={client} />} />
-          <Route path="/game/:roomId" element={<GameRoute />} />
-          <Route path="/editor" element={<MapEditor />} />
-          <Route path="*" element={<Navigate to="/lobby" replace />} />
-        </Routes>
+        <div key={location.pathname} className="w-full h-full animate-routeEnter flex items-center justify-center">
+          <Routes location={location}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/lobby" element={<Lobby client={client} />} />
+            <Route path="/game/:roomId" element={<GameRoute />} />
+            <Route path="/editor" element={<MapEditor />} />
+            <Route path="*" element={<Navigate to="/lobby" replace />} />
+          </Routes>
+        </div>
       </GameRoomContext.Provider>
     </div>
   );
 }
-

@@ -89,8 +89,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const isRegister = mode === 'register';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-4">
-      <RoyalPanel className="relative w-full max-w-md p-5 sm:p-6 max-h-[94vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-4 animate-fadeIn">
+      <RoyalPanel className="relative w-full max-w-md p-5 sm:p-6 max-h-[94vh] overflow-y-auto animate-modalPop shadow-[0_0_50px_rgba(212,175,55,0.35)]">
         <div className="flex items-center justify-between mb-1">
           <div>
             <h3

@@ -44,19 +44,19 @@ export const MapRevealOverlay: React.FC<MapRevealOverlayProps> = ({
   }
 
   return (
-    <div className="absolute inset-0 z-40 h-full w-full overflow-y-auto bg-slate-950/90 backdrop-blur-md">
+    <div className="absolute inset-0 z-40 h-full w-full overflow-y-auto bg-slate-950/90 backdrop-blur-md animate-fadeIn">
       <div className="min-h-full w-full flex flex-col items-center justify-center gap-3 sm:gap-4 px-4 py-6 text-center">
-        <p className="text-[11px] font-bold tracking-[0.4em] text-sky-400/80 uppercase">
+        <p className="text-[11px] font-bold tracking-[0.4em] text-sky-400/80 uppercase animate-slideDown">
           Battlefield Chosen
         </p>
         <h2
-          className="text-2xl sm:text-4xl font-black text-white tracking-tight"
+          className="text-2xl sm:text-4xl font-black text-white tracking-tight animate-scaleIn"
           style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
         >
           {map.name ?? map.id}
         </h2>
 
-        <div className="mx-auto w-fit max-w-full rounded-2xl border border-slate-700 bg-slate-900/80 overflow-hidden shadow-2xl">
+        <div className="mx-auto w-fit max-w-full rounded-2xl border border-slate-700 bg-slate-900/80 overflow-hidden shadow-2xl animate-modalPop">
           <svg
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="xMidYMid meet"
