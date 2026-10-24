@@ -1,0 +1,47 @@
+import { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import { bgmManager } from '../../audio/bgmManager';
+
+/**
+ * Route-aware soundtrack controller.
+ * Handles automatic music track switching and smooth fade-in / fade-out
+ * transitions across application pages, with an exemption for the Map Editor.
+ */
+export const BGMRouteSync: React.FC = () => {
+  const location = useLocation();
+  const prevPathRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const prevPath = prevPathRef.current;
+    prevPathRef.current = currentPath;
+
+    // 1. Map Editor exemption: fade out and stop music completely
+    if (currentPath === '/editor') {
+      bgmManager.stop(350).catch(() => {});
+      return;
+    }
+
+    // 2. In-game battle: play in-game combat soundtrack
+    if (currentPath.startsWith('/game/')) {
+      bgmManager.playTrack('in_game', 700).catch(() => {});
+      return;
+    }
+
+    // 3. Menus (Landing, Lobby, etc.): play overall game theme
+    if (prevPath === null) {
+      // Initial page mount
+      bgmManager.playTrack('overall', 800).catch(() => {});
+    } else if (prevPath === '/editor' || prevPath.startsWith('/game/')) {
+      // Returning from editor or game match back to menu/lobby
+      bgmManager.playTrack('overall', 700).catch(() => {});
+    } else if (prevPath !== currentPath) {
+      // Page-to-page navigation within menus (e.g., Landing -> Lobby):
+      // Smoothly dip volume down and back up on the new page
+      bgmManager.fadeTransition(undefined, 500).catch(() => {});
+    }
+  }, [location.pathname]);
+
+  return null;
+};
+

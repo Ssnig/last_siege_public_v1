@@ -3,6 +3,7 @@ import { Room, Callbacks } from "@colyseus/sdk";
 import {
   MESSAGES,
   MAPS,
+  PROP_CATALOG,
   KONBAUNG_MAP,
   TOWER_DESIGNS,
   type RoleAssignedPayload,
@@ -104,6 +105,9 @@ export class GameScene extends Phaser.Scene {
     this.load.image("mandalay", "/assets/maps/map_4_mandalay/map.jpg");
     this.load.image("innwa", "/assets/maps/map_5_innwa/map.jpg");
     this.load.image("bago", "/assets/maps/map_6_bago/map.jpg");
+    this.load.image("deserted", "/assets/maps/map_7_deserted/map.jpg");
+    this.load.image("twister", "/assets/maps/map_8_twister/map.jpg");
+    this.load.image("river", "/assets/maps/map_9_river/map.jpg");
 
     // Map base structures
     this.load.image("base_castle", "/assets/sprites/base_castle.png");
@@ -113,10 +117,18 @@ export class GameScene extends Phaser.Scene {
     this.load.image("base_mandalay", "/assets/maps/map_4_mandalay/base.png");
     this.load.image("base_innwa", "/assets/maps/map_5_innwa/base.png");
     this.load.image("base_bago", "/assets/maps/map_6_bago/base.png");
+    this.load.image("base_deserted", "/assets/maps/map_7_deserted/base.png");
+    this.load.image("base_twister", "/assets/maps/map_8_twister/base.png");
+    this.load.image("base_river", "/assets/maps/map_9_river/base.png");
     this.load.image("tower_placeholder_1", "/assets/tower_placeholder/tower_placeholder_1.png");
     this.load.image("npc_monk", "/assets/sprites/npc_monk.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
     this.load.image("arrow_proj", "/assets/sprites/arrow.png");
+
+    // Preload 2.5D isometric scenery props and ambient NPCs
+    for (const prop of Object.values(PROP_CATALOG)) {
+      this.load.image(`prop_${prop.typeId}`, prop.imageSrc);
+    }
 
     // Preload all 6 custom towers and their projectiles
     for (const design of Object.values(TOWER_DESIGNS)) {
