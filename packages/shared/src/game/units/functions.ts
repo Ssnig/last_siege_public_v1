@@ -1,3 +1,4 @@
+import rulesData from "../../data/rules.json" with { type: "json" };
 import { MOB_TYPES } from "./definitions.js";
 
 /** Gold cost to deploy one unit of this archetype. */
@@ -34,7 +35,7 @@ export function unitSpeed(typeId: string): number {
  * @remarks Fast units leave a bigger gap than slow ones so a mixed push fans out
  * instead of arriving as one clump. Clamped to `[0.8, 2.0]` of the base stagger.
  */
-export function deployStaggerSec(typeId: string, base: number = 0.6): number {
+export function deployStaggerSec(typeId: string, base: number = rulesData.deploy.staggerSec): number {
   const speed = unitSpeed(typeId);
   return base * Math.min(2, Math.max(0.8, speed / 60));
 }

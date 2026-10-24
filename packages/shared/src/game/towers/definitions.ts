@@ -217,27 +217,6 @@ export const CORE_TOWER_TYPES: Record<string, TowerType> = {
 export const TOWER_TYPES: Record<string, TowerType> = {
   ...(towersJson as unknown as Record<string, TowerType>),
   ...CORE_TOWER_TYPES,
-  // Ensure legacy aliases map to the updated core definitions
-  basic: {
-    ...CORE_TOWER_TYPES.archer,
-    id: "basic",
-    name: "Archer Tower (Basic)",
-  },
-  pitchfork: {
-    ...CORE_TOWER_TYPES.spear,
-    id: "pitchfork",
-    name: "Spear Tower (Pitchfork)",
-  },
-  sniper: {
-    ...CORE_TOWER_TYPES.gun,
-    id: "sniper",
-    name: "Gun Tower (Sniper)",
-  },
-  bertha: {
-    ...CORE_TOWER_TYPES.cannon,
-    id: "bertha",
-    name: "Royal Cannon (Bertha)",
-  },
 };
 
 /** Visual and presentation configuration for each tower. */

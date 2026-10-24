@@ -16,7 +16,6 @@ export * from "./towers/index.js";
 export * from "./units/index.js";
 
 import { MOB_TYPES, mobCost } from "./units/index.js";
-import { SELL_REFUND_RATE as RAW_SELL_REFUND_RATE } from "./towers/index.js";
 
 /** Economy tuning for both sides. */
 export interface EconomyConfig {
@@ -124,7 +123,7 @@ export const MOB_SPEED_JITTER: number = rulesData.constants.mobSpeedJitter;
 export const PROJECTILE_HIT_RADIUS: number = rulesData.constants.projectileHitRadius;
 
 /** Fraction of a tower's total invested gold refunded when it is sold. */
-export const SELL_REFUND_RATE: number = RAW_SELL_REFUND_RATE;
+export const SELL_REFUND_RATE: number = rulesData.constants.sellRefundRate;
 
 export const MATCH_PHASES = {
   waiting: "waiting",
