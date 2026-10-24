@@ -12,6 +12,7 @@ import {
   mobArmor,
   mobMentalStrength,
   DEFAULT_COMBAT_RULES,
+  getTowerCooldown,
 } from "@root/shared";
 
 /**
@@ -125,5 +126,43 @@ describe("combat data", () => {
       DEFAULT_COMBAT_RULES.debuffDurationSec > 0,
       "a crack needs time to matter",
     );
+  });
+});
+
+describe("tower shooting speeds and cannon on-hit slow effect", () => {
+  it("archer, gun, bomb, spear, and cannon match the specified attack rates", () => {
+    // Archer: 1 per 0.5s -> 2.0 shots/sec
+    assert.strictEqual(TOWER_TYPES.archer.tiers[0].fireRate, 2.0);
+    assert.strictEqual(getTowerCooldown("archer", 1), 0.5);
+
+    // Gun: 1 per 1.0s -> 1.0 shots/sec
+    assert.strictEqual(TOWER_TYPES.gun.tiers[0].fireRate, 1.0);
+    assert.strictEqual(getTowerCooldown("gun", 1), 1.0);
+
+    // Bomb: 1 per 2.0s -> 0.5 shots/sec
+    assert.strictEqual(TOWER_TYPES.bomb.tiers[0].fireRate, 0.5);
+    assert.strictEqual(getTowerCooldown("bomb", 1), 2.0);
+
+    // Spear: 1 per 1.0s -> 1.0 shots/sec
+    assert.strictEqual(TOWER_TYPES.spear.tiers[0].fireRate, 1.0);
+    assert.strictEqual(getTowerCooldown("spear", 1), 1.0);
+
+    // Cannon: 1 per 3.0s -> 0.333333 shots/sec
+    assert.ok(Math.abs(TOWER_TYPES.cannon.tiers[0].fireRate - (1 / 3)) < 0.001);
+    assert.ok(Math.abs(getTowerCooldown("cannon", 1) - 3.0) < 0.01);
+  });
+
+  it("cannon has 25% slow on-hit effect for 1.5 seconds", () => {
+    const cannon = TOWER_TYPES.cannon;
+    assert.ok(cannon.onHitEffect, "cannon must define an onHitEffect");
+    assert.strictEqual(cannon.onHitEffect.type, "slow");
+    assert.strictEqual(cannon.onHitEffect.magnitude, 0.25);
+    assert.strictEqual(cannon.onHitEffect.durationSec, 1.5);
+  });
+
+  it("effectiveSpeed reduces speed by 25% when hit by cannon slow", () => {
+    const baseSpeed = 100;
+    const slowed = effectiveSpeed(baseSpeed, [TOWER_TYPES.cannon.onHitEffect!.magnitude]);
+    assert.strictEqual(slowed, 75, "100 base speed with 0.25 slow factor leaves 75 speed (25% reduction)");
   });
 });
