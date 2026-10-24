@@ -66,6 +66,9 @@ function devMapPersistencePlugin() {
                 mandalay: 'map_4_mandalay',
                 innwa: 'map_5_innwa',
                 bago: 'map_6_bago',
+                deserted: 'map_7_deserted',
+                twister: 'map_8_twister',
+                river: 'map_9_river',
               };
               const folderName = folderPrefixes[mapId];
               if (folderName) {

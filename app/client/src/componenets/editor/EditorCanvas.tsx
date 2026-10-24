@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import type { Vec2, TowerSlot } from "@root/shared";
+import type { Vec2, TowerSlot, MapProp } from "@root/shared";
+import { PROP_CATALOG } from "@root/shared";
 
 export type EditorTool =
   | "brush_path"
@@ -8,6 +9,7 @@ export type EditorTool =
   | "slot"
   | "portal"
   | "base"
+  | "prop"
   | "inspect";
 
 interface EditorCanvasProps {
@@ -28,6 +30,11 @@ interface EditorCanvasProps {
   base: Vec2;
   onUpdateBase: (base: Vec2) => void;
   baseDisplaySize: { width: number; height: number };
+  props?: MapProp[];
+  onUpdateProps?: (props: MapProp[]) => void;
+  selectedPropId?: string | null;
+  onSelectProp?: (propId: string | null) => void;
+  activePropTypeId?: string;
   showGrid: boolean;
   gridOpacity: number;
   snapToGrid: boolean;
@@ -75,6 +82,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   base,
   onUpdateBase,
   baseDisplaySize,
+  props = [],
+  onUpdateProps,
+  selectedPropId = null,
+  onSelectProp,
+  activePropTypeId = "tree_banyan",
   showGrid,
   gridOpacity,
   snapToGrid,
@@ -90,6 +102,22 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   // Tower Base & Tower Preview assets
   const towerBaseImgRef = useRef<HTMLImageElement | null>(null);
   const [isTowerBaseLoaded, setIsTowerBaseLoaded] = useState<boolean>(false);
+  // Prop sprite images cache
+  const propImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const [propsImagesLoaded, setPropsImagesLoaded] = useState<number>(0);
+
+  useEffect(() => {
+    let loaded = 0;
+    Object.entries(PROP_CATALOG).forEach(([typeId, def]) => {
+      const img = new Image();
+      img.src = def.imageSrc;
+      img.onload = () => {
+        propImagesRef.current.set(typeId, img);
+        loaded++;
+        setPropsImagesLoaded(loaded);
+      };
+    });
+  }, []);
   const archerTowerImgRef = useRef<HTMLImageElement | null>(null);
   const [isArcherTowerLoaded, setIsArcherTowerLoaded] = useState<boolean>(false);
 
@@ -111,11 +139,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   // Mouse interaction state
   const isMouseDownRef = useRef<boolean>(false);
-  const draggedItemRef = useRef<{
-    type: "waypoint" | "slot" | "portal" | "base";
-    index: number;
-    pathId?: string;
-  } | null>(null);
+  const draggedItemRef = useRef<
+    | { type: "waypoint"; index: number; pathId: string }
+    | { type: "slot"; index: number }
+    | { type: "portal"; index: number }
+    | { type: "base" }
+    | { type: "prop"; id: string }
+    | null
+  >(null);
 
   // Load background image
   useEffect(() => {
@@ -389,6 +420,60 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     ctx.font = "bold 12px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("🏛️ Base", base.x, base.y - bH / 2 - 8);
+    // 8. Draw 2.5D Isometric Scenery Props (sorted by y for accurate depth)
+    const sortedProps = [...props].sort((a, b) => a.y - b.y);
+    sortedProps.forEach((p) => {
+      const def = PROP_CATALOG[p.typeId];
+      if (!def) return;
+      const img = propImagesRef.current.get(p.typeId);
+      const scale = (p.scale ?? 1.0) * (def.defaultScale ?? 1.0);
+      const w = def.width * scale;
+      const h = def.height * scale;
+      const anchorY = def.anchorY ?? 0.9;
+      const drawX = p.x - w / 2;
+      const drawY = p.y - h * anchorY;
+
+      ctx.save();
+      if (p.flipX) {
+        ctx.translate(p.x, p.y);
+        ctx.scale(-1, 1);
+        ctx.translate(-p.x, -p.y);
+      }
+
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, drawX, drawY, w, h);
+      } else {
+        ctx.fillStyle = "rgba(16, 185, 129, 0.4)";
+        ctx.fillRect(drawX, drawY, w, h);
+      }
+      ctx.restore();
+
+      // If selected, render golden dashed bounding box and anchor ring
+      if (p.id === selectedPropId) {
+        ctx.save();
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(drawX - 3, drawY - 3, w + 6, h + 6);
+        ctx.setLineDash([]);
+
+        // Ground anchor contact ring
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, Math.max(12, 14 * scale), Math.max(5, 6 * scale), 0, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(251, 191, 36, 0.35)";
+        ctx.fill();
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(def.name, p.x, drawY - 8);
+        ctx.restore();
+      }
+    });
+
   }, [
     isImageLoaded,
     isTowerBaseLoaded,
@@ -406,6 +491,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     portals,
     base,
     baseDisplaySize,
+    props,
+    selectedPropId,
+    propsImagesLoaded,
   ]);
 
   // Paint cell in matrix
@@ -429,10 +517,51 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     isMouseDownRef.current = true;
     const coords = getCanvasCoords(e);
 
+    // Handle Prop Tool selection / placement
+    if (activeTool === "prop") {
+      // Check hit on existing props from front to back
+      let hitProp: MapProp | null = null;
+      for (let i = props.length - 1; i >= 0; i--) {
+        const p = props[i];
+        const def = PROP_CATALOG[p.typeId];
+        const scale = (p.scale ?? 1.0) * (def?.defaultScale ?? 1.0);
+        const w = (def?.width ?? 60) * scale;
+        const h = (def?.height ?? 60) * scale;
+        const anchorY = def?.anchorY ?? 0.9;
+        const left = p.x - w / 2;
+        const right = p.x + w / 2;
+        const top = p.y - h * anchorY;
+        const bottom = p.y + h * (1 - anchorY) + 8;
+        if (coords.x >= left && coords.x <= right && coords.y >= top && coords.y <= bottom) {
+          hitProp = p;
+          break;
+        }
+      }
+
+      if (hitProp) {
+        onSelectProp?.(hitProp.id);
+        draggedItemRef.current = { type: "prop", id: hitProp.id };
+        return;
+      } else {
+        // Place new prop
+        const newProp: MapProp = {
+          id: `prop_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          typeId: activePropTypeId || "tree_banyan",
+          x: coords.x,
+          y: coords.y,
+          scale: 1.0,
+          flipX: false,
+        };
+        onUpdateProps?.([...props, newProp]);
+        onSelectProp?.(newProp.id);
+        draggedItemRef.current = { type: "prop", id: newProp.id };
+        return;
+      }
+    }
     // Check hit on Defender Base Anchor
     const distBase = Math.hypot(coords.x - base.x, coords.y - base.y);
     if (distBase <= 20) {
-      draggedItemRef.current = { type: "base", index: 0 };
+      draggedItemRef.current = { type: "base" };
       return;
     }
 
@@ -529,6 +658,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         const trkPts = [...(paths[dragged.pathId] || [])];
         trkPts[dragged.index] = coords;
         onUpdatePaths({ ...paths, [dragged.pathId]: trkPts });
+      } else if (dragged.type === "prop") {
+        const nextProps = props.map((p) =>
+          p.id === dragged.id ? { ...p, x: coords.x, y: coords.y } : p
+        );
+        onUpdateProps?.(nextProps);
       }
       return;
     }
