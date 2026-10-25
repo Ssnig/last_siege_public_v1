@@ -608,7 +608,7 @@ export class GameplayStage {
       const baseSprite = this.scene.textures.exists("tower_placeholder_1")
         ? this.scene.add
             .image(slot.x, slot.y, "tower_placeholder_1")
-            .setDisplaySize(88 * holderScale, 68 * holderScale)
+            .setDisplaySize(52 * holderScale, 40 * holderScale)
             .setDepth(DEPTH.SLOTS_LAYER)
             .setName("tower-slot-base")
         : null;
@@ -616,7 +616,7 @@ export class GameplayStage {
 
       // 2. Interactive hit area
       const placeholder = this.scene.add
-        .circle(slot.x, slot.y, 36 * holderScale, 0x000000, 0.001)
+        .circle(slot.x, slot.y, 24 * holderScale, 0x000000, 0.001)
         .setDepth(DEPTH.SLOTS_LAYER + 0.01)
         .setName("tower-slot");
       placeholder.setData("slotIndex", slot.slotIndex);

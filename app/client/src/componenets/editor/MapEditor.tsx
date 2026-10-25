@@ -91,6 +91,9 @@ export const MapEditor: React.FC = () => {
   const [snapToGrid, setSnapToGrid] = useState<boolean>(false);
   const [zoom, setZoom] = useState<number>(1);
   const [previewTowers, setPreviewTowers] = useState<boolean>(false);
+  const [holderScale, setHolderScale] = useState<number>(1.0);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
+  const [pendingMapSwitchId, setPendingMapSwitchId] = useState<string | null>(null);
 
   // UI Scaling (default 90% view)
   const [uiScale, setUiScale] = useState<number>(() => {
@@ -227,6 +230,12 @@ export const MapEditor: React.FC = () => {
         } else {
           setProps([]);
         }
+        if (def.holderScale !== undefined) {
+          setHolderScale(def.holderScale);
+        } else {
+          setHolderScale(1.0);
+        }
+        setIsDirty(false);
         setSelectedPropId(null);
       }
     },
@@ -258,6 +267,7 @@ export const MapEditor: React.FC = () => {
         props: JSON.parse(JSON.stringify(currentProps)),
       };
 
+      setIsDirty(true);
       setHistory((prev) => {
         const trimmed = prev.slice(0, historyIndex + 1);
         return [...trimmed, snapshot].slice(-25);
@@ -533,10 +543,16 @@ export const MapEditor: React.FC = () => {
             <select
               value={selectedMapId}
               onChange={(e) => {
-                if (e.target.value === "upload") {
-                  fileInputRef.current?.click();
+                const nextId = e.target.value;
+                if (nextId === selectedMapId) return;
+                if (isDirty) {
+                  setPendingMapSwitchId(nextId);
                 } else {
-                  loadPresetMap(e.target.value);
+                  if (nextId === "upload") {
+                    fileInputRef.current?.click();
+                  } else {
+                    loadPresetMap(nextId);
+                  }
                 }
               }}
               className="bg-slate-950 text-amber-200 text-xs rounded-lg px-2.5 py-1.5 border border-amber-500/40 focus:outline-none focus:border-amber-400 font-medium cursor-pointer"
@@ -632,6 +648,27 @@ export const MapEditor: React.FC = () => {
             <span>Preview Towers</span>
           </button>
 
+          {/* Dedicated Tower Pad Scale Slider in Toolbar */}
+          <div className="flex items-center gap-1.5 bg-slate-950/70 px-2.5 py-1 rounded-lg border border-slate-700 text-xs">
+            <span className="text-[11px] text-amber-300 font-bold">Pad Scale:</span>
+            <input
+              type="range"
+              min="0.5"
+              max="1.5"
+              step="0.05"
+              value={holderScale}
+              onChange={(e) => {
+                setHolderScale(parseFloat(e.target.value));
+                setIsDirty(true);
+              }}
+              className="w-16 h-1.5 bg-slate-700 rounded-lg accent-amber-400 cursor-pointer"
+              title={`Tower Pad Scale: ${Math.round(holderScale * 100)}%`}
+            />
+            <span className="text-[11px] font-mono text-amber-200 min-w-[28px] text-right">
+              {Math.round(holderScale * 100)}%
+            </span>
+          </div>
+
           {/* Zoom controls */}
           <div className="flex items-center gap-1 bg-slate-950/70 p-1 rounded-lg border border-slate-700 text-xs">
             <span className="text-[11px] text-slate-400 px-1 font-semibold">Zoom:</span>
@@ -652,7 +689,7 @@ export const MapEditor: React.FC = () => {
 
           {/* UI Scale controls */}
           <div className="flex items-center gap-1 bg-slate-950/70 p-1 rounded-lg border border-slate-700 text-xs">
-            <span className="text-[11px] text-slate-400 px-1 font-semibold">Scale:</span>
+            <span className="text-[11px] text-slate-400 px-1 font-semibold">UI Zoom:</span>
             {[0.8, 0.9, 1.0].map((s) => (
               <button
                 key={s}
@@ -782,6 +819,7 @@ export const MapEditor: React.FC = () => {
               gridOpacity={gridOpacity}
               snapToGrid={snapToGrid}
               zoom={zoom}
+              holderScale={holderScale}
               onHoverCoord={setHoverCoord}
             />
           </div>
@@ -1117,6 +1155,52 @@ export const MapEditor: React.FC = () => {
                 <span className="font-bold text-amber-200/90 uppercase text-[11px] tracking-wide">
                   🛡️ Tower Slots ({slots.length})
                 </span>
+              </div>
+
+              {/* Pad Scale Slider in Tower Slots Section */}
+              <div className="mb-2.5 p-2 rounded bg-slate-900/80 border border-slate-800 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-300 font-semibold">Pad Scale (This Map):</span>
+                  <span className="font-mono text-amber-300 font-bold">{Math.round(holderScale * 100)}%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="1.5"
+                    step="0.05"
+                    value={holderScale}
+                    onChange={(e) => {
+                      setHolderScale(parseFloat(e.target.value));
+                      setIsDirty(true);
+                    }}
+                    className="flex-1 h-1.5 bg-slate-700 rounded-lg accent-amber-400 cursor-pointer"
+                    title={`Pad Scale: ${Math.round(holderScale * 100)}%`}
+                  />
+                  <div className="flex gap-1">
+                    {[0.75, 1.0, 1.25].map((sc) => (
+                      <button
+                        key={sc}
+                        type="button"
+                        onClick={() => {
+                          setHolderScale(sc);
+                          setIsDirty(true);
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold border cursor-pointer ${
+                          Math.abs(holderScale - sc) < 0.01
+                            ? "bg-amber-500 text-slate-950 border-amber-400"
+                            : "bg-slate-950 text-slate-400 border-slate-700 hover:text-white"
+                        }`}
+                      >
+                        {Math.round(sc * 100)}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">Placed Coordinates</span>
                 {slots.length > 0 && (
                   <button
                     onClick={() => handleUpdateSlots([])}
@@ -1336,6 +1420,7 @@ export const MapEditor: React.FC = () => {
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         mapId={selectedMapId}
+        holderScale={holderScale}
         mapName={currentPreset?.name || "Custom Battlefield"}
         paths={paths}
         slots={slots}
@@ -1348,6 +1433,52 @@ export const MapEditor: React.FC = () => {
         gridRows={gridRows}
         cellSize={cellSize}
       />
+
+      {/* Unsaved Changes Confirmation Modal */}
+      {pendingMapSwitchId && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 select-none">
+          <div className="bg-slate-900 border-2 border-amber-500 rounded-xl p-5 max-w-md w-full shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-amber-300 font-bold text-base">
+              <span>⚠️</span>
+              <span>Unsaved Changes on Current Map</span>
+            </div>
+            <p className="text-slate-300 text-xs leading-relaxed">
+              You have modified the current map. Switching to another map will discard unsaved modifications unless you save first.
+            </p>
+            <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-slate-800">
+              <button
+                onClick={() => setPendingMapSwitchId(null)}
+                className="px-3 py-1.5 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const targetId = pendingMapSwitchId;
+                  setPendingMapSwitchId(null);
+                  if (targetId === "upload") {
+                    fileInputRef.current?.click();
+                  } else {
+                    loadPresetMap(targetId);
+                  }
+                }}
+                className="px-3 py-1.5 rounded bg-red-900/80 text-red-200 text-xs font-semibold hover:bg-red-800 transition cursor-pointer"
+              >
+                Discard & Switch
+              </button>
+              <button
+                onClick={() => {
+                  setPendingMapSwitchId(null);
+                  setIsExportOpen(true);
+                }}
+                className="px-3.5 py-1.5 rounded bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 shadow-md transition cursor-pointer"
+              >
+                Save Map First
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
