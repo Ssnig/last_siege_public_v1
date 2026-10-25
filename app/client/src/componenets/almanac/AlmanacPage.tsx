@@ -17,15 +17,15 @@ interface TabItem {
 }
 
 const TABS: TabItem[] = [
+  { id: 'codex', label: 'War Codex', icon: '📜', badge: 'Guide' },
   { id: 'towers', label: 'Towers', icon: '🏹', badge: '10' },
   { id: 'units', label: 'Units', icon: '⚔️', badge: '10' },
   { id: 'maps', label: 'Battlefields', icon: '🗺️', badge: '9' },
-  { id: 'codex', label: 'War Codex', icon: '📜', badge: 'Guide' },
 ];
 
 export const AlmanacPage: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<AlmanacTab>('towers');
+  const [activeTab, setActiveTab] = useState<AlmanacTab>('codex');
 
   const handleReturnToLobby = () => {
     soundEffects.playClick();

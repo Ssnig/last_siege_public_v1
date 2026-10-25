@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ACTIVE_TOWER_IDS,
   TOWER_DESIGNS,
@@ -8,6 +8,130 @@ import {
 } from '@root/shared';
 import { soundEffects } from '../../audio/soundEffects';
 import { DAMAGE_BADGE_STYLE, damageTypeOfTower } from '../../game/damageTypes';
+
+/**
+ * Renders the accurate single sprite for any tower.
+ * For towers with spritesheets (Sein Pyaung, Bell) or compound sprites (Water Cannon, Chinthe, Dragon),
+ * draws the single idle sprite rather than displaying the raw multi-frame spritesheet grid.
+ */
+const TowerSpriteCanvas: React.FC<{ towerId: string; design: TowerDesignConfig }> = ({
+  towerId,
+  design,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let active = true;
+
+    if (towerId === 'sein_pyaung') {
+      const img = new Image();
+      img.src = design.texturePath;
+      img.onload = () => {
+        if (!active) return;
+        canvas.width = 688;
+        canvas.height = 768;
+        ctx.clearRect(0, 0, 688, 768);
+        // Draw frame 0 (SE idle) from the 4x2 spritesheet (each frame is 688x768)
+        ctx.drawImage(img, 0, 0, 688, 768, 0, 0, 688, 768);
+      };
+    } else if (towerId === 'bell') {
+      const img = new Image();
+      img.src = design.texturePath;
+      img.onload = () => {
+        if (!active) return;
+        canvas.width = 688;
+        canvas.height = 768;
+        ctx.clearRect(0, 0, 688, 768);
+        // Draw frame 0 from the 4x2 spritesheet
+        ctx.drawImage(img, 0, 0, 688, 768, 0, 0, 688, 768);
+      };
+    } else if (towerId === 'water_cannon') {
+      const baseImg = new Image();
+      const gunImg = new Image();
+      baseImg.src = '/assets/towers/07_water_cannon/tower.png';
+      gunImg.src = '/assets/towers/07_water_cannon/water_gun.png';
+
+      let loaded = 0;
+      const onLoad = () => {
+        loaded++;
+        if (loaded < 2 || !active) return;
+        canvas.width = 688;
+        canvas.height = 768;
+        ctx.clearRect(0, 0, 688, 768);
+        ctx.drawImage(baseImg, 0, 0, 688, 768);
+        ctx.drawImage(gunImg, 0, 0, 688, 768, 0, 0, 688, 768);
+      };
+      baseImg.onload = onLoad;
+      gunImg.onload = onLoad;
+    } else if (towerId === 'chinthe') {
+      const baseImg = new Image();
+      const lionImg = new Image();
+      baseImg.src = '/assets/towers/08_chinthe_statue/tower.png';
+      lionImg.src = '/assets/towers/08_chinthe_statue/lion_gurdian.png';
+
+      let loaded = 0;
+      const onLoad = () => {
+        loaded++;
+        if (loaded < 2 || !active) return;
+        canvas.width = 688;
+        canvas.height = 768;
+        ctx.clearRect(0, 0, 688, 768);
+        ctx.drawImage(baseImg, 0, 0, 688, 768);
+        ctx.drawImage(lionImg, 0, 0, 688, 768, 0, 0, 688, 768);
+      };
+      baseImg.onload = onLoad;
+      lionImg.onload = onLoad;
+    } else if (towerId === 'dragon') {
+      const baseImg = new Image();
+      const dragonImg = new Image();
+      baseImg.src = '/assets/towers/09_dragon_tower/tower.png';
+      dragonImg.src = '/assets/towers/09_dragon_tower/dragon_tower.png';
+
+      let loaded = 0;
+      const onLoad = () => {
+        loaded++;
+        if (loaded < 2 || !active) return;
+        canvas.width = 600;
+        canvas.height = 896;
+        ctx.clearRect(0, 0, 600, 896);
+        ctx.drawImage(baseImg, 0, 0, 600, 896);
+        ctx.drawImage(dragonImg, 0, 0, 600, 896, 0, 0, 600, 896);
+      };
+      baseImg.onload = onLoad;
+      dragonImg.onload = onLoad;
+    } else {
+      // Standard static towers: archer, cannon, bomb, spear, gun
+      const img = new Image();
+      img.src = design.texturePath;
+      img.onload = () => {
+        if (!active) return;
+        const w = img.naturalWidth || 500;
+        const h = img.naturalHeight || 500;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0);
+      };
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [towerId, design]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="max-h-40 max-w-[200px] object-contain filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.8)] z-10 transition-transform duration-300 hover:scale-105"
+      aria-label={design.name}
+    />
+  );
+};
 
 interface TowerLore {
   title: string;
@@ -280,19 +404,7 @@ export const AlmanacTowersTab: React.FC = () => {
             {/* Tower Visual Stage */}
             <div className="lg:col-span-5 bg-gradient-to-b from-slate-900 to-slate-950 rounded-xl border border-amber-600/30 p-4 flex flex-col items-center justify-center relative min-h-[180px]">
               <div className="absolute inset-0 bg-radial-at-c from-amber-500/10 via-transparent to-transparent pointer-events-none" />
-              <img
-                src={design.texturePath}
-                alt={design.name}
-                className="max-h-36 object-contain filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.8)] z-10 transition-transform duration-300 hover:scale-105"
-              />
-              <div className="flex items-center gap-2 mt-3 z-10 text-[11px] text-amber-300/80 font-mono">
-                <span>Projectile:</span>
-                <img
-                  src={design.projectilePath}
-                  alt="Ammo"
-                  className="h-5 max-w-[40px] object-contain inline-block filter drop-shadow"
-                />
-              </div>
+              <TowerSpriteCanvas towerId={selectedId} design={design} />
             </div>
 
             {/* Combat Stats Grid */}
@@ -308,7 +420,7 @@ export const AlmanacTowersTab: React.FC = () => {
                 <span className="text-base font-black text-white font-mono">
                   {minDmg}{maxDmg !== minDmg ? ` - ${maxDmg}` : ''}
                 </span>
-                <span className="text-[9px] text-slate-500 block">Damage per projectile</span>
+                <span className="text-[9px] text-slate-500 block">Damage per attack</span>
               </div>
 
               <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
@@ -328,13 +440,13 @@ export const AlmanacTowersTab: React.FC = () => {
               <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Attack Cadence</span>
                 <span className="text-base font-black text-amber-200 font-mono">{attackInterval}s</span>
-                <span className="text-[9px] text-slate-500 block">{fireRate.toFixed(2)} shots / sec</span>
+                <span className="text-[9px] text-slate-500 block">{fireRate.toFixed(2)} attacks / sec</span>
               </div>
 
               <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Projectile Speed</span>
-                <span className="text-base font-black text-amber-200 font-mono">{currentTier.projectileSpeed}</span>
-                <span className="text-[9px] text-slate-500 block">Velocity</span>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Damage Channel</span>
+                <span className="text-base font-black text-amber-200 font-mono capitalize">{damageType}</span>
+                <span className="text-[9px] text-slate-500 block">{damageType === 'mental' ? 'Bypasses Armor' : 'Mitigated by Armor'}</span>
               </div>
             </div>
           </div>
