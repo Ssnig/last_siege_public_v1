@@ -29,6 +29,7 @@ import { useSmoothCountdown } from './game/useSmoothCountdown';
 import { DraftOverlay } from './game/DraftOverlay';
 import { GameOverOverlay } from './game/GameOverOverlay';
 import { SettingsModal } from './landing/SettingsModal';
+import { AssetPreloader } from '../game/assetPreloader';
 
 interface GameContainerProps {
   room: Room;
@@ -179,6 +180,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
   // Pre-seeded from the snapshot so a joiner into a started room skips the wait.
   const [matchStarted, setMatchStarted] = useState<boolean>(() => matchAlreadyStarted(room));
+  const [sceneReady, setSceneReady] = useState<boolean>(false);
   const [statusText, setStatusText] = useState(
     room.state?.players?.size === 2
       ? "Preparing the battlefield..."
@@ -292,6 +294,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         setPhase(data.phase);
         setPhaseEndsAt(data.phaseEndsAt);
         setMapId(data.mapId);
+        if (data.mapId) {
+          AssetPreloader.preloadMap(data.mapId);
+        }
         if (data.phase === 'gameover') {
           setGameOver((prev) => prev ?? gameOverFromState(room));
         }
@@ -439,6 +444,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     // The pre-draft reveal shows whichever map the server rolled for the match.
     const unlistenMapId = Callbacks.get(room).listen("mapId", (id: string) => {
       setMapId(id);
+      if (id) {
+        AssetPreloader.preloadMap(id);
+      }
     });
 
     return () => {
@@ -497,7 +505,19 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     game.registry.set('selectedTowerType', selectedTowerType);
     gameInstanceRef.current = game;
 
+    const onSceneReady = () => {
+      setSceneReady(true);
+    };
+    const onSceneShutdown = () => {
+      setSceneReady(false);
+    };
+    game.events.on('scene-ready', onSceneReady);
+    game.events.on('scene-shutdown', onSceneShutdown);
+
     return () => {
+      game.events.off('scene-ready', onSceneReady);
+      game.events.off('scene-shutdown', onSceneShutdown);
+      setSceneReady(false);
       game.destroy(true);
       gameInstanceRef.current = null;
     };
@@ -619,7 +639,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       )}
 
       {/* Royal Game HUD Overlay */}
-      {matchStarted && (phase === 'building' || phase === 'combat') && (
+      {matchStarted && sceneReady && (phase === 'building' || phase === 'combat') && (
         <GameHUD
           gold={gold}
           incomeRate={incomeRate}
@@ -642,7 +662,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       )}
 
       {/* Attacker deploy bar (queue units, then push them through a portal) */}
-      {matchStarted && !gameOver && playerInfo.myRole === 'attacker' && buffer &&
+      {matchStarted && sceneReady && !gameOver && playerInfo.myRole === 'attacker' && buffer &&
         (phase === 'building' || phase === 'combat') && (
         <AttackerDeployBar
           buffer={buffer}

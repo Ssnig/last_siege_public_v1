@@ -14,6 +14,7 @@ import { MapSelectorModal } from './match/MapSelectorModal';
 import { SettingsModal } from './landing/SettingsModal';
 import { RankBadge } from './rank/RankBadge';
 import { getOrCreateGuestId, getGuestElo, syncGuestWithServer } from '../auth/guest';
+import { AssetPreloader } from '../game/assetPreloader';
 
 interface LobbyProps {
   client: Client;
@@ -982,6 +983,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         selectedMapId={selectedMapId}
         onSelectMap={(mapId) => {
           setSelectedMapId(mapId);
+          AssetPreloader.preloadMap(mapId);
           setShowMapModal(false);
           soundEffects.playClick();
         }}

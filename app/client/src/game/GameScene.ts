@@ -24,6 +24,7 @@ import {
 
 import { UnitAnimationManager } from "./animation/UnitAnimationManager";
 import { TowerAnimationManager } from "./animation/TowerAnimationManager";
+import { DEFAULT_MAP_ID, MAP_IMAGE_URLS } from "./assetManifest";
 
 type PlayerRole = "attacker" | "defender";
 
@@ -104,28 +105,18 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // 6 Maps
-    this.load.image("konbaung", "/assets/maps/map_1_konbaung/map.jpg");
-    this.load.image("bagan", "/assets/maps/map_2_bagan/map.jpg");
-    this.load.image("inle", "/assets/maps/map_3_inle/map.jpg");
-    this.load.image("mandalay", "/assets/maps/map_4_mandalay/map.jpg");
-    this.load.image("innwa", "/assets/maps/map_5_innwa/map.jpg");
-    this.load.image("bago", "/assets/maps/map_6_bago/map.jpg");
-    this.load.image("deserted", "/assets/maps/map_7_deserted/map.jpg");
-    this.load.image("twister", "/assets/maps/map_8_twister/map.jpg");
-    this.load.image("river", "/assets/maps/map_9_river/map.jpg");
-
-    // Map base structures
+    // Default Map (Konbaung) is always loaded and pre-cached
+    this.load.image("konbaung", MAP_IMAGE_URLS.konbaung.map);
+    this.load.image("base_konbaung", MAP_IMAGE_URLS.konbaung.base);
     this.load.image("base_castle", "/assets/sprites/base_castle.png");
-    this.load.image("base_konbaung", "/assets/maps/map_1_konbaung/base.png");
-    this.load.image("base_bagan", "/assets/maps/map_2_bagan/base.png");
-    this.load.image("base_inle", "/assets/maps/map_3_inle/base.png");
-    this.load.image("base_mandalay", "/assets/maps/map_4_mandalay/base.png");
-    this.load.image("base_innwa", "/assets/maps/map_5_innwa/base.png");
-    this.load.image("base_bago", "/assets/maps/map_6_bago/base.png");
-    this.load.image("base_deserted", "/assets/maps/map_7_deserted/base.png");
-    this.load.image("base_twister", "/assets/maps/map_8_twister/base.png");
-    this.load.image("base_river", "/assets/maps/map_9_river/base.png");
+
+    // Preload match's specific map if it differs from the default map
+    const roomRef = (this.registry?.get("room") as Room | undefined) ?? this.room;
+    const currentMapId = roomRef?.state?.mapId;
+    if (currentMapId && currentMapId !== DEFAULT_MAP_ID && MAP_IMAGE_URLS[currentMapId]) {
+      this.load.image(currentMapId, MAP_IMAGE_URLS[currentMapId].map);
+      this.load.image(`base_${currentMapId}`, MAP_IMAGE_URLS[currentMapId].base);
+    }
     this.load.image("tower_placeholder_1", "/assets/tower_placeholder/tower_placeholder_1.png");
     this.load.image("npc_monk", "/assets/sprites/npc_monk.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
@@ -290,6 +281,7 @@ export class GameScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.cleanup();
+      this.game?.events.emit("scene-shutdown");
     });
 
     /**
@@ -313,6 +305,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.syncPhase();
+    this.game?.events.emit("scene-ready");
   }
 
   /**
