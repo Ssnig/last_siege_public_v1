@@ -5,7 +5,7 @@
 [![Phaser 3](https://img.shields.io/badge/Phaser-3%2F4-ff69b4.svg)](https://phaser.io/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4.3-38bdf8.svg)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x%2F6.x-3178c6.svg)](https://www.typescriptlang.org/)
-[![Tests Passing](https://img.shields.io/badge/Tests-121%20passing-brightgreen.svg)]()
+[![Tests Passing](https://img.shields.io/badge/Tests-129%20passing-brightgreen.svg)]()
 
 An asymmetric, competitive 1v1 real-time multiplayer tower defense game set in the rich historical eras and landscapes of ancient Burma (Bagan, Konbaung, Inle, Mandalay, and beyond). Built from the ground up with **React 19**, **Phaser 3**, and **Colyseus 0.18** within a modular TypeScript monorepo.
 
@@ -14,7 +14,10 @@ An asymmetric, competitive 1v1 real-time multiplayer tower defense game set in t
 ## 📖 Table of Contents
 - [🌟 Key Features](#-key-features)
 - [⚔️ Asymmetric Gameplay & Match Lifecycle](#️-asymmetric-gameplay--match-lifecycle)
-- [🗺️ The 9 Canonical Battlefields](#️-the-9-canonical-battlefields)
+- [🏰 The 10 Strategic Defense Towers](#-the-10-strategic-defense-towers)
+- [🗡️ Siege Units & Match Draft Randomization](#️-siege-units--match-draft-randomization)
+- [🗺️ The 9 Canonical Battlefields & Real Map Reveal](#️-the-9-canonical-battlefields--real-map-reveal)
+- [🎶 Dynamic Soundtrack & Audio System](#-dynamic-soundtrack--audio-system)
 - [🎨 2.5D Isometric Scenery Props & NPCs](#-25d-isometric-scenery-props--npcs)
 - [🛠️ In-Browser Map & Path Editor](#️-in-browser-map--path-editor)
 - [🏆 Competitive Ranking & Elo System](#-competitive-ranking--elo-system)
@@ -28,35 +31,44 @@ An asymmetric, competitive 1v1 real-time multiplayer tower defense game set in t
 ## 🌟 Key Features
 
 - **Asymmetric 1v1 Competition:** One player commands the siege waves as the **Attacker**, while the other constructs and upgrades strategic fortifications as the **Defender**.
-- **Three-Stage Match Flow:** Synchronized match stages spanning a round-based **Draft Stage**, tactical **Building & Buffer Stage**, and action-packed real-time **Combat Stage**.
+- **Four Synchronized Match Stages:** Dynamic transitions spanning **Map Reveal Showcase**, round-based **Draft Stage**, tactical **Building & Queue Buffering Stage**, and action-packed real-time **Combat Stage**.
+- **10 Unique Defense Towers:** Differentiated attack cadences, ranges, and special tactical effects—from rapid-firing Archer Towers (2 shots/sec) to the heavy Cannon Tower inflicting a 25% movement speed slow on-hit.
+- **Dynamic 15-Unit Pool with Match Randomization:** 15 distinct siege units featuring custom 4-frame isolated walk animations. In each match, the server draws 10 units at random for the draft pool, ensuring fresh tactical compositions every game.
 - **Dual Damage Channels:** Deep combat mathematics featuring **Physical Damage** (mitigated by armor) and **Mental Damage** (penetrates armor, shatters resolve, cracks units for amplified subsequent damage, and inflicts slows).
+- **Real Battlefield Reveal Screen:** When entering combat, players are presented with an authentic full-color illustration of the rolled map framed in antique gold filigree, displaying lane count, portal layout, and terrain lore.
+- **Phase-Synced Dynamic BGM:** Smooth crossfades between dedicated orchestral tracks for Lobby, Map Reveal & Draft, and In-Game Building & Combat.
+- **Unified & Streamlined HUD:** Cohesive gold-and-slate color palette across both Attacker and Defender interfaces, with clean circular timers replacing clutter.
 - **9 Canonical Battlefields:** Hand-crafted, multi-lane historical maps featuring branching paths, forks, merges, and diverse environmental themes.
-- **Atmospheric 2.5D Scenery Props:** Hand-drawn 2.5D isometric scenery assets (banyans, pagodas, torana arches, boulders, caves, bullock carts, village shrines) and ambient animated NPCs (monks, villagers, hermits) with dynamic isometric Y-depth sorting.
-- **Full In-Browser Level Editor (`/dev/editor`):** Visual pathing and waypoint tool, portal charge configuration, tower slot alignment, scenery prop staging, and direct file persistence.
+- **Atmospheric 2.5D Scenery Props:** Hand-drawn 2.5D isometric scenery assets (banyans, pagodas, torana arches, boulders, caves, bullock carts, village shrines) and ambient animated NPCs with dynamic isometric Y-depth sorting.
+- **Full In-Browser Level Editor (`/dev/editor`):** Visual pathing and waypoint tool, portal charge configuration, tower placeholder scaling, scenery prop staging, and direct file persistence.
 - **Competitive Elo Rating & Tier Ranks:** Dynamic Elo rating adjustments, seasonal rank tiers (Bronze, Silver, Gold), and guest session persistence.
-- **Robust Authoritative Netcode:** Colyseus room state machine with client reconciliation, reconnection seat-holding windows, and surrender handling.
 
 ---
 
 ## ⚔️ Asymmetric Gameplay & Match Lifecycle
 
-Matches transition smoothly through three core phases orchestrated by the authoritative `GameRoom` server state machine:
+Matches transition smoothly through synchronized phases orchestrated by the authoritative `GameRoom` server state machine:
 
 ```
-┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-│   DRAFT STAGE   │ ────> │ BUILDING STAGE  │ ────> │  COMBAT STAGE   │
-│ 2-2-2 Round Pick│       │ Towers & Queues │       │ Real-Time Siege │
-└─────────────────┘       └─────────────────┘       └─────────────────┘
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│   MAP REVEAL    │ ────> │   DRAFT STAGE   │ ────> │ BUILDING STAGE  │ ────> │  COMBAT STAGE   │
+│ Authentic Art   │       │ 2-2-2 Round Pick│       │ Towers & Queues │       │ Real-Time Siege │
+└─────────────────┘       └─────────────────┘       └─────────────────┘       └─────────────────┘
 ```
 
-### 1. Phase 1: Draft Stage (Round-Based 2-2-2 Pick)
-- Players construct their active match decks through a 3-round alternating draft.
-- In each round, both players pick 2 cards simultaneously from random offers.
-- **Attacker** selects siege units with varying armor, resolve, movement speed, and leak damage.
-- **Defender** selects defensive towers with specialized ranges, damage channels, fire rates, and upgrade paths.
-- Includes turn timers, deck synergy tooltips, and ready confirmations.
+### 1. Map Reveal Showcase (6s Countdown)
+- Upon matchmaking, the battlefield for the duel is authoritatively determined.
+- A royal showcase presents the map's authentic full-color artwork (`map.jpg`), accompanied by its historical name, lane configurations, and tactical description.
+- Plays `DraftPhase.mp3` with ambient royal immersion.
 
-### 2. Phase 2: Building & Deploy Buffering Stage
+### 2. Phase 1: Draft Stage (Round-Based 2-2-2 Pick)
+- Players construct their active match decks through a 3-round alternating draft (6 cards selected each).
+- In each round, both players pick 2 cards simultaneously from 4 offered cards.
+- **Attacker** selects from 10 randomly drawn siege units from the 15-unit master roster.
+- **Defender** selects from the 10 available defense towers.
+- Includes turn timers, deck synergy tooltips, live previews, and ready confirmations.
+
+### 3. Phase 2: Building & Deploy Buffering Stage
 - **Defender Actions:**
   - Build towers on designated strategic slot pads using starting gold.
   - Upgrade constructed towers through multiple tiers to increase range, fire rate, and damage.
@@ -65,8 +77,9 @@ Matches transition smoothly through three core phases orchestrated by the author
   - Plan unit waves by queuing units into **Portal Deploy Buffers**.
   - Assign specific route portals for multi-track battlefields.
   - Earn passive siege preparation gold over time.
+- Seamlessly crossfades into `InGameMusic.mp3`.
 
-### 3. Phase 3: Real-Time Combat Stage
+### 4. Phase 3: Real-Time Combat Stage
 - **Siege Deployment:** Units are dispatched from portals into the battlefield according to speed-scaled stagger bands and portal charges.
 - **Dual Damage Channels:**
   - **Physical Channel:** Blunted by mob armor rating:
@@ -82,21 +95,71 @@ Matches transition smoothly through three core phases orchestrated by the author
 
 ---
 
-## 🗺️ The 9 Canonical Battlefields
+## 🏰 The 10 Strategic Defense Towers
+
+Every tower features tailored attack cadences, damage profiles, projectile behaviors, and sound signatures:
+
+| Tower | Role & Description | Attack Speed | Damage Channel | Special Tactical Properties |
+|---|---|---|---|---|
+| 🏹 **Archer Tower** | Rapid-fire anti-swarm sentry | **1 shot / 0.5s** (2.0/s) | Physical | High single-target DPS against unarmored runners |
+| 💥 **Cannon Tower** | Heavy artillery bombardier | **1 shot / 3.0s** (0.33/s) | Physical (AoE) | **On-Hit Slow:** Reduces victim speed by 25% (0.25x) for 1.5s |
+| 💣 **Bomb Tower** | High-explosive siege mortar | **1 shot / 2.0s** (0.5/s) | Physical (AoE) | Wide-radius blast damage for dense enemy clusters |
+| 🔔 **Bell Tower** | Sacred sonic resonator | **1 pulse / 1.5s** (0.67/s) | Mental | Ignores physical armor; cracks mob resolve and inflicts mental break |
+| 🔱 **Spear Tower** | High-pierce anti-cavalry ballista | **1 shot / 1.0s** (1.0/s) | Physical | Armor-shredding linear penetration |
+| 🔫 **Gun Tower** | Precision flintlock barricade | **1 shot / 1.0s** (1.0/s) | Physical | Consistent mid-range burst damage |
+| 🌊 **Water Cannon** | High-pressure hydraulic torrent | **1 burst / 1.8s** (0.56/s) | Physical | Knockback pressure and track suppression |
+| 🦁 **Chinthe Statue** | Guardian lion monolith | **1 strike / 2.2s** (0.45/s) | Mental | Royal spiritual ward that breaks enemy spirit |
+| 🐉 **Dragon Tower** | Mythical pyromancer spire | **1 breath / 1.2s** (0.83/s) | Physical | Continuous frontal cone incinerating light infantry |
+| 🎯 **Sein Pyaung** | Long-range imperial sniper | **1 shot / 3.5s** (0.29/s) | Physical | Map-wide range targeting the highest-threat unit |
+
+---
+
+## 🗡️ Siege Units & Match Draft Randomization
+
+The game features **15 distinctive siege units**, each with 4-frame isolated walk cycles, custom speed bands, armor ratings, and resolve:
+
+```text
+Master Roster (15 Units):
+1. Cavalry (horse_rider)     6. Elephant Rider        11. Forest Bandit
+2. Royal Guard (sar_bal_gyi) 7. Monkey Warrior        12. Mythical Ogre (belu)
+3. Winged Nat (gya_pu)       8. Say Sayar (Healer)    13. Mountain Brute
+4. Spirit Medium (a_ba)      9. Shield Defender       14. War General
+5. Bush Sneak (chon_toe)    10. Doe Pat Drummer       15. Sorceress (sone_ma)
+```
+
+- **Per-Match Draft Randomization:** For every match, the authoritative server randomly selects **10 units** from the master roster. Both players share this 10-unit pool during the drafting phase.
+- **Isolated Spritesheet Slicing:** Spritesheets are composed with connected-component separation and transparent border padding, ensuring zero frame bleeding, weapon clipping, or animation cutoff.
+- **Full-Body Character Scaling:** Anchored feet contact points ($y_{\text{origin}} = 0.917$) ensure that all 15 units remain grounded on isometric paths without visual clipping.
+
+---
+
+## 🗺️ The 9 Canonical Battlefields & Real Map Reveal
 
 Every battlefield is historically themed after significant regions and eras of ancient Burma, fully authored with unique waypoint tracks, spawn portals, and tower pads:
 
 | # | Map Name | ID | Theme & Terrain | Portals | Lanes / Tracks |
 |---|---|---|---|---|---|
-| **1** | **Konbaung Plains** | `konbaung` | Lush central plains, traditional stilt villages, banyan groves, and stream bridge | 1 | Single-lane starter route |
-| **2** | **Bagan Terracotta** | `bagan` | Ancient red-brick plains, towering stupas, crumbling ruin walls, and dry savanna | 1 | Single serpentine lane |
-| **3** | **Inle Lake** | `inle` | Aquatic palace pool, stone balustrades, arched bridges, and floating waterways | 1 | Serpentine stone concourse |
-| **4** | **Mandalay Palace** | `mandalay` | Royal palace battlements, golden pyatthat spires, moat, and geometric royal gardens | 1 | Symmetrical palace courtyard |
-| **5** | **Innwa Fort** | `innwa` | Historic walled citadel, fortified redoubts, and stone watchgrounds | 1 | Fortified perimeter loop |
-| **6** | **Bago Jungle Karst** | `bago` | Dense tropical rainforest, overgrown brick ruins, and limestone karst cave mouths | 2 | Split converging jungle tracks |
-| **7** | **Deserted Sands** | `deserted` | Arid sandstone canyons, sun-bleached earth, and suspension footbridges | 1 | Single canyon bypass |
-| **8** | **Twister Canyon** | `twister` | Deep eroded gulch with dual canyon tracks and cratered stream crossings | 2 | Dual tracks (`upper` & `lower`) |
-| **9** | **River Delta** | `river` | River delta archipelago with winding marsh islands and wooden footbridges | 2 | Dual tracks (`north` & `south`) |
+| **1** | **Konbaung Plains** | `konbaung` | Central plains, stilt villages, banyan groves, stream bridge | 1 | Single-lane starter route |
+| **2** | **Bagan Terracotta** | `bagan` | Red-brick plains, towering stupas, ruin walls, dry savanna | 1 | Single serpentine lane |
+| **3** | **Inle Lake** | `inle` | Aquatic palace pool, stone balustrades, arched bridges | 1 | Serpentine stone concourse |
+| **4** | **Mandalay Palace** | `mandalay` | Palace battlements, golden pyatthat spires, royal moat | 1 | Symmetrical palace courtyard |
+| **5** | **Innwa Fort** | `innwa` | Fortified citadel, redoubts, and stone watchgrounds | 1 | Fortified perimeter loop |
+| **6** | **Bago Jungle Karst** | `bago` | Tropical rainforest, overgrown brick ruins, karst cave mouths | 2 | Split converging jungle tracks |
+| **7** | **Deserted Sands** | `deserted` | Arid sandstone canyons, sun-bleached earth, footbridges | 1 | Single canyon bypass |
+| **8** | **Twister Canyon** | `twister` | Deep eroded gulch with dual tracks and stream crossings | 2 | Dual tracks (`upper` & `lower`) |
+| **9** | **River Delta** | `river` | River delta archipelago with winding marsh islands | 2 | Dual tracks (`north` & `south`) |
+
+---
+
+## 🎶 Dynamic Soundtrack & Audio System
+
+The audio subsystem provides smooth volume fading and phase-aware soundtrack transitions:
+
+- **`Lobby.mp3`**: Plays across Landing, Main Menu, Room Creation, and Matchmaking.
+- **`DraftPhase.mp3`**: Smoothly crossfades in during the Pre-Draft Map Reveal and Draft Selection phases.
+- **`InGameMusic.mp3`**: Energizes the Building and Combat stages with pulse-pounding rhythm.
+- **`Soundtrack1.mp3`**: Registered ambient soundtrack asset.
+- **Clean Audio Controls:** Persistent volume sliders and mute toggles stored in `localStorage` without UI clutter.
 
 ---
 
@@ -149,7 +212,7 @@ Editor URL: http://localhost:5173/dev/editor
 ### Editor Capabilities
 - **Waypoint Path Authoring:** Click to add waypoints, drag to reposition, delete intermediate points, or configure multi-lane branches.
 - **Spawn Portals:** Position custom spawn portals and configure per-portal charge rules.
-- **Tower Slot Pads:** Place, align, and validate strategic construction slots.
+- **Tower Slot Pads & Visual Scale:** Place, align, scale, and preview defensive construction slots matching in-game dimensions.
 - **Scenery Prop Staging:** Select from the categorized asset palette (`All`, `Trees`, `Rocks`, `Caves`, `Ruins`, `NPCs`), drag to position, adjust scale ($0.2\times$ to $2.5\times$), flip horizontally (`F`), and view real-time isometric depth sorting on canvas.
 - **Full History:** Complete Undo/Redo (`Ctrl+Z`, `Ctrl+Y`) for all editing actions.
 - **Direct Code & Asset Export:** Generates clean TypeScript `MapDefinition` code, formatted JSON assets, and saves directly to disk via Vite dev middleware (`/api/dev/save-map`).
@@ -201,7 +264,7 @@ TD_Game/
 │   │   ├── src/
 │   │   │   ├── componenets/     # React UI: Lobby, Draft, HUD, Editor, Modals
 │   │   │   ├── game/            # Phaser 3 Game Scenes, Stages, and Actors
-│   │   │   ├── audio/           # Sound Effects & Audio Manager
+│   │   │   ├── audio/           # BGM Manager & Sound Effects Subsystem
 │   │   │   └── network/         # Colyseus Client Room Connection Handlers
 │   │   └── public/assets/       # Maps, Props, Spritesheets, Icons, Audio
 │   │
@@ -211,7 +274,7 @@ TD_Game/
 │       │   ├── game/            # Phases, damage channels, targeting algorithms
 │       │   ├── auth/            # JWT, Google OAuth, Guest auth routes
 │       │   └── models/          # MongoDB User & Guest schemas
-│       └── test/                # 121 Mocha integration & balance tests
+│       └── test/                # 129 Mocha integration & balance tests
 │
 └── packages/
     └── shared/                  # Shared Game Core (Shared by Client & Server)
@@ -300,7 +363,7 @@ npm run build:client   # Generates production bundle in app/client/dist/
 
 ## 🧪 Testing & Quality Assurance
 
-The server workspace houses an automated test suite featuring **121 passing tests** covering every aspect of match logic, simulation math, network state changes, and balance limits:
+The server workspace houses an automated test suite featuring **129 passing tests** covering every aspect of match logic, simulation math, network state changes, and balance limits:
 
 ```bash
 npm test
@@ -308,9 +371,10 @@ npm test
 
 ### What the Test Suite Verifies
 - **Balance Shape Guards:** Enforces strictly increasing tower upgrade costs, positive mob bounties, valid leak damages, and sane deploy caps across `mobs.json` and `towers.json`.
+- **Tower Firing Cadences & Slow On-Hit:** Confirms attack rates for Archer (0.5s), Gun (1.0s), Spear (1.0s), Bomb (2.0s), and Cannon (3.0s) as well as the Cannon on-hit 25% slow duration.
 - **Combat Mathematics:** Tests Physical armor mitigation, Mental channel resolve cracking, damage amplification, and slow effect non-stacking.
 - **Map & Path Simulation:** Verifies spline interpolation, segment heading calculations, lane spread bands, and portal derivation for forks and merges.
-- **Match Lifecycle State Machine:** Full round-based 2-2-2 draft execution, countdown timeouts, reconnection seat-holding (120s), and core health depletion.
+- **Match Lifecycle State Machine:** Pre-draft map reveal countdown, round-based 2-2-2 draft execution with match mob-pool randomization, countdown timeouts, reconnection seat-holding (120s), and core health depletion.
 - **Elo & Ranking Math:** Validates rating calculation, minimum win/loss bounds, and rank tier thresholds.
 
 ---
@@ -319,9 +383,9 @@ npm test
 
 All game balance parameters reside in human-readable JSON files inside `packages/shared/src/data/`:
 
-- **`mobs.json`**: HP, speed, armor, resolve, bounty, cost, and leak damage for all siege units (`grunt`, `runner`, `tank`, `spearman`, `champion`, `spirit`, etc.).
-- **`towers.json`**: Build costs, upgrade costs, ranges, fire rates, damage channels (`physical` vs `mental`), and targeting rules for all towers (`basic`, `archer`, `cannon`, `bomb`, `bell`, `spear`, `gun`).
-- **`rules.json`**: Starting gold, round draft durations, countdown clocks, deploy stagger times, base Core HP, and deep-unit income bonus thresholds.
+- **`mobs.json`**: HP, speed, armor, resolve, bounty, cost, and leak damage for all 15 siege units.
+- **`towers.json`**: Build costs, upgrade costs, ranges, fire rates, damage channels (`physical` vs `mental`), slow on-hit mechanics, and targeting rules for all 10 towers.
+- **`rules.json`**: Starting gold, map reveal durations, round draft durations, countdown clocks, deploy stagger times, base Core HP, and deep-unit income bonus thresholds.
 
 ### Rebalancing Workflow
 1. Modify values in `packages/shared/src/data/`.
