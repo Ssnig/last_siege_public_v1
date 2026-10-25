@@ -1,0 +1,16 @@
+# Build artifacts and dependencies are (re)installed inside the image.
+node_modules
+**/node_modules
+
+**/dist
+**/build
+
+.git
+.gitignore
+
+*.log
+npm-debug.log*
+.DS_Store
+coverage
+.env
+.env.local

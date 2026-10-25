@@ -109,6 +109,8 @@ type MobRecord = {
   typeId: string;
   /** Last computed world x of the mob body. */
   x: number;
+  /** Last computed world y of the mob body. */
+  y: number;
   sprite: Phaser.GameObjects.Sprite;
   hpBg: Phaser.GameObjects.Rectangle;
   hpFill: Phaser.GameObjects.Rectangle;
@@ -1626,6 +1628,7 @@ export class GameplayStage {
         id: String(key),
         typeId: mob.typeId,
         x: 0,
+        y: 0,
         sprite,
         hpBg,
         hpFill,
@@ -1958,6 +1961,7 @@ export class GameplayStage {
     record.sprite.setPosition(point.x, point.y);
     record.sprite.setDepth(actorDepth(point.y));
     record.x = point.x;
+    record.y = point.y;
 
     if (record.vfxSprites && record.vfxSprites.size > 0) {
       record.vfxSprites.forEach((vfx) => {
@@ -2123,7 +2127,7 @@ export class GameplayStage {
           }
           splash.play("water_splash_anim");
           splash.once("animationcomplete", () => splash.destroy());
-          (this.root ?? this.actors ?? this.scene).add(splash);
+          (this.root ?? this.actors)?.add(splash);
         }
       } else if (design.id === "dragon") {
         if (!this.scene.textures.exists("dragon_attack_sheet")) {
@@ -2137,7 +2141,7 @@ export class GameplayStage {
           }
           splash.play("dragon_splash_anim");
           splash.once("animationcomplete", () => splash.destroy());
-          (this.root ?? this.actors ?? this.scene).add(splash);
+          (this.root ?? this.actors)?.add(splash);
         }
       } else if (design.id === "sein_pyaung") {
         if (!this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
@@ -2151,7 +2155,7 @@ export class GameplayStage {
           }
           splash.play("sein_pyaung_splash_anim");
           splash.once("animationcomplete", () => splash.destroy());
-          (this.root ?? this.actors ?? this.scene).add(splash);
+          (this.root ?? this.actors)?.add(splash);
         }
       }
       // chinthe: whole 8 frames is projectile animation as specified
