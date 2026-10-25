@@ -30,6 +30,7 @@ import { DraftOverlay } from './game/DraftOverlay';
 import { GameOverOverlay } from './game/GameOverOverlay';
 import { SettingsModal } from './landing/SettingsModal';
 import { AssetPreloader } from '../game/assetPreloader';
+import { bgmManager } from '../audio/bgmManager';
 
 interface GameContainerProps {
   room: Room;
@@ -236,6 +237,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     seconds: number;
   } | null>(null);
 
+
+  // Synchronize background soundtrack to the match phase:
+  // - mapReveal / drafting -> DraftPhase.mp3 ('draft')
+  // - building / combat -> InGameMusic.mp3 ('in_game')
+  useEffect(() => {
+    if (phase === 'mapReveal' || phase === 'drafting') {
+      bgmManager.playTrack('draft', 700).catch(() => {});
+    } else if (phase === 'building' || phase === 'combat') {
+      bgmManager.playTrack('in_game', 700).catch(() => {});
+    }
+  }, [phase]);
 
   // Synchronize selected tower with newly drafted/updated deck
   useEffect(() => {

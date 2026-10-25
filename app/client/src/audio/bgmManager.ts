@@ -3,11 +3,14 @@
  * Manages game soundtrack playback across menus, lobby, and combat.
  */
 
-export type BGMTrack = 'overall' | 'in_game';
+export type BGMTrack = 'lobby' | 'draft' | 'in_game' | 'soundtrack_1' | 'overall';
 
 const TRACK_PATHS: Record<BGMTrack, string> = {
-  overall: '/assets/music/Overall.mp3',
-  in_game: '/assets/music/In_game_start.mp3',
+  lobby: '/assets/music/Lobby.mp3',
+  draft: '/assets/music/DraftPhase.mp3',
+  in_game: '/assets/music/InGameMusic.mp3',
+  soundtrack_1: '/assets/music/Soundtrack1.mp3',
+  overall: '/assets/music/Lobby.mp3',
 };
 
 class BGMManager {
