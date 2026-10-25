@@ -128,6 +128,7 @@ export interface RatingUpdateInfo {
     tier: number;
     name: string;
     badgeAsset: string;
+    promotionVideo?: string;
     color: string;
   };
   nextRank: {

@@ -1,8 +1,9 @@
 // app/client/src/componenets/game/GameOverOverlay.tsx
 import React, { useEffect, useState } from 'react';
 import { Room } from '@colyseus/sdk';
-import { MESSAGES, type RematchUpdatePayload, type RatingUpdateInfo } from '@root/shared';
+import { MESSAGES, getRankForElo, type RematchUpdatePayload, type RatingUpdateInfo } from '@root/shared';
 import { soundEffects } from '../../audio/soundEffects';
+import { RankUpCelebration } from '../rank/RankUpCelebration';
 
 export interface GameOverOverlayProps {
   gameOver: {
@@ -69,6 +70,21 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   const [hasVotedRematch, setHasVotedRematch] = useState<boolean>(false);
   const [rematchVotes, setRematchVotes] = useState<number>(0);
   const [opponentWantsRematch, setOpponentWantsRematch] = useState<boolean>(false);
+
+  // Promotion celebration: only show when this match pushed us into a higher tier.
+  const [rankUpDismissed, setRankUpDismissed] = useState<boolean>(false);
+  const previousRank = gameOver.ratingUpdate
+    ? getRankForElo(gameOver.ratingUpdate.oldElo)
+    : null;
+  const promotionVideo = gameOver.ratingUpdate?.rank.promotionVideo;
+  const showRankUp =
+    !rankUpDismissed &&
+    Boolean(
+      promotionVideo &&
+        previousRank &&
+        gameOver.ratingUpdate &&
+        gameOver.ratingUpdate.rank.tier > previousRank.tier,
+    );
 
   useEffect(() => {
     const updateScale = () => {
@@ -162,6 +178,16 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
         fontFamily: "'Cinzel', 'MedievalSharp', serif",
       }}
     >
+      {showRankUp && gameOver.ratingUpdate && promotionVideo && (
+        <RankUpCelebration
+          rankName={gameOver.ratingUpdate.rank.name}
+          rankColor={gameOver.ratingUpdate.rank.color}
+          badgeAsset={gameOver.ratingUpdate.rank.badgeAsset}
+          videoSrc={promotionVideo}
+          onClose={() => setRankUpDismissed(true)}
+        />
+      )}
+
       {/* 16:9 Scale-to-Fit Canvas Frame */}
       <div
         className="relative w-[1260px] h-[700px] shrink-0 origin-center transition-transform duration-75 flex flex-col items-center justify-between rounded-2xl overflow-hidden p-6 sm:p-8"
