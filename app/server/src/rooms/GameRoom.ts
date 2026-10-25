@@ -675,16 +675,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const currentDeck = this.acceptedDecks.get(client.sessionId) ?? [];
 
     // Deduplicate picks and ensure they are valid catalog members not already in currentDeck
-    const allowedIds = role === "attacker"
-      ? (this.draftMobPool.length >= 10 ? this.draftMobPool : Object.keys(catalog))
-      : Object.keys(catalog);
     const uniquePicks = Array.from(new Set(payload.picks));
     const validPicks = uniquePicks.filter(
-      (id) => typeof id === "string" && allowedIds.includes(id) && !currentDeck.includes(id),
+      (id) => typeof id === "string" && Object.hasOwn(catalog, id) && !currentDeck.includes(id),
     );
 
-    // If fewer than 2 valid picks, auto-fill the rest from unpicked allowed entries
-    const available = allowedIds.filter(
+    // If fewer than 2 valid picks, auto-fill the rest from unpicked pool entries
+    const pool = role === "attacker" && this.draftMobPool.length >= 10 ? this.draftMobPool : Object.keys(catalog);
+    const available = pool.filter(
       (id) => !currentDeck.includes(id) && !validPicks.includes(id),
     );
     while (validPicks.length < 2 && available.length > 0) {
@@ -873,7 +871,20 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const deck = this.acceptedDecks.get(client.sessionId);
     const allowedDeck =
       deck && deck.length > 0 ? deck : Object.keys(TOWER_TYPES).slice(0, 6);
-    if (!allowedDeck.includes(payload.typeId)) {
+    const TOWER_ALIASES: Record<string, string[]> = {
+      archer: ["basic", "arrow"],
+      basic: ["archer", "arrow"],
+      spear: ["pitchfork"],
+      pitchfork: ["spear"],
+      gun: ["sniper"],
+      sniper: ["gun"],
+      cannon: ["bertha"],
+      bertha: ["cannon"],
+    };
+    const isAllowed = allowedDeck.some(
+      (id) => id === payload.typeId || TOWER_ALIASES[payload.typeId]?.includes(id),
+    );
+    if (!isAllowed) {
       console.log(`Tower ${payload.typeId} not in defender's deck`);
       return;
     }
