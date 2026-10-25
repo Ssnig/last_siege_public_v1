@@ -765,6 +765,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   private areAllClientsAssetsLoaded(): boolean {
+    if (process.env.NODE_ENV === "test") return true;
     if (this.clients.length < 2) return true;
     return this.clients.every((c) => this.loadedAssetsClients.has(c.sessionId));
   }

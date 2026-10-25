@@ -214,10 +214,60 @@ export const CORE_TOWER_TYPES: Record<string, TowerType> = {
   },
 };
 
-/** Full catalog including legacy aliases for backward compatibility. */
+/** Legacy tower aliases for backward compatibility with earlier tests and maps. */
+export const LEGACY_TOWER_ALIASES: Record<string, TowerType> = {
+  basic: {
+    ...CORE_TOWER_TYPES.archer,
+    id: "basic",
+    name: "Arrow Tower (Basic)",
+  },
+  bertha: {
+    ...CORE_TOWER_TYPES.cannon,
+    id: "bertha",
+    name: "Royal Cannon (Bertha)",
+  },
+  pitchfork: {
+    id: "pitchfork",
+    name: "Pitchfork Turret",
+    damageType: "physical",
+    tiers: [
+      { cost: 35, damage: 5, damageMax: 7, range: 110, fireRate: 0.9, projectileSpeed: 300 },
+      { cost: 65, damage: 10, damageMax: 14, range: 125, fireRate: 0.99, projectileSpeed: 325 },
+      { cost: 110, damage: 19, damageMax: 29, range: 140, fireRate: 1.08, projectileSpeed: 350 },
+    ],
+  },
+  sniper: {
+    ...CORE_TOWER_TYPES.gun,
+    id: "sniper",
+    name: "Gun Tower (Sniper)",
+  },
+  arcanist: {
+    ...CORE_TOWER_TYPES.bell,
+    id: "arcanist",
+    name: "Arcanist Tower",
+    damageType: "mental",
+  },
+  archmage: {
+    ...CORE_TOWER_TYPES.bell,
+    id: "archmage",
+    name: "Archmage Tower",
+    damageType: "mental",
+  },
+  tesla: {
+    ...CORE_TOWER_TYPES.bell,
+    id: "tesla",
+    name: "Tesla Tower",
+    damageType: "mental",
+  },
+};
+
+/** Full catalog combining towers.json, balanced CORE_TOWER_TYPES, and legacy aliases. */
 export const TOWER_TYPES: Record<string, TowerType> = {
+  basic: LEGACY_TOWER_ALIASES.basic,
+  pitchfork: LEGACY_TOWER_ALIASES.pitchfork,
   ...(towersJson as unknown as Record<string, TowerType>),
   ...CORE_TOWER_TYPES,
+  ...LEGACY_TOWER_ALIASES,
 };
 
 /** Visual and presentation configuration for each tower. */

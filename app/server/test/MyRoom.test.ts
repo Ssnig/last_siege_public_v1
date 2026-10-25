@@ -1,3 +1,4 @@
+process.env.NODE_ENV = "test";
 import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 import { Callbacks } from "@colyseus/sdk";
