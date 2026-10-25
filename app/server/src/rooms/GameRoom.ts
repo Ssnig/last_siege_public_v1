@@ -12,6 +12,7 @@ import {
   MAPS,
   SAMPLE_MAP,
   MOB_TYPES,
+  ALL_MOB_IDS,
   TOWER_TYPES,
   DEFAULT_DECK_RULES,
   DEFAULT_ECONOMY,
@@ -157,6 +158,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * Validated draft IDs keyed by session ID.
    * Kept outside RoomState so one player cannot inspect the opponent's deck.
    */
+  /** 10 units randomized for the current match from ALL_MOB_IDS. */
+  private draftMobPool: string[] = [];
   private acceptedDecks = new Map<string, string[]>();
 
   /** Current 2-2-2 draft round (1, 2, or 3). */
@@ -447,7 +450,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const availableTroops =
-      deck.length > 0 ? deck : DEFAULT_ATTACKER_DECK;
+      deck.length > 0
+        ? deck
+        : (this.draftMobPool.length >= 6 ? this.draftMobPool.slice(0, 6) : DEFAULT_ATTACKER_DECK);
     const buffer = this.attackerBuffers.get(sessionId) ?? [];
 
     const currentIncome = this.effectiveIncomeRate(sessionId, "attacker");
@@ -667,13 +672,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const currentDeck = this.acceptedDecks.get(client.sessionId) ?? [];
 
     // Deduplicate picks and ensure they are valid catalog members not already in currentDeck
+    const allowedIds = role === "attacker"
+      ? (this.draftMobPool.length >= 10 ? this.draftMobPool : Object.keys(catalog))
+      : Object.keys(catalog);
     const uniquePicks = Array.from(new Set(payload.picks));
     const validPicks = uniquePicks.filter(
-      (id) => typeof id === "string" && Object.hasOwn(catalog, id) && !currentDeck.includes(id),
+      (id) => typeof id === "string" && allowedIds.includes(id) && !currentDeck.includes(id),
     );
 
-    // If fewer than 2 valid picks, auto-fill the rest from unpicked catalog entries
-    const available = Object.keys(catalog).filter(
+    // If fewer than 2 valid picks, auto-fill the rest from unpicked allowed entries
+    const available = allowedIds.filter(
       (id) => !currentDeck.includes(id) && !validPicks.includes(id),
     );
     while (validPicks.length < 2 && available.length > 0) {
@@ -729,6 +737,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
         defenderPicks,
         attackerReady: true,
         defenderReady: true,
+        availableMobPool: [...this.draftMobPool],
       });
 
       this.draftRound++;
@@ -1574,6 +1583,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.attackerBuffers.clear();
     this.acceptedDecks.clear();
     this.state.coreHp = MATCH_RULES.coreHp;
+    this.initDraftMobPool();
 
     for (const player of this.state.players.values()) {
       player.draftReady = false;
@@ -1598,6 +1608,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       );
     }
 
+    this.initDraftMobPool();
     this.phases.beginDraft();
     this.state.phase = "drafting";
 
@@ -1621,6 +1632,22 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.setMetadata({ ...metadata, status: "playing" });
   }
 
+  /**
+   * Initializes or re-rolls the 10-unit draft pool for this match from ALL_MOB_IDS.
+   */
+  private initDraftMobPool(): void {
+    const all = [...ALL_MOB_IDS];
+    for (let i = all.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [all[i], all[j]] = [all[j], all[i]];
+    }
+    this.draftMobPool = all.slice(0, 10);
+    this.state.draftMobPool.clear();
+    for (const id of this.draftMobPool) {
+      this.state.draftMobPool.push(id);
+    }
+  }
+
   onCreate(options: any): void {
     // Resolve the host's battlefield pick: a real map id is honoured as-is, the
     // "random" sentinel (or a missing/unknown id) defers to a draw at reveal
@@ -1642,6 +1669,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.state.phase = "drafting";
     this.state.coreHp = MATCH_RULES.coreHp;
+    this.initDraftMobPool();
 
     // Room-level override of the reveal window keeps tests deterministic while
     // production uses the balance default from MATCH_RULES.
@@ -1743,6 +1771,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
       await this.lock();
       this.phases.beginDraft();
       this.markPlaying();
+
+      this.broadcast(MESSAGES.draftRoundUpdate, {
+        round: 1,
+        phaseEndsAt: 15,
+        attackerPicks: [],
+        defenderPicks: [],
+        attackerReady: false,
+        defenderReady: false,
+        availableMobPool: [...this.draftMobPool],
+      });
 
       // Seed each client with its private economy so the HUD is correct even
       // before the draft is confirmed (deck arrives in a later push).
@@ -1869,6 +1907,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.clearProjectiles();
       this.resetCombatRuntime();
       this.state.coreHp = MATCH_RULES.coreHp;
+    this.initDraftMobPool();
 
       for (const player of this.state.players.values()) {
         player.draftReady = false;

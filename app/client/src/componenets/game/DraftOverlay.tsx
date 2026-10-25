@@ -5,6 +5,7 @@ import {
   MOB_TYPES,
   TOWER_TYPES,
   ACTIVE_TOWER_IDS,
+  CORE_UNIT_IDS,
   type DraftRoundUpdatePayload,
   type MobType,
   type TowerType,
@@ -200,6 +201,36 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     stacks: 'Max 8',
     iconSrc: '/assets/units/doe_pat/face.jpg',
   },
+  bandit: {
+    title: 'BANDIT RAIDER',
+    weakness: 'Heavy Armor & Rapid Fire',
+    stacks: 'Max 12',
+    iconSrc: '/assets/units/Bandit/face.png',
+  },
+  belu: {
+    title: 'BELU OGRE',
+    weakness: 'Mental Attacks & Artillery',
+    stacks: 'Max 4',
+    iconSrc: '/assets/units/Belu/face.png',
+  },
+  brute: {
+    title: 'HEAVY BRUTE',
+    weakness: 'Piercing Arrows & Kiting',
+    stacks: 'Max 6',
+    iconSrc: '/assets/units/Brute/face.png',
+  },
+  general: {
+    title: 'ROYAL BO GENERAL',
+    weakness: 'Concentrated Single-Target Burst',
+    stacks: 'Max 6',
+    iconSrc: '/assets/units/General/face.png',
+  },
+  sone_ma: {
+    title: 'SONE MA SORCERESS',
+    weakness: 'Physical Snipers & Swarms',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/SoneMa/face.png',
+  },
 };
 
 /** SVG corner filigree for royal panels */
@@ -252,13 +283,27 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
     return role;
   }, [room, role]);
 
+  // Synced 10-unit mob pool from server for this match
+  const [syncedMobPool, setSyncedMobPool] = useState<string[]>(() => {
+    const pool = (room?.state as any)?.draftMobPool;
+    if (pool && pool.length >= 10) {
+      return Array.from(pool);
+    }
+    return CORE_UNIT_IDS;
+  });
+
   // 10 items in player's own catalog
   const catalogList = useMemo(() => {
     if (effectiveRole === 'defender') {
       return ACTIVE_TOWER_IDS.map((id) => TOWER_TYPES[id]).filter(Boolean);
     }
-    return Object.values(MOB_TYPES).slice(0, 10);
-  }, [effectiveRole]);
+    const pool = (syncedMobPool && syncedMobPool.length >= 10)
+      ? syncedMobPool
+      : ((room?.state as any)?.draftMobPool && (room?.state as any).draftMobPool.length >= 10)
+        ? Array.from((room?.state as any).draftMobPool)
+        : CORE_UNIT_IDS;
+    return (pool as string[]).map((id) => MOB_TYPES[id]).filter(Boolean);
+  }, [effectiveRole, syncedMobPool, room?.state]);
 
   // Round tracking (1, 2, or 3)
   const [currentRound, setCurrentRound] = useState<number>(1);
@@ -443,6 +488,9 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
         if (opponentPicks) setEnemyPicks(opponentPicks);
         if (myPicks) setLockedPicks(myPicks);
+        if (payload.availableMobPool && payload.availableMobPool.length >= 10) {
+          setSyncedMobPool(payload.availableMobPool);
+        }
 
         if (payload.isFinalReveal) {
           setIsFinalCountdown(true);

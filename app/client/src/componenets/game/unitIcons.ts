@@ -16,6 +16,11 @@ export const MOB_ICONS: Record<string, string> = {
   say_sayar: '/assets/units/say_sayar/face.jpg',
   shield_guy: '/assets/units/shield_guy/face.jpg',
   doe_pat: '/assets/units/doe_pat/face.jpg',
+  bandit: '/assets/units/Bandit/face.png',
+  belu: '/assets/units/Belu/face.png',
+  brute: '/assets/units/Brute/face.png',
+  general: '/assets/units/General/face.png',
+  sone_ma: '/assets/units/SoneMa/face.png',
 };
 
 /** Portal sprites, indexed by portal order (portal 1 uses `spawn1.png`). */
