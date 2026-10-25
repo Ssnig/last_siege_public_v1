@@ -258,6 +258,7 @@ export interface DraftRoundUpdatePayload {
   defenderReady: boolean;
   isFinalReveal?: boolean;
   waitingForAssets?: boolean;
+  availableMobPool?: string[];
 }
 
 export interface AssetLoadingStatusPayload {

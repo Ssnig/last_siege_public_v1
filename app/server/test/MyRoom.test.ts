@@ -1,3 +1,4 @@
+process.env.NODE_ENV = "test";
 import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 import { Callbacks } from "@colyseus/sdk";
@@ -9,6 +10,7 @@ import {
   type AttackerBufferPayload,
   MESSAGES,
   MOB_TYPES,
+  ALL_MOB_IDS,
   TOWER_TYPES,
   MAPS,
   MAP_POOL,
@@ -207,6 +209,24 @@ describe("testing your Colyseus app", () => {
       "playing",
       "status never reverts to available once a match has begun",
     );
+  });
+
+  it("randomizes a synchronized 10-unit draft pool on room creation from all 15 catalog mobs", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+    });
+    assert.strictEqual(room.state.draftMobPool.length, 10, "draftMobPool must have exactly 10 units");
+    const uniquePool = new Set(Array.from(room.state.draftMobPool));
+    assert.strictEqual(uniquePool.size, 10, "all 10 pool entries must be unique");
+
+    for (const unitId of room.state.draftMobPool) {
+      assert.ok(ALL_MOB_IDS.includes(unitId), `${unitId} must be in ALL_MOB_IDS`);
+    }
+
+    const room2 = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "defender",
+    });
+    assert.strictEqual(room2.state.draftMobPool.length, 10);
   });
 
   it("reveals a random map from the pool before drafting once both players are ready", async () => {

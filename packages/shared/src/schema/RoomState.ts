@@ -39,6 +39,7 @@ export const RoomState = schema({
    * `leakDamage`; reaching zero ends the match with the attacker winning.
    */
   coreHp: t.uint16().default(0),
+  draftMobPool: t.array('string'),
   players: t.map(Player),
   towers: t.map(Tower),
   mobs: t.map(Mob),

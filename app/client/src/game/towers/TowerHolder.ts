@@ -27,6 +27,7 @@ export interface TowerHolderOptions {
   actorsContainer?: Phaser.GameObjects.Container;
   getActorsContainer?: () => Phaser.GameObjects.Container | undefined;
   role: "attacker" | "defender";
+  holderScale?: number;
   getActiveTowerType: () => string | undefined;
   onClick: (holder: TowerHolder) => void;
   onHover?: (holder: TowerHolder, over: boolean) => void;
@@ -54,6 +55,7 @@ export class TowerHolder {
   private getActiveTowerType: () => string | undefined;
   private onClickCallback: (holder: TowerHolder) => void;
   private onHoverCallback?: (holder: TowerHolder, over: boolean) => void;
+  readonly holderScale: number;
 
   private daisSprite?: Phaser.GameObjects.Image;
   private hitbox: Phaser.GameObjects.Arc;
@@ -73,12 +75,13 @@ export class TowerHolder {
     this.getActiveTowerType = options.getActiveTowerType;
     this.onClickCallback = options.onClick;
     this.onHoverCallback = options.onHover;
+    this.holderScale = options.holderScale ?? 1.0;
 
     // 1. Foundation Dais: High-fidelity Burmese lotus stone dais (52x40px)
     if (this.scene.textures.exists("tower_placeholder_1")) {
       this.daisSprite = this.scene.add
         .image(this.x, this.y, "tower_placeholder_1")
-        .setDisplaySize(52, 40)
+        .setDisplaySize(52 * this.holderScale, 40 * this.holderScale)
         .setDepth(DEPTH.SLOTS_LAYER)
         .setName(`tower-holder-dais-${this.slotIndex}`);
       this.parentContainer?.add(this.daisSprite);
@@ -86,7 +89,7 @@ export class TowerHolder {
 
     // 2. Interactive Hitbox: radius 24 circle
     this.hitbox = this.scene.add
-      .circle(this.x, this.y, 24, 0x000000, 0.001)
+      .circle(this.x, this.y, 24 * this.holderScale, 0x000000, 0.001)
       .setDepth(DEPTH.SLOTS_LAYER + 0.01)
       .setName(`tower-holder-hitbox-${this.slotIndex}`);
     this.hitbox.setData("slotIndex", this.slotIndex);
@@ -146,7 +149,7 @@ export class TowerHolder {
     const sprite = this.scene.add
       .sprite(this.x, this.y, design.textureKey)
       .setOrigin(design.origin.x, design.origin.y)
-      .setDisplaySize(design.displaySize.width, design.displaySize.height)
+      .setDisplaySize(design.displaySize.width * this.holderScale, design.displaySize.height * this.holderScale)
       .setDepth(actorDepth(this.y));
 
     // Dynamic level badge placed cleanly right above tower roof
@@ -221,7 +224,7 @@ export class TowerHolder {
       this.ghostSprite
         .setTexture(design.textureKey)
         .setOrigin(design.origin.x, design.origin.y)
-        .setDisplaySize(design.displaySize.width, design.displaySize.height)
+        .setDisplaySize(design.displaySize.width * this.holderScale, design.displaySize.height * this.holderScale)
         .setPosition(this.x, this.y)
         .setVisible(true);
       return;
@@ -230,7 +233,7 @@ export class TowerHolder {
     this.ghostSprite = this.scene.add
       .sprite(this.x, this.y, design.textureKey)
       .setOrigin(design.origin.x, design.origin.y)
-      .setDisplaySize(design.displaySize.width, design.displaySize.height)
+      .setDisplaySize(design.displaySize.width * this.holderScale, design.displaySize.height * this.holderScale)
       .setAlpha(0.55)
       .setDepth(actorDepth(this.y));
 
@@ -285,7 +288,7 @@ export class TowerHolder {
       this.mountedRecord.sprite.setPosition(x, y).setDepth(actorDepth(y));
 
       if (this.mountedRecord.levelBadge) {
-        const topY = y - design.displaySize.height * design.origin.y;
+        const topY = y - (design.displaySize.height * this.holderScale) * design.origin.y;
         this.mountedRecord.levelBadge
           .setPosition(x, topY - 12)
           .setDepth(actorDepth(y) + 0.0002);
@@ -325,7 +328,7 @@ export class TowerHolder {
     level: number,
     design: TowerDesignConfig
   ): Phaser.GameObjects.Container {
-    const topY = this.y - design.displaySize.height * design.origin.y;
+    const topY = this.y - (design.displaySize.height * this.holderScale) * design.origin.y;
     const badge = this.scene.add.container(this.x, topY - 12);
     badge.setDepth(actorDepth(this.y) + 0.0002);
 

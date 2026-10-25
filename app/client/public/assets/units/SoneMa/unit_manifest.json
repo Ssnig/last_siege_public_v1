@@ -1,0 +1,16 @@
+{
+  "id": "sone_ma",
+  "name": "Sone Ma Sorceress",
+  "frames": 8,
+  "cols": 4,
+  "rows": 2,
+  "frameWidth": 688,
+  "frameHeight": 768,
+  "frameRate": 7,
+  "scale": 0.085,
+  "origin": { "x": 0.5, "y": 0.85 },
+  "spritesheetFile": "spritesheet.png",
+  "faceFile": "face.png",
+  "walkFrames": { "start": 0, "end": 3 },
+  "castFrames": { "start": 4, "end": 7 }
+}

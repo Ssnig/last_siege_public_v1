@@ -602,12 +602,13 @@ export class GameplayStage {
     }
 
     // Render interactive tower slots with authentic Burmese lotus stone dais
+    const holderScale = this.map.holderScale ?? 1.0;
     this.map.slots.forEach((slot) => {
       // 1. High-fidelity stone foundation dais
       const baseSprite = this.scene.textures.exists("tower_placeholder_1")
         ? this.scene.add
             .image(slot.x, slot.y, "tower_placeholder_1")
-            .setDisplaySize(88, 68)
+            .setDisplaySize(52 * holderScale, 40 * holderScale)
             .setDepth(DEPTH.SLOTS_LAYER)
             .setName("tower-slot-base")
         : null;
@@ -615,7 +616,7 @@ export class GameplayStage {
 
       // 2. Interactive hit area
       const placeholder = this.scene.add
-        .circle(slot.x, slot.y, 36, 0x000000, 0.001)
+        .circle(slot.x, slot.y, 24 * holderScale, 0x000000, 0.001)
         .setDepth(DEPTH.SLOTS_LAYER + 0.01)
         .setName("tower-slot");
       placeholder.setData("slotIndex", slot.slotIndex);
@@ -985,11 +986,12 @@ export class GameplayStage {
     this.hideGhostTower();
 
     const design = getTowerDesign(typeId);
+    const scale = this.map.holderScale ?? 1.0;
 
     this.ghostTower = this.scene.add
       .sprite(slot.x, slot.y, design.textureKey)
       .setOrigin(design.origin.x, design.origin.y)
-      .setDisplaySize(design.displaySize.width, design.displaySize.height)
+      .setDisplaySize(design.displaySize.width * scale, design.displaySize.height * scale)
       .setAlpha(0.5)
       .setDepth(actorDepth(slot.y));
 
@@ -1533,12 +1535,13 @@ export class GameplayStage {
               : design.id === "sein_pyaung"
                 ? "sein_pyaung_idle_ne"
                 : "bell_idle";
+      const holderScale = this.map.holderScale ?? 1.0;
       if (this.scene.textures.exists(sheetKey)) {
         sprite = this.scene.add
           .sprite(slot.x, slot.y, sheetKey)
           .setOrigin(design.origin.x, design.origin.y)
-          .setScale(design.id === "dragon" ? 0.1 : 0.12)
-          .setDisplaySize(design.displaySize.width, design.displaySize.height)
+          .setScale((design.id === "dragon" ? 0.1 : 0.12) * holderScale)
+          .setDisplaySize(design.displaySize.width * holderScale, design.displaySize.height * holderScale)
           .setDepth(actorDepth(slot.y));
         if (this.scene.anims.exists(idleKey)) {
           sprite.play(idleKey);
@@ -1547,14 +1550,15 @@ export class GameplayStage {
         sprite = this.scene.add
           .sprite(slot.x, slot.y, design.textureKey)
           .setOrigin(design.origin.x, design.origin.y)
-          .setDisplaySize(design.displaySize.width, design.displaySize.height)
+          .setDisplaySize(design.displaySize.width * holderScale, design.displaySize.height * holderScale)
           .setDepth(actorDepth(slot.y));
       }
     } else {
+      const holderScale = this.map.holderScale ?? 1.0;
       sprite = this.scene.add
         .sprite(slot.x, slot.y, design.textureKey)
         .setOrigin(design.origin.x, design.origin.y)
-        .setDisplaySize(design.displaySize.width, design.displaySize.height)
+        .setDisplaySize(design.displaySize.width * holderScale, design.displaySize.height * holderScale)
         .setDepth(actorDepth(slot.y));
     }
 

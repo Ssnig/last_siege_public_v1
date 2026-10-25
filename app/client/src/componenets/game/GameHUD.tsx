@@ -47,19 +47,19 @@ const TOWER_SHORT_NAMES: Record<string, string> = {
 };
 
 const TOWER_ICONS: Record<string, string> = {
-  archer: '/assets/towers/01_archer_tower/icon.png',
-  basic: '/assets/towers/01_archer_tower/icon.png',
-  cannon: '/assets/towers/02_cannon/icon.png',
-  bomb: '/assets/towers/03_bomb_throwing_tower/icon.png',
-  bell: '/assets/towers/04_bell_tower/icon.jpg',
-  spear: '/assets/towers/05_spear_tower/icon.png',
-  pitchfork: '/assets/towers/05_spear_tower/icon.png',
-  gun: '/assets/towers/06_gun_tower/icon.png',
-  sniper: '/assets/towers/06_gun_tower/icon.png',
-  water_cannon: '/assets/towers/07_water_cannon/icon.jpg',
-  chinthe: '/assets/towers/08_chinthe_statue/icon.jpg',
-  dragon: '/assets/towers/09_dragon_tower/icon.jpg',
-  sein_pyaung: '/assets/towers/10_sein_pyaung/icon.jpg',
+  archer: '/assets/towers/01_archer_tower/tower.png',
+  basic: '/assets/towers/01_archer_tower/tower.png',
+  cannon: '/assets/towers/02_cannon/tower.png',
+  bomb: '/assets/towers/03_bomb_throwing_tower/tower.png',
+  bell: '/assets/towers/04_bell_tower/tower.png',
+  spear: '/assets/towers/05_spear_tower/tower.png',
+  pitchfork: '/assets/towers/05_spear_tower/tower.png',
+  gun: '/assets/towers/06_gun_tower/tower.png',
+  sniper: '/assets/towers/06_gun_tower/tower.png',
+  water_cannon: '/assets/towers/07_water_cannon/tower.png',
+  chinthe: '/assets/towers/08_chinthe_statue/tower.png',
+  dragon: '/assets/towers/09_dragon_tower/tower.png',
+  sein_pyaung: '/assets/towers/10_sein_pyaung/tower.png',
 };
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -184,45 +184,36 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             </div>
           </div>
 
-          {/* Top-Center: Exactly Centered Wave & Timer Banner with Pixel-Perfect Plaque Alignment */}
+          {/* Top-Center: Pure Royal Countdown Timer Plaque (No Wave sign, Clean Countdown for Both Sides) */}
           <div
-            className="pointer-events-auto fixed top-1.5 md:top-3 left-1/2 -translate-x-1/2 w-24 h-[60px] md:w-36 md:h-[88px] drop-shadow-[0_6px_14px_rgba(0,0,0,0.9)] transition-transform select-none"
+            className="pointer-events-auto fixed top-2 md:top-3 left-1/2 -translate-x-1/2 z-40 flex items-center justify-center px-4 py-1.5 md:px-5 md:py-2 rounded-full select-none transition-all duration-200"
             style={{
-              backgroundImage: "url('/assets/ui/hud/hud_wave_banner.png')",
-              backgroundSize: '100% 100%',
-              backgroundRepeat: 'no-repeat',
+              background: suddenDeath
+                ? 'linear-gradient(180deg, #4a0404 0%, #1f0202 100%)'
+                : 'linear-gradient(180deg, #3a0a0e 0%, #1a0507 100%)',
+              border: suddenDeath ? '2px solid #ef4444' : '2px solid #d4af37',
+              boxShadow: suddenDeath
+                ? '0 0 16px rgba(239, 68, 68, 0.7), inset 0 1px 0 rgba(254, 202, 202, 0.4)'
+                : '0 4px 14px rgba(0,0,0,0.85), 0 0 10px rgba(212, 175, 55, 0.35), inset 0 1px 0 rgba(254, 240, 138, 0.3)',
             }}
           >
-            {/* Phase tag — replaces the old full-text swap so the clock stays visible */}
-            {phase === 'building' && (
-              <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
-                <span className="font-['Almendra',serif] font-black text-[9px] sm:text-[10px] md:text-xs tracking-[0.15em] sm:tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-amber-300">
-                  🛠 BUILD
-                </span>
-              </div>
-            )}
-            {phase === 'combat' && (
-              <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
-                <span
-                  className={`font-['Almendra',serif] font-black text-[10px] md:text-xs tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] ${
-                    suddenDeath ? 'text-fuchsia-300' : 'text-red-300'
-                  }`}
-                >
-                  {suddenDeath ? '☠ DEATH' : '⚔ COMBAT'}
-                </span>
-              </div>
-            )}
+            {/* Clock / Death icon */}
+            <span className="text-amber-400 text-xs sm:text-sm mr-1.5 drop-shadow">
+              {suddenDeath ? '☠' : '⏱'}
+            </span>
 
-            {/* Live Numeric Countdown Clock — Exactly aligned in the lower golden plaque */}
-            <div className="absolute top-[70%] h-[22%] inset-x-0 flex items-center justify-center pointer-events-none">
-               <span
-                 className={`font-['Almendra',serif] font-bold text-xs md:text-[15px] tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] ${
-                   suddenDeath ? 'text-fuchsia-200' : 'text-amber-100'
-                 }`}
-               >
-                 {suddenDeath ? 'NOW' : timeFormatted}
-               </span>
-            </div>
+            {/* Prominent Live Numeric Countdown */}
+            <span
+              className={`font-['Cinzel','Almendra',serif] font-black text-sm sm:text-base md:text-lg tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] ${
+                suddenDeath
+                  ? 'text-red-300 animate-pulse'
+                  : secondsRemaining <= 10
+                    ? 'text-amber-300 animate-pulse'
+                    : 'text-[#fff5d6]'
+              }`}
+            >
+              {suddenDeath ? 'SUDDEN DEATH' : timeFormatted}
+            </span>
           </div>
 
           {/* Top-Right: Settings Medallion + Dynamic Castle HP Indicator */}
@@ -300,7 +291,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                       <img
                         src={iconSrc}
                         alt={tower?.name ?? towerId}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     </div>
 

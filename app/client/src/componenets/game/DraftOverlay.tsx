@@ -4,6 +4,8 @@ import {
   MESSAGES,
   MOB_TYPES,
   TOWER_TYPES,
+  ACTIVE_TOWER_IDS,
+  CORE_UNIT_IDS,
   type DraftRoundUpdatePayload,
   type MobType,
   type TowerType,
@@ -42,79 +44,79 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     title: 'ARCHER TOWER',
     weakness: 'Armored Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/01_archer_tower/icon.png',
+    iconSrc: '/assets/towers/01_archer_tower/tower.png',
   },
   basic: {
     title: 'ARCHER TOWER',
     weakness: 'Armored Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/01_archer_tower/icon.png',
+    iconSrc: '/assets/towers/01_archer_tower/tower.png',
   },
   cannon: {
     title: 'CANNON',
     weakness: 'Quick Units',
     stacks: 'Max 5',
-    iconSrc: '/assets/towers/02_cannon/icon.png',
+    iconSrc: '/assets/towers/02_cannon/tower.png',
   },
   bomb: {
     title: 'BOMB THROWING TOWER',
     weakness: 'Single Fast Targets',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/03_bomb_throwing_tower/icon.png',
+    iconSrc: '/assets/towers/03_bomb_throwing_tower/tower.png',
   },
   bell: {
     title: 'BELL TOWER',
     weakness: 'Long-Range Snipers',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/04_bell_tower/icon.jpg',
+    iconSrc: '/assets/towers/04_bell_tower/tower.png',
   },
   spear: {
     title: 'SPEAR TOWER',
     weakness: 'Heavy Cavalry',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/05_spear_tower/icon.png',
+    iconSrc: '/assets/towers/05_spear_tower/tower.png',
   },
   pitchfork: {
     title: 'SPEAR TOWER',
     weakness: 'Heavy Cavalry',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/05_spear_tower/icon.png',
+    iconSrc: '/assets/towers/05_spear_tower/tower.png',
   },
   gun: {
     title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/06_gun_tower/icon.png',
+    iconSrc: '/assets/towers/06_gun_tower/tower.png',
   },
   sniper: {
     title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/06_gun_tower/icon.png',
+    iconSrc: '/assets/towers/06_gun_tower/tower.png',
   },
   water_cannon: {
     title: 'WATER CANNON',
     weakness: 'Fast Units',
     stacks: 'Max 6',
-    iconSrc: '/assets/towers/07_water_cannon/icon.jpg',
+    iconSrc: '/assets/towers/07_water_cannon/tower.png',
   },
   chinthe: {
     title: 'CHINTHE GUARDIAN',
     weakness: 'Armored Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/08_chinthe_statue/icon.jpg',
+    iconSrc: '/assets/towers/08_chinthe_statue/tower.png',
   },
   dragon: {
     title: 'DRAGON TOWER',
     weakness: 'Resistant Hordes',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/09_dragon_tower/icon.jpg',
+    iconSrc: '/assets/towers/09_dragon_tower/tower.png',
   },
   sein_pyaung: {
     title: 'SEIN PYAUNG',
     weakness: 'Heavy Armor & Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/10_sein_pyaung/icon.jpg',
+    iconSrc: '/assets/towers/10_sein_pyaung/tower.png',
   },
   arcanist: {
     title: 'ROYAL ARCANIST',
@@ -199,6 +201,36 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     stacks: 'Max 8',
     iconSrc: '/assets/units/doe_pat/face.jpg',
   },
+  bandit: {
+    title: 'BANDIT RAIDER',
+    weakness: 'Heavy Armor & Rapid Fire',
+    stacks: 'Max 12',
+    iconSrc: '/assets/units/Bandit/face.png',
+  },
+  belu: {
+    title: 'BELU OGRE',
+    weakness: 'Mental Attacks & Artillery',
+    stacks: 'Max 4',
+    iconSrc: '/assets/units/Belu/face.png',
+  },
+  brute: {
+    title: 'HEAVY BRUTE',
+    weakness: 'Piercing Arrows & Kiting',
+    stacks: 'Max 6',
+    iconSrc: '/assets/units/Brute/face.png',
+  },
+  general: {
+    title: 'ROYAL BO GENERAL',
+    weakness: 'Concentrated Single-Target Burst',
+    stacks: 'Max 6',
+    iconSrc: '/assets/units/General/face.png',
+  },
+  sone_ma: {
+    title: 'SONE MA SORCERESS',
+    weakness: 'Physical Snipers & Swarms',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/SoneMa/face.png',
+  },
 };
 
 /** SVG corner filigree for royal panels */
@@ -251,13 +283,27 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
     return role;
   }, [room, role]);
 
+  // Synced 10-unit mob pool from server for this match
+  const [syncedMobPool, setSyncedMobPool] = useState<string[]>(() => {
+    const pool = (room?.state as any)?.draftMobPool;
+    if (pool && pool.length >= 10) {
+      return Array.from(pool);
+    }
+    return CORE_UNIT_IDS;
+  });
+
   // 10 items in player's own catalog
   const catalogList = useMemo(() => {
     if (effectiveRole === 'defender') {
-      return Object.values(TOWER_TYPES).slice(0, 10);
+      return ACTIVE_TOWER_IDS.map((id) => TOWER_TYPES[id]).filter(Boolean);
     }
-    return Object.values(MOB_TYPES).slice(0, 10);
-  }, [effectiveRole]);
+    const pool = (syncedMobPool && syncedMobPool.length >= 10)
+      ? syncedMobPool
+      : ((room?.state as any)?.draftMobPool && (room?.state as any).draftMobPool.length >= 10)
+        ? Array.from((room?.state as any).draftMobPool)
+        : CORE_UNIT_IDS;
+    return (pool as string[]).map((id) => MOB_TYPES[id]).filter(Boolean);
+  }, [effectiveRole, syncedMobPool, room?.state]);
 
   // Round tracking (1, 2, or 3)
   const [currentRound, setCurrentRound] = useState<number>(1);
@@ -449,6 +495,9 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
         if (opponentPicks) setEnemyPicks(opponentPicks);
         if (myPicks) setLockedPicks(myPicks);
+        if (payload.availableMobPool && payload.availableMobPool.length >= 10) {
+          setSyncedMobPool(payload.availableMobPool);
+        }
 
         if (payload.isFinalReveal) {
           setIsFinalCountdown(true);
@@ -622,8 +671,8 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
           alt={id}
           className={`${
             isBig ? 'max-h-24 max-w-24' : 'max-h-12 max-w-12'
-          } object-contain pixelated filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]`}
-          style={{ imageRendering: 'pixelated' }}
+          } object-contain filter drop-shadow-[0_2px_6px_rgba(0,0,0,0.65)]`}
+          style={{ imageRendering: 'auto' }}
           onError={(e) => {
             (e.target as HTMLElement).style.display = 'none';
           }}
