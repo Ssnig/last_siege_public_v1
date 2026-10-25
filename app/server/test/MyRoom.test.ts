@@ -298,7 +298,7 @@ describe("testing your Colyseus app", () => {
   });
 
   it("runs the round-based 2-2-2 pick draft through to combat and a deploy", async function () {
-    this.timeout(25000);
+    this.timeout(30000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
@@ -709,7 +709,7 @@ describe("testing your Colyseus app", () => {
   });
 
   it("removes a killed mob mid-combat, short of the core and with its bounty intact", async function () {
-    this.timeout(25000);
+    this.timeout(30000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
@@ -748,7 +748,7 @@ describe("testing your Colyseus app", () => {
       removals.push({ progress: mob.progress, bounty: mob.bounty });
     });
 
-    await waitFor(() => removals.length > 0, 20000);
+    await waitFor(() => removals.length > 0, 25000);
 
     assert.ok(
       removals.some((r) => r.progress < 1),

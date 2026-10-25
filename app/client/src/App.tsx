@@ -13,6 +13,7 @@ import { MobileFullscreenGate } from './componenets/mobile/MobileFullscreenGate'
 import { InitialLoadingScreen } from './componenets/common/InitialLoadingScreen';
 import { MapEditor } from './componenets/editor/MapEditor';
 import { EffectsOverlay } from './componenets/common/EffectsOverlay';
+import { BGMRouteSync } from './componenets/audio/BGMRouteSync';
 
 /**
  * Root shell: route-based. `/` hosts the game welcome/landing page,
@@ -47,6 +48,7 @@ export default function App() {
       <OrientationPrompt />
       <EffectsOverlay />
       <GameRoomContext.Provider value={roomContext}>
+        <BGMRouteSync />
         <div key={location.pathname} className="w-full h-full animate-routeEnter flex items-center justify-center">
           <Routes location={location}>
             <Route path="/" element={<LandingPage />} />

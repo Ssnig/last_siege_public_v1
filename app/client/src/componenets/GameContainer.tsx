@@ -28,6 +28,7 @@ import { MapRevealOverlay } from './game/MapRevealOverlay';
 import { useSmoothCountdown } from './game/useSmoothCountdown';
 import { DraftOverlay } from './game/DraftOverlay';
 import { GameOverOverlay } from './game/GameOverOverlay';
+import { SettingsModal } from './landing/SettingsModal';
 
 interface GameContainerProps {
   room: Room;
@@ -58,6 +59,9 @@ const MAP_IMAGE_URLS: Record<string, string> = {
   mandalay: '/assets/maps/map_4_mandalay/map.jpg',
   innwa: '/assets/maps/map_5_innwa/map.jpg',
   bago: '/assets/maps/map_6_bago/map.jpg',
+  deserted: '/assets/maps/map_7_deserted/map.jpg',
+  twister: '/assets/maps/map_8_twister/map.jpg',
+  river: '/assets/maps/map_9_river/map.jpg',
 };
 
 type PlayerRole = "attacker" | "defender";
@@ -183,6 +187,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [playerInfo, setPlayerInfo] = useState<PlayerInfo>(() => playerInfoFromState(room));
   const [menuOpen, setMenuOpen] = useState(false);
   const [surrenderConfirm, setSurrenderConfirm] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [gameOver, setGameOver] = useState<GameOverInfo | null>(() => gameOverFromState(room));
 
   // Gameplay HUD state
@@ -721,6 +726,16 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
             <button
               onClick={() => {
                 setMenuOpen(false);
+                setShowSettingsModal(true);
+              }}
+              className="py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm font-semibold text-amber-200 transition flex items-center justify-center gap-2"
+            >
+              <span>⚙️</span> Audio & Settings
+            </button>
+
+            <button
+              onClick={() => {
+                setMenuOpen(false);
                 setSurrenderConfirm(true);
               }}
               className="py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-bold text-white transition active:scale-95"
@@ -756,6 +771,12 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           </div>
         </div>
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+      />
 
       {/* Reconnect / disconnect status (above the board, blocks input) */}
       {connectionOverlay}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { Vec2, TowerSlot } from "@root/shared";
+import type { Vec2, TowerSlot, MapProp } from "@root/shared";
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface ExportModalProps {
   base: Vec2;
   baseDisplaySize: { width: number; height: number };
   holderScale?: number;
+  props?: MapProp[];
   gridMatrix: number[][];
   gridCols: number;
   gridRows: number;
@@ -29,6 +30,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   base,
   baseDisplaySize,
   holderScale = 1.0,
+  props = [],
   gridMatrix,
   gridCols,
   gridRows,
@@ -70,6 +72,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       )
       .join("\n");
 
+    const formattedProps = props
+      .map(
+        (p) =>
+          `    { id: "${p.id}", typeId: "${p.typeId}", x: ${p.x}, y: ${p.y}${
+            p.scale && p.scale !== 1 ? `, scale: ${p.scale}` : ""
+          }${p.flipX ? `, flipX: true` : ""} },`
+      )
+      .join("\n");
     const varName = `${mapId.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_MAP`;
 
     return `export const ${varName}: MapDefinition = {
@@ -92,6 +102,9 @@ ${formattedPathLabels}
   },
   slots: [
 ${formattedSlots}
+  ],
+  props: [
+${formattedProps}
   ],
   checkpoints: [1, 3],
   base: { x: ${base.x}, y: ${base.y} },
@@ -131,6 +144,7 @@ ${formattedSlots}
         baseDisplaySize,
         portals,
         slots,
+        props,
         paths,
       },
       null,
@@ -183,6 +197,7 @@ ${formattedSlots}
             pathHalfWidth: 26,
             lanes: Object.keys(paths).length,
             holderScale,
+            props,
           },
         }),
       });

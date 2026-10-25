@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { soundEffects } from '../../audio/soundEffects';
+import { bgmManager } from '../../audio/bgmManager';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -7,8 +8,14 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [volume, setVolumeState] = useState<number>(() => Math.round(soundEffects.getVolume() * 100));
-  const [muted, setMutedState] = useState<boolean>(() => soundEffects.getMuted());
+  // Background Music State
+  const [bgmVolume, setBgmVolumeState] = useState<number>(() => Math.round(bgmManager.getVolume() * 100));
+  const [bgmMuted, setBgmMutedState] = useState<boolean>(() => bgmManager.getMuted());
+
+  // Sound Effects State
+  const [sfxVolume, setSfxVolumeState] = useState<number>(() => Math.round(soundEffects.getVolume() * 100));
+  const [sfxMuted, setSfxMutedState] = useState<boolean>(() => soundEffects.getMuted());
+
   const [activeTab, setActiveTab] = useState<'audio' | 'guide'>('audio');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => !!document.fullscreenElement);
   const [effectsEnabled, setEffectsEnabled] = useState<boolean>(() => {
@@ -31,17 +38,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     soundEffects.playHover();
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Music handlers
+  const handleBgmVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVol = parseInt(e.target.value, 10);
-    setVolumeState(newVol);
+    setBgmVolumeState(newVol);
+    bgmManager.setVolume(newVol / 100);
+  };
+
+  const handleBgmMuteToggle = () => {
+    const next = !bgmMuted;
+    setBgmMutedState(next);
+    bgmManager.setMuted(next);
+    soundEffects.playHover();
+  };
+
+  // Sound Effects handlers
+  const handleSfxVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVol = parseInt(e.target.value, 10);
+    setSfxVolumeState(newVol);
     soundEffects.setVolume(newVol / 100);
   };
 
-  const handleMuteToggle = () => {
-    const nextMuted = !muted;
-    setMutedState(nextMuted);
-    soundEffects.setMuted(nextMuted);
-    if (!nextMuted) {
+  const handleSfxMuteToggle = () => {
+    const next = !sfxMuted;
+    setSfxMutedState(next);
+    soundEffects.setMuted(next);
+    if (!next) {
       soundEffects.playHover();
     }
   };
@@ -122,47 +144,81 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1">
           {activeTab === 'audio' ? (
             <>
-              {/* Volume Slider */}
-              <div className="space-y-2">
+              {/* Background Music Volume */}
+              <div className="space-y-2 bg-slate-950/40 p-3.5 rounded-xl border border-slate-800">
                 <div className="flex justify-between items-center text-sm font-medium">
-                  <span className="text-slate-300">Master Volume</span>
-                  <span className="text-amber-400 font-mono">{muted ? '0%' : `${volume}%`}</span>
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <span>🎵</span>
+                    <span>Background Music</span>
+                  </div>
+                  <span className="text-amber-400 font-mono">{bgmMuted ? 'Muted' : `${bgmVolume}%`}</span>
                 </div>
                 <input
                   type="range"
                   min="0"
                   max="100"
-                  value={muted ? 0 : volume}
-                  disabled={muted}
-                  onChange={handleVolumeChange}
+                  value={bgmMuted ? 0 : bgmVolume}
+                  disabled={bgmMuted}
+                  onChange={handleBgmVolumeChange}
                   className="w-full accent-amber-500 bg-slate-800 h-2 rounded-lg cursor-pointer disabled:opacity-40"
                 />
+                <div className="flex justify-between items-center pt-1 text-xs">
+                  <button
+                    onClick={handleBgmMuteToggle}
+                    className={`px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      bgmMuted
+                        ? 'bg-rose-950/50 border-rose-600 text-rose-300'
+                        : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-300'
+                    }`}
+                  >
+                    {bgmMuted ? '🔇 Unmute Music' : '🔈 Mute Music'}
+                  </button>
+                  <span className="text-slate-500 italic">Overall.mp3 / In_game_start.mp3</span>
+                </div>
               </div>
 
-              {/* Sound Controls Row */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={handleMuteToggle}
-                  className={`px-4 py-2.5 rounded-lg border text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 ${
-                    muted
-                      ? 'bg-rose-950/50 border-rose-600 text-rose-300'
-                      : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-200'
-                  }`}
-                >
-                  {muted ? '🔇 Unmute Audio' : '🔊 Mute Audio'}
-                </button>
+              {/* Sound Effects Volume */}
+              <div className="space-y-2 bg-slate-950/40 p-3.5 rounded-xl border border-slate-800">
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <span>🔊</span>
+                    <span>Sound Effects</span>
+                  </div>
+                  <span className="text-amber-400 font-mono">{sfxMuted ? 'Muted' : `${sfxVolume}%`}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={sfxMuted ? 0 : sfxVolume}
+                  disabled={sfxMuted}
+                  onChange={handleSfxVolumeChange}
+                  className="w-full accent-amber-500 bg-slate-800 h-2 rounded-lg cursor-pointer disabled:opacity-40"
+                />
+                <div className="flex justify-between items-center pt-1 text-xs">
+                  <button
+                    onClick={handleSfxMuteToggle}
+                    className={`px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      sfxMuted
+                        ? 'bg-rose-950/50 border-rose-600 text-rose-300'
+                        : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-300'
+                    }`}
+                  >
+                    {sfxMuted ? '🔇 Unmute SFX' : '🔉 Mute SFX'}
+                  </button>
 
-                <button
-                  onClick={handleTestSound}
-                  disabled={muted}
-                  className="px-4 py-2.5 rounded-lg bg-amber-600/20 border border-amber-500/50 hover:bg-amber-600/30 text-amber-300 text-sm font-semibold transition-all cursor-pointer disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95"
-                >
-                  ⚡ Test Sound
-                </button>
+                  <button
+                    onClick={handleTestSound}
+                    disabled={sfxMuted}
+                    className="px-3 py-1.5 rounded-lg bg-amber-600/20 border border-amber-500/50 hover:bg-amber-600/30 text-amber-300 font-semibold transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+                  >
+                    ⚡ Test Sound
+                  </button>
+                </div>
               </div>
 
               {/* Fullscreen Option */}
-              <div className="pt-4 border-t border-slate-800/80">
+              <div className="pt-2 border-t border-slate-800/80">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold text-slate-200">Display Mode</div>
@@ -204,7 +260,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span>⚔️</span> Attacker Role
                 </h4>
                 <p className="text-xs text-slate-300">
-                  Draft aggressive warrior squads during the draft. In combat, march troops through the top and bottom mountain passes to breach the Konbaung Royal Palace!
+                  Draft aggressive warrior squads during the draft. In combat, march troops through the spawn portals to breach the Defender's Core!
                 </p>
               </div>
 
@@ -213,7 +269,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span>🏰</span> Defender Role
                 </h4>
                 <p className="text-xs text-slate-300">
-                  Select powerful archer and siege defense towers. Place them strategically onto the 5 stone tower pads before hitting START GAME to stop the incoming invaders.
+                  Select powerful archer, cannon, bell, and siege defense towers. Place them strategically onto the stone tower pads before hitting START GAME to stop the incoming invaders.
                 </p>
               </div>
 
@@ -222,7 +278,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span>👑</span> Victory Condition
                 </h4>
                 <p className="text-xs text-slate-300">
-                  Attacker wins by breaching the Base Castle. If the siege clock runs out, any troops still on the field fight on in sudden death — the defender wins by repelling them all.
+                  Attacker wins by breaching the Base Core. Defender wins by holding out until the Siege Timer expires.
                 </p>
               </div>
             </div>
@@ -231,8 +287,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
         {/* Footer */}
         <div className="px-6 py-3 border-t border-slate-800/80 bg-slate-950/80 flex items-center justify-between text-xs text-slate-500">
-          <span>Konbaung Dynasty TD v0.1.0</span>
-          <span>Phaser 4 + Colyseus SDK</span>
+          <span>Ancient Burma TD v0.2.0</span>
+          <span>Phaser 3 + Colyseus 0.18</span>
         </div>
       </div>
     </div>

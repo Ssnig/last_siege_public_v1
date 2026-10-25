@@ -5,6 +5,9 @@ import {
   type MapDefinition,
   type Vec2,
   type TowerSlot,
+  type MapProp,
+  PROP_CATALOG,
+  type PropCategory,
 } from "@root/shared";
 import { EditorCanvas, type EditorTool } from "./EditorCanvas";
 import { ExportModal } from "./ExportModal";
@@ -53,6 +56,24 @@ const MAP_PRESETS: MapPreset[] = [
     imageSrc: "/assets/maps/map_6_bago/map.jpg",
     definition: MAPS["bago"],
   },
+  {
+    id: "deserted",
+    name: "Map 7: Deserted (Sands)",
+    imageSrc: "/assets/maps/map_7_deserted/map.jpg",
+    definition: MAPS["deserted"],
+  },
+  {
+    id: "twister",
+    name: "Map 8: Twister (Canyon)",
+    imageSrc: "/assets/maps/map_8_twister/map.jpg",
+    definition: MAPS["twister"],
+  },
+  {
+    id: "river",
+    name: "Map 9: River (Delta)",
+    imageSrc: "/assets/maps/map_9_river/map.jpg",
+    definition: MAPS["river"],
+  },
 ];
 
 const CANVAS_WIDTH = 1280;
@@ -100,6 +121,11 @@ export const MapEditor: React.FC = () => {
     )
   );
 
+  // 2.5D Isometric Scenery Props
+  const [props, setProps] = useState<MapProp[]>([]);
+  const [selectedPropId, setSelectedPropId] = useState<string | null>(null);
+  const [activePropTypeId, setActivePropTypeId] = useState<string>("tree_banyan");
+  const [propCategoryFilter, setPropCategoryFilter] = useState<PropCategory | "all">("all");
   // Layout Data
   const [paths, setPaths] = useState<Record<string, Vec2[]>>({});
   const [activePathId, setActivePathId] = useState<string>("main");
@@ -131,6 +157,7 @@ export const MapEditor: React.FC = () => {
     slots: TowerSlot[];
     portals: Vec2[];
     base: Vec2;
+    props: MapProp[];
   }
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
@@ -195,6 +222,12 @@ export const MapEditor: React.FC = () => {
         if (def.baseDisplaySize) {
           setBaseDisplaySize({ ...def.baseDisplaySize });
         }
+        if (def.props) {
+          setProps(JSON.parse(JSON.stringify(def.props)));
+        } else {
+          setProps([]);
+        }
+        setSelectedPropId(null);
       }
     },
     []
@@ -212,14 +245,17 @@ export const MapEditor: React.FC = () => {
       newPaths: Record<string, Vec2[]>,
       newSlots: TowerSlot[],
       newPortals: Vec2[],
-      newBase: Vec2
+      newBase: Vec2,
+      newProps?: MapProp[]
     ) => {
+      const currentProps = newProps ?? props;
       const snapshot: HistoryState = {
         gridMatrix: newGridMatrix.map((r) => [...r]),
         paths: JSON.parse(JSON.stringify(newPaths)),
         slots: JSON.parse(JSON.stringify(newSlots)),
         portals: JSON.parse(JSON.stringify(newPortals)),
         base: { ...newBase },
+        props: JSON.parse(JSON.stringify(currentProps)),
       };
 
       setHistory((prev) => {
@@ -231,6 +267,11 @@ export const MapEditor: React.FC = () => {
     [historyIndex]
   );
 
+
+  const handleUpdateProps = (newProps: MapProp[]) => {
+    setProps(newProps);
+    pushHistory(gridMatrix, paths, slots, portals, base, newProps);
+  };
   const handleUpdateGridMatrix = (newMatrix: number[][]) => {
     setGridMatrix(newMatrix);
     pushHistory(newMatrix, paths, slots, portals, base);
@@ -277,6 +318,7 @@ export const MapEditor: React.FC = () => {
       setSlots(JSON.parse(JSON.stringify(targetState.slots)));
       setPortals(JSON.parse(JSON.stringify(targetState.portals)));
       setBase({ ...targetState.base });
+      if (targetState.props) setProps(JSON.parse(JSON.stringify(targetState.props)));
       setHistoryIndex(historyIndex - 1);
     }
   };
@@ -289,6 +331,7 @@ export const MapEditor: React.FC = () => {
       setSlots(JSON.parse(JSON.stringify(targetState.slots)));
       setPortals(JSON.parse(JSON.stringify(targetState.portals)));
       setBase({ ...targetState.base });
+      if (targetState.props) setProps(JSON.parse(JSON.stringify(targetState.props)));
       setHistoryIndex(historyIndex + 1);
     }
   };
@@ -377,6 +420,12 @@ export const MapEditor: React.FC = () => {
       shortcut: "B",
       hint: "Click to reposition defender Kingdom Base anchor. Drag to move.",
     },
+    prop: {
+      name: "Scenery Props",
+      icon: "🎨",
+      shortcut: "D",
+      hint: "Click to place 2.5D isometric trees, rocks, caves, ruins & NPCs. Drag to move, 'F' to flip, Del to delete.",
+    },
     inspect: {
       name: "Inspect & Pan",
       icon: "🔍",
@@ -401,6 +450,38 @@ export const MapEditor: React.FC = () => {
       else if (e.key === "p" || e.key === "P") setActiveTool("portal");
       else if (e.key === "b" || e.key === "B") setActiveTool("base");
       else if (e.key === "i" || e.key === "I") setActiveTool("inspect");
+      else if (e.key === "d" || e.key === "D") setActiveTool("prop");
+      else if (selectedPropId) {
+        if (e.key === "f" || e.key === "F") {
+          e.preventDefault();
+          handleUpdateProps(
+            props.map((p) => (p.id === selectedPropId ? { ...p, flipX: !p.flipX } : p))
+          );
+        } else if (e.key === "=" || e.key === "+") {
+          e.preventDefault();
+          handleUpdateProps(
+            props.map((p) =>
+              p.id === selectedPropId
+                ? { ...p, scale: Math.min(2.5, Math.round(((p.scale ?? 1.0) + 0.1) * 10) / 10) }
+                : p
+            )
+          );
+        } else if (e.key === "-" || e.key === "_") {
+          e.preventDefault();
+          handleUpdateProps(
+            props.map((p) =>
+              p.id === selectedPropId
+                ? { ...p, scale: Math.max(0.3, Math.round(((p.scale ?? 1.0) - 0.1) * 10) / 10) }
+                : p
+            )
+          );
+        } else if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          handleUpdateProps(props.filter((p) => p.id !== selectedPropId));
+          setSelectedPropId(null);
+        }
+      }
+
       else if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
         if (e.shiftKey) handleRedo();
         else handleUndo();
@@ -691,6 +772,11 @@ export const MapEditor: React.FC = () => {
               base={base}
               onUpdateBase={handleUpdateBase}
               baseDisplaySize={baseDisplaySize}
+              props={props}
+              onUpdateProps={handleUpdateProps}
+              selectedPropId={selectedPropId}
+              onSelectProp={setSelectedPropId}
+              activePropTypeId={activePropTypeId}
               previewTowers={previewTowers}
               showGrid={showGrid}
               gridOpacity={gridOpacity}
@@ -713,6 +799,206 @@ export const MapEditor: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+            {/* 🎨 2.5D Isometric Scenery Props & NPCs Palette (Active Tool or Always Available) */}
+            <div className={`p-3 rounded-lg border transition-all ${
+              activeTool === "prop"
+                ? "bg-emerald-950/30 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                : "bg-slate-950/60 border-slate-800"
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">🎨</span>
+                  <span className="font-bold text-emerald-300 uppercase text-[11px] tracking-wide">
+                    Scenery Props ({props.length})
+                  </span>
+                </div>
+                <button
+                  onClick={() => setActiveTool("prop")}
+                  className={`text-[10px] px-2 py-0.5 rounded font-bold cursor-pointer transition ${
+                    activeTool === "prop"
+                      ? "bg-emerald-500 text-slate-950"
+                      : "bg-slate-800 text-slate-300 hover:text-white"
+                  }`}
+                >
+                  {activeTool === "prop" ? "Active [D]" : "Select Tool"}
+                </button>
+              </div>
+
+              {/* Category Filter Tabs */}
+              <div className="flex flex-wrap gap-1 mb-2.5">
+                {(["all", "trees", "rocks", "caves", "ruins", "npcs"] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setPropCategoryFilter(cat)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition cursor-pointer ${
+                      propCategoryFilter === cat
+                        ? "bg-amber-500 text-slate-950 font-black shadow-sm"
+                        : "bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                    }`}
+                  >
+                    {cat === "all" ? "All (16)" : cat === "trees" ? "🌲 Trees" : cat === "rocks" ? "🪨 Rocks" : cat === "caves" ? "🕳️ Caves" : cat === "ruins" ? "🏛️ Ruins" : "🧘 NPCs"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Grid of Prop Choices */}
+              <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1 mb-3">
+                {Object.values(PROP_CATALOG)
+                  .filter((p) => propCategoryFilter === "all" || p.category === propCategoryFilter)
+                  .map((p) => {
+                    const isPicked = activePropTypeId === p.typeId;
+                    return (
+                      <div
+                        key={p.typeId}
+                        onClick={() => {
+                          setActivePropTypeId(p.typeId);
+                          setActiveTool("prop");
+                        }}
+                        className={`p-1.5 rounded-lg flex flex-col items-center gap-1 cursor-pointer border transition-all text-center relative group ${
+                          isPicked
+                            ? "bg-amber-950/50 border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.35)] scale-[1.02]"
+                            : "bg-slate-900/80 border-slate-800 hover:border-slate-700 hover:bg-slate-850"
+                        }`}
+                        title={p.description}
+                      >
+                        <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
+                          <img
+                            src={p.imageSrc}
+                            alt={p.name}
+                            className="max-h-full max-w-full object-contain filter drop-shadow"
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-200 line-clamp-1">
+                          {p.name}
+                        </span>
+                        {isPicked && (
+                          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]" />
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {/* Selected Prop Inspector */}
+              {selectedPropId ? (
+                (() => {
+                  const selectedProp = props.find((p) => p.id === selectedPropId);
+                  if (!selectedProp) return null;
+                  const def = PROP_CATALOG[selectedProp.typeId];
+                  return (
+                    <div className="p-2.5 rounded-lg bg-amber-950/25 border border-amber-500/50 space-y-2 mt-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={def?.imageSrc}
+                            alt=""
+                            className="w-7 h-7 object-contain"
+                          />
+                          <div>
+                            <span className="font-bold text-amber-300 text-[11px] block">
+                              {def?.name || selectedProp.typeId}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-mono">
+                              ({selectedProp.x}, {selectedProp.y})
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            handleUpdateProps(props.filter((p) => p.id !== selectedPropId));
+                            setSelectedPropId(null);
+                          }}
+                          className="px-2 py-0.5 rounded bg-red-950 border border-red-500/40 text-red-300 hover:bg-red-900 text-[10px] cursor-pointer"
+                          title="Delete Prop (Del)"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+
+                      {/* Scale & Flip Controls */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-amber-600/30 text-[10px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-400 font-semibold">Scale:</span>
+                          <button
+                            onClick={() => {
+                              const cur = selectedProp.scale ?? 1.0;
+                              handleUpdateProps(
+                                props.map((p) =>
+                                  p.id === selectedPropId
+                                    ? { ...p, scale: Math.max(0.3, Math.round((cur - 0.1) * 10) / 10) }
+                                    : p
+                                )
+                              );
+                            }}
+                            className="w-5 h-5 rounded bg-slate-800 text-amber-200 hover:bg-slate-700 flex items-center justify-center font-bold"
+                          >
+                            -
+                          </button>
+                          <span className="font-mono text-amber-300 w-8 text-center">
+                            {Math.round((selectedProp.scale ?? 1.0) * 100)}%
+                          </span>
+                          <button
+                            onClick={() => {
+                              const cur = selectedProp.scale ?? 1.0;
+                              handleUpdateProps(
+                                props.map((p) =>
+                                  p.id === selectedPropId
+                                    ? { ...p, scale: Math.min(2.5, Math.round((cur + 0.1) * 10) / 10) }
+                                    : p
+                                )
+                              );
+                            }}
+                            className="w-5 h-5 rounded bg-slate-800 text-amber-200 hover:bg-slate-700 flex items-center justify-center font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            handleUpdateProps(
+                              props.map((p) =>
+                                p.id === selectedPropId ? { ...p, flipX: !p.flipX } : p
+                              )
+                            );
+                          }}
+                          className={`px-2 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                            selectedProp.flipX
+                              ? "bg-indigo-600 text-white border-indigo-400 shadow-sm"
+                              : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                          }`}
+                          title="Flip Horizontally (F)"
+                        >
+                          ⇄ Flip {selectedProp.flipX ? "(On)" : "(Off)"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="text-[10px] text-slate-400 italic bg-slate-900/50 p-2 rounded text-center">
+                  Click on canvas to place active prop, or click a placed prop to select & transform it.
+                </div>
+              )}
+
+              {props.length > 0 && (
+                <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                  <span className="text-slate-400">Total Placed: {props.length}</span>
+                  <button
+                    onClick={() => {
+                      if (confirm("Clear all scenery props on this map?")) {
+                        handleUpdateProps([]);
+                        setSelectedPropId(null);
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-300 cursor-pointer"
+                  >
+                    Clear All Props
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Multi-Track Polyline Manager */}
             <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
               <div className="flex items-center justify-between mb-2">
@@ -1056,6 +1342,7 @@ export const MapEditor: React.FC = () => {
         portals={portals}
         base={base}
         baseDisplaySize={baseDisplaySize}
+        props={props}
         gridMatrix={gridMatrix}
         gridCols={gridCols}
         gridRows={gridRows}
