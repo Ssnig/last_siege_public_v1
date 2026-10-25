@@ -173,7 +173,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   >
                     {bgmMuted ? '🔇 Unmute Music' : '🔈 Mute Music'}
                   </button>
-                  <span className="text-slate-500 italic">Overall.mp3 / In_game_start.mp3</span>
                 </div>
               </div>
 

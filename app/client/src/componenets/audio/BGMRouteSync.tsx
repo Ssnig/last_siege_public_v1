@@ -22,19 +22,18 @@ export const BGMRouteSync: React.FC = () => {
       return;
     }
 
-    // 2. In-game battle: play in-game combat soundtrack
+    // 2. In-game battle: let GameContainer manage phase-specific soundtrack (DraftPhase vs InGameMusic)
     if (currentPath.startsWith('/game/')) {
-      bgmManager.playTrack('in_game', 700).catch(() => {});
       return;
     }
 
-    // 3. Menus (Landing, Lobby, etc.): play overall game theme
+    // 3. Menus (Landing, Lobby, etc.): play Lobby game theme
     if (prevPath === null) {
       // Initial page mount
-      bgmManager.playTrack('overall', 800).catch(() => {});
+      bgmManager.playTrack('lobby', 800).catch(() => {});
     } else if (prevPath === '/editor' || prevPath.startsWith('/game/')) {
       // Returning from editor or game match back to menu/lobby
-      bgmManager.playTrack('overall', 700).catch(() => {});
+      bgmManager.playTrack('lobby', 700).catch(() => {});
     } else if (prevPath !== currentPath) {
       // Page-to-page navigation within menus (e.g., Landing -> Lobby):
       // Smoothly dip volume down and back up on the new page

@@ -163,8 +163,10 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 'u_doe_pat_speed_vfx', url: '/assets/units/doe_pat/speed_boost_vfx.png', type: 'image', category: 'unit', label: 'Speed Boost VFX' },
 
   // Audio
-  { id: 'music_overall', url: '/assets/music/Overall.mp3', type: 'audio', category: 'audio', label: 'Imperial Anthem' },
-  { id: 'music_battle', url: '/assets/music/In_game_start.mp3', type: 'audio', category: 'audio', label: 'Battle Theme' },
+  { id: 'music_lobby', url: '/assets/music/Lobby.mp3', type: 'audio', category: 'audio', label: 'Lobby & Menu Theme' },
+  { id: 'music_draft', url: '/assets/music/DraftPhase.mp3', type: 'audio', category: 'audio', label: 'Draft Phase Theme' },
+  { id: 'music_battle', url: '/assets/music/InGameMusic.mp3', type: 'audio', category: 'audio', label: 'In-Game Battle Theme' },
+  { id: 'music_soundtrack1', url: '/assets/music/Soundtrack1.mp3', type: 'audio', category: 'audio', label: 'Soundtrack 1' },
 ];
 
 /**
