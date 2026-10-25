@@ -55,6 +55,9 @@ const TOWER_ICONS: Record<string, string> = {
   pitchfork: '/assets/towers/05_spear_tower/icon.png',
   gun: '/assets/towers/06_gun_tower/icon.png',
   sniper: '/assets/towers/06_gun_tower/icon.png',
+  water_cannon: '/assets/towers/07_water_cannon/icon.jpg',
+  chinthe: '/assets/towers/08_chinthe_statue/icon.jpg',
+  dragon: '/assets/towers/09_dragon_tower/icon.jpg',
 };
 
 export const GameHUD: React.FC<GameHUDProps> = ({

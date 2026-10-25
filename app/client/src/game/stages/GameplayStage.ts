@@ -33,6 +33,7 @@ import {
   UI_TEXTURE_KEY,
 } from "../ui/uiAtlas";
 import { UnitAnimationManager } from "../animation/UnitAnimationManager";
+import { TowerAnimationManager } from "../animation/TowerAnimationManager";
 import { AmbientNPCManager } from "../npc/AmbientNPCManager";
 
 /** Render order for the gameplay layers. */
@@ -159,6 +160,7 @@ export class GameplayStage {
   /** Latest attacker deploy-buffer snapshot, used to drive the portal pips. */
   private attackerBuffer?: AttackerBufferPayload;
   private towers: Map<number, TowerRecord> = new Map();
+  private towerLastCooldown: Map<number, number> = new Map();
   private mobSprites: Map<Mob, MobRecord> = new Map();
   /** Mob records by server id, so a tower can find the mob it is shooting. */
   private mobsById: Map<string, MobRecord> = new Map();
@@ -1442,11 +1444,34 @@ export class GameplayStage {
 
     const design = getTowerDesign(tower.typeId);
 
-    const sprite = this.scene.add
-      .sprite(slot.x, slot.y, design.textureKey)
-      .setOrigin(design.origin.x, design.origin.y)
-      .setDisplaySize(design.displaySize.width, design.displaySize.height)
-      .setDepth(actorDepth(slot.y));
+    let sprite: Phaser.GameObjects.Sprite;
+    if (design.id === "water_cannon" || design.id === "chinthe" || design.id === "dragon") {
+      const sheetKey = design.id === "water_cannon" ? "tower_water_cannon_sheet" : design.id === "chinthe" ? "tower_chinthe_sheet" : "tower_dragon_sheet";
+      const idleKey = design.id === "water_cannon" ? "water_cannon_idle_ne" : design.id === "chinthe" ? "chinthe_idle_ne" : "dragon_idle_ne";
+      if (this.scene.textures.exists(sheetKey)) {
+        sprite = this.scene.add
+          .sprite(slot.x, slot.y, sheetKey)
+          .setOrigin(design.origin.x, design.origin.y)
+          .setScale(design.id === "dragon" ? 0.1 : 0.12)
+          .setDisplaySize(design.displaySize.width, design.displaySize.height)
+          .setDepth(actorDepth(slot.y));
+        if (this.scene.anims.exists(idleKey)) {
+          sprite.play(idleKey);
+        }
+      } else {
+        sprite = this.scene.add
+          .sprite(slot.x, slot.y, design.textureKey)
+          .setOrigin(design.origin.x, design.origin.y)
+          .setDisplaySize(design.displaySize.width, design.displaySize.height)
+          .setDepth(actorDepth(slot.y));
+      }
+    } else {
+      sprite = this.scene.add
+        .sprite(slot.x, slot.y, design.textureKey)
+        .setOrigin(design.origin.x, design.origin.y)
+        .setDisplaySize(design.displaySize.width, design.displaySize.height)
+        .setDepth(actorDepth(slot.y));
+    }
 
     const levelBadge = this.createTowerLevelBadge(slot, tower.level);
 
@@ -1466,6 +1491,7 @@ export class GameplayStage {
     );
 
     this.towers.set(slot.slotIndex, { id, tower, sprite, levelBadge });
+    this.towerLastCooldown.set(slot.slotIndex, tower.cooldown);
     // Towers sort against mobs every frame; see `onSceneUpdate`.
     (this.actors ?? this.root)?.add(sprite);
     if (levelBadge) (this.actors ?? this.root)?.add(levelBadge);
@@ -1563,25 +1589,151 @@ export class GameplayStage {
 
   /**
    * Turns each tower to face the mob it is shooting.
-   *
-   * @remarks Only towers that visibly rotate with their barrel (cannon/bomb)
-   * are flipped; fixed emplacements like the archer keep their orientation.
    */
   private updateTowerFacing(): void {
     if (this.destroyed || this.towers.size === 0) return;
 
     for (const record of this.towers.values()) {
       const design = getTowerDesign(record.tower.typeId);
-      if (design.id !== "cannon" && design.id !== "bomb") continue;
+      if (design.id === "cannon" || design.id === "bomb") {
+        const targetId = record.tower.targetId;
+        if (!targetId) continue;
+        const target = this.mobsById.get(targetId);
+        if (!target) continue;
+        const dx = target.x - record.sprite.x;
+        if (Math.abs(dx) > 0.5) record.sprite.setFlipX(dx < 0);
+        continue;
+      }
+      if (design.id === "water_cannon" || design.id === "chinthe" || design.id === "dragon") {
+        const targetId = record.tower.targetId;
+        const sprite = record.sprite as Phaser.GameObjects.Sprite;
+        let slotIndex = -1;
+        for (const [k, v] of this.towers) {
+          if (v === record) { slotIndex = k; break; }
+        }
+        const lastCd = this.towerLastCooldown.get(slotIndex) ?? record.tower.cooldown;
+        const justFired = !!(targetId && lastCd > record.tower.cooldown);
+        this.towerLastCooldown.set(slotIndex, record.tower.cooldown);
 
-      const targetId = record.tower.targetId;
-      if (!targetId) continue;
+        const getSheets = () => {
+          if (design.id === "water_cannon") return { sheet: "tower_water_cannon_sheet", mirror: "tower_water_cannon_sheet_mirrored", pre: "water_cannon" };
+          if (design.id === "chinthe") return { sheet: "tower_chinthe_sheet", mirror: "tower_chinthe_sheet_mirrored", pre: "chinthe" };
+          if (design.id === "dragon") return { sheet: "tower_dragon_sheet", mirror: "tower_dragon_sheet_mirrored", pre: "dragon" };
+          return { sheet: "tower_water_cannon_sheet", mirror: "tower_water_cannon_sheet_mirrored", pre: "water_cannon" };
+        };
+        const sh = getSheets();
 
-      const target = this.mobsById.get(targetId);
-      if (!target) continue;
+        if (!targetId) {
+          const idle = sh.pre + "_idle_ne";
+          if (this.scene.anims.exists(idle)) {
+            const cur = sprite.anims?.currentAnim?.key || "";
+            if (cur !== idle || !sprite.anims?.isPlaying) { sprite.setTexture(sh.sheet); sprite.play(idle); }
+          }
+          continue;
+        }
+        const target = this.mobsById.get(targetId);
+        if (!target) { continue; }
 
-      const dx = target.x - record.sprite.x;
-      if (Math.abs(dx) > 0.5) record.sprite.setFlipX(dx < 0);
+        const dx = target.x - sprite.x;
+        const dy = target.y - sprite.y;
+        const enemyOnRight = dx >= 0;
+        const enemyAbove = dy < 0;
+
+        if (enemyOnRight) {
+          if (enemyAbove) {
+            if (justFired && this.scene.anims.exists(sh.pre + "_fire_ne")) {
+              sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_fire_ne");
+              sprite.once("animationcomplete-" + sh.pre + "_fire_ne", () => {
+                const t = this.towers.get(slotIndex);
+                if (t?.tower.targetId) {
+                  const tt = this.mobsById.get(t.tower.targetId);
+                  if (tt) {
+                    const tdx = tt.x - sprite.x; const tdy = tt.y - sprite.y;
+                    if (tdx < 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_nw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
+                    else if (tdx < 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_sw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
+                    else if (tdx >= 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_ne")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
+                    else if (tdx >= 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_se")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_se"); }
+                  }
+                }
+              });
+            } else {
+              const cur = sprite.anims?.currentAnim?.key || "";
+              if (!(cur.includes("fire") && sprite.anims?.isPlaying) && this.scene.anims.exists(sh.pre + "_idle_ne")) {
+                if (cur !== sh.pre + "_idle_ne") { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
+              }
+            }
+          } else {
+            if (justFired && this.scene.anims.exists(sh.pre + "_fire_se")) {
+              sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_fire_se");
+              sprite.once("animationcomplete-" + sh.pre + "_fire_se", () => {
+                const t = this.towers.get(slotIndex);
+                if (t?.tower.targetId) {
+                  const tt = this.mobsById.get(t.tower.targetId);
+                  if (tt) {
+                    const tdx = tt.x - sprite.x; const tdy = tt.y - sprite.y;
+                    if (tdx < 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_nw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
+                    else if (tdx < 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_sw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
+                    else if (tdx >= 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_ne")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
+                    else if (tdx >= 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_se")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_se"); }
+                  }
+                }
+              });
+            } else {
+              const cur = sprite.anims?.currentAnim?.key || "";
+              if (!(cur.includes("fire") && sprite.anims?.isPlaying) && this.scene.anims.exists(sh.pre + "_idle_se")) {
+                if (cur !== sh.pre + "_idle_se") { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_se"); }
+              }
+            }
+          }
+        } else {
+          if (enemyAbove) {
+            if (justFired && this.scene.anims.exists(sh.pre + "_fire_nw")) {
+              sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_fire_nw");
+              sprite.once("animationcomplete-" + sh.pre + "_fire_nw", () => {
+                const t = this.towers.get(slotIndex);
+                if (t?.tower.targetId) {
+                  const tt = this.mobsById.get(t.tower.targetId);
+                  if (tt) {
+                    const tdx = tt.x - sprite.x; const tdy = tt.y - sprite.y;
+                    if (tdx < 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_nw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
+                    else if (tdx < 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_sw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
+                    else if (tdx >= 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_ne")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
+                    else if (tdx >= 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_se")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_se"); }
+                  }
+                }
+              });
+            } else {
+              const cur = sprite.anims?.currentAnim?.key || "";
+              if (!(cur.includes("fire") && sprite.anims?.isPlaying) && this.scene.anims.exists(sh.pre + "_idle_nw")) {
+                if (cur !== sh.pre + "_idle_nw") { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
+              }
+            }
+          } else {
+            if (justFired && this.scene.anims.exists(sh.pre + "_fire_sw")) {
+              sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_fire_sw");
+              sprite.once("animationcomplete-" + sh.pre + "_fire_sw", () => {
+                const t = this.towers.get(slotIndex);
+                if (t?.tower.targetId) {
+                  const tt = this.mobsById.get(t.tower.targetId);
+                  if (tt) {
+                    const tdx = tt.x - sprite.x; const tdy = tt.y - sprite.y;
+                    if (tdx < 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_nw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
+                    else if (tdx < 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_sw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
+                    else if (tdx >= 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_ne")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
+                    else if (tdx >= 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_se")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_se"); }
+                  }
+                }
+              });
+            } else {
+              const cur = sprite.anims?.currentAnim?.key || "";
+              if (!(cur.includes("fire") && sprite.anims?.isPlaying) && this.scene.anims.exists(sh.pre + "_idle_sw")) {
+                if (cur !== sh.pre + "_idle_sw") { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
+              }
+            }
+          }
+        }
+        continue;
+      }
     }
   }
 
@@ -1669,21 +1821,98 @@ export class GameplayStage {
         ? design.projectileKey
         : "arrow_proj";
 
-      const sprite = this.scene.add
-        .sprite(projectile.x, projectile.y, textureKey)
-        .setOrigin(0.5, 0.5)
-        .setDisplaySize(28, 28)
-        .setDepth(DEPTH.PROJECTILES_LAYER);
+      let sprite: Phaser.GameObjects.Sprite;
+      if (design.id === "water_cannon") {
+        if (!this.scene.textures.exists("water_splash_sheet")) {
+          this.scene.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("water_splash_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "water_splash_sheet").setOrigin(0.5, 0.5).setScale(0.04).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("water_proj_anim")) {
+            this.scene.anims.create({ key: "water_proj_anim", frames: this.scene.anims.generateFrameNumbers("water_splash_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+          }
+          sprite.play("water_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
+      } else if (design.id === "chinthe") {
+        if (!this.scene.textures.exists("chinthe_attack_sheet")) {
+          this.scene.load.spritesheet("chinthe_attack_sheet", "/assets/towers/08_chinthe_statue/chinthe_attack.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("chinthe_attack_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "chinthe_attack_sheet").setOrigin(0.5, 0.5).setScale(0.04).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("chinthe_proj_anim")) {
+            this.scene.anims.create({ key: "chinthe_proj_anim", frames: this.scene.anims.generateFrameNumbers("chinthe_attack_sheet", { start: 0, end: 7 }), frameRate: 6, repeat: -1 });
+          }
+          sprite.play("chinthe_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
+      } else if (design.id === "dragon") {
+        if (!this.scene.textures.exists("dragon_attack_sheet")) {
+          this.scene.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("dragon_attack_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "dragon_attack_sheet").setOrigin(0.5, 0.5).setScale(0.05).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("dragon_proj_anim")) {
+            this.scene.anims.create({ key: "dragon_proj_anim", frames: this.scene.anims.generateFrameNumbers("dragon_attack_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+          }
+          sprite.play("dragon_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
+      } else {
+        sprite = this.scene.add
+          .sprite(projectile.x, projectile.y, textureKey)
+          .setOrigin(0.5, 0.5)
+          .setDisplaySize(28, 28)
+          .setDepth(DEPTH.PROJECTILES_LAYER);
+      }
 
       this.projectileSprites.set(projectile, sprite);
       this.root?.add(sprite);
     };
 
     const onRemove = (value: unknown): void => {
-      const sprite = this.projectileSprites.get(value as Projectile);
+      const projectile = value as Projectile;
+      const sprite = this.projectileSprites.get(projectile);
       if (!sprite) return;
+      const design = getTowerDesign(projectile.typeId);
+      if (design.id === "water_cannon") {
+        if (!this.scene.textures.exists("water_splash_sheet")) {
+          this.scene.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("water_splash_sheet")) {
+          const splash = this.scene.add.sprite(sprite.x, sprite.y, "water_splash_sheet").setOrigin(0.5, 0.5).setScale(0.06).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          if (!this.scene.anims.exists("water_splash_anim")) {
+            this.scene.anims.create({ key: "water_splash_anim", frames: this.scene.anims.generateFrameNumbers("water_splash_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+          }
+          splash.play("water_splash_anim");
+          splash.once("animationcomplete", () => splash.destroy());
+          (this.root ?? this.actors ?? this.scene).add(splash);
+        }
+      } else if (design.id === "dragon") {
+        if (!this.scene.textures.exists("dragon_attack_sheet")) {
+          this.scene.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("dragon_attack_sheet")) {
+          const splash = this.scene.add.sprite(sprite.x, sprite.y, "dragon_attack_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          if (!this.scene.anims.exists("dragon_splash_anim")) {
+            this.scene.anims.create({ key: "dragon_splash_anim", frames: this.scene.anims.generateFrameNumbers("dragon_attack_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+          }
+          splash.play("dragon_splash_anim");
+          splash.once("animationcomplete", () => splash.destroy());
+          (this.root ?? this.actors ?? this.scene).add(splash);
+        }
+      }
+      // chinthe: whole 8 frames is projectile animation as specified
       sprite.destroy();
-      this.projectileSprites.delete(value as Projectile);
+      this.projectileSprites.delete(projectile);
     };
 
     // Third parameter `true` immediately renders projectiles already in state.

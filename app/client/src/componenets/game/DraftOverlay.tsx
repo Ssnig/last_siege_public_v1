@@ -92,6 +92,24 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     stacks: 'Max 4',
     iconSrc: '/assets/towers/06_gun_tower/icon.png',
   },
+  water_cannon: {
+    title: 'WATER CANNON',
+    weakness: 'Fast Units',
+    stacks: 'Max 6',
+    iconSrc: '/assets/towers/07_water_cannon/icon.jpg',
+  },
+  chinthe: {
+    title: 'CHINTHE GUARDIAN',
+    weakness: 'Armored Swarms',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/08_chinthe_statue/icon.jpg',
+  },
+  dragon: {
+    title: 'DRAGON TOWER',
+    weakness: 'Resistant Hordes',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/09_dragon_tower/icon.jpg',
+  },
   arcanist: {
     title: 'ROYAL ARCANIST',
     weakness: 'Fast Magic Wards',

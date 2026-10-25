@@ -133,6 +133,63 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
       stacks: "Max 4",
     },
   },
+  water_cannon: {
+    id: "water_cannon",
+    folder: "07_water_cannon",
+    name: "Water Cannon",
+    shortName: "Wat",
+    aliases: [],
+    textureKey: "tower_water_cannon",
+    texturePath: "/assets/towers/07_water_cannon/tower.png",
+    projectileKey: "proj_water_cannon",
+    projectilePath: "/assets/towers/07_water_cannon/projectile.png",
+    iconPath: "/assets/towers/07_water_cannon/icon.jpg",
+    displaySize: { width: 110, height: 110 },
+    origin: { x: 0.5, y: 0.82 },
+    tactical: {
+      title: "WATER CANNON",
+      weakness: "Fast Units",
+      stacks: "Max 6",
+    },
+  },
+  chinthe: {
+    id: "chinthe",
+    folder: "08_chinthe_statue",
+    name: "Chinthe Guardian",
+    shortName: "Chn",
+    aliases: [],
+    textureKey: "tower_chinthe",
+    texturePath: "/assets/towers/08_chinthe_statue/tower.png",
+    projectileKey: "proj_chinthe",
+    projectilePath: "/assets/towers/08_chinthe_statue/projectile.png",
+    iconPath: "/assets/towers/08_chinthe_statue/icon.jpg",
+    displaySize: { width: 92, height: 92 },
+    origin: { x: 0.5, y: 0.82 },
+    tactical: {
+      title: "CHINTHE GUARDIAN",
+      weakness: "Armored Swarms",
+      stacks: "Max 4",
+    },
+  },
+  dragon: {
+    id: "dragon",
+    folder: "09_dragon_tower",
+    name: "Dragon Tower",
+    shortName: "Drg",
+    aliases: [],
+    textureKey: "tower_dragon",
+    texturePath: "/assets/towers/09_dragon_tower/tower.png",
+    projectileKey: "proj_dragon",
+    projectilePath: "/assets/towers/09_dragon_tower/projectile.png",
+    iconPath: "/assets/towers/09_dragon_tower/icon.jpg",
+    displaySize: { width: 92, height: 92 },
+    origin: { x: 0.5, y: 0.82 },
+    tactical: {
+      title: "DRAGON TOWER",
+      weakness: "Resistant Hordes",
+      stacks: "Max 4",
+    },
+  },
 };
 
 /** Default active towers in order for Defender tray and decks */
@@ -143,6 +200,9 @@ export const ACTIVE_TOWER_IDS: string[] = [
   "bell",
   "spear",
   "gun",
+  "water_cannon",
+  "chinthe",
+  "dragon",
 ];
 
 /**
