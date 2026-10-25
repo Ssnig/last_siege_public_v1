@@ -58,6 +58,10 @@ export const MESSAGES = {
   mobAbility: "mob_ability",
   /** Server → client (broadcast): a non-projectile AoE tower (e.g. Bell Tower) pulsed. */
   towerAttack: "tower_attack",
+  /** Client → server: this client has finished loading game assets. */
+  clientAssetsLoaded: "client_assets_loaded",
+  /** Server → client (broadcast): asset loading status update while waiting. */
+  assetLoadingStatus: "asset_loading_status",
 } as const;
 
 /** Payload of the `role_assigned` private message. */
@@ -246,6 +250,13 @@ export interface DraftRoundUpdatePayload {
   attackerReady: boolean;
   defenderReady: boolean;
   isFinalReveal?: boolean;
+  waitingForAssets?: boolean;
+}
+
+export interface AssetLoadingStatusPayload {
+  waitingForAssets: boolean;
+  loadedCount: number;
+  totalCount: number;
 }
 
 export interface StartCombatIntent {

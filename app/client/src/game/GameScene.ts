@@ -97,6 +97,11 @@ export class GameScene extends Phaser.Scene {
       progressBox.destroy();
       titleText.destroy();
       percentText.destroy();
+
+      const r = (this.registry?.get("room") as Room | undefined) ?? this.room;
+      if (r) {
+        r.send(MESSAGES.clientAssetsLoaded, {});
+      }
     });
 
     // 6 Maps
@@ -213,6 +218,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.room = room;
+    try {
+      this.room.send(MESSAGES.clientAssetsLoaded, {});
+    } catch {
+      // Room socket may still be handshaking
+    }
 
     console.log("[GameScene] Connected:", room.sessionId);
 
@@ -225,6 +235,9 @@ export class GameScene extends Phaser.Scene {
         MESSAGES.roleAssigned,
         (payload: RoleAssignedPayload) => {
           this.assignedRole = payload.myRole as PlayerRole;
+          if (this.gameplayStage) {
+            this.gameplayStage.setRole(this.assignedRole);
+          }
           this.syncPhase();
         },
       ),
@@ -364,14 +377,28 @@ export class GameScene extends Phaser.Scene {
     this.gameplayStage = undefined;
   }
 
+  /** Externally updates or synchronizes the player's role with GameplayStage. */
+  public setAssignedRole(role: PlayerRole): void {
+    this.assignedRole = role;
+    if (this.gameplayStage) {
+      this.gameplayStage.setRole(role);
+    }
+  }
+
   private startGameplay(): void {
     if (this.gameplayStage) return;
+
+    const stateRole = this.room?.state?.players?.get(this.room?.sessionId)?.role as PlayerRole | undefined;
+    const effectiveRole =
+      this.assignedRole ||
+      (stateRole === "attacker" || stateRole === "defender" ? stateRole : undefined) ||
+      "defender";
 
     const map = MAPS[this.room.state.mapId] ?? KONBAUNG_MAP;
     this.gameplayStage = new GameplayStage(this, {
       room: this.room,
       map,
-      role: this.assignedRole ?? "defender",
+      role: effectiveRole,
       economy: this.myEconomy,
       gold: this.gold,
       deck: this.defenderDeck,

@@ -168,6 +168,15 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /** 5-second post-draft countdown after round 3 concludes before entering building. */
   private draftFinalCountdown: number | null = null;
 
+  /** Session IDs of clients who have confirmed their assets are loaded. */
+  private loadedAssetsClients = new Set<string>();
+
+  /** Whether the room is waiting for clients to finish loading assets after draft. */
+  private waitingForAssets = false;
+
+  /** Safety timeout (in seconds) while waiting for clients to load assets. */
+  private assetWaitTimeout = 0;
+
   /** Picks submitted per player in the current round. */
   private draftRoundPicks = new Map<string, string[]>();
 
@@ -328,6 +337,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     ) => this.handleDeploy(client, payload),
 
     [MESSAGES.rematch]: (client: Client) => this.handleRematch(client),
+    [MESSAGES.clientAssetsLoaded]: (client: Client) =>
+      this.handleClientAssetsLoaded(client),
   };
 
   /**
@@ -725,20 +736,104 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.state.phaseEndsAt = 15.0;
     } else {
       // Round 3 complete! All 6 cards picked.
-      // Broadcast final reveal with isFinalReveal: true and 5-second countdown before building starts
-      console.log(`Room ${this.roomId}: 2-2-2 draft finished, entering 5-second post-draft countdown`);
-      this.broadcast(MESSAGES.draftRoundUpdate, {
-        round: 3,
-        phaseEndsAt: 5,
-        attackerPicks,
-        defenderPicks,
-        attackerReady: true,
-        defenderReady: true,
-        isFinalReveal: true,
-      });
+      if (this.areAllClientsAssetsLoaded()) {
+        this.startPostDraftCountdown(attackerPicks, defenderPicks);
+      } else {
+        console.log(
+          `Room ${this.roomId}: 2-2-2 draft finished; waiting for all clients to finish loading assets (${this.loadedAssetsClients.size}/${this.clients.length})`,
+        );
+        this.waitingForAssets = true;
+        this.assetWaitTimeout = 45.0;
+        this.state.phaseEndsAt = 0;
+        this.broadcast(MESSAGES.draftRoundUpdate, {
+          round: 3,
+          phaseEndsAt: 0,
+          attackerPicks,
+          defenderPicks,
+          attackerReady: true,
+          defenderReady: true,
+          isFinalReveal: true,
+          waitingForAssets: true,
+        });
+        this.broadcast(MESSAGES.assetLoadingStatus, {
+          waitingForAssets: true,
+          loadedCount: this.loadedAssetsClients.size,
+          totalCount: this.clients.length,
+        });
+      }
+    }
+  }
 
-      this.draftFinalCountdown = 5.0;
-      this.state.phaseEndsAt = 5.0;
+  private areAllClientsAssetsLoaded(): boolean {
+    if (this.clients.length < 2) return true;
+    return this.clients.every((c) => this.loadedAssetsClients.has(c.sessionId));
+  }
+
+  private handleClientAssetsLoaded(client: Client): void {
+    this.loadedAssetsClients.add(client.sessionId);
+    console.log(
+      `Room ${this.roomId}: Client ${client.sessionId} loaded assets (${this.loadedAssetsClients.size}/${this.clients.length})`,
+    );
+    if (this.waitingForAssets) {
+      this.checkAssetsAndProceed();
+    }
+  }
+
+  private startPostDraftCountdown(
+    attackerPicks?: string[],
+    defenderPicks?: string[],
+  ): void {
+    this.waitingForAssets = false;
+    this.draftFinalCountdown = 5.0;
+    this.state.phaseEndsAt = 5.0;
+    console.log(
+      `Room ${this.roomId}: All players loaded assets. Starting 5-second post-draft countdown`,
+    );
+
+    const aPicks =
+      attackerPicks ??
+      (() => {
+        const aClient = this.clients.find(
+          (c) =>
+            this.state.players.get(c.sessionId)?.role === "attacker" ||
+            c.userData?.role === "attacker",
+        );
+        return aClient ? this.acceptedDecks.get(aClient.sessionId) ?? [] : [];
+      })();
+
+    const dPicks =
+      defenderPicks ??
+      (() => {
+        const dClient = this.clients.find(
+          (c) =>
+            this.state.players.get(c.sessionId)?.role === "defender" ||
+            c.userData?.role === "defender",
+        );
+        return dClient ? this.acceptedDecks.get(dClient.sessionId) ?? [] : [];
+      })();
+
+    this.broadcast(MESSAGES.draftRoundUpdate, {
+      round: 3,
+      phaseEndsAt: 5,
+      attackerPicks: aPicks,
+      defenderPicks: dPicks,
+      attackerReady: true,
+      defenderReady: true,
+      isFinalReveal: true,
+      waitingForAssets: false,
+    });
+  }
+
+  private checkAssetsAndProceed(): void {
+    if (!this.waitingForAssets) return;
+    if (this.areAllClientsAssetsLoaded()) {
+      this.startPostDraftCountdown();
+    } else {
+      this.broadcast(MESSAGES.assetLoadingStatus, {
+        waitingForAssets: true,
+        loadedCount: this.loadedAssetsClients.size,
+        totalCount: this.clients.length,
+      });
     }
   }
 
@@ -1741,6 +1836,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.attackerBuffers.delete(client.sessionId);
     this.portalCharges.delete(client.sessionId);
     this.rematchVotes.delete(client.sessionId);
+    this.loadedAssetsClients.delete(client.sessionId);
+    if (this.waitingForAssets) {
+      this.checkAssetsAndProceed();
+    }
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 
@@ -1824,8 +1923,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.onSiegeExpired();
     }
 
-    // Handle 5-second post-draft countdown before advancing to building
-    if (this.state.phase === "drafting" && this.draftFinalCountdown !== null) {
+    // Handle asset loading gate and 5-second post-draft countdown before advancing to building
+    if (this.state.phase === "drafting" && this.waitingForAssets) {
+      this.assetWaitTimeout -= dt;
+      if (this.assetWaitTimeout <= 0) {
+        console.warn(
+          `Room ${this.roomId}: Asset loading timeout reached. Proceeding to post-draft countdown`,
+        );
+        this.startPostDraftCountdown();
+      }
+    } else if (this.state.phase === "drafting" && this.draftFinalCountdown !== null) {
       this.draftFinalCountdown -= dt;
       this.state.phaseEndsAt = Math.max(0, this.draftFinalCountdown);
 

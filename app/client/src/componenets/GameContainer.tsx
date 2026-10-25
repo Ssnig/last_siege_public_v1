@@ -124,7 +124,10 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     () => room.state?.players?.size === 2 && hasOwnRole(room),
   );
   const [statusText, setStatusText] = useState("Waiting for opponent to join...");
-  const [playerInfo, setPlayerInfo] = useState<PlayerInfo>({});
+  const [playerInfo, setPlayerInfo] = useState<PlayerInfo>(() => {
+    const role = room.state?.players?.get(room.sessionId)?.role as "attacker" | "defender" | undefined;
+    return role ? { myRole: role } : {};
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [surrenderConfirm, setSurrenderConfirm] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -404,7 +407,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
     const game = new Phaser.Game(config);
     game.registry.set('room', room);
-    game.registry.set('assignedRole', playerInfo.myRole);
+    const effectiveRole = playerInfo.myRole || room.state?.players?.get(room.sessionId)?.role;
+    game.registry.set('assignedRole', effectiveRole);
     game.registry.set('selectedTowerType', selectedTowerType);
     gameInstanceRef.current = game;
 
@@ -413,6 +417,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       gameInstanceRef.current = null;
     };
   }, [room, matchStarted, playerInfo]);
+
+  useEffect(() => {
+    const role = (playerInfo.myRole || room.state?.players?.get(room.sessionId)?.role) as 'attacker' | 'defender' | undefined;
+    if (gameInstanceRef.current && role) {
+      gameInstanceRef.current.registry.set('assignedRole', role);
+      const scene = gameInstanceRef.current.scene.getScene('GameScene') as any;
+      if (scene?.setAssignedRole) {
+        scene.setAssignedRole(role);
+      }
+    }
+  }, [playerInfo.myRole, room]);
 
   /**
    * Bridges the deploy bar's drag hit-testing into the live Phaser scene.

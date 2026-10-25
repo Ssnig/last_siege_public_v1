@@ -280,6 +280,21 @@ export class GameplayStage {
     }
   }
 
+  public setRole(role: "attacker" | "defender"): void {
+    this.role = role;
+  }
+
+  public get effectiveRole(): "attacker" | "defender" {
+    const authoritative = this.room?.state?.players?.get(this.room?.sessionId)?.role as
+      | "attacker"
+      | "defender"
+      | undefined;
+    if (authoritative === "attacker" || authoritative === "defender") {
+      return authoritative;
+    }
+    return this.role;
+  }
+
   create(): void {
     this.render();
 
@@ -297,7 +312,7 @@ export class GameplayStage {
     this.setupCameraControls();
     this.setupDebugControls();
 
-    if (this.role === "defender") {
+    if (this.effectiveRole === "defender") {
       this.renderTowerDeck();
       this.renderStartButton();
       this.renderGoldIndicator();
@@ -399,7 +414,7 @@ export class GameplayStage {
       }
 
       // The attacker taps a portal to push their queue through it.
-      if (this.role === "attacker") {
+      if (this.effectiveRole === "attacker") {
         const hit = this.scene.add
           .circle(portal.x, portal.y - 20, 52, 0xffffff, 0)
           .setDepth(DEPTH.PORTAL_LAYER + 0.004)
@@ -512,7 +527,7 @@ export class GameplayStage {
     // cancels any pending build/sale when the defender clicks empty ground.
     // Interactive objects added later (slots, towers, HUD) sit above it and win
     // Phaser's top-only hit test.
-    if (this.role === "defender") {
+    if (this.effectiveRole === "defender") {
       const zoneWidth = this.map.width || 1280;
       const zoneHeight = this.map.height || 720;
       const deselectZone = this.scene.add
@@ -605,7 +620,7 @@ export class GameplayStage {
         .setName("tower-slot");
       placeholder.setData("slotIndex", slot.slotIndex);
 
-      if (this.role === "defender") {
+      if (this.effectiveRole === "defender") {
         placeholder.setInteractive({ useHandCursor: true });
 
         placeholder.on("pointerover", () => {
@@ -754,6 +769,10 @@ export class GameplayStage {
     const existing = this.towers.get(slot.slotIndex);
     if (existing) {
       this.selectTower(slot, existing);
+      return;
+    }
+
+    if (this.effectiveRole !== "defender") {
       return;
     }
 
@@ -1011,7 +1030,7 @@ export class GameplayStage {
     const isMax = record.tower.level >= maxLevel;
     const upgradePrice = towerType ? upgradeCost(towerType, record.tower.level) : null;
     const refund = towerType ? sellRefund(record.tower.invested) : 0;
-    const isAttackerInspect = this.role === "attacker";
+    const isAttackerInspect = this.effectiveRole === "attacker";
 
     // Draw golden range ring matching current tier range
     const range = currentTier?.range ?? 0;
@@ -1335,7 +1354,7 @@ export class GameplayStage {
     const bannerHeight = bannerWidth / UI_BG_ASPECT.notification1;
 
     const bannerText =
-      this.role === "defender"
+      this.effectiveRole === "defender"
         ? "BUILDING PHASE — Place Your Towers"
         : "BUILDING PHASE — Defender is setting up defenses";
 
