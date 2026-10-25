@@ -174,45 +174,36 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             </div>
           </div>
 
-          {/* Top-Center: Exactly Centered Wave & Timer Banner with Pixel-Perfect Plaque Alignment */}
+          {/* Top-Center: Pure Royal Countdown Timer Plaque (No Wave sign, Clean Countdown for Both Sides) */}
           <div
-            className="pointer-events-auto fixed top-1.5 md:top-3 left-1/2 -translate-x-1/2 w-24 h-[60px] md:w-36 md:h-[88px] drop-shadow-[0_6px_14px_rgba(0,0,0,0.9)] transition-transform select-none"
+            className="pointer-events-auto fixed top-2 md:top-3 left-1/2 -translate-x-1/2 z-40 flex items-center justify-center px-4 py-1.5 md:px-5 md:py-2 rounded-full select-none transition-all duration-200"
             style={{
-              backgroundImage: "url('/assets/ui/hud/hud_wave_banner.png')",
-              backgroundSize: '100% 100%',
-              backgroundRepeat: 'no-repeat',
+              background: suddenDeath
+                ? 'linear-gradient(180deg, #4a0404 0%, #1f0202 100%)'
+                : 'linear-gradient(180deg, #3a0a0e 0%, #1a0507 100%)',
+              border: suddenDeath ? '2px solid #ef4444' : '2px solid #d4af37',
+              boxShadow: suddenDeath
+                ? '0 0 16px rgba(239, 68, 68, 0.7), inset 0 1px 0 rgba(254, 202, 202, 0.4)'
+                : '0 4px 14px rgba(0,0,0,0.85), 0 0 10px rgba(212, 175, 55, 0.35), inset 0 1px 0 rgba(254, 240, 138, 0.3)',
             }}
           >
-            {/* Phase tag — replaces the old full-text swap so the clock stays visible */}
-            {phase === 'building' && (
-              <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
-                <span className="font-['Almendra',serif] font-black text-[9px] sm:text-[10px] md:text-xs tracking-[0.15em] sm:tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-amber-300">
-                  🛠 BUILD
-                </span>
-              </div>
-            )}
-            {phase === 'combat' && (
-              <div className="absolute top-[6%] inset-x-0 flex items-center justify-center pointer-events-none">
-                <span
-                  className={`font-['Almendra',serif] font-black text-[10px] md:text-xs tracking-[0.2em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] ${
-                    suddenDeath ? 'text-fuchsia-300' : 'text-red-300'
-                  }`}
-                >
-                  {suddenDeath ? '☠ DEATH' : '⚔ COMBAT'}
-                </span>
-              </div>
-            )}
+            {/* Clock / Death icon */}
+            <span className="text-amber-400 text-xs sm:text-sm mr-1.5 drop-shadow">
+              {suddenDeath ? '☠' : '⏱'}
+            </span>
 
-            {/* Live Numeric Countdown Clock — Exactly aligned in the lower golden plaque */}
-            <div className="absolute top-[70%] h-[22%] inset-x-0 flex items-center justify-center pointer-events-none">
-               <span
-                 className={`font-['Almendra',serif] font-bold text-xs md:text-[15px] tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] ${
-                   suddenDeath ? 'text-fuchsia-200' : 'text-amber-100'
-                 }`}
-               >
-                 {suddenDeath ? 'NOW' : timeFormatted}
-               </span>
-            </div>
+            {/* Prominent Live Numeric Countdown */}
+            <span
+              className={`font-['Cinzel','Almendra',serif] font-black text-sm sm:text-base md:text-lg tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] ${
+                suddenDeath
+                  ? 'text-red-300 animate-pulse'
+                  : secondsRemaining <= 10
+                    ? 'text-amber-300 animate-pulse'
+                    : 'text-[#fff5d6]'
+              }`}
+            >
+              {suddenDeath ? 'SUDDEN DEATH' : timeFormatted}
+            </span>
           </div>
 
           {/* Top-Right: Settings Medallion + Dynamic Castle HP Indicator */}

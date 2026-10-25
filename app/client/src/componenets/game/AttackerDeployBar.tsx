@@ -27,8 +27,8 @@ interface AttackerDeployBarProps {
   isUIHidden?: boolean;
 }
 
-const NEON = 'rgba(0, 240, 255, 0.55)';
-const NEON_SOFT = 'rgba(0, 240, 255, 0.25)';
+const GOLD_BORDER = 'rgba(212, 175, 55, 0.75)';
+const GOLD_SOFT = 'rgba(251, 191, 36, 0.2)';
 /** Pixel travel before a press becomes a drag rather than a stray tap. */
 const DRAG_THRESHOLD = 6;
 
@@ -70,13 +70,13 @@ const ChargeRing: React.FC<{ progress: number }> = ({ progress }) => {
 
   return (
     <svg width={20} height={20} viewBox="0 0 20 20" aria-hidden>
-      <circle cx={10} cy={10} r={radius} fill="none" stroke="rgba(100,116,139,0.45)" strokeWidth={2.5} />
+      <circle cx={10} cy={10} r={radius} fill="none" stroke="rgba(120,53,15,0.4)" strokeWidth={2.5} />
       <circle
         cx={10}
         cy={10}
         r={radius}
         fill="none"
-        stroke="rgba(34,211,238,0.95)"
+        stroke="rgba(245,158,11,0.95)"
         strokeWidth={2.5}
         strokeLinecap="round"
         strokeDasharray={circumference}
@@ -304,7 +304,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
         <button
           onClick={() => setIsCollapsed((prev) => !prev)}
           aria-label={isCollapsed ? 'Expand Deploy Controls' : 'Collapse Deploy Controls'}
-          className="px-2.5 py-0.5 rounded-t-md bg-[#101b3b]/95 border-t border-x border-cyan-400/60 text-[10px] text-cyan-300 font-bold uppercase tracking-wider shadow-md hover:bg-slate-900 transition flex items-center gap-1 cursor-pointer select-none"
+          className="px-3 py-0.5 rounded-t-md bg-gradient-to-r from-red-950/95 via-[#450a0a]/95 to-red-950/95 border-t border-x border-amber-500/70 text-[10px] text-amber-300 font-bold uppercase tracking-wider shadow-md hover:brightness-110 transition flex items-center gap-1 cursor-pointer select-none"
         >
           <span>{isCollapsed ? '▲' : '▼'}</span>
           <span className="text-[9px]">{isCollapsed ? 'Deploy Army' : 'Hide Bar'}</span>
@@ -319,9 +319,9 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
         <div
           className="flex items-stretch gap-1.5 rounded-lg px-2 py-1.5 shadow-2xl drop-shadow-[0_8px_20px_rgba(0,0,0,0.9)]"
           style={{
-            background: 'linear-gradient(180deg, #101b3b 0%, #0a1128 100%)',
-            border: `1px solid ${NEON}`,
-            boxShadow: `0 0 14px rgba(0,0,0,0.85), inset 0 0 8px ${NEON_SOFT}`,
+            background: 'linear-gradient(180deg, #2b0b0e 0%, #150608 100%)',
+            border: `1.5px solid ${GOLD_BORDER}`,
+            boxShadow: `0 0 16px rgba(0,0,0,0.9), inset 0 0 10px ${GOLD_SOFT}`,
           }}
         >
           {/* Unit palette: tap to queue one, hold to queue many. Scrolls so the
@@ -338,7 +338,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                   onPointerLeave={stopHold}
                   onPointerCancel={stopHold}
                   disabled={disabled}
-                  className="flex w-[44px] sm:w-[52px] flex-shrink-0 flex-col items-center gap-0.5 rounded p-0.5 transition active:scale-95 disabled:opacity-40"
+                  className="flex w-[44px] sm:w-[52px] flex-shrink-0 flex-col items-center gap-0.5 rounded border border-amber-900/40 hover:border-amber-500/60 hover:bg-[#450a0a]/50 p-0.5 transition active:scale-95 disabled:opacity-40 cursor-pointer"
                   title={`Queue ${MOB_TYPES[typeId]?.name ?? typeId} (${cost}g)`}
                 >
                   <UnitIcon typeId={typeId} className="h-6 w-6 sm:h-7 sm:w-7" />
@@ -351,21 +351,21 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
             })}
           </div>
 
-          <div className="mx-0.5 h-8 w-px flex-shrink-0 self-center bg-slate-600/60" aria-hidden />
+          <div className="mx-0.5 h-8 w-px flex-shrink-0 self-center bg-gradient-to-b from-transparent via-amber-500/50 to-transparent" aria-hidden />
 
           {/* Queue: only the lead unit's artwork plus a count, so it never grows.
               Dragging this icon deploys the queue onto whatever portal you drop
               it on (in the bar or on the map). */}
           <div className="flex flex-shrink-0 flex-col justify-center gap-1">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[9px] font-black uppercase tracking-wider text-cyan-200">
+              <span className="text-[9px] font-black uppercase tracking-wider text-amber-200">
                 Queue {queued.length}/{buffer.maxBufferUnits}
               </span>
               {queued.length > 0 && (
                 <button
                   onClick={() => send(MESSAGES.bufferClear)}
                   disabled={bufferLocked}
-                  className="h-4 w-4 rounded bg-red-900/80 text-[11px] font-black leading-none text-red-100 transition hover:bg-red-800 disabled:opacity-40"
+                  className="h-4 w-4 rounded bg-red-950/90 border border-amber-600/50 text-[11px] font-black leading-none text-amber-200 transition hover:bg-red-800 disabled:opacity-40 cursor-pointer"
                   title="Clear queue (gold refunded)"
                 >
                   ×
@@ -379,7 +379,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                   onPointerMove={moveDrag}
                   onPointerUp={endDrag}
                   onPointerCancel={endDrag}
-                  className={`relative flex h-8 w-8 items-center justify-center rounded border border-white/20 ${
+                  className={`relative flex h-8 w-8 items-center justify-center rounded border border-amber-400/60 shadow-[0_0_8px_rgba(212,175,55,0.4)] ${
                     canDrag ? 'cursor-grab touch-none active:cursor-grabbing' : ''
                   }`}
                   style={thumbStyle(lead)}
@@ -387,7 +387,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                 >
                   <UnitIcon typeId={lead} className="pointer-events-none h-7 w-7" />
                   {queued.length > 1 && (
-                    <span className="pointer-events-none absolute -bottom-1.5 -right-1.5 rounded-full bg-cyan-400 px-1 text-[9px] font-black leading-tight text-slate-900">
+                    <span className="pointer-events-none absolute -bottom-1.5 -right-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-1 text-[9px] font-black leading-tight text-slate-950 shadow">
                       ×{queued.length}
                     </span>
                   )}
@@ -398,7 +398,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
             </div>
           </div>
 
-          <div className="mx-0.5 h-8 w-px flex-shrink-0 self-center bg-slate-600/60" aria-hidden />
+          <div className="mx-0.5 h-8 w-px flex-shrink-0 self-center bg-gradient-to-b from-transparent via-amber-500/50 to-transparent" aria-hidden />
 
           {/* Portal buttons: tap to stream the queue out of that portal, or drop
               the dragged queue icon onto one. A forked portal asks first. */}
@@ -425,12 +425,13 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                     idlePulse && !highlighted ? 'animate-pulse' : ''
                   } ${canPush || idlePulse ? '' : 'opacity-40'}`}
                   style={{
-                    borderColor: highlighted ? '#67e8f9' : canPush ? NEON : 'rgba(148,163,184,0.35)',
+                    borderColor: highlighted ? '#ffe066' : canPush ? GOLD_BORDER : 'rgba(180,83,9,0.35)',
                     background: highlighted
-                      ? 'rgba(0,240,255,0.22)'
+                      ? 'rgba(251,191,36,0.25)'
                       : canPush
-                        ? 'rgba(0,240,255,0.08)'
-                        : 'rgba(15,23,42,0.6)',
+                        ? 'rgba(212,175,55,0.12)'
+                        : 'rgba(30,10,12,0.6)',
+                    boxShadow: highlighted ? '0 0 12px rgba(251,191,36,0.6)' : undefined,
                   }}
                   title={`Deploy through Portal ${index + 1} (${portal.charges}/${portal.maxCharges} charges)`}
                 >
@@ -443,7 +444,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                       (e.target as HTMLElement).style.display = 'none';
                     }}
                   />
-                  <span className="text-[10px] font-black uppercase tracking-wide text-cyan-100">
+                  <span className="text-[10px] font-black uppercase tracking-wide text-amber-200">
                     P{index + 1}
                   </span>
                   <span className="flex items-center gap-[3px]">
@@ -452,7 +453,8 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                         key={i}
                         className="h-1.5 w-1.5 rounded-full"
                         style={{
-                          background: i < portal.charges ? 'rgba(34,211,238,0.95)' : 'rgba(100,116,139,0.45)',
+                          background: i < portal.charges ? '#34d399' : 'rgba(80,40,30,0.5)',
+                          boxShadow: i < portal.charges ? '0 0 4px #34d399' : undefined,
                         }}
                       />
                     ))}
@@ -474,7 +476,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
             style={{ transform: `translate(${drag.x}px, ${drag.y}px) translate(-50%, -50%)` }}
           >
             <div
-              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.85)]"
+              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.85)]"
               style={thumbStyle(drag.typeId)}
             >
               <UnitIcon typeId={drag.typeId} className="h-9 w-9" />
@@ -500,11 +502,12 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
               <div
                 className="flex flex-col items-stretch gap-1 rounded-lg border px-2 py-1.5 shadow-2xl"
                 style={{
-                  borderColor: NEON,
-                  background: 'linear-gradient(180deg, #101b3b 0%, #0a1128 100%)',
+                  border: '1.5px solid #d4af37',
+                  background: 'linear-gradient(180deg, #2b0b0e 0%, #150608 100%)',
+                  boxShadow: '0 0 20px rgba(0,0,0,0.9), inset 0 0 10px rgba(251,191,36,0.15)',
                 }}
               >
-                <span className="text-center text-[9px] font-black uppercase tracking-wider text-cyan-200">
+                <span className="text-center text-[9px] font-black uppercase tracking-wider text-amber-200">
                   Choose path
                 </span>
                 <div className="flex gap-1">
@@ -512,10 +515,10 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                     <button
                       key={path.id}
                       onClick={() => choosePath(path.id)}
-                      className="rounded border px-2 py-1 text-[10px] font-black uppercase tracking-wide text-cyan-100 transition active:scale-95"
+                      className="rounded border px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-100 transition active:scale-95 hover:brightness-110"
                       style={{
-                        borderColor: NEON,
-                        background: 'rgba(0,240,255,0.08)',
+                        borderColor: GOLD_BORDER,
+                        background: 'rgba(212,175,55,0.15)',
                       }}
                     >
                       {path.label}
