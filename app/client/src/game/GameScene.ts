@@ -148,6 +148,8 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet("chinthe_attack_sheet", "/assets/towers/08_chinthe_statue/chinthe_attack.png", { frameWidth: 688, frameHeight: 768 });
     // Dragon attack - 3 rows x 4 cols
     this.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
+    // Sein Pyaung projectile & hit VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
   }
 
 
@@ -179,6 +181,15 @@ export class GameScene extends Phaser.Scene {
       if (!this.anims.exists("dragon_splash_anim")) {
         // second row starts at index 4 (row 1, col 0)
         this.anims.create({ key: "dragon_splash_anim", frames: this.anims.generateFrameNumbers("dragon_attack_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
+    // Sein Pyaung projectile (top row 0..3) and hit VFX (bottom row 4..7)
+    if (this.textures.exists("sein_pyaung_vfx_sheet")) {
+      if (!this.anims.exists("sein_pyaung_proj_anim")) {
+        this.anims.create({ key: "sein_pyaung_proj_anim", frames: this.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("sein_pyaung_splash_anim")) {
+        this.anims.create({ key: "sein_pyaung_splash_anim", frames: this.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
       }
     }
 

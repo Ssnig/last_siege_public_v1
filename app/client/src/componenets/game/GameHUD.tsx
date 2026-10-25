@@ -43,6 +43,7 @@ const TOWER_SHORT_NAMES: Record<string, string> = {
   pitchfork: 'Spr',
   gun: 'Gun',
   sniper: 'Gun',
+  sein_pyaung: 'SnP',
 };
 
 const TOWER_ICONS: Record<string, string> = {
@@ -50,7 +51,7 @@ const TOWER_ICONS: Record<string, string> = {
   basic: '/assets/towers/01_archer_tower/icon.png',
   cannon: '/assets/towers/02_cannon/icon.png',
   bomb: '/assets/towers/03_bomb_throwing_tower/icon.png',
-  bell: '/assets/towers/04_bell_tower/icon.png',
+  bell: '/assets/towers/04_bell_tower/icon.jpg',
   spear: '/assets/towers/05_spear_tower/icon.png',
   pitchfork: '/assets/towers/05_spear_tower/icon.png',
   gun: '/assets/towers/06_gun_tower/icon.png',
@@ -58,6 +59,7 @@ const TOWER_ICONS: Record<string, string> = {
   water_cannon: '/assets/towers/07_water_cannon/icon.jpg',
   chinthe: '/assets/towers/08_chinthe_statue/icon.jpg',
   dragon: '/assets/towers/09_dragon_tower/icon.jpg',
+  sein_pyaung: '/assets/towers/10_sein_pyaung/icon.jpg',
 };
 
 export const GameHUD: React.FC<GameHUDProps> = ({

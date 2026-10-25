@@ -6,16 +6,16 @@
  * generic banner glyph at the call site.
  */
 export const MOB_ICONS: Record<string, string> = {
-  grunt: '/assets/sprites/unit_warrior.png',
-  runner: '/assets/units/horse_rider/face.png',
   horse_rider: '/assets/units/horse_rider/face.png',
   sar_bal_gyi: '/assets/units/sar_bal_gyi/face.png',
   gya_pu: '/assets/units/gya_pu/face.png',
   a_ba: '/assets/units/a_ba/face.png',
   chon_toe: '/assets/units/chon_toe/face.png',
-  brute: '/assets/units/sar_bal_gyi/face.png',
-  shade: '/assets/units/shade/face.png',
-  spider: '/assets/units/spider/face.png',
+  elephant_rider: '/assets/units/elephant_rider/face.jpg',
+  monkey: '/assets/units/monkey/face.jpg',
+  say_sayar: '/assets/units/say_sayar/face.jpg',
+  shield_guy: '/assets/units/shield_guy/face.jpg',
+  doe_pat: '/assets/units/doe_pat/face.jpg',
 };
 
 /** Portal sprites, indexed by portal order (portal 1 uses `spawn1.png`). */

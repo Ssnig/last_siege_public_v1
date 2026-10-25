@@ -1,0 +1,15 @@
+{
+  "id": "shield_guy",
+  "name": "Shield Bearer",
+  "frames": 8,
+  "cols": 4,
+  "rows": 2,
+  "frameWidth": 688,
+  "frameHeight": 768,
+  "frameRate": 7,
+  "scale": 0.085,
+  "origin": { "x": 0.5, "y": 0.85 },
+  "animations": {
+    "run": { "start": 0, "end": 7, "repeat": -1 }
+  }
+}

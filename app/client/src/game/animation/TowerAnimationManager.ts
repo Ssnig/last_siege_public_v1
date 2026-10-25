@@ -66,7 +66,40 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     frameRate: 10,
     scale: 0.12,
   },
+  bell: {
+    id: "bell",
+    sheetKey: "tower_bell_sheet",
+    sheetPath: "/assets/towers/04_bell_tower/bell_tower.png",
+    frameWidth: 688,
+    frameHeight: 768,
+    cols: 4,
+    rows: 2,
+    idleSE: [0, 1, 2, 3],
+    fireSE: [4, 5, 6, 7],
+    idleNE: [0, 1, 2, 3],
+    fireNE: [4, 5, 6, 7],
+    frameRate: 7,
+    scale: 0.12,
+  },
+  sein_pyaung: {
+    id: "sein_pyaung",
+    sheetKey: "tower_sein_pyaung_sheet",
+    sheetPath: "/assets/towers/10_sein_pyaung/sein_pyaung.png",
+    frameWidth: 688,
+    frameHeight: 768,
+    cols: 4,
+    rows: 2,
+    idleSE: [0, 1],
+    fireSE: [2, 3],
+    idleNE: [4, 5],
+    fireNE: [6, 7],
+    frameRate: 10,
+    scale: 0.12,
+  },
 };
+
+export const BELL_ATTACK_VFX_SHEET_KEY = "vfx_bell_attack_sheet";
+export const BELL_ATTACK_VFX_ANIM_KEY = "vfx_bell_attack";
 
 export class TowerAnimationManager {
   static preload(scene: Phaser.Scene): void {
@@ -101,6 +134,25 @@ export class TowerAnimationManager {
           });
         }
       }
+      if (manifest.id === "sein_pyaung") {
+        if (!scene.textures.exists("tower_sein_pyaung_sheet_mirrored")) {
+          scene.load.spritesheet("tower_sein_pyaung_sheet_mirrored", "/assets/towers/10_sein_pyaung/sein_pyaung_mirrored.png", {
+            frameWidth: manifest.frameWidth,
+            frameHeight: manifest.frameHeight,
+          });
+        }
+      }
+    }
+
+    if (!scene.textures.exists(BELL_ATTACK_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        BELL_ATTACK_VFX_SHEET_KEY,
+        "/assets/towers/04_bell_tower/attack_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
     }
   }
 
@@ -145,7 +197,89 @@ export class TowerAnimationManager {
           if (!scene.anims.exists("dragon_idle_sw")) scene.anims.create({ key: "dragon_idle_sw", frames: scene.anims.generateFrameNumbers("tower_dragon_sheet_mirrored", { frames: manifest.idleSE }), frameRate: manifest.frameRate, repeat: -1 });
           if (!scene.anims.exists("dragon_fire_sw")) scene.anims.create({ key: "dragon_fire_sw", frames: scene.anims.generateFrameNumbers("tower_dragon_sheet_mirrored", { frames: manifest.fireSE }), frameRate: manifest.frameRate * 1.2, repeat: 0 });
         }
+      } else if (manifest.id === "sein_pyaung") {
+        if (scene.textures.exists(manifest.sheetKey)) {
+          if (!scene.anims.exists("sein_pyaung_idle_se")) scene.anims.create({ key: "sein_pyaung_idle_se", frames: scene.anims.generateFrameNumbers(manifest.sheetKey, { frames: manifest.idleSE }), frameRate: manifest.frameRate, repeat: -1 });
+          if (!scene.anims.exists("sein_pyaung_fire_se")) scene.anims.create({ key: "sein_pyaung_fire_se", frames: scene.anims.generateFrameNumbers(manifest.sheetKey, { frames: manifest.fireSE }), frameRate: manifest.frameRate * 1.2, repeat: 0 });
+          if (!scene.anims.exists("sein_pyaung_idle_ne")) scene.anims.create({ key: "sein_pyaung_idle_ne", frames: scene.anims.generateFrameNumbers(manifest.sheetKey, { frames: manifest.idleNE }), frameRate: manifest.frameRate, repeat: -1 });
+          if (!scene.anims.exists("sein_pyaung_fire_ne")) scene.anims.create({ key: "sein_pyaung_fire_ne", frames: scene.anims.generateFrameNumbers(manifest.sheetKey, { frames: manifest.fireNE }), frameRate: manifest.frameRate * 1.2, repeat: 0 });
+        }
+        if (scene.textures.exists("tower_sein_pyaung_sheet_mirrored")) {
+          if (!scene.anims.exists("sein_pyaung_idle_nw")) scene.anims.create({ key: "sein_pyaung_idle_nw", frames: scene.anims.generateFrameNumbers("tower_sein_pyaung_sheet_mirrored", { frames: manifest.idleNE }), frameRate: manifest.frameRate, repeat: -1 });
+          if (!scene.anims.exists("sein_pyaung_fire_nw")) scene.anims.create({ key: "sein_pyaung_fire_nw", frames: scene.anims.generateFrameNumbers("tower_sein_pyaung_sheet_mirrored", { frames: manifest.fireNE }), frameRate: manifest.frameRate * 1.2, repeat: 0 });
+          if (!scene.anims.exists("sein_pyaung_idle_sw")) scene.anims.create({ key: "sein_pyaung_idle_sw", frames: scene.anims.generateFrameNumbers("tower_sein_pyaung_sheet_mirrored", { frames: manifest.idleSE }), frameRate: manifest.frameRate, repeat: -1 });
+          if (!scene.anims.exists("sein_pyaung_fire_sw")) scene.anims.create({ key: "sein_pyaung_fire_sw", frames: scene.anims.generateFrameNumbers("tower_sein_pyaung_sheet_mirrored", { frames: manifest.fireSE }), frameRate: manifest.frameRate * 1.2, repeat: 0 });
+        }
+      } else if (manifest.id === "bell") {
+        if (scene.textures.exists(manifest.sheetKey)) {
+          if (!scene.anims.exists("bell_idle")) {
+            scene.anims.create({
+              key: "bell_idle",
+              frames: scene.anims.generateFrameNumbers(manifest.sheetKey, {
+                frames: manifest.idleSE,
+              }),
+              frameRate: manifest.frameRate,
+              repeat: -1,
+            });
+          }
+          if (!scene.anims.exists("bell_attack")) {
+            scene.anims.create({
+              key: "bell_attack",
+              frames: scene.anims.generateFrameNumbers(manifest.sheetKey, {
+                frames: manifest.fireSE,
+              }),
+              frameRate: manifest.frameRate * 1.2,
+              repeat: 0,
+            });
+          }
+        }
       }
     }
+
+    if (
+      scene.textures.exists(BELL_ATTACK_VFX_SHEET_KEY) &&
+      !scene.anims.exists(BELL_ATTACK_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(BELL_ATTACK_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: BELL_ATTACK_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(BELL_ATTACK_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(7, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 12,
+          repeat: 0,
+        });
+      }
+    }
+  }
+
+  /**
+   * Spawns a one-shot bell attack VFX sprite at `(x, y)` that destroys itself when finished.
+   */
+  static spawnBellAttackVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (
+      !scene.textures.exists(BELL_ATTACK_VFX_SHEET_KEY) ||
+      !scene.anims.exists(BELL_ATTACK_VFX_ANIM_KEY)
+    ) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, BELL_ATTACK_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.75)
+      .setScale(0.11);
+
+    vfx.play(BELL_ATTACK_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${BELL_ATTACK_VFX_ANIM_KEY}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
   }
 }

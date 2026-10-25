@@ -54,6 +54,10 @@ export const MESSAGES = {
   rematch: "rematch",
   /** Server → client (broadcast): rematch vote count and requester info. */
   rematchUpdate: "rematch_update",
+  /** Server → client (broadcast): a mob triggered an active ability (e.g. heal aura). */
+  mobAbility: "mob_ability",
+  /** Server → client (broadcast): a non-projectile AoE tower (e.g. Bell Tower) pulsed. */
+  towerAttack: "tower_attack",
 } as const;
 
 /** Payload of the `role_assigned` private message. */
@@ -252,4 +256,26 @@ export interface RematchUpdatePayload {
   votes: number;
   total: number;
   requesterSessionId: string;
+}
+
+/** Payload of the `mob_ability` broadcast message. */
+export interface MobAbilityPayload {
+  /** Server mob id of the caster (e.g. "mob-1-top-0"). */
+  casterId: string;
+  /** Ability archetype that fired. */
+  abilityType: "heal_aura" | "speed_aura";
+  /** Server mob ids of all allied mobs affected by this ability cast. */
+  targetIds: string[];
+}
+
+/** Payload of the `tower_attack` broadcast message for AoE pulse towers. */
+export interface TowerAttackPayload {
+  /** Slot index of the attacking tower. */
+  slotIndex: number;
+  /** Tower archetype id (e.g. "bell"). */
+  typeId: string;
+  /** Server mob ids of all mobs hit by this AoE pulse. */
+  targetIds: string[];
+  /** World positions of hit mobs (used as fallback if a mob died on the same tick). */
+  targets: Array<{ id: string; x: number; y: number }>;
 }

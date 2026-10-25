@@ -10,8 +10,10 @@ import {
   mapPortals,
   type MapDefinition,
   type Mob,
+  type MobAbilityPayload,
   type Projectile,
   type Tower,
+  type TowerAttackPayload,
   type Vec2,
   type YouEconomyPayload,
   type AttackerBufferPayload,
@@ -22,6 +24,7 @@ import {
   upgradeCost,
   tierAt,
   getTowerDesign,
+  TOWER_AIM_PIVOT_Y_OFFSET,
 } from "@root/shared";
 import { UIButton } from "../ui/UIButton";
 import { TowerCard } from "../ui/TowerCard";
@@ -101,11 +104,15 @@ type TowerRecord = {
 type MobRecord = {
   /** Server id of the mob, used to resolve a tower's current target. */
   id: string;
+  /** Mob archetype id (e.g. "say_sayar"). */
+  typeId: string;
   /** Last computed world x of the mob body. */
   x: number;
   sprite: Phaser.GameObjects.Sprite;
   hpBg: Phaser.GameObjects.Rectangle;
   hpFill: Phaser.GameObjects.Rectangle;
+  /** Active VFX sprites (e.g. heal aura) riding on this mob. */
+  vfxSprites?: Set<Phaser.GameObjects.Sprite>;
 };
 
 /** A portal: its spin sprite plus the charge pips drawn above it. */
@@ -1445,9 +1452,33 @@ export class GameplayStage {
     const design = getTowerDesign(tower.typeId);
 
     let sprite: Phaser.GameObjects.Sprite;
-    if (design.id === "water_cannon" || design.id === "chinthe" || design.id === "dragon") {
-      const sheetKey = design.id === "water_cannon" ? "tower_water_cannon_sheet" : design.id === "chinthe" ? "tower_chinthe_sheet" : "tower_dragon_sheet";
-      const idleKey = design.id === "water_cannon" ? "water_cannon_idle_ne" : design.id === "chinthe" ? "chinthe_idle_ne" : "dragon_idle_ne";
+    if (
+      design.id === "water_cannon" ||
+      design.id === "chinthe" ||
+      design.id === "dragon" ||
+      design.id === "bell" ||
+      design.id === "sein_pyaung"
+    ) {
+      const sheetKey =
+        design.id === "water_cannon"
+          ? "tower_water_cannon_sheet"
+          : design.id === "chinthe"
+            ? "tower_chinthe_sheet"
+            : design.id === "dragon"
+              ? "tower_dragon_sheet"
+              : design.id === "sein_pyaung"
+                ? "tower_sein_pyaung_sheet"
+                : "tower_bell_sheet";
+      const idleKey =
+        design.id === "water_cannon"
+          ? "water_cannon_idle_ne"
+          : design.id === "chinthe"
+            ? "chinthe_idle_ne"
+            : design.id === "dragon"
+              ? "dragon_idle_ne"
+              : design.id === "sein_pyaung"
+                ? "sein_pyaung_idle_ne"
+                : "bell_idle";
       if (this.scene.textures.exists(sheetKey)) {
         sprite = this.scene.add
           .sprite(slot.x, slot.y, sheetKey)
@@ -1558,7 +1589,14 @@ export class GameplayStage {
         .setOrigin(0, 0.5)
         .setDepth(DEPTH.ACTORS_LAYER + 2);
 
-      const record: MobRecord = { id: String(key), x: 0, sprite, hpBg, hpFill };
+      const record: MobRecord = {
+        id: String(key),
+        typeId: mob.typeId,
+        x: 0,
+        sprite,
+        hpBg,
+        hpFill,
+      };
       this.mobSprites.set(mob, record);
       this.mobsById.set(record.id, record);
       // Same y-sorted layer as towers, so the two occlude by world y.
@@ -1569,6 +1607,8 @@ export class GameplayStage {
     const onRemove = (value: unknown): void => {
       const record = this.mobSprites.get(value as Mob);
       if (!record) return;
+      record.vfxSprites?.forEach((vfx) => vfx.destroy());
+      record.vfxSprites?.clear();
       record.sprite.destroy();
       record.hpBg.destroy();
       record.hpFill.destroy();
@@ -1579,6 +1619,108 @@ export class GameplayStage {
     // Third parameter `true` immediately renders mobs already present in state.
     this.unsubscribers.push(callbacks.onAdd("mobs", onAdd, true));
     this.unsubscribers.push(callbacks.onRemove("mobs", onRemove));
+
+    const offMobAbility = this.room.onMessage(
+      MESSAGES.mobAbility,
+      (payload: MobAbilityPayload) => {
+        if (this.destroyed) return;
+
+        const caster = this.mobsById.get(payload.casterId);
+        if (caster) {
+          UnitAnimationManager.playCastAnimation(
+            this.scene,
+            caster.sprite,
+            caster.typeId,
+          );
+        }
+
+        if (
+          payload.abilityType === "heal_aura" ||
+          payload.abilityType === "speed_aura"
+        ) {
+          for (const targetId of payload.targetIds) {
+            const target = this.mobsById.get(targetId);
+            if (!target) continue;
+
+            const vfx =
+              payload.abilityType === "heal_aura"
+                ? UnitAnimationManager.spawnHealVfx(
+                    this.scene,
+                    target.sprite.x,
+                    target.sprite.y,
+                  )
+                : UnitAnimationManager.spawnSpeedBoostVfx(
+                    this.scene,
+                    target.sprite.x,
+                    target.sprite.y,
+                  );
+            if (vfx) {
+              vfx.setDepth(target.sprite.depth + 0.0001);
+              (this.actors ?? this.root)?.add(vfx);
+              if (!target.vfxSprites) {
+                target.vfxSprites = new Set();
+              }
+              target.vfxSprites.add(vfx);
+              vfx.once(Phaser.GameObjects.Events.DESTROY, () => {
+                target.vfxSprites?.delete(vfx);
+              });
+            }
+          }
+        }
+      },
+    );
+    this.unsubscribers.push(offMobAbility);
+
+    const offTowerAttack = this.room.onMessage(
+      MESSAGES.towerAttack,
+      (payload: TowerAttackPayload) => {
+        if (this.destroyed) return;
+
+        const towerRecord = this.towers.get(payload.slotIndex);
+        if (towerRecord && getTowerDesign(payload.typeId).id === "bell") {
+          const sprite = towerRecord.sprite as Phaser.GameObjects.Sprite;
+          if (this.scene.anims.exists("bell_attack")) {
+            sprite.setTexture("tower_bell_sheet");
+            sprite.play("bell_attack");
+            sprite.once("animationcomplete-bell_attack", () => {
+              if (sprite.active && this.scene.anims.exists("bell_idle")) {
+                sprite.setTexture("tower_bell_sheet");
+                sprite.play("bell_idle");
+              }
+            });
+          }
+        }
+
+        if (getTowerDesign(payload.typeId).id === "bell") {
+          for (const hit of payload.targets) {
+            const target = this.mobsById.get(hit.id);
+            const x = target ? target.sprite.x : hit.x;
+            const y = target ? target.sprite.y : hit.y;
+            const vfx = TowerAnimationManager.spawnBellAttackVfx(
+              this.scene,
+              x,
+              y,
+            );
+            if (!vfx) continue;
+
+            (this.actors ?? this.root)?.add(vfx);
+            if (target) {
+              vfx.setDepth(target.sprite.depth + 0.0001);
+              if (!target.vfxSprites) {
+                target.vfxSprites = new Set();
+              }
+              target.vfxSprites.add(vfx);
+              vfx.once(Phaser.GameObjects.Events.DESTROY, () => {
+                target.vfxSprites?.delete(vfx);
+              });
+            } else {
+              vfx.setDepth(actorDepth(y) + 0.0001);
+            }
+          }
+        }
+      },
+    );
+    this.unsubscribers.push(offTowerAttack);
   }
 
   /** Per-frame pass repositioning every tracked mob sprite and its health bar. */
@@ -1595,6 +1737,20 @@ export class GameplayStage {
 
     for (const record of this.towers.values()) {
       const design = getTowerDesign(record.tower.typeId);
+      if (design.id === "bell") {
+        const sprite = record.sprite as Phaser.GameObjects.Sprite;
+        const cur = sprite.anims?.currentAnim?.key || "";
+        if (
+          !(cur === "bell_attack" && sprite.anims?.isPlaying) &&
+          this.scene.anims.exists("bell_idle")
+        ) {
+          if (cur !== "bell_idle" || !sprite.anims?.isPlaying) {
+            sprite.setTexture("tower_bell_sheet");
+            sprite.play("bell_idle");
+          }
+        }
+        continue;
+      }
       if (design.id === "cannon" || design.id === "bomb") {
         const targetId = record.tower.targetId;
         if (!targetId) continue;
@@ -1604,7 +1760,12 @@ export class GameplayStage {
         if (Math.abs(dx) > 0.5) record.sprite.setFlipX(dx < 0);
         continue;
       }
-      if (design.id === "water_cannon" || design.id === "chinthe" || design.id === "dragon") {
+      if (
+        design.id === "water_cannon" ||
+        design.id === "chinthe" ||
+        design.id === "dragon" ||
+        design.id === "sein_pyaung"
+      ) {
         const targetId = record.tower.targetId;
         const sprite = record.sprite as Phaser.GameObjects.Sprite;
         let slotIndex = -1;
@@ -1619,6 +1780,7 @@ export class GameplayStage {
           if (design.id === "water_cannon") return { sheet: "tower_water_cannon_sheet", mirror: "tower_water_cannon_sheet_mirrored", pre: "water_cannon" };
           if (design.id === "chinthe") return { sheet: "tower_chinthe_sheet", mirror: "tower_chinthe_sheet_mirrored", pre: "chinthe" };
           if (design.id === "dragon") return { sheet: "tower_dragon_sheet", mirror: "tower_dragon_sheet_mirrored", pre: "dragon" };
+          if (design.id === "sein_pyaung") return { sheet: "tower_sein_pyaung_sheet", mirror: "tower_sein_pyaung_sheet_mirrored", pre: "sein_pyaung" };
           return { sheet: "tower_water_cannon_sheet", mirror: "tower_water_cannon_sheet_mirrored", pre: "water_cannon" };
         };
         const sh = getSheets();
@@ -1634,8 +1796,9 @@ export class GameplayStage {
         const target = this.mobsById.get(targetId);
         if (!target) { continue; }
 
+        const pivotY = sprite.y + TOWER_AIM_PIVOT_Y_OFFSET;
         const dx = target.x - sprite.x;
-        const dy = target.y - sprite.y;
+        const dy = target.y - pivotY;
         const enemyOnRight = dx >= 0;
         const enemyAbove = dy < 0;
 
@@ -1648,7 +1811,7 @@ export class GameplayStage {
                 if (t?.tower.targetId) {
                   const tt = this.mobsById.get(t.tower.targetId);
                   if (tt) {
-                    const tdx = tt.x - sprite.x; const tdy = tt.y - sprite.y;
+                    const tdx = tt.x - sprite.x; const tdy = tt.y - pivotY;
                     if (tdx < 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_nw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
                     else if (tdx < 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_sw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
                     else if (tdx >= 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_ne")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
@@ -1670,7 +1833,7 @@ export class GameplayStage {
                 if (t?.tower.targetId) {
                   const tt = this.mobsById.get(t.tower.targetId);
                   if (tt) {
-                    const tdx = tt.x - sprite.x; const tdy = tt.y - sprite.y;
+                    const tdx = tt.x - sprite.x; const tdy = tt.y - pivotY;
                     if (tdx < 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_nw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
                     else if (tdx < 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_sw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
                     else if (tdx >= 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_ne")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
@@ -1694,7 +1857,7 @@ export class GameplayStage {
                 if (t?.tower.targetId) {
                   const tt = this.mobsById.get(t.tower.targetId);
                   if (tt) {
-                    const tdx = tt.x - sprite.x; const tdy = tt.y - sprite.y;
+                    const tdx = tt.x - sprite.x; const tdy = tt.y - pivotY;
                     if (tdx < 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_nw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
                     else if (tdx < 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_sw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
                     else if (tdx >= 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_ne")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
@@ -1716,7 +1879,7 @@ export class GameplayStage {
                 if (t?.tower.targetId) {
                   const tt = this.mobsById.get(t.tower.targetId);
                   if (tt) {
-                    const tdx = tt.x - sprite.x; const tdy = tt.y - sprite.y;
+                    const tdx = tt.x - sprite.x; const tdy = tt.y - pivotY;
                     if (tdx < 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_nw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_nw"); }
                     else if (tdx < 0 && tdy >= 0 && this.scene.anims.exists(sh.pre + "_idle_sw")) { sprite.setTexture(sh.mirror); sprite.play(sh.pre + "_idle_sw"); }
                     else if (tdx >= 0 && tdy < 0 && this.scene.anims.exists(sh.pre + "_idle_ne")) { sprite.setTexture(sh.sheet); sprite.play(sh.pre + "_idle_ne"); }
@@ -1762,6 +1925,15 @@ export class GameplayStage {
     record.sprite.setPosition(point.x, point.y);
     record.sprite.setDepth(actorDepth(point.y));
     record.x = point.x;
+
+    if (record.vfxSprites && record.vfxSprites.size > 0) {
+      record.vfxSprites.forEach((vfx) => {
+        if (vfx.active) {
+          vfx.setPosition(point.x, point.y);
+          vfx.setDepth(actorDepth(point.y) + 0.0001);
+        }
+      });
+    }
 
     // Status tint: a slowed mob reads cold blue, a cracked one violet.
     record.sprite.setTint(this.mobEffectTint(mob));
@@ -1864,12 +2036,37 @@ export class GameplayStage {
         } else {
           sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
         }
+      } else if (design.id === "sein_pyaung") {
+        if (!this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
+          this.scene.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "sein_pyaung_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.05).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("sein_pyaung_proj_anim")) {
+            this.scene.anims.create({ key: "sein_pyaung_proj_anim", frames: this.scene.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+          }
+          sprite.play("sein_pyaung_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
       } else {
         sprite = this.scene.add
           .sprite(projectile.x, projectile.y, textureKey)
           .setOrigin(0.5, 0.5)
           .setDisplaySize(28, 28)
           .setDepth(DEPTH.PROJECTILES_LAYER);
+      }
+
+      const initialTarget = projectile.targetId
+        ? this.mobsById.get(projectile.targetId)
+        : undefined;
+      if (initialTarget) {
+        const idx = initialTarget.x - projectile.x;
+        const idy = initialTarget.y - projectile.y;
+        if (idx * idx + idy * idy > 0.01) {
+          sprite.setRotation(Math.atan2(idy, idx));
+        }
       }
 
       this.projectileSprites.set(projectile, sprite);
@@ -1906,6 +2103,20 @@ export class GameplayStage {
             this.scene.anims.create({ key: "dragon_splash_anim", frames: this.scene.anims.generateFrameNumbers("dragon_attack_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
           splash.play("dragon_splash_anim");
+          splash.once("animationcomplete", () => splash.destroy());
+          (this.root ?? this.actors ?? this.scene).add(splash);
+        }
+      } else if (design.id === "sein_pyaung") {
+        if (!this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
+          this.scene.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
+          const splash = this.scene.add.sprite(sprite.x, sprite.y, "sein_pyaung_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          if (!this.scene.anims.exists("sein_pyaung_splash_anim")) {
+            this.scene.anims.create({ key: "sein_pyaung_splash_anim", frames: this.scene.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+          }
+          splash.play("sein_pyaung_splash_anim");
           splash.once("animationcomplete", () => splash.destroy());
           (this.root ?? this.actors ?? this.scene).add(splash);
         }

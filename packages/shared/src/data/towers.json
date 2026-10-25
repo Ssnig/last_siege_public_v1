@@ -97,12 +97,13 @@
     "id": "bell",
     "name": "Bell Tower",
     "damageType": "mental",
+    "attackMode": "aoe_pulse",
     "tiers": [
       {
         "cost": 95,
         "damage": 12,
         "range": 135,
-        "fireRate": 1.2,
+        "fireRate": 0.45,
         "projectileSpeed": 320,
         "damageMax": 18
       },
@@ -110,7 +111,7 @@
         "cost": 165,
         "damage": 24,
         "range": 150,
-        "fireRate": 1.35,
+        "fireRate": 0.5,
         "projectileSpeed": 350,
         "damageMax": 36
       },
@@ -118,7 +119,7 @@
         "cost": 280,
         "damage": 48,
         "range": 170,
-        "fireRate": 1.5,
+        "fireRate": 0.55,
         "projectileSpeed": 380,
         "damageMax": 72
       }
@@ -276,6 +277,37 @@
         "fireRate": 0.8,
         "projectileSpeed": 420,
         "damageMax": 210
+      }
+    ]
+  },
+  "sein_pyaung": {
+    "id": "sein_pyaung",
+    "name": "Sein Pyaung",
+    "damageType": "physical",
+    "tiers": [
+      {
+        "cost": 125,
+        "damage": 36,
+        "range": 220,
+        "fireRate": 0.38,
+        "projectileSpeed": 560,
+        "damageMax": 52
+      },
+      {
+        "cost": 215,
+        "damage": 68,
+        "range": 250,
+        "fireRate": 0.42,
+        "projectileSpeed": 600,
+        "damageMax": 98
+      },
+      {
+        "cost": 370,
+        "damage": 135,
+        "range": 285,
+        "fireRate": 0.48,
+        "projectileSpeed": 640,
+        "damageMax": 195
       }
     ]
   }

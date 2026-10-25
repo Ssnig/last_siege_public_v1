@@ -16,6 +16,34 @@ import towersData from "../data/towers.json" with { type: "json" };
 import rulesData from "../data/rules.json" with { type: "json" };
 import type { DamageType } from "./combat.js";
 
+/** Supported mob support/buff ability archetypes. */
+export type MobAbilityType = "heal_aura" | "speed_aura";
+
+/** Active ability configuration for a support/caster mob. */
+export interface MobAbilityConfig {
+  /** Ability archetype (e.g. "heal_aura" or "speed_aura"). */
+  type: MobAbilityType;
+  /** Radius in world px within which allied mobs are checked and affected. */
+  radius: number;
+  /** Cooldown in seconds between casts. */
+  cooldownSec: number;
+  /** HP ratio threshold (0..1) below which an ally in radius triggers the cast (for "heal_aura"). */
+  triggerHpThreshold?: number;
+  /** Flat HP restored to each damaged ally in radius (capped at maxHp, for "heal_aura"). */
+  healAmount?: number;
+  /** Fractional movement speed bonus granted to allies in radius (e.g. 0.4 = +40%, for "speed_aura"). */
+  speedBoost?: number;
+  /** Duration in seconds of the applied speed buff (for "speed_aura"; < 0.5 * cooldownSec). */
+  durationSec?: number;
+  /**
+   * Optional speed-matching factor (0..1) when a significantly slower ally is within `radius`.
+   * Lets a fast support unit slow down to pace slower allies in its aura range.
+   */
+  paceSlowFactor?: number;
+  /** Seconds the caster pauses movement while playing its cast animation. */
+  castDurationSec?: number;
+}
+
 /** Attacker unit archetype. */
 export interface MobType {
   id: string;
@@ -45,6 +73,13 @@ export interface MobType {
    * `1.5x`, and `0` takes `2x` and is slowed to 80% speed. Defaults to `0.5`.
    */
   mentalStrength?: number;
+  /**
+   * When `true`, this mob pulls tower aggro whenever it is inside a tower's
+   * targeting range, overriding normal nearest-to-base priority.
+   */
+  taunt?: boolean;
+  /** Optional active support/buff ability triggered along the lane. */
+  ability?: MobAbilityConfig;
 }
 
 /** One level of a tower: full stats *and* the gold cost to reach it. */
@@ -91,6 +126,14 @@ export interface TowerType {
    * target dies and, on landing, damages **every** mob inside this radius.
    */
   splashRadius?: number;
+  /**
+   * How the tower delivers its damage.
+   *
+   * @remarks `"projectile"` (the default) spawns a projectile toward a single
+   * target. `"aoe_pulse"` (e.g. Bell Tower) spawns no projectile and instead
+   * directly damages every mob inside its `range` when it attacks.
+   */
+  attackMode?: "projectile" | "aoe_pulse";
 }
 
 /** Economy tuning for both sides. */
@@ -226,7 +269,8 @@ export interface MatchRules {
 }
 
 /** Attacker unit archetypes, keyed by id — `../data/mobs.json`. */
-export const MOB_TYPES: Record<string, MobType> = mobsData;
+export const MOB_TYPES: Record<string, MobType> =
+  mobsData as Record<string, MobType>;
 
 /** Defender tower archetypes, keyed by id — `../data/towers.json`. */
 export const TOWER_TYPES: Record<string, TowerType> =
