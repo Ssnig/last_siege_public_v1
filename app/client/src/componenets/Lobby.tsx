@@ -11,6 +11,7 @@ import { AuthModal } from '../auth/AuthModal';
 import type { AuthUser } from '../auth/types';
 import { GoldCrest, GoldDivider, RoyalPanel } from './lobby/LobbyOrnaments';
 import { MapSelectorModal } from './match/MapSelectorModal';
+import { SettingsModal } from './landing/SettingsModal';
 import { RankBadge } from './rank/RankBadge';
 import { getOrCreateGuestId, getGuestElo, syncGuestWithServer } from '../auth/guest';
 
@@ -90,6 +91,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   const [showNameModal, setShowNameModal] = useState<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
 
   /** A match this device still holds a seat in (seeded from storage so a hard refresh offers a reconnect). */
   const [resumable, setResumable] = useState<ActiveMatch | null>(() => loadActiveMatch());
@@ -491,6 +493,22 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
 
             {/* Header action buttons */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  soundEffects.playModal();
+                  setShowSettingsModal(true);
+                }}
+                onMouseEnter={() => soundEffects.playHover()}
+                title="Settings & Audio"
+                className="px-2.5 py-1 sm:py-1.5 rounded-md text-xs font-bold tracking-wider transition-all duration-200 cursor-pointer active:scale-95 text-amber-200"
+                style={{
+                  background: 'linear-gradient(180deg, #8c2e2c, #6b1e1e)',
+                  border: '1.5px solid #c59b27',
+                  boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.2)',
+                }}
+              >
+                ⚙️
+              </button>
               <button
                 onClick={() => {
                   try {
@@ -950,6 +968,12 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
       {showAuthModal && (
         <AuthModal isOpen onClose={() => setShowAuthModal(false)} />
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+      />
 
       {/* Battlefield Selector Modal */}
       <MapSelectorModal

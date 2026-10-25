@@ -2700,7 +2700,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     for (const mobId of hit) {
       const damageType =
         TOWER_TYPES[projectile.typeId]?.damageType ?? DAMAGE_TYPES.physical;
-      this.damageMob(mobId, projectile.damage, ownerId, damageType);
+      this.damageMob(mobId, projectile.damage, ownerId, damageType, projectile.typeId);
     }
   }
 
@@ -2717,6 +2717,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     damage: number,
     ownerId: string,
     damageType: DamageType,
+    sourceTowerTypeId?: string,
   ): void {
     const mob = this.state.mobs.get(mobId);
     if (!mob) return;
@@ -2731,6 +2732,20 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (damageType === DAMAGE_TYPES.mental) {
       this.applyMentalDebuff(mob, type, ownerId);
+    }
+
+    // Apply any tower-specific on-hit status effects (e.g. Cannon 25% slow for 1.5s)
+    if (sourceTowerTypeId) {
+      const towerDef = TOWER_TYPES[sourceTowerTypeId];
+      if (towerDef?.onHitEffect) {
+        this.applyMobEffect(
+          mob,
+          towerDef.onHitEffect.type,
+          towerDef.onHitEffect.magnitude,
+          towerDef.onHitEffect.durationSec,
+          ownerId,
+        );
+      }
     }
 
     if (mob.hp > 0) return;

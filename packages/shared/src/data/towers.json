@@ -9,7 +9,7 @@
         "cost": 140,
         "damage": 32,
         "range": 110,
-        "fireRate": 0.54,
+        "fireRate": 0.333333,
         "projectileSpeed": 300,
         "damageMax": 48
       },
@@ -17,7 +17,7 @@
         "cost": 230,
         "damage": 60,
         "range": 120,
-        "fireRate": 0.59,
+        "fireRate": 0.36,
         "projectileSpeed": 320,
         "damageMax": 90
       },
@@ -25,11 +25,16 @@
         "cost": 390,
         "damage": 120,
         "range": 135,
-        "fireRate": 0.63,
+        "fireRate": 0.4,
         "projectileSpeed": 340,
         "damageMax": 180
       }
-    ]
+    ],
+    "onHitEffect": {
+      "type": "slow",
+      "magnitude": 0.25,
+      "durationSec": 1.5
+    }
   },
   "archer": {
     "id": "archer",
@@ -40,7 +45,7 @@
         "cost": 55,
         "damage": 10,
         "range": 140,
-        "fireRate": 1.08,
+        "fireRate": 2,
         "projectileSpeed": 400,
         "damageMax": 14
       },
@@ -48,7 +53,7 @@
         "cost": 105,
         "damage": 18,
         "range": 160,
-        "fireRate": 1.17,
+        "fireRate": 2.15,
         "projectileSpeed": 430,
         "damageMax": 26
       },
@@ -56,7 +61,7 @@
         "cost": 185,
         "damage": 32,
         "range": 185,
-        "fireRate": 1.26,
+        "fireRate": 2.3,
         "projectileSpeed": 460,
         "damageMax": 48
       }
@@ -71,7 +76,7 @@
         "cost": 110,
         "damage": 24,
         "range": 130,
-        "fireRate": 0.65,
+        "fireRate": 0.5,
         "projectileSpeed": 280,
         "damageMax": 36
       },
@@ -79,7 +84,7 @@
         "cost": 190,
         "damage": 48,
         "range": 145,
-        "fireRate": 0.72,
+        "fireRate": 0.55,
         "projectileSpeed": 300,
         "damageMax": 72
       },
@@ -87,7 +92,7 @@
         "cost": 320,
         "damage": 96,
         "range": 165,
-        "fireRate": 0.8,
+        "fireRate": 0.6,
         "projectileSpeed": 320,
         "damageMax": 144
       }
@@ -134,7 +139,7 @@
         "cost": 45,
         "damage": 8,
         "range": 125,
-        "fireRate": 1.0,
+        "fireRate": 1,
         "projectileSpeed": 350,
         "damageMax": 12
       },
@@ -165,7 +170,7 @@
         "cost": 130,
         "damage": 30,
         "range": 210,
-        "fireRate": 0.4,
+        "fireRate": 1,
         "projectileSpeed": 520,
         "damageMax": 46
       },
@@ -173,7 +178,7 @@
         "cost": 225,
         "damage": 58,
         "range": 240,
-        "fireRate": 0.45,
+        "fireRate": 1.1,
         "projectileSpeed": 550,
         "damageMax": 86
       },
@@ -181,7 +186,7 @@
         "cost": 385,
         "damage": 124,
         "range": 275,
-        "fireRate": 0.5,
+        "fireRate": 1.2,
         "projectileSpeed": 580,
         "damageMax": 186
       }

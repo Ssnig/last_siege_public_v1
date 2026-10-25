@@ -25,6 +25,7 @@ import {
   tierAt,
   getTowerDesign,
   TOWER_AIM_PIVOT_Y_OFFSET,
+  PROP_CATALOG,
 } from "@root/shared";
 import { UIButton } from "../ui/UIButton";
 import { TowerCard } from "../ui/TowerCard";
@@ -537,6 +538,38 @@ export class GameplayStage {
     // Spawn ambient scenic NPCs and un-interactable scenery objects
     this.ambientNpcManager = new AmbientNPCManager(this.scene, this.root);
     this.ambientNpcManager.spawnForMap(this.map.id);
+    // Spawn 2.5D isometric atmospheric scenery props authored on the map
+    if (this.map.props && this.map.props.length > 0) {
+      for (const prop of this.map.props) {
+        const def = PROP_CATALOG[prop.typeId];
+        const textureKey = `prop_${prop.typeId}`;
+        if (this.scene.textures.exists(textureKey)) {
+          const scale = (prop.scale ?? 1.0) * (def?.defaultScale ?? 1.0);
+          const anchorY = def?.anchorY ?? 0.9;
+          const sprite = this.scene.add
+            .sprite(prop.x, prop.y, textureKey)
+            .setOrigin(0.5, anchorY)
+            .setScale(scale)
+            .setDepth(actorDepth(prop.y));
+
+          if (prop.flipX) sprite.setFlipX(true);
+
+          if (def?.category === "npcs") {
+            this.scene.tweens.add({
+              targets: sprite,
+              y: prop.y - 2,
+              duration: 1200 + Math.random() * 500,
+              yoyo: true,
+              repeat: -1,
+              ease: "Sine.easeInOut",
+            });
+          }
+
+          (this.actors ?? this.root)?.add(sprite);
+        }
+      }
+    }
+
 
     // Create path curves from every named track (or the single `path`).
     this.paths = [];

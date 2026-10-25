@@ -13,3 +13,5 @@ export * from "./game/messages.js";
 export * from "./game/pathFinder.js";
 export * from "./game/towerDesigns.js";
 export * from "./game/rankingConfig.js";
+export * from "./game/props.js";
+
