@@ -14,6 +14,7 @@ import { InitialLoadingScreen } from './componenets/common/InitialLoadingScreen'
 import { MapEditor } from './componenets/editor/MapEditor';
 import { EffectsOverlay } from './componenets/common/EffectsOverlay';
 import { BGMRouteSync } from './componenets/audio/BGMRouteSync';
+import { AlmanacPage } from './componenets/almanac/AlmanacPage';
 
 /**
  * Root shell: route-based. `/` hosts the game welcome/landing page,
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/lobby" element={<Lobby client={client} />} />
             <Route path="/game/:roomId" element={<GameRoute />} />
             <Route path="/editor" element={<MapEditor />} />
+            <Route path="/almanac" element={<AlmanacPage />} />
             <Route path="*" element={<Navigate to="/lobby" replace />} />
           </Routes>
         </div>

@@ -496,6 +496,25 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => {
+                  soundEffects.playClick();
+                  navigate('/almanac');
+                }}
+                onMouseEnter={() => soundEffects.playHover()}
+                title="Royal Almanac & War Codex"
+                className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center gap-1.5 text-amber-200 hover:text-white"
+                style={{
+                  fontFamily: "'Almendra SC', 'Almendra', serif",
+                  background: 'linear-gradient(180deg, #8c2e2c, #6b1e1e)',
+                  border: '1.5px solid #c59b27',
+                  boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.2)',
+                }}
+              >
+                <span>📖</span>
+                <span className="hidden sm:inline">Almanac</span>
+              </button>
+
+              <button
+                onClick={() => {
                   soundEffects.playModal();
                   setShowSettingsModal(true);
                 }}

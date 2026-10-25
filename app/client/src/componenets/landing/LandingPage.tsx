@@ -129,6 +129,20 @@ export const LandingPage: React.FC = () => {
           </svg>
         </button>
 
+        {/* Top-Right Almanac Codex Button */}
+        <button
+          onClick={() => {
+            soundEffects.playClick();
+            navigate('/almanac');
+          }}
+          onMouseEnter={() => soundEffects.playHover()}
+          className="absolute top-[3.5%] right-[7.5%] z-20 w-[4.5%] min-w-[36px] max-w-[60px] aspect-square flex items-center justify-center rounded-xl bg-slate-950/20 hover:bg-slate-950/40 backdrop-blur-xs border border-white/10 hover:border-amber-400/60 shadow-lg hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-200 cursor-pointer group active:scale-95"
+          title="Royal Almanac & War Codex"
+          aria-label="Almanac"
+        >
+          <span className="text-xl sm:text-2xl filter drop-shadow">📖</span>
+        </button>
+
         {/* Top-Right Settings Gear Icon Button */}
         <button
           onClick={() => {
