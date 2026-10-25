@@ -327,7 +327,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
           {/* Unit palette: tap to queue one, hold to queue many. Scrolls so the
               queue and portal controls always stay on screen. */}
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none touch-pan-x">
-            {buffer.availableTroops.map((typeId) => {
+            {Array.from(new Set(buffer.availableTroops)).map((typeId) => {
               const cost = buffer.mobCosts[typeId] ?? 0;
               const disabled = bufferLocked || capReached;
               return (

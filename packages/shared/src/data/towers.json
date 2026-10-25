@@ -1,128 +1,4 @@
 {
-  "basic": {
-    "id": "basic",
-    "name": "Arrow Tower",
-    "damageType": "physical",
-    "tiers": [
-      {
-        "cost": 55,
-        "damage": 10,
-        "range": 140,
-        "fireRate": 1.08,
-        "projectileSpeed": 400,
-        "damageMax": 14
-      },
-      {
-        "cost": 105,
-        "damage": 18,
-        "range": 160,
-        "fireRate": 1.17,
-        "projectileSpeed": 430,
-        "damageMax": 26
-      },
-      {
-        "cost": 185,
-        "damage": 32,
-        "range": 185,
-        "fireRate": 1.26,
-        "projectileSpeed": 460,
-        "damageMax": 48
-      }
-    ]
-  },
-  "pitchfork": {
-    "id": "pitchfork",
-    "name": "Pitchfork Turret",
-    "damageType": "physical",
-    "tiers": [
-      {
-        "cost": 35,
-        "damage": 5,
-        "range": 110,
-        "fireRate": 0.9,
-        "projectileSpeed": 300,
-        "damageMax": 7
-      },
-      {
-        "cost": 65,
-        "damage": 10,
-        "range": 125,
-        "fireRate": 0.99,
-        "projectileSpeed": 325,
-        "damageMax": 14
-      },
-      {
-        "cost": 110,
-        "damage": 19,
-        "range": 140,
-        "fireRate": 1.08,
-        "projectileSpeed": 350,
-        "damageMax": 29
-      }
-    ]
-  },
-  "poison": {
-    "id": "poison",
-    "name": "Poison Dart",
-    "damageType": "physical",
-    "tiers": [
-      {
-        "cost": 80,
-        "damage": 5,
-        "range": 120,
-        "fireRate": 1.44,
-        "projectileSpeed": 340,
-        "damageMax": 7
-      },
-      {
-        "cost": 145,
-        "damage": 10,
-        "range": 135,
-        "fireRate": 1.62,
-        "projectileSpeed": 370,
-        "damageMax": 14
-      },
-      {
-        "cost": 240,
-        "damage": 21,
-        "range": 150,
-        "fireRate": 1.8,
-        "projectileSpeed": 400,
-        "damageMax": 31
-      }
-    ]
-  },
-  "crossbow": {
-    "id": "crossbow",
-    "name": "Crossbow",
-    "damageType": "physical",
-    "tiers": [
-      {
-        "cost": 90,
-        "damage": 6,
-        "range": 130,
-        "fireRate": 1.98,
-        "projectileSpeed": 380,
-        "damageMax": 10
-      },
-      {
-        "cost": 160,
-        "damage": 12,
-        "range": 145,
-        "fireRate": 2.16,
-        "projectileSpeed": 410,
-        "damageMax": 18
-      },
-      {
-        "cost": 275,
-        "damage": 24,
-        "range": 165,
-        "fireRate": 2.34,
-        "projectileSpeed": 440,
-        "damageMax": 36
-      }
-    ]
-  },
   "cannon": {
     "id": "cannon",
     "name": "Cannon",
@@ -159,162 +35,6 @@
       "magnitude": 0.25,
       "durationSec": 1.5
     }
-  },
-  "sniper": {
-    "id": "sniper",
-    "name": "Sniper",
-    "damageType": "physical",
-    "tiers": [
-      {
-        "cost": 125,
-        "damage": 28,
-        "range": 220,
-        "fireRate": 0.36,
-        "projectileSpeed": 500,
-        "damageMax": 42
-      },
-      {
-        "cost": 220,
-        "damage": 56,
-        "range": 250,
-        "fireRate": 0.41,
-        "projectileSpeed": 540,
-        "damageMax": 84
-      },
-      {
-        "cost": 380,
-        "damage": 128,
-        "range": 285,
-        "fireRate": 0.45,
-        "projectileSpeed": 580,
-        "damageMax": 192
-      }
-    ]
-  },
-  "arcanist": {
-    "id": "arcanist",
-    "name": "Arcanist",
-    "damageType": "mental",
-    "tiers": [
-      {
-        "cost": 170,
-        "damage": 24,
-        "range": 120,
-        "fireRate": 0.45,
-        "projectileSpeed": 260,
-        "damageMax": 36
-      },
-      {
-        "cost": 300,
-        "damage": 48,
-        "range": 135,
-        "fireRate": 0.5,
-        "projectileSpeed": 280,
-        "damageMax": 72
-      },
-      {
-        "cost": 495,
-        "damage": 112,
-        "range": 155,
-        "fireRate": 0.54,
-        "projectileSpeed": 300,
-        "damageMax": 168
-      }
-    ]
-  },
-  "tesla": {
-    "id": "tesla",
-    "name": "Tesla",
-    "damageType": "mental",
-    "tiers": [
-      {
-        "cost": 205,
-        "damage": 16,
-        "range": 100,
-        "fireRate": 1.62,
-        "projectileSpeed": 320,
-        "damageMax": 24
-      },
-      {
-        "cost": 345,
-        "damage": 32,
-        "range": 115,
-        "fireRate": 1.8,
-        "projectileSpeed": 350,
-        "damageMax": 48
-      },
-      {
-        "cost": 600,
-        "damage": 72,
-        "range": 135,
-        "fireRate": 1.98,
-        "projectileSpeed": 380,
-        "damageMax": 108
-      }
-    ]
-  },
-  "archmage": {
-    "id": "archmage",
-    "name": "Archmage",
-    "damageType": "mental",
-    "tiers": [
-      {
-        "cost": 230,
-        "damage": 44,
-        "range": 150,
-        "fireRate": 0.45,
-        "projectileSpeed": 340,
-        "damageMax": 66
-      },
-      {
-        "cost": 390,
-        "damage": 88,
-        "range": 170,
-        "fireRate": 0.5,
-        "projectileSpeed": 360,
-        "damageMax": 132
-      },
-      {
-        "cost": 665,
-        "damage": 192,
-        "range": 195,
-        "fireRate": 0.54,
-        "projectileSpeed": 380,
-        "damageMax": 288
-      }
-    ]
-  },
-  "bertha": {
-    "id": "bertha",
-    "name": "Big Bertha",
-    "damageType": "physical",
-    "splashRadius": 90,
-    "tiers": [
-      {
-        "cost": 300,
-        "damage": 96,
-        "range": 140,
-        "fireRate": 0.32,
-        "projectileSpeed": 280,
-        "damageMax": 144
-      },
-      {
-        "cost": 520,
-        "damage": 192,
-        "range": 155,
-        "fireRate": 0.36,
-        "projectileSpeed": 300,
-        "damageMax": 288
-      },
-      {
-        "cost": 895,
-        "damage": 400,
-        "range": 175,
-        "fireRate": 0.41,
-        "projectileSpeed": 320,
-        "damageMax": 600
-      }
-    ]
   },
   "archer": {
     "id": "archer",
@@ -382,12 +102,13 @@
     "id": "bell",
     "name": "Bell Tower",
     "damageType": "mental",
+    "attackMode": "aoe_pulse",
     "tiers": [
       {
         "cost": 95,
         "damage": 12,
         "range": 135,
-        "fireRate": 1.2,
+        "fireRate": 0.45,
         "projectileSpeed": 320,
         "damageMax": 18
       },
@@ -395,7 +116,7 @@
         "cost": 165,
         "damage": 24,
         "range": 150,
-        "fireRate": 1.35,
+        "fireRate": 0.5,
         "projectileSpeed": 350,
         "damageMax": 36
       },
@@ -403,7 +124,7 @@
         "cost": 280,
         "damage": 48,
         "range": 170,
-        "fireRate": 1.5,
+        "fireRate": 0.55,
         "projectileSpeed": 380,
         "damageMax": 72
       }
@@ -468,6 +189,130 @@
         "fireRate": 1.2,
         "projectileSpeed": 580,
         "damageMax": 186
+      }
+    ]
+  },
+  "water_cannon": {
+    "id": "water_cannon",
+    "name": "Water Cannon",
+    "damageType": "mental",
+    "tiers": [
+      {
+        "cost": 40,
+        "damage": 4,
+        "range": 130,
+        "fireRate": 0.8,
+        "projectileSpeed": 320,
+        "damageMax": 6
+      },
+      {
+        "cost": 75,
+        "damage": 7,
+        "range": 145,
+        "fireRate": 0.9,
+        "projectileSpeed": 340,
+        "damageMax": 10
+      },
+      {
+        "cost": 130,
+        "damage": 12,
+        "range": 160,
+        "fireRate": 1.0,
+        "projectileSpeed": 360,
+        "damageMax": 18
+      }
+    ]
+  },
+  "chinthe": {
+    "id": "chinthe",
+    "name": "Chinthe Guardian",
+    "damageType": "mental",
+    "tiers": [
+      {
+        "cost": 120,
+        "damage": 30,
+        "range": 150,
+        "fireRate": 0.7,
+        "projectileSpeed": 400,
+        "damageMax": 45
+      },
+      {
+        "cost": 210,
+        "damage": 58,
+        "range": 170,
+        "fireRate": 0.75,
+        "projectileSpeed": 420,
+        "damageMax": 88
+      },
+      {
+        "cost": 360,
+        "damage": 118,
+        "range": 190,
+        "fireRate": 0.8,
+        "projectileSpeed": 440,
+        "damageMax": 178
+      }
+    ]
+  },
+  "dragon": {
+    "id": "dragon",
+    "name": "Dragon Tower",
+    "damageType": "mental",
+    "tiers": [
+      {
+        "cost": 150,
+        "damage": 35,
+        "range": 160,
+        "fireRate": 0.7,
+        "projectileSpeed": 380,
+        "damageMax": 55
+      },
+      {
+        "cost": 250,
+        "damage": 70,
+        "range": 180,
+        "fireRate": 0.75,
+        "projectileSpeed": 400,
+        "damageMax": 110
+      },
+      {
+        "cost": 420,
+        "damage": 140,
+        "range": 200,
+        "fireRate": 0.8,
+        "projectileSpeed": 420,
+        "damageMax": 210
+      }
+    ]
+  },
+  "sein_pyaung": {
+    "id": "sein_pyaung",
+    "name": "Sein Pyaung",
+    "damageType": "physical",
+    "tiers": [
+      {
+        "cost": 125,
+        "damage": 36,
+        "range": 220,
+        "fireRate": 0.38,
+        "projectileSpeed": 560,
+        "damageMax": 52
+      },
+      {
+        "cost": 215,
+        "damage": 68,
+        "range": 250,
+        "fireRate": 0.42,
+        "projectileSpeed": 600,
+        "damageMax": 98
+      },
+      {
+        "cost": 370,
+        "damage": 135,
+        "range": 285,
+        "fireRate": 0.48,
+        "projectileSpeed": 640,
+        "damageMax": 195
       }
     ]
   }

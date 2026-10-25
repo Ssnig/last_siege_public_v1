@@ -45,6 +45,8 @@ export const EFFECT_TYPES = {
   stun: "stun",
   /** Restores the mob's HP. Magnitude is the amount healed per second. */
   heal: "heal",
+  /** Boosts the mob's movement speed. Magnitude is the bonus speed fraction (`0.4` = 40% faster). */
+  haste: "haste",
 } as const;
 
 /** A status effect type. */
@@ -56,6 +58,7 @@ export const EFFECT_DURATION_SEC: Record<EffectType, number> = {
   debuff: 6,
   stun: 1.5,
   heal: 3,
+  haste: 4,
 };
 
 /** Armor of a mob type: flat physical damage absorbed per hit. */
@@ -132,19 +135,31 @@ export function combineEffectMagnitude(current: number, incoming: number): numbe
 }
 
 /**
- * A mob's current speed, after every active slow is applied.
+ * A mob's current speed, after every active slow and haste is applied.
  *
  * @param baseSpeed - The mob's unmodified speed, in px/s.
  * @param slowAmounts - Magnitude of every active slow, as a fraction of speed removed.
+ * @param hasteAmounts - Magnitude of every active haste, as a bonus fraction of speed added.
  * @returns The effective speed, never below zero.
  *
- * @remarks The strongest slow wins rather than stacking, so two light slows
- * are not worse than one heavy one.
+ * @remarks The strongest slow and strongest haste each win rather than stacking
+ * additively with weaker copies of themselves.
  */
-export function effectiveSpeed(baseSpeed: number, slowAmounts: number[]): number {
-  let strongest = 0;
+export function effectiveSpeed(
+  baseSpeed: number,
+  slowAmounts: number[],
+  hasteAmounts: number[] = [],
+): number {
+  let strongestSlow = 0;
   for (const amount of slowAmounts) {
-    if (amount > strongest) strongest = amount;
+    if (amount > strongestSlow) strongestSlow = amount;
   }
-  return Math.max(0, baseSpeed * (1 - Math.min(1, strongest)));
+  let strongestHaste = 0;
+  for (const amount of hasteAmounts) {
+    if (amount > strongestHaste) strongestHaste = amount;
+  }
+  return Math.max(
+    0,
+    baseSpeed * (1 - Math.min(1, strongestSlow)) * (1 + Math.max(0, strongestHaste)),
+  );
 }

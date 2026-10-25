@@ -1,6 +1,6 @@
 {
   "economy": {
-    "defenderStartingGold": 225,
+    "defenderStartingGold": 337,
     "attackerStartingGold": 200,
     "attackerBaseIncome": 2.5,
     "defenderBaseIncome": 5.0,
@@ -16,7 +16,9 @@
     "portalChargeSec": 25,
     "staggerSec": 0.3
   },
-  "deck": { "deckSize": 6 },
+  "deck": {
+    "deckSize": 6
+  },
   "combat": {
     "debuffDurationSec": 6,
     "slowDurationSec": 6,

@@ -51,6 +51,12 @@ describe("combat.ts damage channels", () => {
     assert.strictEqual(effectiveSpeed(100, [1.5]), 0, "a slow beyond 100% cannot invert the speed");
   });
 
+  it("haste boosts effective speed and the strongest haste wins", () => {
+    assert.strictEqual(effectiveSpeed(100, [], [0.4]), 140, "a 40% haste boosts 100 to 140");
+    assert.strictEqual(effectiveSpeed(100, [], [0.2, 0.4]), 140, "the strongest haste wins");
+    assert.strictEqual(effectiveSpeed(100, [0.5], [0.4]), 70, "slow and haste combine multiplicatively");
+  });
+
   it("a stronger effect never gets diluted by a weaker one", () => {
     assert.strictEqual(
       combineEffectMagnitude(0.5, 0.2),
@@ -78,18 +84,27 @@ describe("combat data", () => {
   });
 
   it("reads armor and mental strength straight off the mob catalog", () => {
-    assert.strictEqual(mobArmor("grunt"), 0, "a grunt is unarmored");
+    assert.strictEqual(mobArmor("monkey"), 0, "a monkey is unarmored");
+    assert.strictEqual(mobArmor("shield_guy"), 6, "the shield bearer has heavy armor");
     assert.strictEqual(mobArmor("sar_bal_gyi"), 8, "the palace guard is heavily armored");
-    assert.strictEqual(mobMentalStrength("grunt"), 0.5, "a grunt has half resolve");
+    assert.strictEqual(mobArmor("elephant_rider"), 10, "the war elephant is heavily armored");
+    assert.strictEqual(mobMentalStrength("monkey"), 0.5, "a monkey has half resolve");
     assert.strictEqual(mobMentalStrength("gya_pu"), 1, "a winged nat is unshaken");
     assert.strictEqual(mobMentalStrength("sar_bal_gyi"), 0, "the palace guard breaks completely");
+    const doePat = MOB_TYPES["doe_pat"];
+    assert.ok(doePat?.ability, "doe_pat defines a support ability");
+    assert.strictEqual(doePat.ability?.type, "speed_aura");
+    assert.ok(
+      (doePat.ability?.durationSec ?? 0) < (doePat.ability?.cooldownSec ?? 0) * 0.5,
+      "doe_pat speed_aura uptime is less than half of its cooldown",
+    );
   });
 
   it("gives the classic mobs half resolve and the spirits full resolve", () => {
-    for (const id of ["grunt", "runner", "horse_rider", "spider", "orc"]) {
+    for (const id of ["monkey", "horse_rider"]) {
       assert.strictEqual(mobMentalStrength(id), 0.5, `${id} should have half resolve`);
     }
-    for (const id of ["gya_pu", "a_ba", "shade", "necromancer"]) {
+    for (const id of ["gya_pu", "a_ba"]) {
       assert.strictEqual(mobMentalStrength(id), 1, `${id} should be unshaken`);
     }
   });
@@ -102,7 +117,7 @@ describe("combat data", () => {
       );
     }
 
-    for (const id of ["bell", "arcanist", "archmage", "tesla"]) {
+    for (const id of ["bell", "water_cannon", "chinthe", "dragon"]) {
       assert.strictEqual(
         TOWER_TYPES[id].damageType,
         DAMAGE_TYPES.mental,
@@ -110,7 +125,7 @@ describe("combat data", () => {
       );
     }
 
-    for (const id of ["basic", "archer", "cannon", "bomb", "sniper", "gun", "spear"]) {
+    for (const id of ["cannon", "archer", "bomb", "spear", "gun", "sein_pyaung"]) {
       assert.strictEqual(
         TOWER_TYPES[id].damageType,
         DAMAGE_TYPES.physical,

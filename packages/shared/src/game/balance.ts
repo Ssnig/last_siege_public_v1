@@ -167,4 +167,3 @@ export function validateBufferAdd(
   if (gold < mobCost(typeId)) return "Not enough gold.";
   return null;
 }
-

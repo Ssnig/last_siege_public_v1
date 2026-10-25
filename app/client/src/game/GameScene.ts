@@ -23,6 +23,7 @@ import {
 } from "./ui/uiAtlas";
 
 import { UnitAnimationManager } from "./animation/UnitAnimationManager";
+import { TowerAnimationManager } from "./animation/TowerAnimationManager";
 
 type PlayerRole = "attacker" | "defender";
 
@@ -96,6 +97,11 @@ export class GameScene extends Phaser.Scene {
       progressBox.destroy();
       titleText.destroy();
       percentText.destroy();
+
+      const r = (this.registry?.get("room") as Room | undefined) ?? this.room;
+      if (r) {
+        r.send(MESSAGES.clientAssetsLoaded, {});
+      }
     });
 
     // 6 Maps
@@ -134,6 +140,10 @@ export class GameScene extends Phaser.Scene {
     for (const design of Object.values(TOWER_DESIGNS)) {
       this.load.image(design.textureKey, design.texturePath);
       this.load.image(design.projectileKey, design.projectilePath);
+      // Load tower icon for UI cards
+      if ((design as any).iconPath) {
+        this.load.image(`tower-${design.id}`, (design as any).iconPath);
+      }
     }
     this.load.image("spawn_1", "/assets/sprites/spawn1.png");
     this.load.image("spawn_2", "/assets/sprites/spawn2.png");
@@ -148,6 +158,15 @@ export class GameScene extends Phaser.Scene {
 
     // Preload unit spritesheets and face icons
     UnitAnimationManager.preload(this);
+    TowerAnimationManager.preload(this);
+    // Water cannon projectile/splash
+    this.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
+    // Chinthe attack (whole 8 frames is projectile animation)
+    this.load.spritesheet("chinthe_attack_sheet", "/assets/towers/08_chinthe_statue/chinthe_attack.png", { frameWidth: 688, frameHeight: 768 });
+    // Dragon attack - 3 rows x 4 cols
+    this.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
+    // Sein Pyaung projectile & hit VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
   }
 
 
@@ -155,6 +174,41 @@ export class GameScene extends Phaser.Scene {
     registerUIFrames(this);
     registerUIBgFrames(this);
     UnitAnimationManager.createAnimations(this);
+    TowerAnimationManager.createAnimations(this);
+    // Create water splash anims
+    if (this.textures.exists("water_splash_sheet")) {
+      if (!this.anims.exists("water_proj_anim")) {
+        this.anims.create({ key: "water_proj_anim", frames: this.anims.generateFrameNumbers("water_splash_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("water_splash_anim")) {
+        this.anims.create({ key: "water_splash_anim", frames: this.anims.generateFrameNumbers("water_splash_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
+    // Chinthe projectile anim - whole 8 frames, slow (half speed)
+    if (this.textures.exists("chinthe_attack_sheet")) {
+      if (!this.anims.exists("chinthe_proj_anim")) {
+        this.anims.create({ key: "chinthe_proj_anim", frames: this.anims.generateFrameNumbers("chinthe_attack_sheet", { start: 0, end: 7 }), frameRate: 6, repeat: -1 });
+      }
+    }
+    // Dragon projectile anim - first row, splash from second/third row
+    if (this.textures.exists("dragon_attack_sheet")) {
+      if (!this.anims.exists("dragon_proj_anim")) {
+        this.anims.create({ key: "dragon_proj_anim", frames: this.anims.generateFrameNumbers("dragon_attack_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("dragon_splash_anim")) {
+        // second row starts at index 4 (row 1, col 0)
+        this.anims.create({ key: "dragon_splash_anim", frames: this.anims.generateFrameNumbers("dragon_attack_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
+    // Sein Pyaung projectile (top row 0..3) and hit VFX (bottom row 4..7)
+    if (this.textures.exists("sein_pyaung_vfx_sheet")) {
+      if (!this.anims.exists("sein_pyaung_proj_anim")) {
+        this.anims.create({ key: "sein_pyaung_proj_anim", frames: this.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("sein_pyaung_splash_anim")) {
+        this.anims.create({ key: "sein_pyaung_splash_anim", frames: this.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
 
     const room = this.registry.get("room") as Room | undefined;
 
@@ -164,6 +218,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.room = room;
+    try {
+      this.room.send(MESSAGES.clientAssetsLoaded, {});
+    } catch {
+      // Room socket may still be handshaking
+    }
 
     console.log("[GameScene] Connected:", room.sessionId);
 
@@ -176,6 +235,9 @@ export class GameScene extends Phaser.Scene {
         MESSAGES.roleAssigned,
         (payload: RoleAssignedPayload) => {
           this.assignedRole = payload.myRole as PlayerRole;
+          if (this.gameplayStage) {
+            this.gameplayStage.setRole(this.assignedRole);
+          }
           this.syncPhase();
         },
       ),
@@ -315,14 +377,28 @@ export class GameScene extends Phaser.Scene {
     this.gameplayStage = undefined;
   }
 
+  /** Externally updates or synchronizes the player's role with GameplayStage. */
+  public setAssignedRole(role: PlayerRole): void {
+    this.assignedRole = role;
+    if (this.gameplayStage) {
+      this.gameplayStage.setRole(role);
+    }
+  }
+
   private startGameplay(): void {
     if (this.gameplayStage) return;
+
+    const stateRole = this.room?.state?.players?.get(this.room?.sessionId)?.role as PlayerRole | undefined;
+    const effectiveRole =
+      this.assignedRole ||
+      (stateRole === "attacker" || stateRole === "defender" ? stateRole : undefined) ||
+      "defender";
 
     const map = MAPS[this.room.state.mapId] ?? KONBAUNG_MAP;
     this.gameplayStage = new GameplayStage(this, {
       room: this.room,
       map,
-      role: this.assignedRole ?? "defender",
+      role: effectiveRole,
       economy: this.myEconomy,
       gold: this.gold,
       deck: this.defenderDeck,

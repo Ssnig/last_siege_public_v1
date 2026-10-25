@@ -38,6 +38,7 @@ import {
   mentalDamageTaken,
   mentalDebuffMagnitude,
   physicalDamageTaken,
+  getTowerMuzzleOffset,
   type AttackerBufferPayload,
   type AttackerPortalPath,
   type AttackerPortalStatus,
@@ -52,10 +53,12 @@ import {
   type GameOverReason,
   type MapDefinition,
   type MapPortal,
+  type MobAbilityPayload,
   type MobType,
   type PlaceTowerIntent,
   type RoomStatus,
   type SellTowerIntent,
+  type TowerAttackPayload,
   type UpgradeTowerIntent,
   type TowerTier,
   type Vec2,
@@ -113,8 +116,8 @@ const DEFAULT_ATTACKER_DECK = [
   "gya_pu",
   "a_ba",
   "chon_toe",
-  "grunt",
-  "runner",
+  "elephant_rider",
+  "shield_guy",
 ];
 
 /** One batch waiting to spawn, scheduled against {@link GameRoom.matchTime}. */
@@ -164,6 +167,15 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   /** 5-second post-draft countdown after round 3 concludes before entering building. */
   private draftFinalCountdown: number | null = null;
+
+  /** Session IDs of clients who have confirmed their assets are loaded. */
+  private loadedAssetsClients = new Set<string>();
+
+  /** Whether the room is waiting for clients to finish loading assets after draft. */
+  private waitingForAssets = false;
+
+  /** Safety timeout (in seconds) while waiting for clients to load assets. */
+  private assetWaitTimeout = 0;
 
   /** Picks submitted per player in the current round. */
   private draftRoundPicks = new Map<string, string[]>();
@@ -260,6 +272,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private projectileSplash = new Map<string, number>();
 
+  /** Remaining cooldown in seconds per active ability caster mob id. */
+  private mobAbilityCooldowns = new Map<string, number>();
+
+  /** Remaining cast-animation movement pause in seconds per caster mob id. */
+  private mobCastPause = new Map<string, number>();
+
   plugins = definePlugins({
     /**
      * Drops clients that stop sending messages (e.g. a host who queued and
@@ -319,6 +337,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     ) => this.handleDeploy(client, payload),
 
     [MESSAGES.rematch]: (client: Client) => this.handleRematch(client),
+    [MESSAGES.clientAssetsLoaded]: (client: Client) =>
+      this.handleClientAssetsLoaded(client),
   };
 
   /**
@@ -681,11 +701,15 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * and advances to the next round or triggers the 5-second final reveal countdown.
    */
   private advanceDraftRound(): void {
-    // Commit the round picks to acceptedDecks
+    // Commit the round picks to acceptedDecks (deduplicated and capped at deckSize)
     for (const client of this.clients) {
       const current = this.acceptedDecks.get(client.sessionId) ?? [];
       const picks = this.draftRoundPicks.get(client.sessionId) ?? [];
-      this.acceptedDecks.set(client.sessionId, [...current, ...picks]);
+      const merged = Array.from(new Set([...current, ...picks])).slice(
+        0,
+        DEFAULT_DECK_RULES.deckSize,
+      );
+      this.acceptedDecks.set(client.sessionId, merged);
     }
     this.draftRoundPicks.clear();
 
@@ -715,20 +739,104 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.state.phaseEndsAt = 15.0;
     } else {
       // Round 3 complete! All 6 cards picked.
-      // Broadcast final reveal with isFinalReveal: true and 5-second countdown before building starts
-      console.log(`Room ${this.roomId}: 2-2-2 draft finished, entering 5-second post-draft countdown`);
-      this.broadcast(MESSAGES.draftRoundUpdate, {
-        round: 3,
-        phaseEndsAt: 5,
-        attackerPicks,
-        defenderPicks,
-        attackerReady: true,
-        defenderReady: true,
-        isFinalReveal: true,
-      });
+      if (this.areAllClientsAssetsLoaded()) {
+        this.startPostDraftCountdown(attackerPicks, defenderPicks);
+      } else {
+        console.log(
+          `Room ${this.roomId}: 2-2-2 draft finished; waiting for all clients to finish loading assets (${this.loadedAssetsClients.size}/${this.clients.length})`,
+        );
+        this.waitingForAssets = true;
+        this.assetWaitTimeout = 45.0;
+        this.state.phaseEndsAt = 0;
+        this.broadcast(MESSAGES.draftRoundUpdate, {
+          round: 3,
+          phaseEndsAt: 0,
+          attackerPicks,
+          defenderPicks,
+          attackerReady: true,
+          defenderReady: true,
+          isFinalReveal: true,
+          waitingForAssets: true,
+        });
+        this.broadcast(MESSAGES.assetLoadingStatus, {
+          waitingForAssets: true,
+          loadedCount: this.loadedAssetsClients.size,
+          totalCount: this.clients.length,
+        });
+      }
+    }
+  }
 
-      this.draftFinalCountdown = 5.0;
-      this.state.phaseEndsAt = 5.0;
+  private areAllClientsAssetsLoaded(): boolean {
+    if (this.clients.length < 2) return true;
+    return this.clients.every((c) => this.loadedAssetsClients.has(c.sessionId));
+  }
+
+  private handleClientAssetsLoaded(client: Client): void {
+    this.loadedAssetsClients.add(client.sessionId);
+    console.log(
+      `Room ${this.roomId}: Client ${client.sessionId} loaded assets (${this.loadedAssetsClients.size}/${this.clients.length})`,
+    );
+    if (this.waitingForAssets) {
+      this.checkAssetsAndProceed();
+    }
+  }
+
+  private startPostDraftCountdown(
+    attackerPicks?: string[],
+    defenderPicks?: string[],
+  ): void {
+    this.waitingForAssets = false;
+    this.draftFinalCountdown = 5.0;
+    this.state.phaseEndsAt = 5.0;
+    console.log(
+      `Room ${this.roomId}: All players loaded assets. Starting 5-second post-draft countdown`,
+    );
+
+    const aPicks =
+      attackerPicks ??
+      (() => {
+        const aClient = this.clients.find(
+          (c) =>
+            this.state.players.get(c.sessionId)?.role === "attacker" ||
+            c.userData?.role === "attacker",
+        );
+        return aClient ? this.acceptedDecks.get(aClient.sessionId) ?? [] : [];
+      })();
+
+    const dPicks =
+      defenderPicks ??
+      (() => {
+        const dClient = this.clients.find(
+          (c) =>
+            this.state.players.get(c.sessionId)?.role === "defender" ||
+            c.userData?.role === "defender",
+        );
+        return dClient ? this.acceptedDecks.get(dClient.sessionId) ?? [] : [];
+      })();
+
+    this.broadcast(MESSAGES.draftRoundUpdate, {
+      round: 3,
+      phaseEndsAt: 5,
+      attackerPicks: aPicks,
+      defenderPicks: dPicks,
+      attackerReady: true,
+      defenderReady: true,
+      isFinalReveal: true,
+      waitingForAssets: false,
+    });
+  }
+
+  private checkAssetsAndProceed(): void {
+    if (!this.waitingForAssets) return;
+    if (this.areAllClientsAssetsLoaded()) {
+      this.startPostDraftCountdown();
+    } else {
+      this.broadcast(MESSAGES.assetLoadingStatus, {
+        waitingForAssets: true,
+        loadedCount: this.loadedAssetsClients.size,
+        totalCount: this.clients.length,
+      });
     }
   }
 
@@ -1731,6 +1839,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.attackerBuffers.delete(client.sessionId);
     this.portalCharges.delete(client.sessionId);
     this.rematchVotes.delete(client.sessionId);
+    this.loadedAssetsClients.delete(client.sessionId);
+    if (this.waitingForAssets) {
+      this.checkAssetsAndProceed();
+    }
 
     const wasCreator = client.sessionId === this.creatorSessionId;
 
@@ -1814,8 +1926,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.onSiegeExpired();
     }
 
-    // Handle 5-second post-draft countdown before advancing to building
-    if (this.state.phase === "drafting" && this.draftFinalCountdown !== null) {
+    // Handle asset loading gate and 5-second post-draft countdown before advancing to building
+    if (this.state.phase === "drafting" && this.waitingForAssets) {
+      this.assetWaitTimeout -= dt;
+      if (this.assetWaitTimeout <= 0) {
+        console.warn(
+          `Room ${this.roomId}: Asset loading timeout reached. Proceeding to post-draft countdown`,
+        );
+        this.startPostDraftCountdown();
+      }
+    } else if (this.state.phase === "drafting" && this.draftFinalCountdown !== null) {
       this.draftFinalCountdown -= dt;
       this.state.phaseEndsAt = Math.max(0, this.draftFinalCountdown);
 
@@ -2151,6 +2271,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.suddenDeath = false;
     this.projectileAim.clear();
     this.projectileSplash.clear();
+    this.mobAbilityCooldowns.clear();
+    this.mobCastPause.clear();
   }
 
   /** Named path ids on a map that are long enough to actually walk. */
@@ -2215,7 +2337,25 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (this.state.mobs.size === 0) return;
 
     const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+    const halfWidth = map.pathHalfWidth ?? 0;
     const finished: string[] = [];
+
+    let positions: Map<string, Vec2> | undefined;
+    const ensurePositions = (): Map<string, Vec2> => {
+      if (!positions) {
+        positions = new Map<string, Vec2>();
+        for (const [mId, m] of this.state.mobs) {
+          const p = this.pathFor(map, m.pathId);
+          if (p && p.length >= 2) {
+            positions.set(
+              mId,
+              samplePathWithLateral(p, m.progress, m.seed, halfWidth),
+            );
+          }
+        }
+      }
+      return positions;
+    };
 
     for (const [id, mob] of this.state.mobs) {
       const path = this.pathFor(map, mob.pathId);
@@ -2228,7 +2368,27 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
       this.tickMobEffects(mob, dt);
 
-      mob.progress += (this.mobSpeed(mob) / total) * dt;
+      // Pause movement while playing an ability cast animation.
+      const castPause = this.mobCastPause.get(id);
+      if (castPause !== undefined) {
+        const remainingPause = castPause - dt;
+        if (remainingPause > 0) {
+          this.mobCastPause.set(id, remainingPause);
+          mob.state = "casting";
+          continue;
+        }
+        this.mobCastPause.delete(id);
+        mob.state = "moving";
+      }
+
+      const hasPaceSlow =
+        MOB_TYPES[mob.typeId]?.ability?.paceSlowFactor !== undefined;
+      const speed = this.mobSpeed(
+        mob,
+        id,
+        hasPaceSlow ? ensurePositions() : undefined,
+      );
+      mob.progress += (speed / total) * dt;
 
       if (mob.progress >= 1) {
         const mobType = MOB_TYPES[mob.typeId];
@@ -2255,6 +2415,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     for (const id of finished) {
       this.state.mobs.delete(id);
+      this.mobAbilityCooldowns.delete(id);
+      this.mobCastPause.delete(id);
     }
   }
 
@@ -2290,6 +2452,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   private clearMobs(): void {
     if (this.state.mobs.size > 0) this.state.mobs.clear();
+    this.mobAbilityCooldowns.clear();
+    this.mobCastPause.clear();
   }
 
   /**
@@ -2322,11 +2486,151 @@ export class GameRoom extends Room<{ state: RoomState }> {
       );
       positions.set(id, point);
       const remaining = Math.max(0, 1 - mob.progress) * pathLength(path);
-      candidates.push({ id, x: point.x, y: point.y, remaining });
+      const taunt = MOB_TYPES[mob.typeId]?.taunt;
+      candidates.push({ id, x: point.x, y: point.y, remaining, taunt });
     }
 
-    this.simulateTowers(dt, map, candidates);
     this.simulateProjectiles(dt, positions);
+    this.simulateTowers(dt, map, candidates);
+    this.simulateMobAbilities(dt, positions);
+  }
+
+  /**
+   * Evaluates active abilities for mobs on the field (e.g. Say Sayar's heal aura).
+   *
+   * @remarks
+   * A caster checks all living allied mobs within `ability.radius` (including
+   * itself). When its cooldown is ready and at least one mob in radius is below
+   * `ability.triggerHpThreshold` (e.g. 50% HP), it heals every damaged mob in
+   * radius, pauses briefly for its cast animation, enters cooldown, and
+   * broadcasts `MESSAGES.mobAbility` so clients play the cast and heal VFX.
+   */
+  private simulateMobAbilities(
+    dt: number,
+    positions: ReadonlyMap<string, Vec2>,
+  ): void {
+    if (this.state.mobs.size === 0) return;
+
+    for (const [casterId, caster] of this.state.mobs) {
+      if (caster.hp <= 0) continue;
+      const type = MOB_TYPES[caster.typeId];
+      const ability = type?.ability;
+      if (!ability) continue;
+
+      const prevCd = this.mobAbilityCooldowns.get(casterId) ?? 0;
+      const nextCd = Math.max(0, prevCd - dt);
+      if (nextCd > 0) {
+        this.mobAbilityCooldowns.set(casterId, nextCd);
+        continue;
+      }
+      this.mobAbilityCooldowns.delete(casterId);
+
+      const casterPos = positions.get(casterId);
+      if (!casterPos) continue;
+
+      if (ability.type === "heal_aura") {
+        const threshold = ability.triggerHpThreshold ?? 0.5;
+        const healAmount = ability.healAmount ?? 80;
+        let hasCriticalAlly = false;
+        const damagedInRadius: Array<[string, Mob]> = [];
+
+        for (const [targetId, target] of this.state.mobs) {
+          if (target.hp <= 0) continue;
+          const targetPos = positions.get(targetId);
+          if (!targetPos) continue;
+
+          const dist = Math.hypot(
+            targetPos.x - casterPos.x,
+            targetPos.y - casterPos.y,
+          );
+          if (dist <= ability.radius) {
+            if (target.hp < target.maxHp * threshold) {
+              hasCriticalAlly = true;
+            }
+            if (target.hp < target.maxHp) {
+              damagedInRadius.push([targetId, target]);
+            }
+          }
+        }
+
+        if (!hasCriticalAlly || damagedInRadius.length === 0) {
+          continue;
+        }
+
+        const healedIds: string[] = [];
+        for (const [targetId, target] of damagedInRadius) {
+          target.hp = Math.min(target.maxHp, target.hp + healAmount);
+          healedIds.push(targetId);
+        }
+
+        this.mobAbilityCooldowns.set(casterId, ability.cooldownSec);
+        const castDuration = ability.castDurationSec ?? 0.5;
+        if (castDuration > 0) {
+          this.mobCastPause.set(casterId, castDuration);
+          caster.state = "casting";
+        }
+
+        const payload: MobAbilityPayload = {
+          casterId,
+          abilityType: "heal_aura",
+          targetIds: healedIds,
+        };
+        this.broadcast(MESSAGES.mobAbility, payload);
+      } else if (ability.type === "speed_aura") {
+        const alliesInRadius: Array<[string, Mob]> = [];
+        let hasOtherAlly = false;
+
+        for (const [targetId, target] of this.state.mobs) {
+          if (target.hp <= 0) continue;
+          const targetPos = positions.get(targetId);
+          if (!targetPos) continue;
+
+          const dist = Math.hypot(
+            targetPos.x - casterPos.x,
+            targetPos.y - casterPos.y,
+          );
+          if (dist <= ability.radius) {
+            alliesInRadius.push([targetId, target]);
+            if (targetId !== casterId) {
+              hasOtherAlly = true;
+            }
+          }
+        }
+
+        if (!hasOtherAlly) {
+          continue;
+        }
+
+        const boost = ability.speedBoost ?? 0.4;
+        const duration = ability.durationSec ?? 4;
+        const boostedIds: string[] = [];
+
+        for (const [targetId, target] of alliesInRadius) {
+          this.applyMobEffect(
+            target,
+            EFFECT_TYPES.haste,
+            boost,
+            duration,
+            casterId,
+          );
+          boostedIds.push(targetId);
+        }
+
+        this.mobAbilityCooldowns.set(casterId, ability.cooldownSec);
+        const castDuration = ability.castDurationSec ?? 0;
+        if (castDuration > 0) {
+          this.mobCastPause.set(casterId, castDuration);
+          caster.state = "casting";
+        }
+
+        const payload: MobAbilityPayload = {
+          casterId,
+          abilityType: "speed_aura",
+          targetIds: boostedIds,
+        };
+        this.broadcast(MESSAGES.mobAbility, payload);
+      }
+    }
   }
 
   /** Fires each ready tower at the in-range mob nearest the base. */
@@ -2343,6 +2647,38 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
       // Clamp so a long idle period never stockpiles "negative" cooldown.
       tower.cooldown = Math.max(0, tower.cooldown - dt);
+
+      if (type?.attackMode === "aoe_pulse") {
+        const inRange = candidates.filter(
+          (c) => Math.hypot(c.x - slot.x, c.y - slot.y) <= tier.range,
+        );
+        tower.targetId = inRange[0]?.id;
+        if (inRange.length === 0 || tower.cooldown > 0) continue;
+
+        tower.cooldown = 1 / tier.fireRate;
+        const damageType = type.damageType ?? DAMAGE_TYPES.mental;
+        const targetIds: string[] = [];
+        const targets: Array<{ id: string; x: number; y: number }> = [];
+        for (const c of inRange) {
+          targetIds.push(c.id);
+          targets.push({ id: c.id, x: c.x, y: c.y });
+          this.damageMob(
+            c.id,
+            this.towerDamage(tier),
+            tower.ownerId,
+            damageType,
+          );
+        }
+
+        const payload: TowerAttackPayload = {
+          slotIndex: tower.slotIndex,
+          typeId: tower.typeId,
+          targetIds,
+          targets,
+        };
+        this.broadcast(MESSAGES.towerAttack, payload);
+        continue;
+      }
 
       const target = selectTarget(candidates, slot, tier.range);
       tower.targetId = target?.id;
@@ -2362,7 +2698,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-  /** Spawns a homing projectile from a tower's slot toward `target`. */
+  /** Spawns a homing projectile from a tower's muzzle/mouth toward `target`. */
   private spawnProjectile(
     tower: Tower,
     slot: Vec2,
@@ -2370,14 +2706,21 @@ export class GameRoom extends Room<{ state: RoomState }> {
     tier: TowerTier,
   ): void {
     const id = `proj-${this.projectileSeq++}`;
+    const muzzle = getTowerMuzzleOffset(
+      tower.typeId,
+      slot.x,
+      slot.y,
+      target.x,
+      target.y,
+    );
 
     this.state.projectiles.set(
       id,
       new Projectile({
         ownerId: tower.ownerId,
         typeId: tower.typeId,
-        x: slot.x,
-        y: slot.y,
+        x: slot.x + muzzle.x,
+        y: slot.y + muzzle.y,
         targetId: target.id,
         damage: this.towerDamage(tier),
         speed: tier.projectileSpeed,
@@ -2518,6 +2861,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (mob.hp > 0) return;
 
     this.state.mobs.delete(mobId);
+    this.mobAbilityCooldowns.delete(mobId);
+    this.mobCastPause.delete(mobId);
     this.awardBounty(ownerId, mob.bounty);
   }
 
@@ -2609,12 +2954,53 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
-  /** A mob's speed right now, after slows and stuns. */
-  private mobSpeed(mob: Mob): number {
+  /** A mob's speed right now, after flexible pacing, slows, hastes, and stuns. */
+  private mobSpeed(
+    mob: Mob,
+    mobId?: string,
+    positions?: ReadonlyMap<string, Vec2>,
+  ): number {
     if (mob.effects.has(EFFECT_TYPES.stun)) return 0;
 
+    let baseSpeed = mob.speed;
+    const ability = MOB_TYPES[mob.typeId]?.ability;
+    if (
+      ability?.paceSlowFactor !== undefined &&
+      mobId !== undefined &&
+      positions
+    ) {
+      const selfPos = positions.get(mobId);
+      if (selfPos) {
+        let slowestAllySpeed = Infinity;
+        for (const [otherId, other] of this.state.mobs) {
+          if (otherId === mobId || other.hp <= 0) continue;
+          const otherPos = positions.get(otherId);
+          if (!otherPos) continue;
+          const dist = Math.hypot(
+            otherPos.x - selfPos.x,
+            otherPos.y - selfPos.y,
+          );
+          if (dist <= ability.radius && other.speed < slowestAllySpeed) {
+            slowestAllySpeed = other.speed;
+          }
+        }
+        // If a nearby ally in aura range is significantly slower, slow down to pace them.
+        if (slowestAllySpeed < baseSpeed * 0.8) {
+          baseSpeed = Math.max(
+            slowestAllySpeed,
+            baseSpeed * ability.paceSlowFactor,
+          );
+        }
+      }
+    }
+
     const slow = mob.effects.get(EFFECT_TYPES.slow);
-    return effectiveSpeed(mob.speed, slow ? [slow.magnitude] : []);
+    const haste = mob.effects.get(EFFECT_TYPES.haste);
+    return effectiveSpeed(
+      baseSpeed,
+      slow ? [slow.magnitude] : [],
+      haste ? [haste.magnitude] : [],
+    );
   }
 
   /** Credits a defender's hidden gold and pushes them a fresh snapshot. */

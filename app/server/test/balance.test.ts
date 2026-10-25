@@ -65,9 +65,9 @@ describe("balance.ts shape guards", () => {
     }
     // Tower-specific upgrade costs prove no cross-tower formula: two towers at
     // the same level must not be forced to share a cost.
-    const basic = TOWER_TYPES["basic"];
-    const bertha = TOWER_TYPES["bertha"];
-    assert.ok(basic && bertha && basic.tiers[1].cost !== bertha.tiers[1].cost);
+    const archer = TOWER_TYPES["archer"];
+    const cannon = TOWER_TYPES["cannon"];
+    assert.ok(archer && cannon && archer.tiers[1].cost !== cannon.tiers[1].cost);
   });
 
   it("economy, deck and match rules are positive and present", () => {

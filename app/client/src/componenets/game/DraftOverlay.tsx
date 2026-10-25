@@ -66,7 +66,7 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     title: 'BELL TOWER',
     weakness: 'Long-Range Snipers',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/04_bell_tower/icon.png',
+    iconSrc: '/assets/towers/04_bell_tower/icon.jpg',
   },
   spear: {
     title: 'SPEAR TOWER',
@@ -92,6 +92,30 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     stacks: 'Max 4',
     iconSrc: '/assets/towers/06_gun_tower/icon.png',
   },
+  water_cannon: {
+    title: 'WATER CANNON',
+    weakness: 'Fast Units',
+    stacks: 'Max 6',
+    iconSrc: '/assets/towers/07_water_cannon/icon.jpg',
+  },
+  chinthe: {
+    title: 'CHINTHE GUARDIAN',
+    weakness: 'Armored Swarms',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/08_chinthe_statue/icon.jpg',
+  },
+  dragon: {
+    title: 'DRAGON TOWER',
+    weakness: 'Resistant Hordes',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/09_dragon_tower/icon.jpg',
+  },
+  sein_pyaung: {
+    title: 'SEIN PYAUNG',
+    weakness: 'Heavy Armor & Swarms',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/10_sein_pyaung/icon.jpg',
+  },
   arcanist: {
     title: 'ROYAL ARCANIST',
     weakness: 'Fast Magic Wards',
@@ -115,18 +139,6 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
 };
 
 const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
-  grunt: {
-    title: 'BURMESE WARRIOR',
-    weakness: 'Area Splash Cannons',
-    stacks: 'Max 30',
-    iconSrc: '/assets/sprites/unit_warrior.png',
-  },
-  runner: {
-    title: 'SCOUT RUNNER',
-    weakness: 'Rapid Arrow Towers',
-    stacks: 'Max 25',
-    iconSrc: '/assets/units/horse_rider/face.png',
-  },
   horse_rider: {
     title: 'KONBAUNG CAVALRY',
     weakness: 'Spike Pitches & Traps',
@@ -157,23 +169,35 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     stacks: 'Max 6',
     iconSrc: '/assets/units/chon_toe/face.png',
   },
-  brute: {
-    title: 'WAR BRUTE',
-    weakness: 'Heavy Cannon Fire',
-    stacks: 'Max 8',
-    iconSrc: '/assets/units/sar_bal_gyi/face.png',
+  elephant_rider: {
+    title: 'WAR ELEPHANT',
+    weakness: 'Mental Attacks & Artillery',
+    stacks: 'Max 3',
+    iconSrc: '/assets/units/elephant_rider/face.jpg',
   },
-  shade: {
-    title: 'SHADOW INFILTRATOR',
-    weakness: 'Crossbow Rapid Fire',
-    stacks: 'Max 15',
-    iconSrc: '/assets/units/shade/face.png',
-  },
-  spider: {
-    title: 'JUNGLE ARACHNID',
-    weakness: 'Flamethrowers & Splash',
+  monkey: {
+    title: 'MONKEY',
+    weakness: 'Splash & Area Towers',
     stacks: 'Max 40',
-    iconSrc: '/assets/units/spider/face.png',
+    iconSrc: '/assets/units/monkey/face.jpg',
+  },
+  say_sayar: {
+    title: 'SAY SAYAR',
+    weakness: 'Single-Target Burst',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/say_sayar/face.jpg',
+  },
+  shield_guy: {
+    title: 'SHIELD BEARER',
+    weakness: 'Mental Attacks & Artillery',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/shield_guy/face.jpg',
+  },
+  doe_pat: {
+    title: 'DOE PAT DRUMMER',
+    weakness: 'Long-Range Snipers',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/doe_pat/face.jpg',
   },
 };
 
@@ -245,6 +269,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
   // 5-second post-draft countdown after round 3
   const [isFinalCountdown, setIsFinalCountdown] = useState<boolean>(false);
+  const [isWaitingForAssets, setIsWaitingForAssets] = useState<boolean>(false);
   const [finalSeconds, setFinalSeconds] = useState<number>(5);
 
   const smoothSeconds = useSmoothCountdown(
@@ -343,16 +368,11 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
       setIsRoundReady(true);
       setErrorMsg(null);
 
-      // Send to server
+      // Send to server (the 2-2-2 draftPick protocol commits all 3 rounds on the server)
       room.send(MESSAGES.draftPick, {
         round: currentRoundRef.current,
         picks,
       });
-
-      // Also trigger onConfirm callback if in final round
-      if (currentRoundRef.current === 3 && onConfirmRef.current) {
-        onConfirmRef.current([...lockedPicksRef.current, ...picks]);
-      }
     },
     [room],
   );
@@ -425,7 +445,10 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
         if (payload.isFinalReveal) {
           setIsFinalCountdown(true);
-          setFinalSeconds(5);
+          setIsWaitingForAssets(Boolean(payload.waitingForAssets));
+          if (!payload.waitingForAssets) {
+            setFinalSeconds(payload.phaseEndsAt || 5);
+          }
           setIsRoundReady(true);
           setRoundPicks([]);
         } else if (payload.round >= currentRoundRef.current && payload.round < 3) {
@@ -438,6 +461,13 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
       },
     );
 
+    const offAssetStatus = room.onMessage(
+      MESSAGES.assetLoadingStatus,
+      (payload: { waitingForAssets: boolean; loadedCount: number; totalCount: number }) => {
+        setIsWaitingForAssets(Boolean(payload.waitingForAssets));
+      },
+    );
+
     const offReject = room.onMessage(MESSAGES.draftRejected, (payload: { reason?: string }) => {
       setIsRoundReady(false);
       setErrorMsg(payload?.reason || 'Draft selection was rejected by server.');
@@ -445,6 +475,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
     return () => {
       offUpdate();
+      offAssetStatus();
       offReject();
     };
   }, [room, effectiveRole]);
@@ -655,32 +686,60 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
               className="relative flex items-center justify-between py-1.5 px-4 rounded-lg text-center"
               style={{
                 background: isFinalCountdown
-                  ? 'linear-gradient(90deg, #1e3a1f 0%, #15803d 50%, #1e3a1f 100%)'
+                  ? isWaitingForAssets
+                    ? 'linear-gradient(90deg, #451a03 0%, #78350f 50%, #451a03 100%)'
+                    : 'linear-gradient(90deg, #1e3a1f 0%, #15803d 50%, #1e3a1f 100%)'
                   : 'linear-gradient(90deg, #5b0f13 0%, #9e1b22 50%, #5b0f13 100%)',
-                border: isFinalCountdown ? '2px solid #34d399' : '2px solid #d4af37',
+                border: isFinalCountdown
+                  ? isWaitingForAssets
+                    ? '2px solid #f59e0b'
+                    : '2px solid #34d399'
+                  : '2px solid #d4af37',
                 boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.3), 0 3px 10px rgba(0,0,0,0.6)',
               }}
             >
               {isFinalCountdown ? (
-                <>
-                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-emerald-200">
-                    <span className="px-2.5 py-0.5 rounded bg-black/50 border border-emerald-400">
-                      DRAFT COMPLETE ✓
+                isWaitingForAssets ? (
+                  <>
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-amber-200">
+                      <span className="px-2.5 py-0.5 rounded bg-black/50 border border-amber-400">
+                        DRAFT COMPLETE ✓
+                      </span>
+                    </div>
+
+                    <span
+                      className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
+                      style={{ textShadow: '2px 2px 0px #000' }}
+                    >
+                      ⏳ WAITING FOR OPPONENT TO LOAD ASSETS...
                     </span>
-                  </div>
 
-                  <span
-                    className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
-                    style={{ textShadow: '2px 2px 0px #000' }}
-                  >
-                    ⚔️ BATTLE COMMENCES IN {effectiveFinalSeconds}s ⚔️
-                  </span>
+                    <div className="flex items-center gap-1 px-3 py-0.5 rounded-full font-black text-xs sm:text-sm border bg-amber-950/90 border-amber-400 text-amber-300">
+                      <span>⏱</span>
+                      <span>SYNC</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-emerald-200">
+                      <span className="px-2.5 py-0.5 rounded bg-black/50 border border-emerald-400">
+                        DRAFT COMPLETE ✓
+                      </span>
+                    </div>
 
-                  <div className="flex items-center gap-1 px-3 py-0.5 rounded-full font-black text-xs sm:text-sm border bg-emerald-950/90 border-emerald-400 text-emerald-300">
-                    <span>⏱</span>
-                    <span>{effectiveFinalSeconds}s</span>
-                  </div>
-                </>
+                    <span
+                      className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
+                      style={{ textShadow: '2px 2px 0px #000' }}
+                    >
+                      ⚔️ BATTLE COMMENCES IN {effectiveFinalSeconds}s ⚔️
+                    </span>
+
+                    <div className="flex items-center gap-1 px-3 py-0.5 rounded-full font-black text-xs sm:text-sm border bg-emerald-950/90 border-emerald-400 text-emerald-300">
+                      <span>⏱</span>
+                      <span>{effectiveFinalSeconds}s</span>
+                    </div>
+                  </>
+                )
               ) : (
                 <>
                   <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#fef08a]">
@@ -1089,20 +1148,37 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
             {/* Bottom-Right — CONFIRM BUTTON FOR CURRENT ROUND */}
             <div className="pt-1">
               {isFinalCountdown ? (
-                <button
-                  type="button"
-                  disabled
-                  className="relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-emerald-950 via-emerald-800 to-emerald-950 border-2 border-[#ffe066] text-[#fff5d6] shadow-[0_0_25px_rgba(255,224,102,0.6)] cursor-default animate-pulse"
-                  style={{ textShadow: '2px 2px 0px #000' }}
-                >
-                  <CornerFlourish position="tl" />
-                  <CornerFlourish position="tr" />
-                  <CornerFlourish position="bl" />
-                  <CornerFlourish position="br" />
-                  <span className="flex items-center gap-2">
-                    ⚔️ PREPARE FOR BATTLE ({effectiveFinalSeconds}s)
-                  </span>
-                </button>
+                isWaitingForAssets ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-amber-950 via-amber-800 to-amber-950 border-2 border-amber-400 text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.5)] cursor-default animate-pulse"
+                    style={{ textShadow: '2px 2px 0px #000' }}
+                  >
+                    <CornerFlourish position="tl" />
+                    <CornerFlourish position="tr" />
+                    <CornerFlourish position="bl" />
+                    <CornerFlourish position="br" />
+                    <span className="flex items-center gap-2">
+                      ⏳ WAITING FOR ASSET LOADING...
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-emerald-950 via-emerald-800 to-emerald-950 border-2 border-[#ffe066] text-[#fff5d6] shadow-[0_0_25px_rgba(255,224,102,0.6)] cursor-default animate-pulse"
+                    style={{ textShadow: '2px 2px 0px #000' }}
+                  >
+                    <CornerFlourish position="tl" />
+                    <CornerFlourish position="tr" />
+                    <CornerFlourish position="bl" />
+                    <CornerFlourish position="br" />
+                    <span className="flex items-center gap-2">
+                      ⚔️ PREPARE FOR BATTLE ({effectiveFinalSeconds}s)
+                    </span>
+                  </button>
+                )
               ) : (
                 <button
                   type="button"

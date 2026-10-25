@@ -1,0 +1,15 @@
+{
+  "id": "monkey",
+  "name": "Monkey",
+  "frames": 8,
+  "cols": 4,
+  "rows": 2,
+  "frameWidth": 688,
+  "frameHeight": 768,
+  "frameRate": 10,
+  "scale": 0.05,
+  "origin": { "x": 0.5, "y": 0.85 },
+  "animations": {
+    "run": { "start": 0, "end": 7, "repeat": -1 }
+  }
+}

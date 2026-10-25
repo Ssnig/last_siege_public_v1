@@ -309,6 +309,11 @@ describe("testing your Colyseus app", () => {
 
     await waitForPhase(room, "drafting", 5000);
 
+    // Both clients report their assets as loaded so the final reveal does not
+    // stall waiting on the asset-load gate.
+    attacker.send(MESSAGES.clientAssetsLoaded);
+    defender.send(MESSAGES.clientAssetsLoaded);
+
     // Three rounds of two picks each; the server reveals each round and runs a
     // short final countdown before opening the building phase.
     const attackerDeck = Object.keys(MOB_TYPES).slice(0, 6);
@@ -491,9 +496,9 @@ describe("testing your Colyseus app", () => {
     // Nothing is spawned on the combat edge any more: the attacker opts in.
     assert.strictEqual(room.state.mobs.size, 0, "no mobs appear without a deploy");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     // portal-0 is the Konbaung top track's spawn; the buffer pours out there.
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
 
@@ -502,7 +507,7 @@ describe("testing your Colyseus app", () => {
 
     for (const mob of room.state.mobs.values()) {
       assert.strictEqual(mob.pathId, "top", "units follow the portal's track");
-      assert.strictEqual(mob.typeId, "grunt");
+      assert.strictEqual(mob.typeId, "monkey");
       assert.ok(mob.speed > 0, "each mob carries a jittered speed");
     }
   });
@@ -518,9 +523,9 @@ describe("testing your Colyseus app", () => {
     await draftToBuilding(attacker, defender);
     await waitForPhase(room, "building");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
 
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
@@ -546,8 +551,8 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0);
 
@@ -617,8 +622,12 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
     await waitForPhase(room, "building");
 
-    const towerTypeId = Object.keys(TOWER_TYPES)[0];
-    const towerType = TOWER_TYPES[towerTypeId];
+    const towerType = Object.values(TOWER_TYPES).find(
+      (tower) =>
+        buildCost(tower) + (upgradeCost(tower, 1) ?? Infinity) <=
+        DEFAULT_ECONOMY.defenderStartingGold,
+    )!;
+    const towerTypeId = towerType.id;
     const slotIndex = MAPS[room.state.mapId].slots[0].slotIndex;
     const startGold = DEFAULT_ECONOMY.defenderStartingGold;
     const costBuild = buildCost(towerType);
@@ -668,13 +677,13 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
     await waitForPhase(room, "building");
 
-    // Stack both affordable basic towers over the top path: one tower alone
-    // cannot out-damage a grunt during a single pass, two comfortably can.
+    // Stack both affordable archer towers over the top path: one tower alone
+    // cannot out-damage a monkey during a single pass, two comfortably can.
     const slots = MAPS[room.state.mapId].slots;
     const buildSlots = [slots[0], slots[1]].map((slot) => slot.slotIndex);
 
     for (const slotIndex of buildSlots) {
-      defender.send(MESSAGES.placeTower, { typeId: "basic", slotIndex });
+      defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex });
     }
     await waitFor(() => room.state.towers.size === buildSlots.length);
 
@@ -687,9 +696,9 @@ describe("testing your Colyseus app", () => {
 
     // Only the defended path is attacked, so any HP lost is tower damage and any
     // missing mob is a kill (not a leak).
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0);
 
@@ -724,16 +733,16 @@ describe("testing your Colyseus app", () => {
 
     const slots = MAPS[room.state.mapId].slots;
     for (const slot of [slots[0], slots[1]]) {
-      defender.send(MESSAGES.placeTower, { typeId: "basic", slotIndex: slot.slotIndex });
+      defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex: slot.slotIndex });
     }
     await waitFor(() => room.state.towers.size === 2);
 
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0);
 
@@ -780,13 +789,13 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-1" });
 
     await waitFor(() => room.state.mobs.size === 6, 6000);
@@ -814,13 +823,13 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "building");
 
     // Queueing is allowed while the defender is still placing towers.
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     const buffer = await waitForBuffer(attacker, (payload) => payload.buffer.length === 1);
     assert.strictEqual(buffer.goldPerSecond, DEFAULT_ECONOMY.attackerBaseIncome);
-    assert.deepStrictEqual(buffer.buffer, ["grunt"], "the queued unit is held in order");
+    assert.deepStrictEqual(buffer.buffer, ["monkey"], "the queued unit is held in order");
     assert.strictEqual(buffer.maxBufferUnits, DEFAULT_DEPLOY_RULES.maxBufferUnits);
     assert.strictEqual(buffer.canDeploy, false, "deploying is combat-only");
-    assert.ok(buffer.availableTroops.includes("grunt"), "the deck is exposed as choices");
+    assert.ok(buffer.availableTroops.includes("monkey"), "the deck is exposed as choices");
 
     // But deploying is combat-only.
     const rejected = attacker.waitForMessage(MESSAGES.deployRejected);
@@ -837,18 +846,18 @@ describe("testing your Colyseus app", () => {
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
 
-    // A deck of expensive units: an ogre costs 60g against the attacker's
+    // A deck of expensive units: a chon_toe costs 55g against the attacker's
     // 200g, so only three fit before the purse runs dry.
-    attacker.send(MESSAGES.draftReady, { deck: ["ogre"] });
+    attacker.send(MESSAGES.draftReady, { deck: ["chon_toe"] });
     defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
     await waitForPhase(room, "building");
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
     const rejected = attacker.waitForMessage(MESSAGES.deployRejected);
-    const affordable = Math.floor(DEFAULT_ECONOMY.attackerStartingGold / MOB_TYPES.ogre.cost);
+    const affordable = Math.floor(DEFAULT_ECONOMY.attackerStartingGold / MOB_TYPES.chon_toe.cost);
     for (let i = 0; i <= affordable; i++) {
-      attacker.send(MESSAGES.bufferAdd, { typeId: "ogre" });
+      attacker.send(MESSAGES.bufferAdd, { typeId: "chon_toe" });
     }
     const msg = await rejected;
     assert.match(msg.reason, /gold/i);
@@ -867,7 +876,7 @@ describe("testing your Colyseus app", () => {
 
     const rejected = attacker.waitForMessage(MESSAGES.deployRejected);
     for (let i = 0; i <= DEFAULT_DEPLOY_RULES.maxBufferUnits; i++) {
-      attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+      attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     }
     const msg = await rejected;
     assert.match(msg.reason, /most \d+ units/i);
@@ -885,8 +894,8 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "building");
 
     const start = DEFAULT_ECONOMY.attackerStartingGold;
-    const queued = waitForEconomy(attacker, (gold) => gold === start - MOB_TYPES["grunt"].cost);
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    const queued = waitForEconomy(attacker, (gold) => gold === start - MOB_TYPES["monkey"].cost);
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     await queued;
 
     const cleared = waitForEconomy(attacker, (gold) => gold === start);
@@ -935,7 +944,7 @@ describe("testing your Colyseus app", () => {
 
     // Queue a unit to force a fresh snapshot, proving the initial charges.
     const queued = waitForBuffer(attacker, (payload) => payload.buffer.length === 1);
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     const full = await queued;
     const portal = full.portals.find((p) => p.id === "portal-0")!;
     assert.strictEqual(portal.charges, DEFAULT_DEPLOY_RULES.portalMaxCharges);
@@ -966,7 +975,7 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
 
@@ -988,7 +997,7 @@ describe("testing your Colyseus app", () => {
     mob.progress = 0.6;
     const bonus = internals.deepIncomeRate();
     const unitBonus =
-      (MOB_TYPES["grunt"]?.cost ?? 0) * DEFAULT_ECONOMY.attackerUnitIncomeRate;
+      (MOB_TYPES["monkey"]?.cost ?? 0) * DEFAULT_ECONOMY.attackerUnitIncomeRate;
     assert.ok(unitBonus > 0, "the fixture unit has a cost and a positive rate");
     assert.ok(Math.abs(bonus - unitBonus) < 1e-9, "bonus scales with the unit's cost");
 
@@ -1048,7 +1057,7 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "combat");
 
     // A runner keeps the field alive, so the siege can expire into sudden death.
-    attacker.send(MESSAGES.bufferAdd, { typeId: "runner" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
 
@@ -1056,7 +1065,7 @@ describe("testing your Colyseus app", () => {
     // be running there, so their gold keeps climbing.
     room.state.phaseEndsAt = 90;
     const purse =
-      DEFAULT_ECONOMY.attackerStartingGold - MOB_TYPES.runner.cost;
+      DEFAULT_ECONOMY.attackerStartingGold - MOB_TYPES.monkey.cost;
     await waitForEconomy(attacker, (gold) => gold > purse, 8000);
 
     assert.strictEqual(
@@ -1169,7 +1178,7 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "combat");
 
     // A runner is the fastest unit, so the field clears soonest.
-    attacker.send(MESSAGES.bufferAdd, { typeId: "runner" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
 
@@ -1200,7 +1209,7 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
 
@@ -1208,7 +1217,7 @@ describe("testing your Colyseus app", () => {
     await waitFor(() => room.state.suddenDeath, 4000);
 
     const rejected = attacker.waitForMessage(MESSAGES.deployRejected);
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     const msg = await rejected;
     assert.match(msg.reason, /sudden death/i);
   });
@@ -1255,7 +1264,7 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "combat");
 
     // Any buffer mutation re-pushes the private snapshot; read the portals from it.
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     const buffer = await waitForBuffer(attacker, (payload) => payload.portals.length === 3);
     assert.deepStrictEqual(
       buffer.portals.map((portal) => portal.id),
@@ -1286,7 +1295,7 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "combat");
 
     // The fork's single portal carries both branches; pick the right one.
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0", pathId: "right" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
     assert.ok(
@@ -1308,7 +1317,7 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "grunt" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     const buffer = await waitForBuffer(attacker, (payload) => payload.buffer.length === 1);
     const portal = buffer.portals[0];
 
@@ -1359,9 +1368,9 @@ describe("testing your Colyseus app", () => {
     assert.strictEqual(room.state.gameOverReason, "disconnect");
   });
 
-  it("armor stops a physical shot that is weaker than it", async function () {
-    // The palace guard's armor (8) is heavier than a pitchfork's shot (6), so
-    // the mob has to shrug those off entirely.
+  it("armor blunts a physical shot", async function () {
+    // The palace guard's armor (8) soaks a flat slice out of every archer shot
+    // (10-14), so a hit can only take 2-6 HP off the mob.
     this.timeout(40000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
@@ -1371,15 +1380,13 @@ describe("testing your Colyseus app", () => {
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
 
-    attacker.send(MESSAGES.draftReady, { deck: ["grunt", "sar_bal_gyi"] });
-    defender.send(MESSAGES.draftReady, { deck: ["basic", "pitchfork"] });
+    attacker.send(MESSAGES.draftReady, { deck: ["monkey", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["archer"] });
     await waitForPhase(room, "building");
 
     const slots = MAPS[room.state.mapId].slots;
-    for (const slot of [slots[0], slots[1]]) {
-      defender.send(MESSAGES.placeTower, { typeId: "pitchfork", slotIndex: slot.slotIndex });
-    }
-    await waitFor(() => room.state.towers.size === 2);
+    defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
 
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
@@ -1388,16 +1395,20 @@ describe("testing your Colyseus app", () => {
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0);
 
-    // The towers do shoot; the mob simply does not care.
-    await waitFor(() => room.state.projectiles.size > 0, 10000);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await waitFor(
+      () => [...room.state.mobs.values()].some((mob) => mob.hp < mob.maxHp),
+      15000,
+    );
 
-    const mob = [...room.state.mobs.values()][0];
+    const mob = [...room.state.mobs.values()].find((m) => m.hp < m.maxHp);
+    assert.ok(mob, "the tower hit the mob");
     assert.strictEqual(mob.typeId, "sar_bal_gyi");
-    assert.strictEqual(
-      mob.hp,
-      mob.maxHp,
-      "armor heavier than the shot absorbs the whole hit",
+    const loss = mob.maxHp - mob.hp;
+    const archer = TOWER_TYPES["archer"];
+    const maxShot = archer.tiers[0].damageMax ?? archer.tiers[0].damage;
+    assert.ok(
+      loss > 0 && loss <= maxShot - 8,
+      `armor (8) blunts the archer's ${maxShot}-damage shot, so the loss stays at most ${maxShot - 8} (was ${loss})`,
     );
   });
 
@@ -1413,17 +1424,15 @@ describe("testing your Colyseus app", () => {
     const attacker = await colyseus.connectTo(room);
     const defender = await colyseus.connectTo(room);
 
-    attacker.send(MESSAGES.draftReady, { deck: ["grunt", "sar_bal_gyi"] });
-    defender.send(MESSAGES.draftReady, { deck: ["basic", "bell", "pitchfork"] });
+    attacker.send(MESSAGES.draftReady, { deck: ["monkey", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["bell"] });
     await waitForPhase(room, "building");
 
     // The bell tower is a mental tower, so the palace guard's armor (8) does
-    // not blunt its shot (15). The pitchfork's shot (6) is blunted to nothing,
-    // which keeps the mob's health loss a clean multiple of the bell's damage.
+    // not blunt its 12-18 shot, keeping the health loss inside that band.
     const slots = MAPS[room.state.mapId].slots;
     defender.send(MESSAGES.placeTower, { typeId: "bell", slotIndex: slots[0].slotIndex });
-    defender.send(MESSAGES.placeTower, { typeId: "pitchfork", slotIndex: slots[1].slotIndex });
-    await waitFor(() => room.state.towers.size === 2);
+    await waitFor(() => room.state.towers.size === 1);
 
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");

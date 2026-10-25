@@ -1,3 +1,31 @@
+/** Supported mob support/buff ability archetypes. */
+export type MobAbilityType = "heal_aura" | "speed_aura";
+
+/** Active ability configuration for a support/caster mob. */
+export interface MobAbilityConfig {
+  /** Ability archetype (e.g. "heal_aura" or "speed_aura"). */
+  type: MobAbilityType;
+  /** Radius in world px within which allied mobs are checked and affected. */
+  radius: number;
+  /** Cooldown in seconds between casts. */
+  cooldownSec: number;
+  /** HP ratio threshold (0..1) below which an ally in radius triggers the cast (for "heal_aura"). */
+  triggerHpThreshold?: number;
+  /** Flat HP restored to each damaged ally in radius (capped at maxHp, for "heal_aura"). */
+  healAmount?: number;
+  /** Fractional movement speed bonus granted to allies in radius (e.g. 0.4 = +40%, for "speed_aura"). */
+  speedBoost?: number;
+  /** Duration in seconds of the applied speed buff (for "speed_aura"; < 0.5 * cooldownSec). */
+  durationSec?: number;
+  /**
+   * Optional speed-matching factor (0..1) when a significantly slower ally is within `radius`.
+   * Lets a fast support unit slow down to pace slower allies in its aura range.
+   */
+  paceSlowFactor?: number;
+  /** Seconds the caster pauses movement while playing its cast animation. */
+  castDurationSec?: number;
+}
+
 /** Attacker unit (mob) archetype definition. */
 export interface MobType {
   id: string;
@@ -27,5 +55,11 @@ export interface MobType {
    * `1.5x`, and `0` takes `2x` and is slowed to 80% speed. Defaults to `0.5`.
    */
   mentalStrength?: number;
+  /**
+   * When `true`, this mob pulls tower aggro whenever it is inside a tower's
+   * targeting range, overriding normal nearest-to-base priority.
+   */
+  taunt?: boolean;
+  /** Optional active support/buff ability triggered along the lane. */
+  ability?: MobAbilityConfig;
 }
-

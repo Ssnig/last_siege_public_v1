@@ -72,3 +72,52 @@ export function getTowerFireRate(typeOrId: TowerType | string, level: number = 1
   const tier = type ? tierAt(type, level) : null;
   return tier?.fireRate ?? 1.0;
 }
+
+/**
+ * Vertical offset from the ground slot anchor (`slot.y`) to the visual barrel/head
+ * pivot of directional towers (`origin.y = 0.82`).
+ */
+export const TOWER_AIM_PIVOT_Y_OFFSET = -38;
+
+/**
+ * Returns the pixel offset `{ x, y }` from a tower's ground slot `(slotX, slotY)`
+ * to its muzzle or mouth for a shot aimed at `(targetX, targetY)`.
+ */
+export function getTowerMuzzleOffset(
+  typeId: string | undefined,
+  slotX: number,
+  slotY: number,
+  targetX: number,
+  targetY: number,
+): { x: number; y: number } {
+  const design = getTowerDesign(typeId);
+  const dx = targetX - slotX;
+  const dy = targetY - (slotY + TOWER_AIM_PIVOT_Y_OFFSET);
+  const onRight = dx >= 0;
+  const above = dy < 0;
+  const signX = onRight ? 1 : -1;
+
+  switch (design.id) {
+    case "water_cannon":
+      return above
+        ? { x: signX * 38, y: -67 }
+        : { x: signX * 44, y: -45 };
+    case "chinthe":
+      return above
+        ? { x: signX * 18, y: -55 }
+        : { x: signX * 18, y: -53 };
+    case "dragon":
+      return above
+        ? { x: signX * 22, y: -53 }
+        : { x: signX * 22, y: -48 };
+    case "sein_pyaung":
+      return above
+        ? { x: signX * 34, y: -56 }
+        : { x: signX * 37, y: -32 };
+    case "cannon":
+    case "bomb":
+      return { x: signX * 18, y: -32 };
+    default:
+      return { x: 0, y: -36 };
+  }
+}

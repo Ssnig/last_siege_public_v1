@@ -6,17 +6,14 @@ export const MOB_TYPES: Record<string, MobType> = mobsJson as Record<string, Mob
 
 /** Default core units used in draft and attacker previews. */
 export const CORE_UNIT_IDS: string[] = [
-  "grunt",
-  "runner",
+  "monkey",
   "horse_rider",
   "sar_bal_gyi",
   "gya_pu",
   "a_ba",
   "chon_toe",
-  "sapper",
-  "shade",
-  "spider",
-  "orc",
-  "necromancer",
+  "elephant_rider",
+  "say_sayar",
+  "shield_guy",
+  "doe_pat",
 ];
-

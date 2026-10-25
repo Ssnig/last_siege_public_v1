@@ -51,6 +51,10 @@ export interface TowerType {
    * Optional status effect applied to units hit by this tower's projectiles.
    */
   onHitEffect?: TowerOnHitEffect;
+  /**
+   * How the tower delivers its damage ("projectile" default or "aoe_pulse").
+   */
+  attackMode?: "projectile" | "aoe_pulse";
 }
 
 /** Visual and presentation configuration for a tower on the client. */
