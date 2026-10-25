@@ -129,6 +129,20 @@ export const LandingPage: React.FC = () => {
           </svg>
         </button>
 
+        {/* Top-Right Almanac Codex Button */}
+        <button
+          onClick={() => {
+            soundEffects.playClick();
+            navigate('/almanac');
+          }}
+          onMouseEnter={() => soundEffects.playHover()}
+          className="absolute top-[3.5%] right-[7.5%] z-20 w-[4.5%] min-w-[36px] max-w-[60px] aspect-square flex items-center justify-center rounded-xl bg-slate-950/20 hover:bg-slate-950/40 backdrop-blur-xs border border-white/10 hover:border-amber-400/60 shadow-lg hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-200 cursor-pointer group active:scale-95"
+          title="Royal Almanac & War Codex"
+          aria-label="Almanac"
+        >
+          <span className="text-xl sm:text-2xl filter drop-shadow">📖</span>
+        </button>
+
         {/* Top-Right Settings Gear Icon Button */}
         <button
           onClick={() => {
@@ -166,8 +180,8 @@ export const LandingPage: React.FC = () => {
         >
           {/* Subtle neon glow bloom behind the button on hover */}
           <div
-            className={`absolute inset-0 rounded-full bg-cyan-400 blur-xl transition-opacity duration-300 ${
-              isButtonHovered ? 'opacity-70 scale-110' : 'opacity-0'
+            className={`absolute inset-0 rounded-full bg-cyan-400 blur-xl transition-all duration-300 ${
+              isButtonHovered ? 'opacity-75 scale-115' : 'opacity-20 scale-95 animate-pulse'
             }`}
           />
 
@@ -175,8 +189,8 @@ export const LandingPage: React.FC = () => {
           <img
             src="/assets/ui/play_button_clean.png"
             alt="START GAME"
-            className={`relative w-full h-full object-contain transition-transform duration-200 ease-out active:scale-95 ${
-              isButtonHovered ? 'scale-105 brightness-110 drop-shadow-[0_0_20px_rgba(34,211,238,0.9)]' : 'scale-100'
+            className={`relative w-full h-full object-contain transition-all duration-200 ease-out active:scale-95 ${
+              isButtonHovered ? 'scale-105 brightness-110 drop-shadow-[0_0_25px_rgba(34,211,238,0.95)]' : 'scale-100 drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]'
             }`}
           />
         </div>
@@ -184,7 +198,7 @@ export const LandingPage: React.FC = () => {
         {/* First-Time Warrior Name Dialog Modal */}
         {showNamePrompt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
-            <div className="relative w-full max-w-md bg-slate-900 border-2 border-amber-500 rounded-2xl p-6 shadow-[0_0_50px_rgba(245,158,11,0.3)] text-white">
+            <div className="relative w-full max-w-md bg-slate-900 border-2 border-amber-500 rounded-2xl p-6 shadow-[0_0_50px_rgba(245,158,11,0.35)] text-white animate-modalPop">
               <h3 className="text-xl font-bold text-amber-300 font-serif mb-2 tracking-wide flex items-center gap-2">
                 <span>⚔️</span> ENTER WARRIOR NICKNAME
               </h3>
@@ -199,20 +213,20 @@ export const LandingPage: React.FC = () => {
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   placeholder="E.g. Alaungpaya, MahaBandula..."
-                  className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-medium text-sm"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-medium text-sm transition-all focus:ring-2 focus:ring-amber-500/30"
                 />
                 <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setShowNamePrompt(false)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold transition-colors cursor-pointer"
+                    className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold transition-all cursor-pointer hover:text-white active:scale-95"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!nameInput.trim()}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-slate-950 font-bold text-sm transition-all cursor-pointer disabled:opacity-40"
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-slate-950 font-bold text-sm transition-all cursor-pointer disabled:opacity-40 active:scale-95 shadow-md hover:shadow-[0_0_15px_rgba(245,158,11,0.5)]"
                   >
                     Proceed ▶
                   </button>

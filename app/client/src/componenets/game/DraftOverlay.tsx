@@ -344,8 +344,14 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   const [opponentName, setOpponentName] = useState<string>('Opponent');
   const [enemyPicks, setEnemyPicks] = useState<string[]>([]);
 
-  // 16:9 Virtual viewport scale factor for mobile devices
+  // 16:9 Virtual viewport scale factor for larger screens. Phones get a
+  // natural-width layout instead, otherwise the whole draft shrinks into an
+  // unreadable postage stamp.
   const [viewportScale, setViewportScale] = useState<number>(1);
+  const [isCompact, setIsCompact] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 1024;
+  });
 
   useEffect(() => {
     const updateScale = () => {
@@ -356,6 +362,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
       const scaleY = availableHeight / 700;
       const fit = Math.min(scaleX, scaleY);
       setViewportScale(Math.max(0.15, fit));
+      setIsCompact(availableWidth < 1024);
     };
 
     updateScale();
@@ -695,21 +702,95 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
     );
   };
 
+  const confirmButton = isFinalCountdown ? (
+    isWaitingForAssets ? (
+      <button
+        type="button"
+        disabled
+        className="relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-amber-950 via-amber-800 to-amber-950 border-2 border-amber-400 text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.5)] cursor-default animate-pulse"
+        style={{ textShadow: '2px 2px 0px #000' }}
+      >
+        <CornerFlourish position="tl" />
+        <CornerFlourish position="tr" />
+        <CornerFlourish position="bl" />
+        <CornerFlourish position="br" />
+        <span className="flex items-center gap-2">⏳ WAITING FOR ASSET LOADING...</span>
+      </button>
+    ) : (
+      <button
+        type="button"
+        disabled
+        className="relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-emerald-950 via-emerald-800 to-emerald-950 border-2 border-[#ffe066] text-[#fff5d6] shadow-[0_0_25px_rgba(255,224,102,0.6)] cursor-default animate-pulse"
+        style={{ textShadow: '2px 2px 0px #000' }}
+      >
+        <CornerFlourish position="tl" />
+        <CornerFlourish position="tr" />
+        <CornerFlourish position="bl" />
+        <CornerFlourish position="br" />
+        <span className="flex items-center gap-2">
+          ⚔️ PREPARE FOR BATTLE ({effectiveFinalSeconds}s)
+        </span>
+      </button>
+    )
+  ) : (
+    <button
+      type="button"
+      onClick={handleManualConfirm}
+      disabled={roundPicks.length !== 2 || isRoundReady}
+      className={`relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg transition-all duration-200 overflow-hidden flex items-center justify-center ${
+        isRoundReady
+          ? 'bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-900 border-2 border-emerald-400 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.5)] cursor-default'
+          : roundPicks.length === 2
+            ? 'bg-gradient-to-r from-[#7a1218] via-[#bd2029] to-[#7a1218] border-2 border-[#ffe066] text-[#fff5d6] shadow-[0_0_25px_rgba(255,224,102,0.6)] hover:brightness-110 active:scale-[0.99] cursor-pointer animate-pulse'
+            : 'bg-gradient-to-r from-[#380e12] to-[#20080a] border-2 border-amber-900/60 text-amber-700/70 cursor-not-allowed'
+      }`}
+      style={{ textShadow: '2px 2px 0px #000' }}
+    >
+      <CornerFlourish position="tl" />
+      <CornerFlourish position="tr" />
+      <CornerFlourish position="bl" />
+      <CornerFlourish position="br" />
+
+      {isRoundReady ? (
+        <span className="flex items-center gap-2">
+          ROUND {currentRound} READY <span className="text-emerald-300">✓</span> (Waiting...)
+        </span>
+      ) : roundPicks.length === 2 ? (
+        <span>CONFIRM ROUND {currentRound} ({effectiveRoundSeconds}s)</span>
+      ) : (
+        <span>
+          CHOOSE 2 FOR ROUND {currentRound} ({roundPicks.length}/2) [{effectiveRoundSeconds}s]
+        </span>
+      )}
+    </button>
+  );
+
   return (
     <div
-      className="fixed inset-0 z-40 w-full h-[100dvh] overflow-hidden flex items-center justify-center select-none text-[#fff5d6]"
+      className={`fixed inset-0 z-40 w-full h-[100dvh] flex select-none text-[#fff5d6] animate-fadeIn ${
+        isCompact
+          ? 'items-start justify-center overflow-y-auto overscroll-contain'
+          : 'items-center justify-center overflow-hidden'
+      }`}
       style={{
         background: 'radial-gradient(ellipse at center, #1c1117 0%, #140d13 70%, #0a060a 100%)',
         fontFamily: "'Cinzel', 'MedievalSharp', serif",
       }}
     >
-      {/* 16:9 Scale-to-Fit Canvas Frame (identical appearance on mobile & desktop) */}
+      {/* On phones the frame flows naturally and scrolls; larger screens keep
+          the 16:9 scale-to-fit presentation. */}
       <div
-        className="relative w-[1260px] h-[700px] shrink-0 origin-center transition-transform duration-75 flex flex-col justify-between rounded-xl overflow-hidden p-3 gap-2"
+        className={`relative shrink-0 origin-center transition-transform duration-75 flex flex-col gap-2 animate-scaleIn ${
+          isCompact
+            ? 'w-full max-w-3xl mx-auto min-h-[100dvh] justify-start p-2 pb-[calc(6rem+env(safe-area-inset-bottom))] overflow-visible'
+            : 'w-[1260px] h-[700px] justify-between rounded-xl p-3 overflow-hidden'
+        }`}
         style={{
-          transform: `scale(${viewportScale})`,
-          border: '3px solid #d4af37',
-          boxShadow: '0 0 0 2px #420b0e, 0 0 30px rgba(0,0,0,0.9), inset 0 0 40px rgba(0,0,0,0.7)',
+          transform: isCompact ? undefined : `scale(${viewportScale})`,
+          border: isCompact ? '1px solid rgba(212,175,55,0.35)' : '3px solid #d4af37',
+          boxShadow: isCompact
+            ? 'inset 0 0 40px rgba(0,0,0,0.7)'
+            : '0 0 0 2px #420b0e, 0 0 30px rgba(0,0,0,0.9), inset 0 0 40px rgba(0,0,0,0.7)',
           background: 'linear-gradient(180deg, #180f15 0%, #11090f 100%)',
           WebkitTextSizeAdjust: '100%',
         }}
@@ -726,13 +807,19 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
           </div>
         )}
 
-        {/* Two-Column Grid (Left 7 cols, Right 5 cols - never stacks on mobile) */}
-        <div className="flex-1 w-full grid grid-cols-12 gap-3 min-h-0 overflow-hidden">
+        {/* Desktop: two-column 7/5 grid. Phones: stacked, scrollable sections. */}
+        <div
+          className={`flex-1 w-full min-h-0 ${
+            isCompact ? 'flex flex-col gap-2' : 'grid grid-cols-12 gap-3 overflow-hidden'
+          }`}
+        >
           {/* ===================== LEFT COLUMN (~60%: 7 cols) ===================== */}
-          <div className="col-span-7 flex flex-col gap-2 min-h-0">
+          <div className={`flex flex-col gap-2 min-h-0 ${isCompact ? 'w-full' : 'col-span-7'}`}>
             {/* Top Header Banner with Dynamic Round Timer */}
             <div
-              className="relative flex items-center justify-between py-1.5 px-4 rounded-lg text-center"
+              className={`relative flex items-center justify-between gap-1.5 py-1.5 px-2 sm:px-4 rounded-lg text-center ${
+                isCompact ? 'flex-wrap' : ''
+              }`}
               style={{
                 background: isFinalCountdown
                   ? isWaitingForAssets
@@ -914,14 +1001,22 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
             {/* Bottom Panel — 10 Selection Pool Cards (5x2 Grid) */}
             <div
-              className="relative flex-1 rounded-lg p-2 flex flex-col justify-center min-h-[220px]"
+              className={`relative flex-1 rounded-lg p-2 flex flex-col justify-center ${
+                isCompact ? 'min-h-0' : 'min-h-[220px]'
+              }`}
               style={{
                 background: 'rgba(26, 12, 17, 0.9)',
                 border: '2px solid #8a661b',
                 boxShadow: 'inset 0 0 20px rgba(0,0,0,0.8)',
               }}
             >
-              <div className="grid grid-cols-5 grid-rows-2 gap-1.5 sm:gap-2 h-full">
+              <div
+                className={`grid gap-1.5 sm:gap-2 ${
+                  isCompact
+                    ? 'grid-cols-3 min-[520px]:grid-cols-5'
+                    : 'grid-cols-5 grid-rows-2 h-full'
+                }`}
+              >
                 {catalogList.map((item) => {
                   const isLocked = lockedPicks.includes(item.id);
                   const isRoundPick = roundPicks.includes(item.id);
@@ -932,6 +1027,8 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                       key={item.id}
                       onClick={() => toggleSelect(item.id)}
                       className={`group relative rounded-md flex flex-col justify-between p-1 select-none overflow-hidden transition-all duration-150 transform ${
+                        isCompact ? 'min-h-[104px]' : ''
+                      } ${
                         isLocked
                           ? 'opacity-85 cursor-default'
                           : 'cursor-pointer hover:-translate-y-0.5 active:translate-y-0'
@@ -1014,7 +1111,13 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
           </div>
 
           {/* ===================== RIGHT COLUMN (~40%: 5 cols) ===================== */}
-          <div className="col-span-5 flex flex-col justify-between gap-2 min-h-0">
+          <div
+            className={`gap-2 min-h-0 ${
+              isCompact
+                ? 'grid w-full grid-cols-1 min-[640px]:grid-cols-2'
+                : 'flex flex-col justify-between col-span-5'
+            }`}
+          >
             {/* Top-Right Panel — ENEMY SELECTIONS (Click to Inspect Enemy Unit) */}
             <div
               className="relative rounded-lg p-2 sm:p-2.5 flex flex-col"
@@ -1052,7 +1155,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                       <div
                         key={`enemy-revealed-${i}`}
                         onClick={() => setInspectedTarget({ id: enemyItem.id, isEnemy: true })}
-                        className="group relative h-16 sm:h-20 rounded-md flex flex-col items-center justify-between p-1 cursor-pointer transition transform hover:scale-[1.02] active:scale-95"
+                        className="group relative h-20 rounded-md flex flex-col items-center justify-between p-1 cursor-pointer transition transform hover:scale-[1.02] active:scale-95"
                         style={{
                           background: 'linear-gradient(180deg, #471115 0%, #290a0d 100%)',
                           border: '1.5px solid #dc2626',
@@ -1082,7 +1185,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   return (
                     <div
                       key={`enemy-slot-${i}`}
-                      className="relative h-16 sm:h-20 rounded-md flex flex-col items-center justify-center p-1 overflow-hidden"
+                      className="relative h-20 rounded-md flex flex-col items-center justify-center p-1 overflow-hidden"
                       style={{
                         background: 'linear-gradient(180deg, #260c10 0%, #180608 100%)',
                         border: '1px solid #7a1f26',
@@ -1150,7 +1253,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                           setInspectedTarget({ id: item.id, isEnemy: false });
                           if (!isCommitted) removeCurrentPick(selectedId);
                         }}
-                        className="group relative h-16 sm:h-20 rounded-md flex flex-col items-center justify-between p-1 cursor-pointer transition transform hover:scale-[1.02] active:scale-95"
+                        className="group relative h-20 rounded-md flex flex-col items-center justify-between p-1 cursor-pointer transition transform hover:scale-[1.02] active:scale-95"
                         style={{
                           background: isCommitted
                             ? 'linear-gradient(180deg, #3d1f14 0%, #20110a 100%)'
@@ -1185,7 +1288,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   return (
                     <div
                       key={`empty-slot-${index}`}
-                      className="h-16 sm:h-20 rounded-md flex flex-col items-center justify-center border border-dashed border-amber-800/60 bg-[#160a0f]/60 text-amber-700/60 font-black text-xs"
+                      className="h-20 rounded-md flex flex-col items-center justify-center border border-dashed border-amber-800/60 bg-[#160a0f]/60 text-amber-700/60 font-black text-xs"
                     >
                       <span>Slot {index + 1}</span>
                     </div>
@@ -1194,76 +1297,18 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
               </div>
             </div>
 
-            {/* Bottom-Right — CONFIRM BUTTON FOR CURRENT ROUND */}
-            <div className="pt-1">
-              {isFinalCountdown ? (
-                isWaitingForAssets ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-amber-950 via-amber-800 to-amber-950 border-2 border-amber-400 text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.5)] cursor-default animate-pulse"
-                    style={{ textShadow: '2px 2px 0px #000' }}
-                  >
-                    <CornerFlourish position="tl" />
-                    <CornerFlourish position="tr" />
-                    <CornerFlourish position="bl" />
-                    <CornerFlourish position="br" />
-                    <span className="flex items-center gap-2">
-                      ⏳ WAITING FOR ASSET LOADING...
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled
-                    className="relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-emerald-950 via-emerald-800 to-emerald-950 border-2 border-[#ffe066] text-[#fff5d6] shadow-[0_0_25px_rgba(255,224,102,0.6)] cursor-default animate-pulse"
-                    style={{ textShadow: '2px 2px 0px #000' }}
-                  >
-                    <CornerFlourish position="tl" />
-                    <CornerFlourish position="tr" />
-                    <CornerFlourish position="bl" />
-                    <CornerFlourish position="br" />
-                    <span className="flex items-center gap-2">
-                      ⚔️ PREPARE FOR BATTLE ({effectiveFinalSeconds}s)
-                    </span>
-                  </button>
-                )
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleManualConfirm}
-                  disabled={roundPicks.length !== 2 || isRoundReady}
-                  className={`relative w-full py-3 sm:py-3.5 rounded-lg font-black tracking-widest text-base sm:text-lg transition-all duration-200 overflow-hidden flex items-center justify-center ${
-                    isRoundReady
-                      ? 'bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-900 border-2 border-emerald-400 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.5)] cursor-default'
-                      : roundPicks.length === 2
-                        ? 'bg-gradient-to-r from-[#7a1218] via-[#bd2029] to-[#7a1218] border-2 border-[#ffe066] text-[#fff5d6] shadow-[0_0_25px_rgba(255,224,102,0.6)] hover:brightness-110 active:scale-[0.99] cursor-pointer animate-pulse'
-                        : 'bg-gradient-to-r from-[#380e12] to-[#20080a] border-2 border-amber-900/60 text-amber-700/70 cursor-not-allowed'
-                  }`}
-                  style={{ textShadow: '2px 2px 0px #000' }}
-                >
-                  <CornerFlourish position="tl" />
-                  <CornerFlourish position="tr" />
-                  <CornerFlourish position="bl" />
-                  <CornerFlourish position="br" />
-
-                  {isRoundReady ? (
-                    <span className="flex items-center gap-2">
-                      ROUND {currentRound} READY <span className="text-emerald-300">✓</span> (Waiting...)
-                    </span>
-                  ) : roundPicks.length === 2 ? (
-                    <span>CONFIRM ROUND {currentRound} ({effectiveRoundSeconds}s)</span>
-                  ) : (
-                    <span>
-                      CHOOSE 2 FOR ROUND {currentRound} ({roundPicks.length}/2) [{effectiveRoundSeconds}s]
-                    </span>
-                  )}
-                </button>
-              )}
-            </div>
+            {/* Bottom-Right — CONFIRM BUTTON FOR CURRENT ROUND (desktop) */}
+            {!isCompact && <div className="pt-1">{confirmButton}</div>}
           </div>
         </div>
       </div>
+
+      {/* Phones keep the confirm action pinned to the bottom of the viewport. */}
+      {isCompact && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-amber-900/60 bg-[#11090f]/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto max-w-3xl">{confirmButton}</div>
+        </div>
+      )}
     </div>
   );
 };

@@ -14,6 +14,7 @@ import { MapSelectorModal } from './match/MapSelectorModal';
 import { SettingsModal } from './landing/SettingsModal';
 import { RankBadge } from './rank/RankBadge';
 import { getOrCreateGuestId, getGuestElo, syncGuestWithServer } from '../auth/guest';
+import { AssetPreloader } from '../game/assetPreloader';
 
 interface LobbyProps {
   client: Client;
@@ -334,7 +335,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         />
         <div className="absolute inset-0 backdrop-blur-[4px] bg-black/30 pointer-events-none" />
 
-        <RoyalPanel className="relative z-10 w-full max-w-md p-4 sm:p-8 max-h-[94vh] overflow-y-auto">
+        <RoyalPanel className="relative z-10 w-full max-w-md p-4 sm:p-8 max-h-[94vh] overflow-y-auto animate-modalPop shadow-[0_0_50px_rgba(212,175,55,0.35)]">
           <div className="text-center mb-3 sm:mb-6">
             <h1
               className="text-2xl sm:text-3xl font-bold tracking-wide text-amber-200"
@@ -426,7 +427,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
       <div className="absolute inset-0 backdrop-blur-[3px] bg-black/20 pointer-events-none" />
 
       {/* Main Content Frame */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-2.5 sm:px-6 flex flex-col gap-2 sm:gap-3.5 max-h-[98vh] py-1 sm:py-2 overflow-y-auto">
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-2.5 sm:px-6 flex flex-col gap-2 sm:gap-3.5 max-h-[98vh] py-1 sm:py-2 overflow-y-auto animate-fadeIn">
         {/* ═══ Top Header Bar ═══ */}
         <div className="relative">
           <GoldCrest />
@@ -493,6 +494,25 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
 
             {/* Header action buttons */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  soundEffects.playClick();
+                  navigate('/almanac');
+                }}
+                onMouseEnter={() => soundEffects.playHover()}
+                title="Royal Almanac & War Codex"
+                className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center gap-1.5 text-amber-200 hover:text-white"
+                style={{
+                  fontFamily: "'Almendra SC', 'Almendra', serif",
+                  background: 'linear-gradient(180deg, #8c2e2c, #6b1e1e)',
+                  border: '1.5px solid #c59b27',
+                  boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.2)',
+                }}
+              >
+                <span>📖</span>
+                <span className="hidden sm:inline">Almanac</span>
+              </button>
+
               <button
                 onClick={() => {
                   soundEffects.playModal();
@@ -583,7 +603,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         {/* Error Message */}
         {errorMessage && (
           <div
-            className="flex items-center justify-between rounded-lg px-4 py-3 text-sm"
+            className="flex items-center justify-between rounded-lg px-4 py-3 text-sm animate-slideDown shadow-lg"
             style={{
               background: 'linear-gradient(135deg, #7f1d1d, #5c0f0f)',
               border: '1px solid #c59b27',
@@ -604,7 +624,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         {/* ═══ Resume Match Banner ═══ */}
         {resumable && (
           <div
-            className="relative rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+            className="relative rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-bannerPop"
             style={{
               background: 'linear-gradient(135deg, #7a5410 0%, #5a3c0a 50%, #3d2906 100%)',
               border: '2px solid #d4af37',
@@ -669,7 +689,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
 
           {/* ─── Left Panel: Create Matchroom ─── */}
           <RoyalPanel
-            className="flex flex-col p-2.5 sm:p-5 h-full"
+            className="flex flex-col p-2.5 sm:p-5 h-full animate-slideRight"
             contentClassName="flex flex-col justify-between h-full"
           >
             <div className="shrink-0">
@@ -778,7 +798,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
 
           {/* ─── Right Panel: Active Lobbies ─── */}
           <RoyalPanel
-            className="flex flex-col p-2.5 sm:p-5 min-h-[160px] sm:min-h-0 h-full"
+            className="flex flex-col p-2.5 sm:p-5 min-h-[160px] sm:min-h-0 h-full animate-slideLeft"
             contentClassName="flex flex-col h-full"
           >
             <div className="shrink-0">
@@ -815,8 +835,8 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                   return (
                     <div
                       key={room.roomId}
-                      className={`flex items-center justify-between rounded-lg px-3 sm:px-4 py-2 sm:py-3 transition-all ${
-                        isPlaying ? 'opacity-55' : 'hover:brightness-110'
+                      className={`flex items-center justify-between rounded-lg px-3 sm:px-4 py-2 sm:py-3 transition-all duration-200 ${
+                        isPlaying ? 'opacity-55' : 'hover:scale-[1.01] hover:brightness-110 hover:shadow-[0_0_15px_rgba(245,158,11,0.25)]'
                       }`}
                       style={{
                         background: 'linear-gradient(135deg, rgba(74,18,18,0.6), rgba(60,15,15,0.8))',
@@ -894,8 +914,8 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
 
       {/* ═══ Change Name Modal ═══ */}
       {showNameModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-          <RoyalPanel className="relative w-full max-w-md p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-fadeIn">
+          <RoyalPanel className="relative w-full max-w-md p-6 animate-modalPop shadow-[0_0_50px_rgba(212,175,55,0.35)]">
             <div className="flex items-center justify-between mb-1">
               <h3
                 className="text-lg font-bold text-amber-100 tracking-wide"
@@ -982,6 +1002,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
         selectedMapId={selectedMapId}
         onSelectMap={(mapId) => {
           setSelectedMapId(mapId);
+          AssetPreloader.preloadMap(mapId);
           setShowMapModal(false);
           soundEffects.playClick();
         }}

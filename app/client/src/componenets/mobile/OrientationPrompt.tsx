@@ -48,7 +48,7 @@ export const OrientationPrompt: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6 select-none animate-fadeIn">
-      <div className="relative w-full max-w-sm rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-amber-500/60 p-6 flex flex-col items-center text-center shadow-[0_0_40px_rgba(245,158,11,0.25)]">
+      <div className="relative w-full max-w-sm rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-amber-500/60 p-6 flex flex-col items-center text-center shadow-[0_0_40px_rgba(245,158,11,0.25)] animate-modalPop">
         {/* Animated Phone Rotate Icon */}
         <div className="relative w-20 h-20 mb-4 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full bg-amber-500/10 animate-ping opacity-30" />

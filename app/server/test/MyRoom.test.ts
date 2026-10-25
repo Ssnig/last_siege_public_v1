@@ -329,6 +329,11 @@ describe("testing your Colyseus app", () => {
 
     await waitForPhase(room, "drafting", 5000);
 
+    // Both clients report their assets as loaded so the final reveal does not
+    // stall waiting on the asset-load gate.
+    attacker.send(MESSAGES.clientAssetsLoaded);
+    defender.send(MESSAGES.clientAssetsLoaded);
+
     // Three rounds of two picks each; the server reveals each round and runs a
     // short final countdown before opening the building phase.
     const attackerDeck = Object.keys(MOB_TYPES).slice(0, 6);
@@ -637,8 +642,12 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
     await waitForPhase(room, "building");
 
-    const towerTypeId = Object.keys(TOWER_TYPES)[0];
-    const towerType = TOWER_TYPES[towerTypeId];
+    const towerType = Object.values(TOWER_TYPES).find(
+      (tower) =>
+        buildCost(tower) + (upgradeCost(tower, 1) ?? Infinity) <=
+        DEFAULT_ECONOMY.defenderStartingGold,
+    )!;
+    const towerTypeId = towerType.id;
     const slotIndex = MAPS[room.state.mapId].slots[0].slotIndex;
     const startGold = DEFAULT_ECONOMY.defenderStartingGold;
     const costBuild = buildCost(towerType);
@@ -688,13 +697,13 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.draftReady, { deck: Object.keys(TOWER_TYPES).slice(0, 2) });
     await waitForPhase(room, "building");
 
-    // Stack both affordable basic towers over the top path: one tower alone
-    // cannot out-damage a grunt during a single pass, two comfortably can.
+    // Stack both affordable archer towers over the top path: one tower alone
+    // cannot out-damage a monkey during a single pass, two comfortably can.
     const slots = MAPS[room.state.mapId].slots;
     const buildSlots = [slots[0], slots[1]].map((slot) => slot.slotIndex);
 
     for (const slotIndex of buildSlots) {
-      defender.send(MESSAGES.placeTower, { typeId: "basic", slotIndex });
+      defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex });
     }
     await waitFor(() => room.state.towers.size === buildSlots.length);
 
@@ -744,7 +753,7 @@ describe("testing your Colyseus app", () => {
 
     const slots = MAPS[room.state.mapId].slots;
     for (const slot of [slots[0], slots[1]]) {
-      defender.send(MESSAGES.placeTower, { typeId: "basic", slotIndex: slot.slotIndex });
+      defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex: slot.slotIndex });
     }
     await waitFor(() => room.state.towers.size === 2);
 
@@ -1379,9 +1388,9 @@ describe("testing your Colyseus app", () => {
     assert.strictEqual(room.state.gameOverReason, "disconnect");
   });
 
-  it("armor stops a physical shot that is weaker than it", async function () {
-    // The palace guard's armor (8) is heavier than a pitchfork's shot (6), so
-    // the mob has to shrug those off entirely.
+  it("armor blunts a physical shot", async function () {
+    // The palace guard's armor (8) soaks a flat slice out of every archer shot
+    // (10-14), so a hit can only take 2-6 HP off the mob.
     this.timeout(40000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
@@ -1392,14 +1401,12 @@ describe("testing your Colyseus app", () => {
     const defender = await colyseus.connectTo(room);
 
     attacker.send(MESSAGES.draftReady, { deck: ["monkey", "sar_bal_gyi"] });
-    defender.send(MESSAGES.draftReady, { deck: ["basic", "pitchfork"] });
+    defender.send(MESSAGES.draftReady, { deck: ["archer"] });
     await waitForPhase(room, "building");
 
     const slots = MAPS[room.state.mapId].slots;
-    for (const slot of [slots[0], slots[1]]) {
-      defender.send(MESSAGES.placeTower, { typeId: "pitchfork", slotIndex: slot.slotIndex });
-    }
-    await waitFor(() => room.state.towers.size === 2);
+    defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
 
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
@@ -1408,16 +1415,20 @@ describe("testing your Colyseus app", () => {
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0);
 
-    // The towers do shoot; the mob simply does not care.
-    await waitFor(() => room.state.projectiles.size > 0, 10000);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await waitFor(
+      () => [...room.state.mobs.values()].some((mob) => mob.hp < mob.maxHp),
+      15000,
+    );
 
-    const mob = [...room.state.mobs.values()][0];
+    const mob = [...room.state.mobs.values()].find((m) => m.hp < m.maxHp);
+    assert.ok(mob, "the tower hit the mob");
     assert.strictEqual(mob.typeId, "sar_bal_gyi");
-    assert.strictEqual(
-      mob.hp,
-      mob.maxHp,
-      "armor heavier than the shot absorbs the whole hit",
+    const loss = mob.maxHp - mob.hp;
+    const archer = TOWER_TYPES["archer"];
+    const maxShot = archer.tiers[0].damageMax ?? archer.tiers[0].damage;
+    assert.ok(
+      loss > 0 && loss <= maxShot - 8,
+      `armor (8) blunts the archer's ${maxShot}-damage shot, so the loss stays at most ${maxShot - 8} (was ${loss})`,
     );
   });
 
@@ -1434,16 +1445,14 @@ describe("testing your Colyseus app", () => {
     const defender = await colyseus.connectTo(room);
 
     attacker.send(MESSAGES.draftReady, { deck: ["monkey", "sar_bal_gyi"] });
-    defender.send(MESSAGES.draftReady, { deck: ["basic", "bell", "pitchfork"] });
+    defender.send(MESSAGES.draftReady, { deck: ["bell"] });
     await waitForPhase(room, "building");
 
     // The bell tower is a mental tower, so the palace guard's armor (8) does
-    // not blunt its shot (15). The pitchfork's shot (6) is blunted to nothing,
-    // which keeps the mob's health loss a clean multiple of the bell's damage.
+    // not blunt its 12-18 shot, keeping the health loss inside that band.
     const slots = MAPS[room.state.mapId].slots;
     defender.send(MESSAGES.placeTower, { typeId: "bell", slotIndex: slots[0].slotIndex });
-    defender.send(MESSAGES.placeTower, { typeId: "pitchfork", slotIndex: slots[1].slotIndex });
-    await waitFor(() => room.state.towers.size === 2);
+    await waitFor(() => room.state.towers.size === 1);
 
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");

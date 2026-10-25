@@ -217,11 +217,11 @@ ${formattedProps}
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 select-none"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 select-none animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl max-h-[92vh] bg-slate-900 border-2 border-amber-500/80 rounded-2xl shadow-[0_0_40px_rgba(245,158,11,0.35)] flex flex-col overflow-hidden"
+        className="relative w-full max-w-3xl max-h-[92vh] bg-slate-900 border-2 border-amber-500/80 rounded-2xl shadow-[0_0_40px_rgba(245,158,11,0.35)] flex flex-col overflow-hidden animate-modalPop"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -117,7 +117,7 @@ describe("combat data", () => {
       );
     }
 
-    for (const id of ["bell", "arcanist", "archmage", "tesla"]) {
+    for (const id of ["bell", "water_cannon", "chinthe", "dragon"]) {
       assert.strictEqual(
         TOWER_TYPES[id].damageType,
         DAMAGE_TYPES.mental,
@@ -125,7 +125,7 @@ describe("combat data", () => {
       );
     }
 
-    for (const id of ["basic", "archer", "cannon", "bomb", "sniper", "gun", "spear"]) {
+    for (const id of ["cannon", "archer", "bomb", "spear", "gun", "sein_pyaung"]) {
       assert.strictEqual(
         TOWER_TYPES[id].damageType,
         DAMAGE_TYPES.physical,

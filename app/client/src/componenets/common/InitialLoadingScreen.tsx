@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AssetPreloader } from '../../game/assetPreloader';
 
 const LORE_TIPS = [
   "The Konbaung defenders command five ancient stone pads to guard the citadel.",
@@ -8,75 +9,61 @@ const LORE_TIPS = [
   "Cooperate or conquer: every commander chooses between attacking or defending the realm."
 ];
 
-const PRELOAD_IMAGES = [
-  '/assets/ui/bg.jpg',
-  '/assets/ui/bg2.jpg',
-  '/assets/ui/left_panel_tight.png',
-  '/assets/ui/right_panel_tight.png',
-  '/assets/ui/play_button_clean.png'
-];
-
 /**
  * Initial Game Asset Preloader.
- * Preloads core UI assets and fonts on app startup, displaying an ornate
- * gold progress bar and rotating lore tips before smoothly fading out.
+ * Preloads all core game assets (units, towers, UI, audio, and default map)
+ * on first site entry, displaying an ornate gold progress bar and rotating lore tips.
  */
 export const InitialLoadingScreen: React.FC = () => {
-  const [progress, setProgress] = useState<number>(10);
+  const [progress, setProgress] = useState<number>(() => (AssetPreloader.isCoreLoaded() ? 100 : 0));
+  const [statusLabel, setStatusLabel] = useState<string>('Preparing Battlefield...');
   const [tipIndex, setTipIndex] = useState<number>(0);
-  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [isLoaded, setIsLoaded] = useState<boolean>(() => AssetPreloader.isCoreLoaded());
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
 
   useEffect(() => {
+    // If core assets are already cached in this session, skip immediately
+    if (AssetPreloader.isCoreLoaded()) {
+      setIsLoaded(true);
+      return;
+    }
+
     // Cycle lore tips every 2.4 seconds
     const tipInterval = setInterval(() => {
       setTipIndex((prev) => (prev + 1) % LORE_TIPS.length);
     }, 2400);
 
-    let loadedCount = 0;
-    const totalAssets = PRELOAD_IMAGES.length + 1; // +1 for fonts
+    let active = true;
 
-    const updateProgress = () => {
-      loadedCount++;
-      const pct = Math.min(100, Math.round((loadedCount / totalAssets) * 100));
+    AssetPreloader.preloadCoreAssets((_loaded, _total, pct, label) => {
+      if (!active) return;
       setProgress(pct);
-
-      if (loadedCount >= totalAssets) {
-        // Enforce smooth finish with short pause
-        setTimeout(() => {
-          setIsFadingOut(true);
-          setTimeout(() => setIsLoaded(true), 400);
-        }, 500);
+      if (label) {
+        setStatusLabel(label);
       }
-    };
-
-    // 1. Preload Fonts
-    if ('fonts' in document) {
-      document.fonts.ready
-        .then(() => updateProgress())
-        .catch(() => updateProgress());
-    } else {
-      updateProgress();
-    }
-
-    // 2. Preload Key Images
-    PRELOAD_IMAGES.forEach((src) => {
-      const img = new Image();
-      img.onload = () => updateProgress();
-      img.onerror = () => updateProgress(); // Don't block if single image fails
-      img.src = src;
-    });
-
-    // Safety timeout: Never hang on slow networks for more than 4 seconds
-    const safetyTimeout = setTimeout(() => {
+    }).then(() => {
+      if (!active) return;
       setProgress(100);
+      setStatusLabel('Royal Battlefield Ready');
+      // Smooth fade-out finish
+      setTimeout(() => {
+        if (!active) return;
+        setIsFadingOut(true);
+        setTimeout(() => {
+          if (!active) return;
+          setIsLoaded(true);
+        }, 400);
+      }, 350);
+    }).catch(() => {
+      if (!active) return;
+      // In case of any unhandled error, gracefully proceed
       setIsFadingOut(true);
       setTimeout(() => setIsLoaded(true), 400);
-    }, 4000);
+    });
 
     return () => {
+      active = false;
       clearInterval(tipInterval);
-      clearTimeout(safetyTimeout);
     };
   }, []);
 
@@ -150,9 +137,14 @@ export const InitialLoadingScreen: React.FC = () => {
             />
           </div>
 
-          {/* Gold Progress Percentage */}
+          {/* Gold Progress Percentage & Asset Label */}
           <div className="flex justify-between items-center text-[11px] text-amber-200/80 font-mono mt-2 font-bold">
-            <span style={{ fontFamily: "'Almendra', serif" }}>Preparing Battlefield...</span>
+            <span
+              className="truncate max-w-[280px] text-left"
+              style={{ fontFamily: "'Almendra', serif" }}
+            >
+              {statusLabel}
+            </span>
             <span>{progress}%</span>
           </div>
         </div>

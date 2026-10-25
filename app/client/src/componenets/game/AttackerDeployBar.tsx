@@ -421,9 +421,9 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                     requestDeploy(portal.id, rect.left + rect.width / 2, rect.top);
                   }}
                   disabled={!canPush && !idlePulse}
-                  className={`flex flex-col items-center gap-0.5 rounded border px-2 py-1 transition active:scale-95 ${
+                  className={`flex flex-col items-center gap-0.5 rounded border px-2 py-1 transition-all duration-200 hover:scale-105 active:scale-95 ${
                     idlePulse && !highlighted ? 'animate-pulse' : ''
-                  } ${canPush || idlePulse ? '' : 'opacity-40'}`}
+                  } ${canPush || idlePulse ? 'hover:shadow-[0_0_12px_rgba(0,240,255,0.4)]' : 'opacity-40'}`}
                   style={{
                     borderColor: highlighted ? '#ffe066' : canPush ? GOLD_BORDER : 'rgba(180,83,9,0.35)',
                     background: highlighted

@@ -70,6 +70,12 @@ export interface RoleAssignedPayload {
   myRole: string;
   opponentName: string;
   opponentRole: string;
+  /** Authoritative phase at assignment time (usually `mapReveal`). */
+  phase: string;
+  /** Authoritative seconds left in that phase. */
+  phaseEndsAt: number;
+  /** Concrete map id rolled for this match. */
+  mapId: string;
 }
 
 /** Payload of the opponent_left message */
@@ -122,6 +128,7 @@ export interface RatingUpdateInfo {
     tier: number;
     name: string;
     badgeAsset: string;
+    promotionVideo?: string;
     color: string;
   };
   nextRank: {

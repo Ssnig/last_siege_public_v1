@@ -22,11 +22,11 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 select-none"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 select-none animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl max-h-[92vh] bg-gradient-to-b from-slate-900 via-[#131b2e] to-slate-950 border-2 border-amber-500/80 rounded-2xl shadow-[0_0_35px_rgba(245,158,11,0.35)] flex flex-col overflow-hidden"
+        className="relative w-full max-w-4xl max-h-[92vh] bg-gradient-to-b from-slate-900 via-[#131b2e] to-slate-950 border-2 border-amber-500/80 rounded-2xl shadow-[0_0_40px_rgba(245,158,11,0.4)] flex flex-col overflow-hidden animate-modalPop"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

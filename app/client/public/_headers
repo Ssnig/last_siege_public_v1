@@ -1,0 +1,7 @@
+# Netlify cache control headers for static game assets
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Ensure HTML files are not stale
+/*
+  Cache-Control: public, max-age=0, must-revalidate

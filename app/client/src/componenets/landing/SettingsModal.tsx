@@ -18,8 +18,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   const [activeTab, setActiveTab] = useState<'audio' | 'guide'>('audio');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => !!document.fullscreenElement);
+  const [effectsEnabled, setEffectsEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('game:effects_enabled') !== 'false';
+    } catch {
+      return true;
+    }
+  });
 
   if (!isOpen) return null;
+
+  const handleEffectsToggle = () => {
+    const next = !effectsEnabled;
+    setEffectsEnabled(next);
+    try {
+      localStorage.setItem('game:effects_enabled', next ? 'true' : 'false');
+    } catch {}
+    window.dispatchEvent(new CustomEvent('settings:effects_toggle', { detail: { enabled: next } }));
+    soundEffects.playHover();
+  };
 
   // Music handlers
   const handleBgmVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,7 +94,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-slate-900/95 border-2 border-amber-600/70 rounded-2xl shadow-[0_0_50px_rgba(217,119,6,0.3)] overflow-hidden text-white flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-lg bg-slate-900/95 border-2 border-amber-600/70 rounded-2xl shadow-[0_0_50px_rgba(217,119,6,0.3)] overflow-hidden text-white flex flex-col max-h-[92vh] animate-modalPop">
         {/* Ornate Gold Top Bar */}
         <div className="h-1.5 w-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600" />
 
@@ -209,9 +226,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   </div>
                   <button
                     onClick={handleFullscreenToggle}
-                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold text-amber-300 transition-colors cursor-pointer"
+                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold text-amber-300 transition-all cursor-pointer active:scale-95"
                   >
                     {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Atmospheric Effects Overlay Option */}
+              <div className="pt-3 border-t border-slate-800/80">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-200">Atmospheric Effects</div>
+                    <div className="text-xs text-slate-400">Cinematic vignette, embers & scanlines</div>
+                  </div>
+                  <button
+                    onClick={handleEffectsToggle}
+                    className={`px-4 py-2 rounded-lg border text-sm font-semibold transition-all cursor-pointer active:scale-95 ${
+                      effectsEnabled
+                        ? 'bg-amber-600/20 border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                        : 'bg-slate-800/80 border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    {effectsEnabled ? '✨ Enabled' : 'Disabled'}
                   </button>
                 </div>
               </div>

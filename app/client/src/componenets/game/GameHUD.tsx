@@ -104,12 +104,22 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const prevPhaseRef = useRef<string>(phase);
 
   useEffect(() => {
-    // Phase change from building to combat triggers grand war drum + ceremonial gong
+    // Phase change from building to combat triggers grand war drum + ceremonial gong + screen flash
     if (prevPhaseRef.current === 'building' && phase === 'combat') {
       soundEffects.playWarDrum('battleStart');
+      window.dispatchEvent(new CustomEvent('game:flash', { detail: { color: 'rgba(239, 68, 68, 0.45)' } }));
     }
     prevPhaseRef.current = phase;
   }, [phase]);
+
+  // Sync low castle HP / sudden death with danger vignette
+  useEffect(() => {
+    const isCritical = (castleHp / maxCastleHp) < 0.3 || suddenDeath;
+    window.dispatchEvent(new CustomEvent('game:danger', { detail: { active: isCritical } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('game:danger', { detail: { active: false } }));
+    };
+  }, [castleHp, maxCastleHp, suddenDeath]);
 
   useEffect(() => {
     // Building phase countdown war drums (seconds 5 down to 1)
@@ -220,17 +230,31 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               />
             </button>
 
-            {/* Compact Base Castle HP Badge */}
-             <div className="flex items-center gap-1.5 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-slate-950/85 border border-amber-600/50 shadow-md text-[11px] md:text-sm text-amber-100 font-bold">
-              <span>🏰</span>
-              <span>{castleHp}/{maxCastleHp}</span>
-              <div className="w-9 h-1.5 md:w-14 md:h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                  style={{ width: `${Math.max(0, Math.min(100, (castleHp / maxCastleHp) * 100))}%` }}
-                />
-              </div>
-            </div>
+            {/* Compact Base Castle HP Badge with Smooth Dynamic Health Color Shift */}
+            {(() => {
+              const hpRatio = Math.max(0, Math.min(1, castleHp / maxCastleHp));
+              const isLowHp = hpRatio < 0.3;
+              return (
+                <div className={`flex items-center gap-1.5 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-slate-950/85 border shadow-md text-[11px] md:text-sm font-bold transition-all duration-300 ${
+                  isLowHp ? 'border-rose-500/80 text-rose-200 shadow-[0_0_12px_rgba(244,63,94,0.4)]' : 'border-amber-600/50 text-amber-100'
+                }`}>
+                  <span className={isLowHp ? 'animate-bounce' : ''}>🏰</span>
+                  <span>{castleHp}/{maxCastleHp}</span>
+                  <div className="w-9 h-1.5 md:w-14 md:h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        hpRatio < 0.25
+                          ? 'bg-gradient-to-r from-red-600 to-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.9)]'
+                          : hpRatio < 0.55
+                            ? 'bg-gradient-to-r from-amber-600 to-yellow-500'
+                            : 'bg-gradient-to-r from-emerald-600 to-emerald-400'
+                      }`}
+                      style={{ width: `${hpRatio * 100}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -255,9 +279,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <button
                     key={towerId}
                     onClick={() => { soundEffects.playHover(); onSelectTower(towerId); }}
-                    className={`relative flex-shrink-0 w-[34px] h-[36px] sm:w-[38px] sm:h-[40px] md:w-[50px] md:h-[54px] flex flex-col items-center justify-between p-0.5 rounded transition-all cursor-pointer ${
-                      isSelected ? 'scale-105 z-10' : 'hover:scale-102 opacity-95'
-                    } ${!canAfford ? 'opacity-55 saturate-50' : ''}`}
+                    className={`relative flex-shrink-0 w-[34px] h-[36px] sm:w-[38px] sm:h-[40px] md:w-[50px] md:h-[54px] flex flex-col items-center justify-between p-0.5 rounded transition-all duration-200 cursor-pointer ${
+                      isSelected
+                        ? 'scale-110 -translate-y-1 z-10 shadow-[0_0_12px_rgba(251,191,36,0.6)]'
+                        : 'hover:-translate-y-0.5 hover:scale-105 opacity-95'
+                    } active:scale-95 ${!canAfford ? 'opacity-55 saturate-50' : ''}`}
                     title={`${tower?.name ?? towerId} (${cost}g)`}
                   >
                     {/* Tower Icon */}
@@ -277,7 +303,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     {/* Golden Glowing Selection Halo */}
                     {isSelected && (
                       <div
-                        className="absolute -inset-1 pointer-events-none rounded border-2 border-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.9),inset_0_0_6px_rgba(251,191,36,0.5)] animate-pulse"
+                        className="absolute -inset-1 pointer-events-none rounded border-2 border-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.95),inset_0_0_6px_rgba(251,191,36,0.5)] animate-pulse"
                         style={{
                           backgroundImage: "url('/assets/ui/hud/slot_active_halo.png')",
                           backgroundSize: '100% 100%',
@@ -312,7 +338,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <button
             onClick={() => { soundEffects.playWarDrum('battleStart'); onStartBattle(); }}
             aria-label="Start Battle"
-             className="pointer-events-auto fixed bottom-2.5 right-2.5 md:bottom-4 md:right-4 z-40 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.5)] border-2 border-amber-300 flex items-center gap-1.5 transition-all cursor-pointer font-['Almendra',serif]"
+             className="pointer-events-auto fixed bottom-2.5 right-2.5 md:bottom-4 md:right-4 z-40 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider shadow-[0_0_22px_rgba(245,158,11,0.6)] hover:shadow-[0_0_32px_rgba(245,158,11,0.85)] hover:scale-105 border-2 border-amber-300 flex items-center gap-1.5 transition-all cursor-pointer font-['Almendra',serif] animate-pulse"
           >
             <span className="text-xs md:text-sm">⚔️</span>
             <span>Start Battle</span>

@@ -1,8 +1,9 @@
 // app/client/src/componenets/game/GameOverOverlay.tsx
 import React, { useEffect, useState } from 'react';
 import { Room } from '@colyseus/sdk';
-import { MESSAGES, type RematchUpdatePayload, type RatingUpdateInfo } from '@root/shared';
+import { MESSAGES, getRankForElo, type RematchUpdatePayload, type RatingUpdateInfo } from '@root/shared';
 import { soundEffects } from '../../audio/soundEffects';
+import { RankUpCelebration } from '../rank/RankUpCelebration';
 
 export interface GameOverOverlayProps {
   gameOver: {
@@ -69,6 +70,21 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   const [hasVotedRematch, setHasVotedRematch] = useState<boolean>(false);
   const [rematchVotes, setRematchVotes] = useState<number>(0);
   const [opponentWantsRematch, setOpponentWantsRematch] = useState<boolean>(false);
+
+  // Promotion celebration: only show when this match pushed us into a higher tier.
+  const [rankUpDismissed, setRankUpDismissed] = useState<boolean>(false);
+  const previousRank = gameOver.ratingUpdate
+    ? getRankForElo(gameOver.ratingUpdate.oldElo)
+    : null;
+  const promotionVideo = gameOver.ratingUpdate?.rank.promotionVideo;
+  const showRankUp =
+    !rankUpDismissed &&
+    Boolean(
+      promotionVideo &&
+        previousRank &&
+        gameOver.ratingUpdate &&
+        gameOver.ratingUpdate.rank.tier > previousRank.tier,
+    );
 
   useEffect(() => {
     const updateScale = () => {
@@ -157,11 +173,21 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 w-full h-[100dvh] overflow-hidden flex items-center justify-center select-none bg-black/85 backdrop-blur-sm text-[#fff5d6]"
+      className="fixed inset-0 z-50 w-full h-[100dvh] overflow-hidden flex items-center justify-center select-none bg-black/85 backdrop-blur-sm text-[#fff5d6] animate-fadeIn"
       style={{
         fontFamily: "'Cinzel', 'MedievalSharp', serif",
       }}
     >
+      {showRankUp && gameOver.ratingUpdate && promotionVideo && (
+        <RankUpCelebration
+          rankName={gameOver.ratingUpdate.rank.name}
+          rankColor={gameOver.ratingUpdate.rank.color}
+          badgeAsset={gameOver.ratingUpdate.rank.badgeAsset}
+          videoSrc={promotionVideo}
+          onClose={() => setRankUpDismissed(true)}
+        />
+      )}
+
       {/* 16:9 Scale-to-Fit Canvas Frame */}
       <div
         className="relative w-[1260px] h-[700px] shrink-0 origin-center transition-transform duration-75 flex flex-col items-center justify-between rounded-2xl overflow-hidden p-6 sm:p-8"
@@ -185,7 +211,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
         {/* Centerpiece: Victory / Defeat Logo with Radiant Aura */}
         <div className="flex-1 w-full flex flex-col items-center justify-center gap-3 min-h-0 py-2">
           {/* Main Logo Image */}
-          <div className="relative flex items-center justify-center">
+          <div className="relative flex items-center justify-center animate-modalPop">
             {/* Glowing Backdrop Aura */}
             <div
               className={`absolute -inset-6 rounded-full blur-2xl opacity-70 pointer-events-none transition-all duration-1000 ${
@@ -212,7 +238,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
 
           {/* Subtitle / Reasonplate Banner */}
           <div
-            className="relative px-6 py-2 rounded-lg text-center max-w-2xl flex flex-col items-center"
+            className="relative px-6 py-2 rounded-lg text-center max-w-2xl flex flex-col items-center animate-slideUp"
             style={{
               background: 'linear-gradient(90deg, rgba(30,5,8,0.4) 0%, rgba(66,11,14,0.9) 50%, rgba(30,5,8,0.4) 100%)',
               borderTop: '1px solid #d4af37',

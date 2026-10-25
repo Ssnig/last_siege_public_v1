@@ -500,6 +500,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       myRole: client.userData.role,
       opponentName: opponent?.userData.playerName,
       opponentRole: opponent?.userData.role,
+      phase: this.state.phase,
+      phaseEndsAt: this.state.phaseEndsAt,
+      mapId: this.state.mapId,
     });
   }
 
@@ -1449,6 +1452,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
         tier: attackerRank.tier,
         name: attackerRank.name,
         badgeAsset: attackerRank.badgeAsset,
+        promotionVideo: attackerRank.promotionVideo,
         color: attackerRank.color,
       },
       nextRank: attackerNextRank
@@ -1471,6 +1475,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
         tier: defenderRank.tier,
         name: defenderRank.name,
         badgeAsset: defenderRank.badgeAsset,
+        promotionVideo: defenderRank.promotionVideo,
         color: defenderRank.color,
       },
       nextRank: defenderNextRank

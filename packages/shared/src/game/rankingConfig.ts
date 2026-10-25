@@ -12,14 +12,16 @@ export interface RankTier {
   id: string;
   /** Numerical tier (1-indexed). */
   tier: number;
-  /** Display name of the rank (placeholder name for now). */
+  /** Display name of the rank. */
   name: string;
   /** Minimum Elo rating required to attain this rank. */
   minElo: number;
   /** Maximum Elo rating for this rank (exclusive or Infinity for top rank). */
   maxElo: number;
-  /** Path to the rank badge / sprite asset (placeholder SVG for now). */
+  /** Path to the rank badge image shown in the lobby and post-match HUD. */
   badgeAsset: string;
+  /** Optional celebration video played when the player is promoted into this rank. */
+  promotionVideo?: string;
   /** Primary accent color for UI borders, glows, and text. */
   color: string;
   /** Short description / flavor text for this rank. */
@@ -37,7 +39,7 @@ export interface RankingConfig {
   maxElo: number;
   /**
    * The list of rank tiers in ascending order of `minElo`.
-   * Currently configured for three ranks (placeholders).
+   * Currently configured for three ranks.
    */
   ranks: RankTier[];
 }
@@ -55,32 +57,34 @@ export const RANKING_CONFIG: RankingConfig = {
     {
       id: "rank_1",
       tier: 1,
-      name: "Rank 1 (Bronze)",
+      name: "Warrior",
       minElo: 0,
       maxElo: 1199,
-      badgeAsset: "/assets/ranks/rank_1.svg",
+      badgeAsset: "/assets/ranks/warrior.png",
       color: "#cd7f32",
-      description: "Recruit Commander - Initial Rank Tier",
+      description: "Frontline Commander - Entry Rank Tier",
     },
     {
       id: "rank_2",
       tier: 2,
-      name: "Rank 2 (Silver)",
+      name: "Selection",
       minElo: 1200,
       maxElo: 1499,
-      badgeAsset: "/assets/ranks/rank_2.svg",
-      color: "#c0c0c0",
-      description: "Veteran Strategist - Intermediate Rank Tier",
+      badgeAsset: "/assets/ranks/selection.png",
+      promotionVideo: "/assets/ranks/selection.mp4",
+      color: "#9bb7d4",
+      description: "Chosen Elite - Intermediate Rank Tier",
     },
     {
       id: "rank_3",
       tier: 3,
-      name: "Rank 3 (Gold)",
+      name: "Master",
       minElo: 1500,
       maxElo: Infinity,
-      badgeAsset: "/assets/ranks/rank_3.svg",
+      badgeAsset: "/assets/ranks/master.png",
+      promotionVideo: "/assets/ranks/master.mp4",
       color: "#ffd700",
-      description: "Master General - Elite Rank Tier",
+      description: "Royal Master - Highest Rank Tier",
     },
   ],
 };
