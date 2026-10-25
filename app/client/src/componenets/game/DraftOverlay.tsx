@@ -66,7 +66,7 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     title: 'BELL TOWER',
     weakness: 'Long-Range Snipers',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/04_bell_tower/icon.png',
+    iconSrc: '/assets/towers/04_bell_tower/icon.jpg',
   },
   spear: {
     title: 'SPEAR TOWER',
@@ -92,6 +92,30 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     stacks: 'Max 4',
     iconSrc: '/assets/towers/06_gun_tower/icon.png',
   },
+  water_cannon: {
+    title: 'WATER CANNON',
+    weakness: 'Fast Units',
+    stacks: 'Max 6',
+    iconSrc: '/assets/towers/07_water_cannon/icon.jpg',
+  },
+  chinthe: {
+    title: 'CHINTHE GUARDIAN',
+    weakness: 'Armored Swarms',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/08_chinthe_statue/icon.jpg',
+  },
+  dragon: {
+    title: 'DRAGON TOWER',
+    weakness: 'Resistant Hordes',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/09_dragon_tower/icon.jpg',
+  },
+  sein_pyaung: {
+    title: 'SEIN PYAUNG',
+    weakness: 'Heavy Armor & Swarms',
+    stacks: 'Max 4',
+    iconSrc: '/assets/towers/10_sein_pyaung/icon.jpg',
+  },
   arcanist: {
     title: 'ROYAL ARCANIST',
     weakness: 'Fast Magic Wards',
@@ -115,18 +139,6 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
 };
 
 const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
-  grunt: {
-    title: 'BURMESE WARRIOR',
-    weakness: 'Area Splash Cannons',
-    stacks: 'Max 30',
-    iconSrc: '/assets/sprites/unit_warrior.png',
-  },
-  runner: {
-    title: 'SCOUT RUNNER',
-    weakness: 'Rapid Arrow Towers',
-    stacks: 'Max 25',
-    iconSrc: '/assets/units/horse_rider/face.png',
-  },
   horse_rider: {
     title: 'KONBAUNG CAVALRY',
     weakness: 'Spike Pitches & Traps',
@@ -157,23 +169,35 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     stacks: 'Max 6',
     iconSrc: '/assets/units/chon_toe/face.png',
   },
-  brute: {
-    title: 'WAR BRUTE',
-    weakness: 'Heavy Cannon Fire',
-    stacks: 'Max 8',
-    iconSrc: '/assets/units/sar_bal_gyi/face.png',
+  elephant_rider: {
+    title: 'WAR ELEPHANT',
+    weakness: 'Mental Attacks & Artillery',
+    stacks: 'Max 3',
+    iconSrc: '/assets/units/elephant_rider/face.jpg',
   },
-  shade: {
-    title: 'SHADOW INFILTRATOR',
-    weakness: 'Crossbow Rapid Fire',
-    stacks: 'Max 15',
-    iconSrc: '/assets/units/shade/face.png',
-  },
-  spider: {
-    title: 'JUNGLE ARACHNID',
-    weakness: 'Flamethrowers & Splash',
+  monkey: {
+    title: 'MONKEY',
+    weakness: 'Splash & Area Towers',
     stacks: 'Max 40',
-    iconSrc: '/assets/units/spider/face.png',
+    iconSrc: '/assets/units/monkey/face.jpg',
+  },
+  say_sayar: {
+    title: 'SAY SAYAR',
+    weakness: 'Single-Target Burst',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/say_sayar/face.jpg',
+  },
+  shield_guy: {
+    title: 'SHIELD BEARER',
+    weakness: 'Mental Attacks & Artillery',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/shield_guy/face.jpg',
+  },
+  doe_pat: {
+    title: 'DOE PAT DRUMMER',
+    weakness: 'Long-Range Snipers',
+    stacks: 'Max 8',
+    iconSrc: '/assets/units/doe_pat/face.jpg',
   },
 };
 
@@ -343,16 +367,11 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
       setIsRoundReady(true);
       setErrorMsg(null);
 
-      // Send to server
+      // Send to server (the 2-2-2 draftPick protocol commits all 3 rounds on the server)
       room.send(MESSAGES.draftPick, {
         round: currentRoundRef.current,
         picks,
       });
-
-      // Also trigger onConfirm callback if in final round
-      if (currentRoundRef.current === 3 && onConfirmRef.current) {
-        onConfirmRef.current([...lockedPicksRef.current, ...picks]);
-      }
     },
     [room],
   );

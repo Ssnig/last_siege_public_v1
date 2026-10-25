@@ -12,6 +12,10 @@ export interface UnitManifest {
   frameRate: number;
   scale: number;
   origin: { x: number; y: number };
+  spritesheetFile?: string;
+  faceFile?: string;
+  walkFrames?: { start: number; end: number };
+  castFrames?: { start: number; end: number; frameRate?: number };
 }
 
 export const UNIT_FOLDER_MAP: Record<string, string> = {
@@ -20,11 +24,11 @@ export const UNIT_FOLDER_MAP: Record<string, string> = {
   gya_pu: "gya_pu",
   a_ba: "a_ba",
   chon_toe: "chon_toe",
-  runner: "horse_rider",
-  brute: "sar_bal_gyi",
-  gargoyle: "gya_pu",
-  necromancer: "a_ba",
-  ogre: "chon_toe",
+  elephant_rider: "elephant_rider",
+  monkey: "monkey",
+  say_sayar: "say_sayar",
+  shield_guy: "shield_guy",
+  doe_pat: "doe_pat",
 };
 
 export const UNITS_WITH_SPRITESHEET = new Set([
@@ -33,11 +37,11 @@ export const UNITS_WITH_SPRITESHEET = new Set([
   "gya_pu",
   "horse_rider",
   "sar_bal_gyi",
-  "runner",
-  "brute",
-  "gargoyle",
-  "necromancer",
-  "ogre",
+  "elephant_rider",
+  "monkey",
+  "say_sayar",
+  "shield_guy",
+  "doe_pat",
 ]);
 
 export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
@@ -101,127 +105,84 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     scale: 0.075,
     origin: { x: 0.5, y: 0.85 },
   },
-  runner: {
-    id: "runner",
-    name: "Konbaung Cavalry",
-    frames: 6,
-    cols: 3,
+  elephant_rider: {
+    id: "elephant_rider",
+    name: "War Elephant",
+    frames: 8,
+    cols: 4,
     rows: 2,
-    frameWidth: 341,
-    frameHeight: 286,
-    frameRate: 8,
-    scale: 0.175,
-    origin: { x: 0.5, y: 0.8 },
-  },
-  grunt: {
-    id: "grunt",
-    name: "Konbaung Infantry",
-    frames: 6,
-    cols: 6,
-    rows: 1,
-    frameWidth: 128,
-    frameHeight: 128,
-    frameRate: 8,
-    scale: 0.275,
-    origin: { x: 0.5, y: 0.8 },
-  },
-  brute: {
-    id: "brute",
-    name: "Palace Royal Guard",
-    frames: 6,
-    cols: 3,
-    rows: 2,
-    frameWidth: 800,
-    frameHeight: 670,
-    frameRate: 6,
-    scale: 0.08,
-    origin: { x: 0.5, y: 0.85 },
-  },
-  shade: {
-    id: "shade",
-    name: "Shadow Assassin",
-    frames: 6,
-    cols: 6,
-    rows: 1,
-    frameWidth: 128,
-    frameHeight: 128,
-    frameRate: 10,
-    scale: 0.25,
-    origin: { x: 0.5, y: 0.8 },
-  },
-  spider: {
-    id: "spider",
-    name: "War Hound",
-    frames: 6,
-    cols: 6,
-    rows: 1,
-    frameWidth: 96,
-    frameHeight: 96,
-    frameRate: 12,
-    scale: 0.275,
-    origin: { x: 0.5, y: 0.8 },
-  },
-  orc: {
-    id: "orc",
-    name: "Invader Marauder",
-    frames: 6,
-    cols: 6,
-    rows: 1,
-    frameWidth: 128,
-    frameHeight: 128,
-    frameRate: 8,
-    scale: 0.275,
-    origin: { x: 0.5, y: 0.8 },
-  },
-  gargoyle: {
-    id: "gargoyle",
-    name: "Winged Nat",
-    frames: 6,
-    cols: 3,
-    rows: 2,
-    frameWidth: 341,
-    frameHeight: 286,
-    frameRate: 8,
-    scale: 0.16,
-    origin: { x: 0.5, y: 0.8 },
-  },
-  sapper: {
-    id: "sapper",
-    name: "Fire Bombardier",
-    frames: 6,
-    cols: 6,
-    rows: 1,
-    frameWidth: 128,
-    frameHeight: 128,
-    frameRate: 8,
-    scale: 0.275,
-    origin: { x: 0.5, y: 0.8 },
-  },
-  necromancer: {
-    id: "necromancer",
-    name: "Nat Spirit Medium",
-    frames: 6,
-    cols: 3,
-    rows: 2,
-    frameWidth: 341,
-    frameHeight: 286,
+    frameWidth: 688,
+    frameHeight: 768,
     frameRate: 7,
-    scale: 0.175,
+    scale: 0.15,
     origin: { x: 0.5, y: 0.85 },
+    spritesheetFile: "elephant_rider.png",
+    faceFile: "face.jpg",
   },
-  ogre: {
-    id: "ogre",
-    name: "Bush Sneak",
-    frames: 6,
-    cols: 3,
+  monkey: {
+    id: "monkey",
+    name: "Monkey",
+    frames: 8,
+    cols: 4,
     rows: 2,
-    frameWidth: 800,
-    frameHeight: 670,
-    frameRate: 6,
-    scale: 0.075,
+    frameWidth: 688,
+    frameHeight: 768,
+    frameRate: 10,
+    scale: 0.05,
     origin: { x: 0.5, y: 0.85 },
+    spritesheetFile: "spritesheet.png",
+    faceFile: "face.jpg",
+  },
+  say_sayar: {
+    id: "say_sayar",
+    name: "Say Sayar",
+    frames: 8,
+    cols: 4,
+    rows: 2,
+    frameWidth: 688,
+    frameHeight: 768,
+    frameRate: 7,
+    scale: 0.085,
+    origin: { x: 0.5, y: 0.85 },
+    spritesheetFile: "say_sayar.png",
+    faceFile: "face.jpg",
+    walkFrames: { start: 0, end: 3 },
+    castFrames: { start: 4, end: 7, frameRate: 8 },
+  },
+  shield_guy: {
+    id: "shield_guy",
+    name: "Shield Bearer",
+    frames: 8,
+    cols: 4,
+    rows: 2,
+    frameWidth: 688,
+    frameHeight: 768,
+    frameRate: 7,
+    scale: 0.085,
+    origin: { x: 0.5, y: 0.85 },
+    spritesheetFile: "shield_guy.png",
+    faceFile: "face.jpg",
+  },
+  doe_pat: {
+    id: "doe_pat",
+    name: "Doe Pat",
+    frames: 8,
+    cols: 4,
+    rows: 2,
+    frameWidth: 688,
+    frameHeight: 768,
+    frameRate: 8,
+    scale: 0.085,
+    origin: { x: 0.5, y: 0.85 },
+    spritesheetFile: "sheet.png",
+    faceFile: "face.jpg",
   },
 };
+
+export const HEAL_VFX_SHEET_KEY = "vfx_heal_aura_sheet";
+export const HEAL_VFX_ANIM_KEY = "vfx_heal_aura";
+export const SPEED_BOOST_VFX_SHEET_KEY = "vfx_speed_boost_sheet";
+export const SPEED_BOOST_VFX_ANIM_KEY = "vfx_speed_boost";
 
 /**
  * Manages loading, pinpointing, slicing, and animating unit spritesheets.
@@ -237,7 +198,8 @@ export class UnitAnimationManager {
       // Spritesheet (only for units with physical spritesheets on disk)
       const sheetKey = `unit_${unitId}_sheet`;
       if (UNITS_WITH_SPRITESHEET.has(unitId) && !scene.textures.exists(sheetKey)) {
-        scene.load.spritesheet(sheetKey, `/assets/units/${folder}/spritesheet.png`, {
+        const sheetFile = manifest.spritesheetFile ?? "spritesheet.png";
+        scene.load.spritesheet(sheetKey, `/assets/units/${folder}/${sheetFile}`, {
           frameWidth: manifest.frameWidth,
           frameHeight: manifest.frameHeight,
         });
@@ -246,12 +208,33 @@ export class UnitAnimationManager {
       // Face icon for draft and HUD
       const faceKey = `unit-face-${unitId}`;
       if (!scene.textures.exists(faceKey)) {
-        if (unitId === "grunt") {
-          scene.load.image(faceKey, "/assets/sprites/unit_warrior.png");
-        } else {
-          scene.load.image(faceKey, `/assets/units/${folder}/face.png`);
-        }
+        const faceFile = manifest.faceFile ?? "face.png";
+        scene.load.image(faceKey, `/assets/units/${folder}/${faceFile}`);
       }
+    }
+
+    // Preload heal aura VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(HEAL_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        HEAL_VFX_SHEET_KEY,
+        "/assets/units/say_sayar/heal_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
+    // Preload speed boost VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(SPEED_BOOST_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        SPEED_BOOST_VFX_SHEET_KEY,
+        "/assets/units/doe_pat/speed_boost_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
     }
   }
 
@@ -261,24 +244,160 @@ export class UnitAnimationManager {
   static createAnimations(scene: Phaser.Scene): void {
     for (const [unitId, manifest] of Object.entries(UNIT_MANIFESTS)) {
       const sheetKey = `unit_${unitId}_sheet`;
-      const animKey = `unit_${unitId}_run`;
+      const runAnimKey = `unit_${unitId}_run`;
+      const castAnimKey = `unit_${unitId}_cast`;
 
-      if (scene.textures.exists(sheetKey) && !scene.anims.exists(animKey)) {
+      if (scene.textures.exists(sheetKey)) {
         const texture = scene.textures.get(sheetKey);
-        // Ensure texture was successfully loaded and has frames
         if (texture && texture.frameTotal > 1) {
-          scene.anims.create({
-            key: animKey,
-            frames: scene.anims.generateFrameNumbers(sheetKey, {
-              start: 0,
-              end: Math.min(manifest.frames - 1, texture.frameTotal - 1),
-            }),
-            frameRate: manifest.frameRate,
-            repeat: -1,
-          });
+          if (!scene.anims.exists(runAnimKey)) {
+            const walkStart = manifest.walkFrames?.start ?? 0;
+            const walkEnd = Math.min(
+              manifest.walkFrames?.end ?? manifest.frames - 1,
+              texture.frameTotal - 1,
+            );
+            scene.anims.create({
+              key: runAnimKey,
+              frames: scene.anims.generateFrameNumbers(sheetKey, {
+                start: walkStart,
+                end: walkEnd,
+              }),
+              frameRate: manifest.frameRate,
+              repeat: -1,
+            });
+          }
+
+          if (manifest.castFrames && !scene.anims.exists(castAnimKey)) {
+            const castStart = manifest.castFrames.start;
+            const castEnd = Math.min(
+              manifest.castFrames.end,
+              texture.frameTotal - 1,
+            );
+            scene.anims.create({
+              key: castAnimKey,
+              frames: scene.anims.generateFrameNumbers(sheetKey, {
+                start: castStart,
+                end: castEnd,
+              }),
+              frameRate: manifest.castFrames.frameRate ?? manifest.frameRate,
+              repeat: 0,
+            });
+          }
         }
       }
     }
+
+    if (
+      scene.textures.exists(HEAL_VFX_SHEET_KEY) &&
+      !scene.anims.exists(HEAL_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(HEAL_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: HEAL_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(HEAL_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(7, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 12,
+          repeat: 0,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(SPEED_BOOST_VFX_SHEET_KEY) &&
+      !scene.anims.exists(SPEED_BOOST_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(SPEED_BOOST_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: SPEED_BOOST_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(SPEED_BOOST_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(7, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 12,
+          repeat: 0,
+        });
+      }
+    }
+  }
+
+  /**
+   * Plays a unit's one-shot cast animation (if defined) and returns to its walk cycle on completion.
+   */
+  static playCastAnimation(
+    scene: Phaser.Scene,
+    sprite: Phaser.GameObjects.Sprite,
+    typeId: string,
+  ): void {
+    const castAnimKey = `unit_${typeId}_cast`;
+    const runAnimKey = `unit_${typeId}_run`;
+    if (!scene.anims.exists(castAnimKey)) return;
+
+    sprite.play(castAnimKey);
+    sprite.once(`animationcomplete-${castAnimKey}`, () => {
+      if (sprite.active && scene.anims.exists(runAnimKey)) {
+        sprite.play(runAnimKey);
+      }
+    });
+  }
+
+  /**
+   * Spawns a one-shot heal VFX sprite at `(x, y)` that destroys itself when finished.
+   */
+  static spawnHealVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (
+      !scene.textures.exists(HEAL_VFX_SHEET_KEY) ||
+      !scene.anims.exists(HEAL_VFX_ANIM_KEY)
+    ) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, HEAL_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.85)
+      .setScale(0.11);
+
+    vfx.play(HEAL_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${HEAL_VFX_ANIM_KEY}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
+  }
+
+  /**
+   * Spawns a one-shot speed boost VFX sprite at `(x, y)` that destroys itself when finished.
+   */
+  static spawnSpeedBoostVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (
+      !scene.textures.exists(SPEED_BOOST_VFX_SHEET_KEY) ||
+      !scene.anims.exists(SPEED_BOOST_VFX_ANIM_KEY)
+    ) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, SPEED_BOOST_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.85)
+      .setScale(0.11);
+
+    vfx.play(SPEED_BOOST_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${SPEED_BOOST_VFX_ANIM_KEY}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
   }
 
   /**
@@ -288,7 +407,7 @@ export class UnitAnimationManager {
     scene: Phaser.Scene,
     typeId: string,
   ): Phaser.GameObjects.Sprite {
-    const manifest = UNIT_MANIFESTS[typeId] || UNIT_MANIFESTS.grunt;
+    const manifest = UNIT_MANIFESTS[typeId] || UNIT_MANIFESTS.horse_rider;
     const sheetKey = `unit_${typeId}_sheet`;
     const animKey = `unit_${typeId}_run`;
 

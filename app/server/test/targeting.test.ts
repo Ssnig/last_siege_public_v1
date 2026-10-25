@@ -81,4 +81,41 @@ describe("selectTarget", () => {
     );
     assert.strictEqual(result?.id, "short-track");
   });
+
+  it("prioritizes an in-range taunting unit over a closer-to-base normal unit", () => {
+    const result = selectTarget(
+      [
+        candidate("fast-front-runner", 20, 0, 100),
+        { ...candidate("shield-guy-behind", 60, 0, 600), taunt: true },
+      ],
+      tower,
+      140,
+    );
+    assert.strictEqual(result?.id, "shield-guy-behind");
+  });
+
+  it("picks the taunting unit closest to the base when multiple taunters are in range", () => {
+    const result = selectTarget(
+      [
+        { ...candidate("shield-early", 40, 0, 700), taunt: true },
+        { ...candidate("shield-late", 50, 0, 350), taunt: true },
+        candidate("runner-ahead", 10, 0, 100),
+      ],
+      tower,
+      140,
+    );
+    assert.strictEqual(result?.id, "shield-late");
+  });
+
+  it("ignores an out-of-range taunting unit", () => {
+    const result = selectTarget(
+      [
+        { ...candidate("shield-out-of-range", 200, 0, 50), taunt: true },
+        candidate("normal-in-range", 40, 0, 500),
+      ],
+      tower,
+      140,
+    );
+    assert.strictEqual(result?.id, "normal-in-range");
+  });
 });

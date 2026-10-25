@@ -198,9 +198,10 @@ export class MobCard {
    */
   private getColor(id: string): number {
     const colors: Record<string, number> = {
-      grunt: 0x60a5fa,
-      runner: 0xfbbf24,
-      brute: 0xf87171,
+      monkey: 0xfbbf24,
+      shield_guy: 0xf87171,
+      elephant_rider: 0xd97706,
+      doe_pat: 0x38bdf8,
     };
 
     return colors[id] ?? 0xa78bfa;
