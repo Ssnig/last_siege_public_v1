@@ -294,6 +294,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   Attacker wins by breaching the Base Core. Defender wins by holding out until the Siege Timer expires.
                 </p>
               </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => {
+                    soundEffects.playClick();
+                    onClose();
+                    window.location.href = '/tutorial';
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 font-bold text-slate-950 text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  <span>🎓</span>
+                  <span>Enter War Academy (Interactive Tutorial)</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -129,6 +129,31 @@ export const LandingPage: React.FC = () => {
           </svg>
         </button>
 
+        {/* Top-Right Tutorial Academy Button */}
+        <button
+          onClick={() => {
+            soundEffects.playClick();
+            navigate('/tutorial');
+          }}
+          onMouseEnter={() => soundEffects.playHover()}
+          className="absolute top-[3.5%] right-[12.8%] z-20 w-[4.5%] min-w-[36px] max-w-[60px] aspect-square flex items-center justify-center rounded-xl bg-slate-950/20 hover:bg-slate-950/40 backdrop-blur-xs border border-white/10 hover:border-amber-400/60 shadow-lg hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-200 cursor-pointer group active:scale-95"
+          title="Royal War Academy (Tutorial)"
+          aria-label="Tutorial"
+        >
+          <svg
+            className="w-[55%] h-[55%] text-amber-300/80 group-hover:text-amber-300 transition-all duration-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+            <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
+          </svg>
+        </button>
+
         {/* Top-Right Almanac Codex Button */}
         <button
           onClick={() => {

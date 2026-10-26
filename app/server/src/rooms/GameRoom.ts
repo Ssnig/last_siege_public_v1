@@ -443,7 +443,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * deck may be empty before the draft is confirmed.
    */
   private sendEconomy(client: Client): void {
-    const role = client.userData?.role as PlayerRole | undefined;
+    const role = (this.state.players.get(client.sessionId)?.role || client.userData?.role) as PlayerRole | undefined;
     let deck = this.acceptedDecks.get(client.sessionId);
     if (!deck || deck.length === 0) {
       if (role === "defender") {
@@ -470,7 +470,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
    */
   private sendAttackerBuffer(client: Client): void {
     const sessionId = client.sessionId;
-    if (client.userData?.role !== "attacker") return;
+    const role = (this.state.players.get(sessionId)?.role || client.userData?.role) as PlayerRole | undefined;
+    if (role !== "attacker") return;
 
     const deck = this.acceptedDecks.get(sessionId) ?? [];
     const availableTroops =

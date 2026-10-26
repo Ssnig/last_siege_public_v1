@@ -16,6 +16,7 @@ import { SoundEditor } from './componenets/soundEditor/SoundEditor';
 import { EffectsOverlay } from './componenets/common/EffectsOverlay';
 import { BGMRouteSync } from './componenets/audio/BGMRouteSync';
 import { AlmanacPage } from './componenets/almanac/AlmanacPage';
+import { TutorialPage } from './componenets/tutorial/TutorialPage';
 
 /**
  * Root shell: route-based. `/` hosts the game welcome/landing page,
@@ -60,6 +61,8 @@ export default function App() {
             <Route path="/sounds" element={<SoundEditor />} />
             <Route path="/dev/sounds" element={<SoundEditor />} />
             <Route path="/almanac" element={<AlmanacPage />} />
+            <Route path="/tutorial" element={<TutorialPage />} />
+            <Route path="/academy" element={<TutorialPage />} />
             <Route path="*" element={<Navigate to="/lobby" replace />} />
           </Routes>
         </div>

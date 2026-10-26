@@ -30,6 +30,10 @@
       });
       window.addEventListener('unhandledrejection', function(e) {
         console.error('Unhandled Promise Rejection:', e);
+        var msg = (e.reason && e.reason.message) || (typeof e.reason === 'string' ? e.reason : '');
+        if (msg.includes('AudioContext') || msg.includes('user gesture') || (e.reason && e.reason.name === 'NotAllowedError')) {
+          return;
+        }
         var el = document.getElementById('debug-mobile-err');
         if (!el) {
           el = document.createElement('div');

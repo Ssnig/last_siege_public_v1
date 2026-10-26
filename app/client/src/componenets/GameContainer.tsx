@@ -8,6 +8,9 @@ import {
   MATCH_RULES,
   MAPS,
   SAMPLE_MAP,
+  KONBAUNG_MAP,
+  MOB_TYPES,
+  DEFAULT_DEPLOY_RULES,
   type OpponentLeftPayload,
   type OpponentReconnectingPayload,
   type OpponentReconnectedPayload,
@@ -181,7 +184,6 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
   // Pre-seeded from the snapshot so a joiner into a started room skips the wait.
   const [matchStarted, setMatchStarted] = useState<boolean>(() => matchAlreadyStarted(room));
-  const [sceneReady, setSceneReady] = useState<boolean>(false);
   const [statusText, setStatusText] = useState(
     room.state?.players?.size === 2
       ? "Preparing the battlefield..."
@@ -209,20 +211,13 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   const [buffer, setBuffer] = useState<AttackerBufferPayload | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [isUIHidden, setIsUIHidden] = useState<boolean>(false);
-  const lastTapRef = useRef<number>(0);
+  const lastToggleTimeRef = useRef<number>(0);
 
-  const handleContainerTap = (e: React.PointerEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('button, input, select, [role="button"]')) return;
-    if (target.closest('.tower-slot')) return;
-    if (gameInstanceRef.current?.registry?.get('ui:overTowerSlot')) return;
+  const toggleUI = () => {
     const now = Date.now();
-    if (now - lastTapRef.current < 320) {
-      setIsUIHidden((prev) => !prev);
-      lastTapRef.current = 0;
-    } else {
-      lastTapRef.current = now;
-    }
+    if (now - lastToggleTimeRef.current < 400) return;
+    lastToggleTimeRef.current = now;
+    setIsUIHidden((prev) => !prev);
   };
 
   // Connection health: drives the reconnect/disconnect overlays. Mounted
@@ -499,8 +494,11 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       height: 720,
       backgroundColor: '#020617',
       parent: gameRef.current,
+      audio: {
+        noAudio: true,
+      },
       scale: {
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.ENVELOP,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 1280,
         height: 720,
@@ -520,23 +518,17 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     game.registry.set('selectedTowerType', selectedTowerType);
     gameInstanceRef.current = game;
 
-    const onSceneReady = () => {
-      setSceneReady(true);
+    const onToggleUI = () => {
+      toggleUI();
     };
-    const onSceneShutdown = () => {
-      setSceneReady(false);
-    };
-    game.events.on('scene-ready', onSceneReady);
-    game.events.on('scene-shutdown', onSceneShutdown);
+    game.events.on('toggle-ui', onToggleUI);
 
     return () => {
-      game.events.off('scene-ready', onSceneReady);
-      game.events.off('scene-shutdown', onSceneShutdown);
-      setSceneReady(false);
+      game.events.off('toggle-ui', onToggleUI);
       game.destroy(true);
       gameInstanceRef.current = null;
     };
-  }, [room, matchStarted, playerInfo]);
+  }, [room, matchStarted]);
 
   useEffect(() => {
     const role = (playerInfo.myRole || room.state?.players?.get(room.sessionId)?.role) as 'attacker' | 'defender' | undefined;
@@ -610,8 +602,32 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
   const ambientBgUrl = (mapId && MAP_IMAGE_URLS[mapId]) || '/assets/maps/map_1_konbaung/map.jpg';
 
+  const effectiveRole = (playerInfo.myRole || room.state?.players?.get(room.sessionId)?.role) as 'attacker' | 'defender' | undefined;
+
+  const currentMapDef = (mapId && MAPS[mapId]) || KONBAUNG_MAP;
+  const mapPortalsList = currentMapDef?.portals ?? [{ x: 20, y: 108 }, { x: 26, y: 586 }];
+
+  const effectiveBuffer: AttackerBufferPayload = buffer ?? {
+    gold: gold,
+    goldPerSecond: incomeRate,
+    incomeExpired: false,
+    availableTroops: deck && deck.length > 0 ? deck : ['monkey', 'horse_rider', 'sar_bal_gyi', 'gya_pu', 'a_ba', 'chon_toe'],
+    buffer: [],
+    maxBufferUnits: DEFAULT_DEPLOY_RULES.maxBufferUnits,
+    mobCosts: Object.fromEntries(Object.entries(MOB_TYPES).map(([id, type]) => [id, type.cost])),
+    portals: mapPortalsList.map((_p, i) => ({
+      id: 'portal-' + i,
+      charges: 1,
+      maxCharges: 3,
+      rechargeIn: 0,
+      chargeSec: 8,
+      paths: [{ id: 'main', label: 'Main' }],
+    })),
+    canDeploy: phase === 'combat',
+  };
+
   return (
-    <div onPointerDown={handleContainerTap} className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-slate-950 flex items-center justify-center select-none">
+    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-slate-950 flex items-center justify-center select-none">
       {/* Ambient map-aware backdrop bleed for widescreen devices */}
       <div
         className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-60 blur-xl scale-110 transition-opacity duration-700"
@@ -654,7 +670,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       )}
 
       {/* Royal Game HUD Overlay */}
-      {matchStarted && sceneReady && (phase === 'building' || phase === 'combat') && (
+      {matchStarted && (phase === 'building' || phase === 'combat') && (
         <GameHUD
           gold={gold}
           incomeRate={incomeRate}
@@ -666,9 +682,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           onOpenMenu={() => setMenuOpen(true)}
           phase={phase}
           phaseEndsAt={phaseEndsAt}
-          role={playerInfo.myRole as 'attacker' | 'defender'}
+          role={effectiveRole || 'defender'}
           isUIHidden={isUIHidden}
-          onToggleUI={() => setIsUIHidden((prev) => !prev)}
+          onToggleUI={toggleUI}
 
           onStartBattle={() => {
             room.send(MESSAGES.startCombat, {});
@@ -677,10 +693,10 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       )}
 
       {/* Attacker deploy bar (queue units, then push them through a portal) */}
-      {matchStarted && sceneReady && !gameOver && playerInfo.myRole === 'attacker' && buffer &&
+      {matchStarted && !gameOver && effectiveRole === 'attacker' &&
         (phase === 'building' || phase === 'combat') && (
         <AttackerDeployBar
-          buffer={buffer}
+          buffer={effectiveBuffer}
           error={deployError}
           phase={phase}
           suddenDeath={suddenDeath}
@@ -743,7 +759,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
               </div>
             )}
 
-            {phase === 'building' && playerInfo.myRole === 'defender' && (
+            {phase === 'building' && effectiveRole === 'defender' && (
               <button
                 onClick={() => {
                   setMenuOpen(false);

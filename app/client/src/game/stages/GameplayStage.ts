@@ -3064,6 +3064,10 @@ export class GameplayStage {
     // Support up to 4 simultaneous touch pointers
     this.scene.input.addPointer(3);
 
+    let lastTapTime = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+
     this.onCameraPointerDown = (pointer: Phaser.Input.Pointer) => {
       // Touching the canvas immediately halts any ongoing momentum glide
       this.cameraVelocityX = 0;
@@ -3082,6 +3086,24 @@ export class GameplayStage {
         this.lastPinchMidX = (p1.x + p2.x) / 2;
         this.lastPinchMidY = (p1.y + p2.y) / 2;
       } else {
+        // Only the primary button pans the camera.
+        if (!pointer.primaryDown) return;
+
+        // Double-tap battlefield check (ignoring taps on tower slots)
+        if (!this.scene.registry.get("ui:overTowerSlot")) {
+          const now = Date.now();
+          const dt = now - lastTapTime;
+          const dist = Math.hypot(pointer.x - lastTapX, pointer.y - lastTapY);
+          if (dt > 40 && dt < 350 && dist < 30) {
+            this.scene.game?.events.emit("toggle-ui");
+            lastTapTime = 0;
+          } else {
+            lastTapTime = now;
+            lastTapX = pointer.x;
+            lastTapY = pointer.y;
+          }
+        }
+
         // Single-finger touch or mouse click
         this.isPinching = false;
         this.isDragging = true;

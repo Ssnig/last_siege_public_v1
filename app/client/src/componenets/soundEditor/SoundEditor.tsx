@@ -107,11 +107,43 @@ const TOWERS: TowerSoundMeta[] = [
   },
 ];
 
+
+interface UnitSoundMeta {
+  id: string;
+  name: string;
+  archetype: 'Light Scout' | 'Heavy Infantry' | 'War Cavalry' | 'Spirit / Nat' | 'Brute / Ogre';
+  speed: number;
+  hp: number;
+  description: string;
+  hasAbility?: boolean;
+  abilityName?: string;
+}
+
+const UNITS: UnitSoundMeta[] = [
+  { id: 'monkey', name: 'Monkey', archetype: 'Light Scout', speed: 130, hp: 45, description: 'Agile skirmisher with high-frequency chattering screeches and agile yelps.' },
+  { id: 'horse_rider', name: 'Konbaung Cavalry', archetype: 'War Cavalry', speed: 110, hp: 120, description: 'Fast mobile vanguard with galloping hooves and battle whinny.' },
+  { id: 'sar_bal_gyi', name: 'Palace Royal Guard', archetype: 'Heavy Infantry', speed: 45, hp: 420, description: 'Elite armored guard with disciplined march thud and soldier grunt.' },
+  { id: 'gya_pu', name: 'Winged Nat', archetype: 'Spirit / Nat', speed: 90, hp: 200, description: 'Celestial winged spirit with harmonic crystalline shimmer.' },
+  { id: 'a_ba', name: 'Nat Spirit Medium', archetype: 'Spirit / Nat', speed: 70, hp: 320, description: 'Spiritual medium with authentic Burmese Kyeezee spinning brass bell.' },
+  { id: 'chon_toe', name: 'Bush Sneak', archetype: 'Light Scout', speed: 35, hp: 750, description: 'Stealth infiltrator with bamboo foliage rustle and blade whoosh.' },
+  { id: 'elephant_rider', name: 'War Elephant', archetype: 'War Cavalry', speed: 30, hp: 1300, description: 'Colossal war beast with deep ground stomp and mighty trumpet roar.' },
+  { id: 'say_sayar', name: 'Say Sayar (Herbalist)', archetype: 'Spirit / Nat', speed: 30, hp: 220, description: 'Medicine healer with bamboo flute and emerald healing aura chime.', hasAbility: true, abilityName: 'Healing Aura' },
+  { id: 'shield_guy', name: 'Shield Bearer', archetype: 'Heavy Infantry', speed: 40, hp: 320, description: 'Sturdy defender with bronze shield block and taunt bash.', hasAbility: true, abilityName: 'Taunt Shout' },
+  { id: 'doe_pat', name: 'Doe Pat Drummer', archetype: 'Brute / Ogre', speed: 30, hp: 200, description: 'Burmese folk drummer with syncopated Doe Pat cadence.', hasAbility: true, abilityName: 'Speed Drum Roll' },
+  { id: 'bandit', name: 'Bandit Raider', archetype: 'Light Scout', speed: 100, hp: 180, description: 'Ruthless rogue with sinister chuckle and curved dah blade slice.' },
+  { id: 'belu', name: 'Belu Ogre', archetype: 'Brute / Ogre', speed: 35, hp: 950, description: 'Terrifying mythological ogre with cavernous chest roar.' },
+  { id: 'brute', name: 'Heavy Brute', archetype: 'Brute / Ogre', speed: 48, hp: 560, description: 'Muscular brawler with guttural grunt and heavy blunt impact.' },
+  { id: 'general', name: 'Royal Bo General', archetype: 'Heavy Infantry', speed: 55, hp: 480, description: 'Commanding commander with royal sword unsheathe and battle gong.' },
+  { id: 'sone_ma', name: 'Sone Ma Sorceress', archetype: 'Spirit / Nat', speed: 65, hp: 260, description: 'Dark witch with dissonant tritone curse and occult vortex whoosh.' }
+];
+
 export const SoundEditor: React.FC = () => {
   const navigate = useNavigate();
 
   // Active Tab: towers | ambient | music
-  const [activeTab, setActiveTab] = useState<'towers' | 'ambient' | 'music'>('towers');
+  const [activeTab, setActiveTab] = useState<'towers' | 'units' | 'ambient' | 'music'>('towers');
+  const [selectedUnit, setSelectedUnit] = useState<UnitSoundMeta>(UNITS[0]);
+  const [unitPitch, setUnitPitch] = useState<number>(1.0);
   const [selectedTower, setSelectedTower] = useState<TowerSoundMeta>(TOWERS[0]);
 
   // Master Volume & Audio settings
@@ -408,6 +440,16 @@ export const SoundEditor: React.FC = () => {
               }`}
             >
               🏰 Towers (10)
+            </button>
+            <button
+              onClick={() => setActiveTab('units')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'units'
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              ⚔️ Units & Mobs (15)
             </button>
             <button
               onClick={() => setActiveTab('ambient')}
@@ -816,6 +858,198 @@ export const SoundEditor: React.FC = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+            </main>
+          </>
+        )}
+
+        
+        {/* TAB 1.5: UNITS & MOBS (15) */}
+        {activeTab === 'units' && (
+          <>
+            {/* Left Sidebar: 15 Units */}
+            <aside className="w-80 border-r border-slate-800 bg-slate-900/40 flex flex-col shrink-0 overflow-hidden">
+              <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                  Select Unit (15)
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-600/40 font-mono">
+                  All 22 WAVs Active
+                </span>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {UNITS.map((unit) => {
+                  const isSelected = selectedUnit.id === unit.id;
+                  return (
+                    <button
+                      key={unit.id}
+                      onClick={() => setSelectedUnit(unit)}
+                      className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                        isSelected
+                          ? 'bg-amber-950/40 border-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                          : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex flex-col">
+                        <span className={`text-sm font-bold ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
+                          {unit.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {unit.archetype} • {unit.hp} HP • {unit.speed} Spd
+                        </span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-amber-300 font-mono">
+                        {unit.hasAbility ? '⭐ Skill' : 'Normal'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            {/* Right Main Pane: Sound Audition & Controls */}
+            <main className="flex-1 overflow-y-auto p-8 space-y-6">
+              {/* Unit Header */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-amber-950/30 border border-amber-500/30 flex items-start justify-between shadow-xl">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-black text-amber-200 font-serif">
+                      {selectedUnit.name}
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-[11px] font-bold text-amber-300">
+                      {selectedUnit.archetype}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-300 mt-2 max-w-2xl leading-relaxed">
+                    {selectedUnit.description}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      [0, 180, 360].forEach((delay) => {
+                        setTimeout(() => soundEffects.playMobSpawnAudition(selectedUnit.id, unitPitch), delay);
+                      });
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-lg cursor-pointer"
+                  >
+                    ⚔️ Test Batch Spawn (3x)
+                  </button>
+                </div>
+              </div>
+
+              {/* Pitch Modifier */}
+              <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-300">Acoustic Pitch Modifier</span>
+                  <span className="text-xs font-mono text-amber-400">{unitPitch.toFixed(2)}x</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setUnitPitch(1.0)}
+                    className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 cursor-pointer"
+                  >
+                    Reset (1.0x)
+                  </button>
+                  <input
+                    type="range"
+                    min="0.8"
+                    max="1.3"
+                    step="0.05"
+                    value={unitPitch}
+                    onChange={(e) => setUnitPitch(parseFloat(e.target.value))}
+                    className="w-36 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                  />
+                </div>
+              </div>
+
+              {/* Sound Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* 1. Spawn / Deployment Sound */}
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                      1. Spawn / War Cry
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-600/50">
+                      Custom WAV Active
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Plays when this unit emerges from an offensive portal onto the battlefield.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShootWaveActive(true);
+                      setTimeout(() => setShootWaveActive(false), 200);
+                      soundEffects.playMobSpawnAudition(selectedUnit.id, unitPitch);
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>▶</span> Audition Spawn Cry
+                  </button>
+                </div>
+
+                {/* 2. Signature Ability Sound (If unit has ability) */}
+                {selectedUnit.hasAbility ? (
+                  <div className="p-5 rounded-2xl bg-slate-900 border border-sky-500/40 space-y-4 shadow-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-sky-400">
+                        2. {selectedUnit.abilityName}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-sky-950/80 text-sky-300 border border-sky-600/50">
+                        Special Skill
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      Plays when {selectedUnit.name} triggers its unique combat ability.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setImpactWaveActive(true);
+                        setTimeout(() => setImpactWaveActive(false), 200);
+                        soundEffects.playMobAbilityAudition(selectedUnit.id);
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <span>✨</span> Audition Ability SFX
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/50 space-y-4 opacity-50">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      2. Passive Unit
+                    </span>
+                    <p className="text-xs text-slate-500">
+                      This unit uses standard basic attack pacing without active casting skills.
+                    </p>
+                  </div>
+                )}
+
+                {/* 3. Defeat / Death Sound */}
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-rose-400">
+                      3. Defeat / Death Cry
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                      {selectedUnit.archetype}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Plays when this unit is vanquished by defensive towers on the road.
+                  </p>
+                  <button
+                    onClick={() => {
+                      soundEffects.playMobDeathAudition(selectedUnit.id);
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>☠️</span> Audition Death Cry
+                  </button>
                 </div>
               </div>
             </main>

@@ -24,6 +24,7 @@ class SoundEffectsManager {
         // Fallback to default volume if localStorage is restricted
       }
       this.preloadTowerSounds();
+      this.preloadUnitSounds();
     }
   }
 
@@ -41,7 +42,9 @@ class SoundEffectsManager {
       } catch {}
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+      try {
+        this.ctx.resume().catch(() => {});
+      } catch {}
     }
     return this.ctx;
   }
@@ -1144,7 +1147,577 @@ class SoundEffectsManager {
     osc.stop(time + 0.58);
   }
 
+
+  // =========================================================================
+  // --- UNIT AUDIO ENGINE (15 Units, Spawns, Abilities, Deaths) ---
+  // =========================================================================
+
+  private lastMobSpawnTime: Map<string, number> = new Map();
+  private lastMobDeathTime = 0;
+
+  /**
+   * Preload unit sound files into memory cache.
+   */
+  public preloadUnitSounds(): void {
+    if (typeof window === 'undefined') return;
+    const unitFiles = [
+      'monkey_spawn.wav', 'horse_rider_spawn.wav', 'sar_bal_gyi_spawn.wav',
+      'gya_pu_spawn.wav', 'a_ba_spawn.wav', 'chon_toe_spawn.wav',
+      'elephant_rider_spawn.wav', 'say_sayar_spawn.wav', 'shield_guy_spawn.wav',
+      'doe_pat_spawn.wav', 'bandit_spawn.wav', 'belu_spawn.wav',
+      'brute_spawn.wav', 'general_spawn.wav', 'sone_ma_spawn.wav',
+      'say_sayar_ability.wav', 'shield_guy_ability.wav', 'doe_pat_ability.wav',
+      'unit_death_light.wav', 'unit_death_medium.wav', 'unit_death_heavy.wav', 'unit_death_spirit.wav'
+    ];
+
+    for (const f of unitFiles) {
+      const fullPath = `/assets/sfx/units/${f}`;
+      if (!this.audioFileCache.has(fullPath)) {
+        const audio = new Audio(fullPath);
+        audio.preload = 'auto';
+        this.audioFileCache.set(fullPath, audio);
+      }
+    }
+  }
+
+  private tryPlayUnitAudioFile(filename: string): boolean {
+    if (typeof window === 'undefined') return false;
+    const path = `/assets/sfx/units/${filename}`;
+    let cached = this.audioFileCache.get(path);
+    if (cached === undefined) {
+      const audio = new Audio(path);
+      audio.volume = this.volume;
+      audio.preload = 'auto';
+      this.audioFileCache.set(path, audio);
+      cached = audio;
+    }
+    if (cached && !cached.error) {
+      if (!cached.paused && cached.currentTime > 0) {
+        try {
+          const clone = cached.cloneNode(true) as HTMLAudioElement;
+          clone.volume = this.volume;
+          clone.play().catch(() => {});
+          return true;
+        } catch {
+          return false;
+        }
+      } else {
+        try {
+          cached.currentTime = 0;
+          cached.volume = this.volume;
+          cached.play().catch(() => {});
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Plays the spawn / deployment sound for any of the 15 units.
+   * Throttled to 200ms per unit ID to prevent distortion during batch spawns.
+   */
+  public playMobSpawn(unitId: string, customPitch?: number): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const now = Date.now();
+    const last = this.lastMobSpawnTime.get(unitId) || 0;
+    if (now - last < 200) return;
+    this.lastMobSpawnTime.set(unitId, now);
+
+    this.playMobSpawnAudition(unitId, customPitch);
+  }
+
+  /**
+   * Audition helper: plays unit spawn sound without throttling.
+   */
+  public playMobSpawnAudition(unitId: string, customPitch?: number): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const cleanId = unitId.toLowerCase().trim();
+
+    if (this.tryPlayUnitAudioFile(`${cleanId}_spawn.wav`)) {
+      return;
+    }
+
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const time = ctx.currentTime;
+      const vol = this.volume;
+      const pitch = customPitch !== undefined ? customPitch : this.getPitchMultiplier();
+
+      switch (cleanId) {
+        case 'monkey': this.synthMonkeySpawn(ctx, time, vol, pitch); break;
+        case 'horse_rider': this.synthCavalrySpawn(ctx, time, vol, pitch); break;
+        case 'sar_bal_gyi': this.synthGuardSpawn(ctx, time, vol, pitch); break;
+        case 'gya_pu': this.synthWingedNatSpawn(ctx, time, vol, pitch); break;
+        case 'a_ba': this.synthMediumSpawn(ctx, time, vol, pitch); break;
+        case 'chon_toe': this.synthSneakSpawn(ctx, time, vol, pitch); break;
+        case 'elephant_rider': this.synthElephantSpawn(ctx, time, vol, pitch); break;
+        case 'say_sayar': this.synthSaySayarSpawn(ctx, time, vol, pitch); break;
+        case 'shield_guy': this.synthShieldGuySpawn(ctx, time, vol, pitch); break;
+        case 'doe_pat': this.synthDoePatSpawn(ctx, time, vol, pitch); break;
+        case 'bandit': this.synthBanditSpawn(ctx, time, vol, pitch); break;
+        case 'belu': this.synthBeluSpawn(ctx, time, vol, pitch); break;
+        case 'brute': this.synthBruteSpawn(ctx, time, vol, pitch); break;
+        case 'general': this.synthGeneralSpawn(ctx, time, vol, pitch); break;
+        case 'sone_ma': this.synthSoneMaSpawn(ctx, time, vol, pitch); break;
+        default: this.synthGuardSpawn(ctx, time, vol, pitch); break;
+      }
+    } catch {}
+  }
+
+  /**
+   * Audition helper for unit abilities.
+   */
+  public playMobAbilityAudition(unitId: string, abilityType?: string): void {
+    this.playMobAbility(unitId, abilityType);
+  }
+
+  /**
+   * Plays unique unit ability audio (Say Sayar heal, Shield Guy taunt, Doe Pat drum cadence).
+   */
+  public playMobAbility(unitId: string, abilityType?: string): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const cleanId = unitId.toLowerCase().trim();
+
+    if (this.tryPlayUnitAudioFile(`${cleanId}_ability.wav`)) {
+      return;
+    }
+
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const time = ctx.currentTime;
+      const vol = this.volume;
+      const pitch = this.getPitchMultiplier();
+
+      if (cleanId === 'say_sayar' || abilityType === 'heal_aura') {
+        this.synthSaySayarHeal(ctx, time, vol, pitch);
+      } else if (cleanId === 'shield_guy' || abilityType === 'taunt') {
+        this.synthShieldTaunt(ctx, time, vol, pitch);
+      } else if (cleanId === 'doe_pat' || abilityType === 'speed_aura') {
+        this.synthDoePatAbility(ctx, time, vol, pitch);
+      }
+    } catch {}
+  }
+
+  /**
+   * Plays defeat / death audio cue based on unit archetype.
+   */
+  public playMobDeath(unitId: string): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const now = Date.now();
+    if (now - this.lastMobDeathTime < 120) return;
+    this.lastMobDeathTime = now;
+
+    this.playMobDeathAudition(unitId);
+  }
+
+  /**
+   * Audition helper for death sounds.
+   */
+  public playMobDeathAudition(unitId: string, customPitch?: number): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const cleanId = unitId.toLowerCase().trim();
+
+    let archetype: 'light' | 'medium' | 'heavy' | 'spirit' = 'medium';
+    if (['monkey', 'bandit', 'chon_toe'].includes(cleanId)) archetype = 'light';
+    else if (['elephant_rider', 'belu', 'brute', 'shield_guy'].includes(cleanId)) archetype = 'heavy';
+    else if (['gya_pu', 'a_ba', 'sone_ma', 'say_sayar'].includes(cleanId)) archetype = 'spirit';
+
+    if (this.tryPlayUnitAudioFile(`unit_death_${archetype}.wav`)) {
+      return;
+    }
+
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const time = ctx.currentTime;
+      const vol = this.volume * 0.75;
+      const pitch = customPitch !== undefined ? customPitch : this.getPitchMultiplier();
+
+      switch (archetype) {
+        case 'light': this.synthDeathLight(ctx, time, vol, pitch); break;
+        case 'heavy': this.synthDeathHeavy(ctx, time, vol, pitch); break;
+        case 'spirit': this.synthDeathSpirit(ctx, time, vol, pitch); break;
+        default: this.synthDeathMedium(ctx, time, vol, pitch); break;
+      }
+    } catch {}
+  }
+
+  // --- UNIT SYNTHESIS METHODS ---
+
+  private synthMonkeySpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1400 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(2800 * pitch, time + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(1600 * pitch, time + 0.35);
+
+    gain.gain.setValueAtTime(vol * 0.45, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.42);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.42);
+  }
+
+  private synthCavalrySpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // 3 Hoof beats
+    [0.0, 0.14, 0.28].forEach((hb) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(160 * pitch, time + hb);
+      osc.frequency.exponentialRampToValueAtTime(45 * pitch, time + hb + 0.08);
+
+      gain.gain.setValueAtTime(vol * 0.45, time + hb);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + hb + 0.09);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time + hb);
+      osc.stop(time + hb + 0.09);
+    });
+
+    // Whinny
+    const w = ctx.createOscillator();
+    const wGain = ctx.createGain();
+    w.type = 'sine';
+    w.frequency.setValueAtTime(800 * pitch, time + 0.25);
+    w.frequency.linearRampToValueAtTime(1250 * pitch, time + 0.45);
+    w.frequency.exponentialRampToValueAtTime(700 * pitch, time + 0.70);
+
+    wGain.gain.setValueAtTime(vol * 0.35, time + 0.25);
+    wGain.gain.exponentialRampToValueAtTime(0.001, time + 0.72);
+
+    w.connect(wGain);
+    wGain.connect(ctx.destination);
+    w.start(time + 0.25);
+    w.stop(time + 0.72);
+  }
+
+  private synthGuardSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(120 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(40 * pitch, time + 0.25);
+
+    gain.gain.setValueAtTime(vol * 0.55, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.35);
+  }
+
+  private synthWingedNatSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    [1046.5, 1318.5, 1568.0, 2093.0].forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * pitch, time + idx * 0.06);
+
+      gain.gain.setValueAtTime(vol * 0.22, time + idx * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + idx * 0.06 + 0.65);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time + idx * 0.06);
+      osc.stop(time + idx * 0.06 + 0.65);
+    });
+  }
+
+  private synthMediumSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    [880, 2428, 4752].forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * pitch, time);
+
+      gain.gain.setValueAtTime((vol * 0.35) / (idx + 1), time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.85);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + 0.85);
+    });
+  }
+
+  private synthSneakSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(3200 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(350 * pitch, time + 0.32);
+
+    gain.gain.setValueAtTime(vol * 0.38, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.38);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.38);
+  }
+
+  private synthElephantSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // Ground stomp
+    const stomp = ctx.createOscillator();
+    const sGain = ctx.createGain();
+    stomp.type = 'sine';
+    stomp.frequency.setValueAtTime(75 * pitch, time);
+    stomp.frequency.exponentialRampToValueAtTime(25 * pitch, time + 0.45);
+    sGain.gain.setValueAtTime(vol * 0.65, time);
+    sGain.gain.exponentialRampToValueAtTime(0.001, time + 0.50);
+    stomp.connect(sGain);
+    sGain.connect(ctx.destination);
+    stomp.start(time);
+    stomp.stop(time + 0.50);
+
+    // Trumpet roar
+    const roar = ctx.createOscillator();
+    const rGain = ctx.createGain();
+    roar.type = 'sawtooth';
+    roar.frequency.setValueAtTime(180 * pitch, time + 0.15);
+    roar.frequency.linearRampToValueAtTime(380 * pitch, time + 0.55);
+    roar.frequency.exponentialRampToValueAtTime(190 * pitch, time + 0.95);
+    rGain.gain.setValueAtTime(vol * 0.48, time + 0.15);
+    rGain.gain.exponentialRampToValueAtTime(0.001, time + 0.98);
+    roar.connect(rGain);
+    rGain.connect(ctx.destination);
+    roar.start(time + 0.15);
+    roar.stop(time + 0.98);
+  }
+
+  private synthSaySayarSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25 * pitch, time); // C5
+    gain.gain.setValueAtTime(vol * 0.40, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.55);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.55);
+  }
+
+  private synthSaySayarHeal(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * pitch, time + idx * 0.10);
+      gain.gain.setValueAtTime(vol * 0.30, time + idx * 0.10);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + idx * 0.10 + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time + idx * 0.10);
+      osc.stop(time + idx * 0.10 + 0.45);
+    });
+  }
+
+  private synthShieldGuySpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(220 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(60 * pitch, time + 0.22);
+    gain.gain.setValueAtTime(vol * 0.55, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.30);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.30);
+  }
+
+  private synthShieldTaunt(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    [720, 1380, 2450].forEach((f) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * pitch, time);
+      gain.gain.setValueAtTime(vol * 0.35, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + 0.45);
+    });
+  }
+
+  private synthDoePatSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(180 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(95 * pitch, time + 0.18);
+    gain.gain.setValueAtTime(vol * 0.65, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.28);
+  }
+
+  private synthDoePatAbility(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    [0.0, 0.12, 0.24, 0.36].forEach((bt, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime((175 + idx * 15) * pitch, time + bt);
+      osc.frequency.exponentialRampToValueAtTime(90 * pitch, time + bt + 0.12);
+      gain.gain.setValueAtTime(vol * 0.55, time + bt);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + bt + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time + bt);
+      osc.stop(time + bt + 0.15);
+    });
+  }
+
+  private synthBanditSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(4200 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(800 * pitch, time + 0.20);
+    gain.gain.setValueAtTime(vol * 0.35, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.25);
+  }
+
+  private synthBeluSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(55 * pitch, time);
+    osc.frequency.linearRampToValueAtTime(75 * pitch, time + 0.40);
+    osc.frequency.exponentialRampToValueAtTime(40 * pitch, time + 0.75);
+    gain.gain.setValueAtTime(vol * 0.65, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.80);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.80);
+  }
+
+  private synthBruteSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(110 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(50 * pitch, time + 0.35);
+    gain.gain.setValueAtTime(vol * 0.58, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.42);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.42);
+  }
+
+  private synthGeneralSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    [261.63, 523.25, 784.88].forEach((f) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * pitch, time + 0.10);
+      gain.gain.setValueAtTime(vol * 0.35, time + 0.10);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.65);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time + 0.10);
+      osc.stop(time + 0.65);
+    });
+  }
+
+  private synthSoneMaSpawn(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    [220.0, 311.13, 440.0, 622.25].forEach((f) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * pitch, time);
+      gain.gain.setValueAtTime(vol * 0.25, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.65);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + 0.65);
+    });
+  }
+
+  private synthDeathLight(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(580 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(140 * pitch, time + 0.22);
+    gain.gain.setValueAtTime(vol * 0.45, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.26);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.26);
+  }
+
+  private synthDeathMedium(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(160 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(45 * pitch, time + 0.32);
+    gain.gain.setValueAtTime(vol * 0.50, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.36);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.36);
+  }
+
+  private synthDeathHeavy(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(75 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(25 * pitch, time + 0.45);
+    gain.gain.setValueAtTime(vol * 0.60, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.50);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.50);
+  }
+
+  private synthDeathSpirit(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    [1850, 2600].forEach((f) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * pitch, time);
+      gain.gain.setValueAtTime(vol * 0.28, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.48);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + 0.48);
+    });
+  }
+
 }
+
 
 
 export const soundEffects = new SoundEffectsManager();

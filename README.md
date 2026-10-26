@@ -254,6 +254,35 @@ Studio URL: http://localhost:5173/sounds (or /dev/sounds)
 
 ---
 
+## 🎓 Interactive War Academy & Tutorial Phase
+
+The game features a dedicated in-browser **War Academy & Tutorial** accessible at `/tutorial` or `/academy` (as well as via the **Tutorial** button on the Main Landing Page, the Match Lobby, and the in-game Settings modal):
+
+```text
+Academy URL: http://localhost:5173/tutorial (or /academy)
+```
+
+### The Two Strategic Disciplines
+The War Academy provides tailored interactive curriculums with live sandbox simulators for both sides of the siege:
+
+#### 🛡️ Defender Academy ("The Citadel Commander")
+- **Module 1: Construction & Choke Points:** Teaches placing defense towers on stone pads using starting gold (350g), positioning on high-value corners/bends to maximize firing duration, and visualizing range radii.
+- **Module 2: Dual Damage Channels & The Armor Counter:** Teaches why Physical damage (Archer, Gun, Cannon) is blunted by enemy Armor, how the Sacred Bell Tower deals Mental damage that completely bypasses armor and cracks resolve, and how the Spear Tower uses 50% Armor Piercing to shred heavy vanguards.
+- **Module 3: Tier Upgrades & The 70% Sell Refund:** Demonstrates upgrading towers from Tier 1 to Tier 3 for increased DPS, range, and fire rate, as well as selling misplaced towers for an instant 70% gold refund.
+- **Module 4: Target Aggro & Crowd Control Synergy:** Demonstrates how Shield Bearers redirect single-target tower fire with Royal Taunt, and how Cannon's 25% on-hit slow creates dense clusters for AoE Bomb and Bell explosions. Includes an interactive Citadel Mastery Check quiz!
+
+#### ⚔️ Attacker Academy ("The Siege Warlord")
+- **Module 1: Portals, Charges & Deploy Buffer:** Teaches queuing units into the deploy buffer with gold, managing portal charges (starts with 3, recharges over time), and launching squads in staggered formation.
+- **Module 2: The Recurring Income Engine:** Explains how deploying units permanently scales the recurring Income Rate (paid out every 10s), plus deep-penetration gold bonuses earned when troops push past 50% track distance.
+- **Module 3: The Holy Trinity Siege Formation:** Demonstrates the optimal wave composition: Vanguard Tank (Shield Bearer taunts single-target fire) + Support Core (Doe Pat Drummer +40% speed boost & Say Sayar healing aura) + Infiltration Payload (Monkeys or War Elephant).
+- **Module 4: Palace Infiltration & Victory Conditions:** Teaches Core Leak Damage values (Monkey = 1 HP, Sar Bal Gyi = 3 HP, Belu = 5 HP, War Elephant = 10 HP) and how to breach the Defender's Core from 20 to 0 HP. Includes an interactive Warlord Mastery Check quiz!
+
+### 💡 In-Match Contextual Battle Coach
+- **Phase Guidance Banners:** Discrete coach tips appear at the top of each match phase (Map Reveal, Draft, Building, Combat) advising players on immediate tactical priorities.
+- **HUD Quick Guide (`[❓ Guide]`):** A one-click slideover reference card available directly on the Game HUD so players can look up damage channels, income mechanics, and role objectives without leaving their live match!
+
+---
+
 ## 🏆 Competitive Ranking & Elo System
 
 A skill-based competitive rating system tracks player progress across online matches:

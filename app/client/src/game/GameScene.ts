@@ -453,6 +453,7 @@ export class GameScene extends Phaser.Scene {
       deck: this.defenderDeck,
     });
     this.gameplayStage.create();
+    this.game?.events.emit("scene-ready");
   }
 
   private startCombat(): void {
