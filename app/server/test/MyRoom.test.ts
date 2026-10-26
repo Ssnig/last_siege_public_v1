@@ -211,13 +211,13 @@ describe("testing your Colyseus app", () => {
     );
   });
 
-  it("randomizes a synchronized 10-unit draft pool on room creation from all 15 catalog mobs", async () => {
+  it("initializes a synchronized draft pool on room creation containing all catalog mobs", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
     });
-    assert.strictEqual(room.state.draftMobPool.length, 10, "draftMobPool must have exactly 10 units");
+    assert.strictEqual(room.state.draftMobPool.length, ALL_MOB_IDS.length, "draftMobPool must have all catalog units");
     const uniquePool = new Set(Array.from(room.state.draftMobPool));
-    assert.strictEqual(uniquePool.size, 10, "all 10 pool entries must be unique");
+    assert.strictEqual(uniquePool.size, ALL_MOB_IDS.length, "all pool entries must be unique");
 
     for (const unitId of room.state.draftMobPool) {
       assert.ok(ALL_MOB_IDS.includes(unitId), `${unitId} must be in ALL_MOB_IDS`);
@@ -226,7 +226,7 @@ describe("testing your Colyseus app", () => {
     const room2 = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "defender",
     });
-    assert.strictEqual(room2.state.draftMobPool.length, 10);
+    assert.strictEqual(room2.state.draftMobPool.length, ALL_MOB_IDS.length);
   });
 
   it("reveals a random map from the pool before drafting once both players are ready", async () => {
