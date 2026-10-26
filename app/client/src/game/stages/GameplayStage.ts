@@ -14,6 +14,7 @@ import {
   type Mob,
   type MobAbilityPayload,
   type MobDeathExplosionPayload,
+  type CombatDamagePayload,
   type Projectile,
   type Tower,
   type TowerAttackPayload,
@@ -44,6 +45,7 @@ import { UnitAnimationManager } from "../animation/UnitAnimationManager";
 import { TowerAnimationManager } from "../animation/TowerAnimationManager";
 import { AmbientNPCManager } from "../npc/AmbientNPCManager";
 import { soundEffects } from "../../audio/soundEffects";
+import { FloatingCombatTextManager } from "../vfx/FloatingCombatText";
 
 /** Render order for the gameplay layers. */
 export const DEPTH = {
@@ -127,6 +129,12 @@ type MobRecord = {
   lastArmorStacks?: number;
   /** Last known mental strength stacks (for Belu adaptive defense VFX). */
   lastMentalStacks?: number;
+  /** Last known armor crush magnitude (for Sein Pyaung armor strip alert). */
+  lastArmorCrush?: number;
+  /** Whether the mob is currently silenced (for Chinthe silence alert). */
+  wasSilenced?: boolean;
+  /** Whether monkey's initial sprint burst has ended upon taking damage. */
+  burstBroken?: boolean;
 };
 
 /** A portal: its spin sprite plus the charge pips drawn above it. */
@@ -1733,6 +1741,9 @@ export class GameplayStage {
         mob.effects?.get(EFFECT_TYPES.armor_stack)?.magnitude ?? 0;
       const initialMental =
         mob.effects?.get(EFFECT_TYPES.mental_stack)?.magnitude ?? 0;
+      const initialCrush =
+        mob.effects?.get(EFFECT_TYPES.armor_crush)?.magnitude ?? 0;
+      const initialSilenced = mob.effects?.has(EFFECT_TYPES.silence) ?? false;
 
       const record: MobRecord = {
         id: String(key),
@@ -1744,6 +1755,9 @@ export class GameplayStage {
         hpFill,
         lastArmorStacks: initialArmor,
         lastMentalStacks: initialMental,
+        lastArmorCrush: initialCrush,
+        wasSilenced: initialSilenced,
+        burstBroken: false,
       };
       this.mobSprites.set(mob, record);
       this.mobsById.set(record.id, record);
@@ -1790,6 +1804,33 @@ export class GameplayStage {
           for (const targetId of payload.targetIds) {
             const target = this.mobsById.get(targetId);
             if (!target) continue;
+
+            const container = this.actors ?? this.root;
+            if (
+              container &&
+              (payload.abilityType === "heal_aura" ||
+                payload.abilityType === "self_heal")
+            ) {
+              const amount =
+                payload.healAmount ??
+                (payload.abilityType === "heal_aura" ? 80 : 46);
+              FloatingCombatTextManager.spawnHeal(
+                this.scene,
+                container,
+                target.sprite.x,
+                target.sprite.y,
+                amount,
+              );
+            } else if (container && payload.abilityType === "speed_aura") {
+              FloatingCombatTextManager.spawnStatus(
+                this.scene,
+                container,
+                target.sprite.x,
+                target.sprite.y,
+                "status_speed_burst",
+                "SPEED BOOST!",
+              );
+            }
 
             const vfx =
               payload.abilityType === "heal_aura"
@@ -1902,6 +1943,30 @@ export class GameplayStage {
       },
     );
     this.unsubscribers.push(offDeathExplosion);
+
+    const offCombatDamage = this.room.onMessage(
+      MESSAGES.combatDamage,
+      (payload: CombatDamagePayload) => {
+        if (this.destroyed) return;
+
+        const target = this.mobsById.get(payload.mobId);
+        const x = target ? target.sprite.x : payload.x;
+        const y = target ? target.sprite.y : payload.y;
+        const container = this.actors ?? this.root;
+        if (container) {
+          FloatingCombatTextManager.spawnDamage(
+            this.scene,
+            container,
+            x,
+            y,
+            payload.damage,
+            payload.damageType,
+            payload.isCrit,
+          );
+        }
+      },
+    );
+    this.unsubscribers.push(offCombatDamage);
   }
 
   /** Per-frame pass repositioning every tracked mob sprite and its health bar. */
@@ -1927,6 +1992,18 @@ export class GameplayStage {
     vfx.setDepth(record.sprite.depth + 0.0001);
     (this.actors ?? this.root)?.add(vfx);
     record.stunVfx = vfx;
+
+    const container = this.actors ?? this.root;
+    if (container) {
+      FloatingCombatTextManager.spawnStatus(
+        this.scene,
+        container,
+        record.sprite.x,
+        record.sprite.y - 45,
+        "status_stun",
+        "STUNNED!",
+      );
+    }
 
     vfx.once(Phaser.GameObjects.Events.DESTROY, () => {
       if (record.stunVfx === vfx) {
@@ -2213,7 +2290,9 @@ export class GameplayStage {
     // Status tint: a slowed mob reads cold blue, a cracked one violet.
     record.sprite.setTint(this.mobEffectTint(mob));
 
-    // Adaptive defense stack VFX for Belu Ogre
+    const container = this.actors ?? this.root;
+
+    // Adaptive defense stack VFX and status alert for Belu Ogre
     if (record.typeId === "belu") {
       const currentArmor =
         mob.effects?.get(EFFECT_TYPES.armor_stack)?.magnitude ?? 0;
@@ -2221,6 +2300,16 @@ export class GameplayStage {
         mob.effects?.get(EFFECT_TYPES.mental_stack)?.magnitude ?? 0;
 
       if (currentArmor > (record.lastArmorStacks ?? 0)) {
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            point.x,
+            point.y - 28,
+            "status_armor_stack",
+            `+ARMOR (${currentArmor})`,
+          );
+        }
         const vfx = UnitAnimationManager.spawnBeluArmorVfx(
           this.scene,
           point.x,
@@ -2240,6 +2329,16 @@ export class GameplayStage {
       }
 
       if (currentMental > (record.lastMentalStacks ?? 0)) {
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            point.x,
+            point.y - 28,
+            "status_mental_stack",
+            `+RESOLVE (${currentMental})`,
+          );
+        }
         const vfx = UnitAnimationManager.spawnBeluMentalVfx(
           this.scene,
           point.x,
@@ -2260,6 +2359,56 @@ export class GameplayStage {
 
       record.lastArmorStacks = currentArmor;
       record.lastMentalStacks = currentMental;
+    }
+
+    // Sein Pyaung Armor Crush alert
+    const currentCrush =
+      mob.effects?.get(EFFECT_TYPES.armor_crush)?.magnitude ?? 0;
+    if (currentCrush > (record.lastArmorCrush ?? 0)) {
+      if (container) {
+        FloatingCombatTextManager.spawnStatus(
+          this.scene,
+          container,
+          point.x,
+          point.y - 28,
+          "status_armor_crush",
+          "ARMOR CRUSH!",
+        );
+      }
+    }
+    record.lastArmorCrush = currentCrush;
+
+    // Chinthe Guardian Silence alert
+    const isSilenced = mob.effects?.has(EFFECT_TYPES.silence) ?? false;
+    if (isSilenced && !record.wasSilenced) {
+      if (container) {
+        FloatingCombatTextManager.spawnStatus(
+          this.scene,
+          container,
+          point.x,
+          point.y - 28,
+          "status_silence",
+          "SILENCED!",
+        );
+      }
+    }
+    record.wasSilenced = isSilenced;
+
+    // Monkey Burst of Speed drop alert upon taking first damage
+    if (record.typeId === "monkey") {
+      if (!record.burstBroken && mob.speed <= 50) {
+        record.burstBroken = true;
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            point.x,
+            point.y - 28,
+            "status_speed_broken",
+            "BURST BROKEN",
+          );
+        }
+      }
     }
 
     // Face the direction of travel (art is a side-view sprite, so flip, not rotate).

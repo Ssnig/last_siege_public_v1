@@ -60,6 +60,8 @@ export const MESSAGES = {
   towerAttack: "tower_attack",
   /** Server → client (broadcast): a mob detonated / exploded on death (e.g. Dragon Tower cataclysmic detonation). */
   mobDeathExplosion: "mob_death_explosion",
+  /** Server → client (broadcast): damage dealt to a mob. */
+  combatDamage: "combat_damage",
   /** Client → server: this client has finished loading game assets. */
   clientAssetsLoaded: "client_assets_loaded",
   /** Server → client (broadcast): asset loading status update while waiting. */
@@ -287,6 +289,24 @@ export interface MobAbilityPayload {
   abilityType: "heal_aura" | "speed_aura" | "self_heal";
   /** Server mob ids of all allied mobs affected by this ability cast. */
   targetIds: string[];
+  /** Amount healed for heal_aura or self_heal casts. */
+  healAmount?: number;
+}
+
+/** Payload of the `combat_damage` broadcast message. */
+export interface CombatDamagePayload {
+  /** Server mob id that took damage. */
+  mobId: string;
+  /** Actual damage applied to the mob. */
+  damage: number;
+  /** Damage type channel. */
+  damageType: "physical" | "mental";
+  /** World x position of the target mob. */
+  x: number;
+  /** World y position of the target mob. */
+  y: number;
+  /** True if the attack was heavy / critical. */
+  isCrit?: boolean;
 }
 
 /** Payload of the `tower_attack` broadcast message for AoE pulse towers. */

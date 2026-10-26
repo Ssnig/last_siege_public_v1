@@ -2697,6 +2697,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
           casterId,
           abilityType: "heal_aura",
           targetIds: healedIds,
+          healAmount,
         };
         this.broadcast(MESSAGES.mobAbility, payload);
       } else if (ability.type === "speed_aura") {
@@ -2773,6 +2774,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
           casterId,
           abilityType: "self_heal",
           targetIds: [casterId],
+          healAmount,
         };
         this.broadcast(MESSAGES.mobAbility, payload);
       }
@@ -3069,6 +3071,29 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const roundedDamage = Math.round(applied);
     mob.hp = Math.max(0, mob.hp - roundedDamage);
+
+    if (roundedDamage > 0) {
+      const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+      const path = this.pathFor(map, mob.pathId);
+      const point =
+        path && path.length >= 2
+          ? samplePathWithLateral(
+              path,
+              mob.progress,
+              mob.seed,
+              map.pathHalfWidth ?? 0,
+            )
+          : { x: 0, y: 0 };
+
+      this.broadcast(MESSAGES.combatDamage, {
+        mobId,
+        damage: roundedDamage,
+        damageType,
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+        isCrit: roundedDamage >= 100,
+      });
+    }
 
     // Monkey Burst of Speed: drops from very fast initial speed to average speed upon first taking damage
     if (
