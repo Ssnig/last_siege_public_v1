@@ -159,7 +159,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
   const queued = buffer.buffer;
   const capReached = queued.length >= buffer.maxBufferUnits;
   const lead = queued[0];
-  const canDrag = !deployLocked && !!lead && buffer.portals.some((portal) => portal.charges > 0);
+  const canDrag = !deployLocked && !!lead && buffer.portals.some((portal) => !portal.locked && portal.charges > 0);
 
   const portalById = (portalId: string): AttackerPortalStatus | undefined =>
     buffer.portals.find((portal) => portal.id === portalId);
@@ -171,7 +171,7 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
   const requestDeploy = (portalId: string, x: number, y: number) => {
     if (deployLocked) return;
     const portal = portalById(portalId);
-    if (!portal || portal.charges <= 0) return;
+    if (!portal || portal.locked || portal.charges <= 0) return;
 
     if (portal.paths.length > 1) {
       setPendingDeploy({ portalId, x, y });
@@ -198,14 +198,12 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
     }, 400);
   };
 
-  /** Remaining charges for a portal id, from the latest buffer snapshot. */
-  const chargeFor = (portalId: string): number => portalById(portalId)?.charges ?? 0;
 
   /** Which charged bar portal button is under a page-space point, if any. */
   const hitBarPortal = (x: number, y: number): string | null => {
     for (let i = 0; i < buffer.portals.length; i += 1) {
       const el = portalRefs.current[i];
-      if (!el || buffer.portals[i].charges <= 0) continue;
+      if (!el || buffer.portals[i].locked || buffer.portals[i].charges <= 0) continue;
       const rect = el.getBoundingClientRect();
       if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
         return buffer.portals[i].id;
@@ -217,7 +215,8 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
   /** Which charged on-map portal is under a page-space point, if any. */
   const hitMapPortal = (x: number, y: number): string | null => {
     const id = findMapPortal?.(x, y) ?? null;
-    return id && chargeFor(id) > 0 ? id : null;
+    const portal = id ? portalById(id) : undefined;
+    return portal && !portal.locked && portal.charges > 0 ? id : null;
   };
 
   const beginDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -404,12 +403,13 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
               the dragged queue icon onto one. A forked portal asks first. */}
           <div className="flex flex-shrink-0 items-center gap-1">
             {buffer.portals.map((portal, index) => {
-              const canPush = !deployLocked && portal.charges > 0 && queued.length > 0;
-              const highlighted = drag?.overBarId === portal.id;
-              const charging = portal.charges < portal.maxCharges && portal.chargeSec > 0;
+              const isLocked = !!portal.locked;
+              const canPush = !deployLocked && !isLocked && portal.charges > 0 && queued.length > 0;
+              const highlighted = !isLocked && drag?.overBarId === portal.id;
+              const charging = !isLocked && portal.charges < portal.maxCharges && portal.chargeSec > 0;
               const chargeProgress = charging ? 1 - portal.rechargeIn / portal.chargeSec : 1;
               // Ready to fire but nothing queued: nudge the player.
-              const idlePulse = !deployLocked && portal.charges > 0 && queued.length === 0;
+              const idlePulse = !deployLocked && !isLocked && portal.charges > 0 && queued.length === 0;
               return (
                 <button
                   key={portal.id}
@@ -417,13 +417,16 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                     portalRefs.current[index] = el;
                   }}
                   onClick={(event) => {
+                    if (isLocked) return;
                     const rect = event.currentTarget.getBoundingClientRect();
                     requestDeploy(portal.id, rect.left + rect.width / 2, rect.top);
                   }}
-                  disabled={!canPush && !idlePulse}
-                  className={`flex flex-col items-center gap-0.5 rounded border px-2 py-1 transition-all duration-200 hover:scale-105 active:scale-95 ${
+                  disabled={isLocked || (!canPush && !idlePulse)}
+                  className={`flex flex-col items-center gap-0.5 rounded border px-2 py-1 transition-all duration-200 ${
+                    isLocked ? 'cursor-not-allowed opacity-40 grayscale' : 'hover:scale-105 active:scale-95'
+                  } ${
                     idlePulse && !highlighted ? 'animate-pulse' : ''
-                  } ${canPush || idlePulse ? 'hover:shadow-[0_0_12px_rgba(0,240,255,0.4)]' : 'opacity-40'}`}
+                  } ${canPush || idlePulse ? 'hover:shadow-[0_0_12px_rgba(0,240,255,0.4)]' : ''}`}
                   style={{
                     borderColor: highlighted ? '#ffe066' : canPush ? GOLD_BORDER : 'rgba(180,83,9,0.35)',
                     background: highlighted
@@ -433,7 +436,11 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                         : 'rgba(30,10,12,0.6)',
                     boxShadow: highlighted ? '0 0 12px rgba(251,191,36,0.6)' : undefined,
                   }}
-                  title={`Deploy through Portal ${index + 1} (${portal.charges}/${portal.maxCharges} charges)`}
+                  title={
+                    isLocked
+                      ? `Portal ${index + 1} locked (opens in ${portal.unlocksInSec ?? 0}s)`
+                      : `Deploy through Portal ${index + 1} (${portal.charges}/${portal.maxCharges} charges)`
+                  }
                 >
                   <img
                     src={portalIcon(index)}
@@ -447,19 +454,29 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-wide text-amber-200">
                     P{index + 1}
                   </span>
-                  <span className="flex items-center gap-[3px]">
-                    {Array.from({ length: portal.maxCharges }, (_, i) => (
-                      <span
-                        key={i}
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{
-                          background: i < portal.charges ? '#34d399' : 'rgba(80,40,30,0.5)',
-                          boxShadow: i < portal.charges ? '0 0 4px #34d399' : undefined,
-                        }}
-                      />
-                    ))}
-                    {charging && <ChargeRing progress={chargeProgress} />}
-                  </span>
+                  {isLocked ? (
+                    <span className="flex items-center gap-0.5 text-[8px] font-bold text-amber-400">
+                      <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                      <span>{portal.unlocksInSec ?? 0}s</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-[3px]">
+                      {Array.from({ length: portal.maxCharges }, (_, i) => (
+                        <span
+                          key={i}
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{
+                            background: i < portal.charges ? '#34d399' : 'rgba(80,40,30,0.5)',
+                            boxShadow: i < portal.charges ? '0 0 4px #34d399' : undefined,
+                          }}
+                        />
+                      ))}
+                      {charging && <ChargeRing progress={chargeProgress} />}
+                    </span>
+                  )}
                 </button>
               );
             })}

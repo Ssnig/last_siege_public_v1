@@ -184,6 +184,10 @@ export interface AttackerPortalStatus {
   chargeSec: number;
   /** Tracks leaving this portal; more than one means a fork worth choosing. */
   paths: AttackerPortalPath[];
+  /** `true` if this portal is currently locked pending progressive unlock schedule. */
+  locked?: boolean;
+  /** Seconds until this portal unlocks; `0` if already unlocked. */
+  unlocksInSec?: number;
 }
 
 /**

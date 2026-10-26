@@ -173,16 +173,20 @@ export function combineEffectMagnitude(current: number, incoming: number): numbe
   return Math.max(current, incoming);
 }
 
+/** Hard minimum speed floor as a fraction of base speed to prevent perma-freeze (35%). */
+export const MIN_SPEED_FRACTION = 0.35;
+
 /**
  * A mob's current speed, after every active slow and haste is applied.
  *
  * @param baseSpeed - The mob's unmodified speed, in px/s.
  * @param slowAmounts - Magnitude of every active slow, as a fraction of speed removed.
  * @param hasteAmounts - Magnitude of every active haste, as a bonus fraction of speed added.
- * @returns The effective speed, never below zero.
+ * @returns The effective speed, never below MIN_SPEED_FRACTION * baseSpeed.
  *
  * @remarks The strongest slow and strongest haste each win rather than stacking
- * additively with weaker copies of themselves.
+ * additively with weaker copies of themselves. A hard floor of 35% base speed
+ * prevents perma-freezing creeps.
  */
 export function effectiveSpeed(
   baseSpeed: number,
@@ -197,8 +201,10 @@ export function effectiveSpeed(
   for (const amount of hasteAmounts) {
     if (amount > strongestHaste) strongestHaste = amount;
   }
-  return Math.max(
-    0,
-    baseSpeed * (1 - Math.min(1, strongestSlow)) * (1 + Math.max(0, strongestHaste)),
-  );
+  const maxSlowAllowed = 1 - MIN_SPEED_FRACTION;
+  const clampedSlow = Math.min(maxSlowAllowed, Math.max(0, strongestSlow));
+  const slowedSpeed = baseSpeed * (1 - clampedSlow);
+  const minSpeed = baseSpeed * MIN_SPEED_FRACTION;
+  const effectiveBase = Math.max(minSpeed, slowedSpeed);
+  return Math.max(0, effectiveBase * (1 + Math.max(0, strongestHaste)));
 }

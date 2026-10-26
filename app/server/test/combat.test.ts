@@ -9,6 +9,7 @@ import {
   mentalDebuffMagnitude,
   effectiveSpeed,
   combineEffectMagnitude,
+  MIN_SPEED_FRACTION,
   mobArmor,
   mobMentalStrength,
   DEFAULT_COMBAT_RULES,
@@ -46,11 +47,15 @@ describe("combat.ts damage channels", () => {
     assert.strictEqual(mentalDamageTaken(15, 1), 30, "no resolve means 2x");
   });
 
-  it("the strongest slow wins instead of stacking", () => {
+  it("the strongest slow wins instead of stacking and respects the speed floor", () => {
     assert.strictEqual(effectiveSpeed(100, []), 100, "no slow means the base speed");
     assert.strictEqual(effectiveSpeed(100, [0.2]), 80, "a 20% slow keeps 80% of the speed");
     assert.strictEqual(effectiveSpeed(100, [0.2, 0.5]), 50, "the heaviest slow wins");
-    assert.strictEqual(effectiveSpeed(100, [1.5]), 0, "a slow beyond 100% cannot invert the speed");
+    assert.strictEqual(
+      effectiveSpeed(100, [1.5]),
+      100 * MIN_SPEED_FRACTION,
+      "a slow beyond 100% clamps to the 35% speed floor",
+    );
   });
 
   it("haste boosts effective speed and the strongest haste wins", () => {

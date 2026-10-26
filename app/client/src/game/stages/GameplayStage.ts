@@ -474,11 +474,13 @@ export class GameplayStage {
     for (const [portalId, record] of this.portals) {
       const status = statusById.get(portalId);
       // The defender never receives the buffer, so their portals stay unlit.
-      const charges = status?.charges ?? 0;
+      const isLocked = !!status?.locked;
+      const charges = isLocked ? 0 : (status?.charges ?? 0);
 
-      record.glow.setVisible(charges > 0);
+      record.sprite.setAlpha(isLocked ? 0.4 : 1);
+      record.glow.setVisible(!isLocked && charges > 0);
       record.pips.forEach((pip, index) => {
-        pip.setVisible(!!status);
+        pip.setVisible(!!status && !isLocked);
         pip.setFillStyle(index < charges ? 0x22d3ee : 0x64748b, index < charges ? 0.95 : 0.4);
       });
     }
@@ -501,6 +503,7 @@ export class GameplayStage {
     let bestDistance = Infinity;
 
     for (const [id, record] of this.portals) {
+      if (this.attackerBuffer?.portals.some((p) => p.id === id && p.locked)) continue;
       const distance = Phaser.Math.Distance.Between(x, y, record.sprite.x, record.sprite.y - 20);
       if (distance <= HIT_RADIUS && distance < bestDistance) {
         bestDistance = distance;

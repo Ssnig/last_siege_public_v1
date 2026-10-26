@@ -1105,8 +1105,28 @@ export class GameRoom extends Room<{ state: RoomState }> {
     return null;
   }
 
+  /** Checks whether the portal at portalIndex is unlocked according to the match schedule. */
+  private isPortalUnlocked(portalIndex: number): { locked: boolean; unlocksInSec: number } {
+    if (portalIndex <= 0) {
+      return { locked: false, unlocksInSec: 0 };
+    }
+    const schedule = DEFAULT_DEPLOY_RULES.portalUnlockScheduleSec ?? [0, 50, 100];
+    const unlockTime = schedule[portalIndex] ?? (schedule[schedule.length - 1] ?? 0);
+    if (this.state.phase !== "combat") {
+      return {
+        locked: true,
+        unlocksInSec: unlockTime,
+      };
+    }
+    const remaining = unlockTime - this.matchTime;
+    if (remaining <= 0) {
+      return { locked: false, unlocksInSec: 0 };
+    }
+    return { locked: true, unlocksInSec: remaining };
+  }
+
   /**
-   * Whether the attacker could legally deploy their buffer right now.
+   * Whether the attacker can deploy right now.
    *
    * @remarks Cheap predicate reused by the payload so the client can grey out
    * the deploy controls without recomputing the phase and charge rules.
@@ -1119,8 +1139,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const charges = this.portalCharges.get(sessionId);
     if (!charges) return false;
-    for (const status of charges.values()) {
-      if (status.charges > 0) return true;
+    const portals = this.currentPortals();
+    for (const [id, status] of charges.entries()) {
+      const idx = portals.findIndex((p) => p.id === id);
+      const { locked } = this.isPortalUnlocked(idx);
+      if (!locked && status.charges > 0) return true;
     }
     return false;
   }
@@ -1135,9 +1158,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     let table = this.portalCharges.get(sessionId);
     if (!table) {
       table = new Map();
+      const initial = DEFAULT_DEPLOY_RULES.portalInitialCharges ?? 1;
       for (const portal of this.currentPortals()) {
         table.set(portal.id, {
-          charges: portalChargeRules(portal).maxCharges,
+          charges: initial,
           regenAcc: 0,
         });
       }
@@ -1160,9 +1184,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const table = this.ensurePortalCharges(sessionId);
     const portals = this.currentPortals();
 
-    return [...table.entries()].map(([id, status]) => {
+    return [...table.entries()].map(([id, status], index) => {
       const portal = portals.find((candidate) => candidate.id === id);
+      const portalIndex = portals.findIndex((candidate) => candidate.id === id);
+      const idx = portalIndex >= 0 ? portalIndex : index;
       const { maxCharges, chargeSec } = portalChargeRules(portal ?? {});
+      const { locked, unlocksInSec } = this.isPortalUnlocked(idx);
       return {
         id,
         charges: status.charges,
@@ -1173,6 +1200,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
             ? 0
             : Math.max(0, chargeSec - status.regenAcc),
         paths: portal ? this.portalPathsFor(portal) : [],
+        locked,
+        unlocksInSec: Math.max(0, Math.ceil(unlocksInSec)),
       };
     });
   }
@@ -1188,6 +1217,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
     for (const table of this.portalCharges.values()) {
       for (const [portalId, status] of table) {
         const portal = portals.find((candidate) => candidate.id === portalId);
+        const portalIndex = portals.findIndex((candidate) => candidate.id === portalId);
+        const { locked } = this.isPortalUnlocked(portalIndex);
+        if (locked) {
+          status.regenAcc = 0;
+          continue;
+        }
+
         const { maxCharges, chargeSec } = portalChargeRules(portal ?? {});
 
         if (status.charges >= maxCharges) {
@@ -1307,6 +1343,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const portal = this.portalFor(payload?.portalId);
     if (!portal) {
       return void this.rejectDeploy(client, "No such portal on this map.");
+    }
+
+    const portals = this.currentPortals();
+    const portalIndex = portals.findIndex((p) => p.id === portal.id);
+    const { locked, unlocksInSec } = this.isPortalUnlocked(portalIndex);
+    if (locked) {
+      return void this.rejectDeploy(
+        client,
+        `This portal is locked. It will open in ${Math.ceil(unlocksInSec)} second(s).`,
+      );
     }
 
     const charges = this.ensurePortalCharges(sessionId).get(portal.id);
@@ -2315,6 +2361,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     for (const client of this.clients) {
       this.sendEconomy(client);
+      if (client.userData?.role === "attacker") {
+        this.sendAttackerBuffer(client);
+      }
     }
   }
 
@@ -3001,30 +3050,41 @@ export class GameRoom extends Room<{ state: RoomState }> {
     positions: ReadonlyMap<string, Vec2>,
   ): void {
     const ownerId = projectile.ownerId;
-    const hit = new Set<string>();
+    const hitDamageMap = new Map<string, number>();
 
-    // A still-living target is always hit (the shot was homing on it).
+    // A still-living target is always hit (the shot was homing on it) at full damage.
     if (positions.has(projectile.targetId)) {
-      hit.add(projectile.targetId);
+      hitDamageMap.set(projectile.targetId, projectile.damage);
     }
 
     const splash = this.projectileSplash.get(id) ?? 0;
     if (splash > 0) {
+      // Artillery damage falloff: 100% within inner core (<= 40px),
+      // scaling linearly down to 50% at the splash boundary.
+      const innerCore = 40;
       for (const [mobId, pos] of positions) {
-        if (Math.hypot(pos.x - impact.x, pos.y - impact.y) <= splash) {
-          hit.add(mobId);
+        if (mobId === projectile.targetId) continue;
+        const dist = Math.hypot(pos.x - impact.x, pos.y - impact.y);
+        if (dist <= splash) {
+          let multiplier = 1.0;
+          if (dist > innerCore && splash > innerCore) {
+            const fraction = (dist - innerCore) / (splash - innerCore);
+            multiplier = 1.0 - fraction * 0.5;
+          }
+          const damage = Math.max(1, Math.round(projectile.damage * multiplier));
+          hitDamageMap.set(mobId, damage);
         }
       }
     }
 
     const sourceSlotIndex = this.projectileSourceSlot.get(id);
     const special = this.projectileSpecial.get(id);
-    for (const mobId of hit) {
+    for (const [mobId, damage] of hitDamageMap) {
       const damageType =
         TOWER_TYPES[projectile.typeId]?.damageType ?? DAMAGE_TYPES.physical;
       this.damageMob(
         mobId,
-        projectile.damage,
+        damage,
         ownerId,
         damageType,
         projectile.typeId,

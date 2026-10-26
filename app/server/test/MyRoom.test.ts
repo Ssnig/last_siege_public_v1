@@ -811,14 +811,10 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    for (let i = 0; i < 6; i++) {
+      attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    }
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.deploy, { portalId: "portal-1" });
 
     await waitFor(() => room.state.mobs.size === 6, 6000);
     assert.strictEqual(room.state.coreHp, MATCH_RULES.coreHp, "core starts full");
@@ -969,7 +965,7 @@ describe("testing your Colyseus app", () => {
     attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     const full = await queued;
     const portal = full.portals.find((p) => p.id === "portal-0")!;
-    assert.strictEqual(portal.charges, DEFAULT_DEPLOY_RULES.portalMaxCharges);
+    assert.strictEqual(portal.charges, DEFAULT_DEPLOY_RULES.portalInitialCharges);
 
     const spent = waitForBuffer(
       attacker,
@@ -1285,6 +1281,14 @@ describe("testing your Colyseus app", () => {
       ["portal-0", "portal-1", "portal-2"],
       "the merge map exposes one portal per distinct spawn",
     );
+
+    // Verify portal-2 is locked at match start (unlocks at 100s).
+    const portal2 = buffer.portals.find((p) => p.id === "portal-2");
+    assert.ok(portal2?.locked, "portal-2 starts locked at combat start");
+    assert.strictEqual(portal2?.unlocksInSec, 100, "portal-2 unlocks at 100s");
+
+    // Advance matchTime to 100s to unlock portal-2
+    (room as any).matchTime = 100;
 
     // portal-2 sits on the `lower` spawn, so the deploy walks that track.
     attacker.send(MESSAGES.deploy, { portalId: "portal-2" });
@@ -1819,14 +1823,42 @@ describe("testing your Colyseus app", () => {
     const mob = [...room.state.mobs.values()][0];
     mob.hp = 1; // Prime low HP so the gun tower shot kills instantly
 
-    // Monkey bounty is 6. Gun Tower Lv1 bonus gold on kill is +1, totaling at least 7 gold.
+    const bounty = MOB_TYPES["monkey"]?.bounty ?? 3;
     const initialDefenderGold = (room as any).economies.get(defender.sessionId) ?? 0;
     await waitFor(() => {
       const currentGold = (room as any).economies.get(defender.sessionId) ?? 0;
-      return currentGold >= initialDefenderGold + 6 + 1;
+      return currentGold >= initialDefenderGold + bounty + 1;
     }, 15000);
 
     const finalGold = (room as any).economies.get(defender.sessionId) ?? 0;
-    assert.ok(finalGold >= initialDefenderGold + 6 + 1, "gun tower kill awarded base bounty 6 + bonus gold 1");
+    assert.ok(finalGold >= initialDefenderGold + bounty + 1, "gun tower kill awarded base bounty + bonus gold 1");
+  });
+
+  it("rejects deploy through locked portal-1 at match start and unlocks at 50s", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    const rejected = attacker.waitForMessage(MESSAGES.deployRejected);
+    attacker.send(MESSAGES.deploy, { portalId: "portal-1" });
+    const refusal = await rejected;
+    assert.match(refusal.reason, /locked/i, "deploy through portal-1 is rejected at combat start");
+
+    // Advance matchTime to 50s
+    (room as any).matchTime = 50;
+
+    // Now deploying through portal-1 succeeds
+    attacker.send(MESSAGES.deploy, { portalId: "portal-1" });
+    await waitFor(() => room.state.mobs.size > 0, 3000);
+    assert.strictEqual(room.state.mobs.size, 1, "unit deployed through unlocked portal-1");
   });
 });
