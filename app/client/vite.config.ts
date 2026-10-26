@@ -103,8 +103,101 @@ function devMapPersistencePlugin() {
 }
 
 // https://vite.dev/config/
+
+// Dev plugin enabling one-click persistence of custom audio files to public/assets/sfx/towers/
+function devSoundPersistencePlugin() {
+  return {
+    name: 'dev-sound-persistence',
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        const sfxDir = path.resolve(__dirname, 'public/assets/sfx/towers');
+
+        if (req.method === 'GET' && req.url === '/api/dev/list-sounds') {
+          try {
+            if (!fs.existsSync(sfxDir)) {
+              fs.mkdirSync(sfxDir, { recursive: true });
+            }
+            const allFiles = fs.readdirSync(sfxDir);
+            const audioFiles = allFiles.filter((f) => /\.(mp3|wav|ogg|m4a)$/i.test(f));
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ files: audioFiles }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST' && req.url === '/api/dev/save-sound') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const data = JSON.parse(body);
+              const { fileName, fileDataBase64 } = data;
+              if (!fileName || !fileDataBase64) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'fileName and fileDataBase64 are required' }));
+                return;
+              }
+              if (!fs.existsSync(sfxDir)) {
+                fs.mkdirSync(sfxDir, { recursive: true });
+              }
+              const safeName = path.basename(fileName);
+              const targetPath = path.join(sfxDir, safeName);
+              const buffer = Buffer.from(fileDataBase64, 'base64');
+              fs.writeFileSync(targetPath, buffer);
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, fileName: safeName, path: `/assets/sfx/towers/${safeName}` }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        if (req.method === 'POST' && req.url === '/api/dev/delete-sound') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const data = JSON.parse(body);
+              const { fileName } = data;
+              if (!fileName) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'fileName is required' }));
+                return;
+              }
+              const safeName = path.basename(fileName);
+              const targetPath = path.join(sfxDir, safeName);
+              if (fs.existsSync(targetPath)) {
+                fs.unlinkSync(targetPath);
+              }
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, deleted: safeName }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), caseInsensitiveAssetsPlugin(), devMapPersistencePlugin()],
+  plugins: [react(), tailwindcss(), caseInsensitiveAssetsPlugin(), devMapPersistencePlugin(), devSoundPersistencePlugin()],
   resolve: {
     alias: {
       '@root/shared': path.resolve(__dirname, '../../packages/shared/src'),

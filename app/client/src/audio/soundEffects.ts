@@ -4,6 +4,10 @@
  */
 
 class SoundEffectsManager {
+  private noiseBuffer: AudioBuffer | null = null;
+  private lastSoundTimes: Map<string, number> = new Map();
+  private audioFileCache: Map<string, HTMLAudioElement | null> = new Map();
+
   private ctx: AudioContext | null = null;
   private volume: number = 0.7;
   private isMuted: boolean = false;
@@ -393,6 +397,720 @@ class SoundEffectsManager {
       // Silently catch
     }
   }
+
+  // ============================================================================
+  // TOWER SHOOTING & IMPACT AUDIO SUBSYSTEM
+  // ============================================================================
+
+  private getNoiseBuffer(ctx: AudioContext): AudioBuffer {
+    if (!this.noiseBuffer || this.noiseBuffer.sampleRate !== ctx.sampleRate) {
+      const size = Math.floor(ctx.sampleRate * 1.0);
+      const buffer = ctx.createBuffer(1, size, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < size; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      this.noiseBuffer = buffer;
+    }
+    return this.noiseBuffer;
+  }
+
+  private getPitchMultiplier(): number {
+    return 0.94 + Math.random() * 0.12;
+  }
+
+  private throttle(key: string, minIntervalMs: number = 35): boolean {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const last = this.lastSoundTimes.get(key) || 0;
+    if (now - last < minIntervalMs) return false;
+    this.lastSoundTimes.set(key, now);
+    return true;
+  }
+
+  private normalizeTowerId(id: string): string {
+    const lower = (id || '').toLowerCase().trim();
+    if (lower === 'basic') return 'archer';
+    if (lower === 'pitchfork') return 'spear';
+    return lower;
+  }
+
+  private tryPlayAudioFile(filename: string): boolean {
+    if (typeof window === 'undefined') return false;
+    const path = `/assets/sfx/towers/${filename}`;
+    let cached = this.audioFileCache.get(path);
+    if (cached === undefined) {
+      const audio = new Audio(path);
+      audio.volume = this.volume;
+      this.audioFileCache.set(path, audio);
+      cached = audio;
+    }
+    if (cached && !isNaN(cached.duration) && cached.duration > 0) {
+      try {
+        const clone = cached.cloneNode() as HTMLAudioElement;
+        clone.volume = this.volume;
+        clone.play().catch(() => {});
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Play shooting sound for any of the 10 towers.
+   */
+
+  /**
+   * Clears the audio file cache so newly uploaded or deleted files are reloaded.
+   */
+  public reloadSoundCache(): void {
+    this.audioFileCache.clear();
+  }
+
+  /**
+   * Checks whether a custom audio file is currently available for a tower sound.
+   */
+  public isCustomAudio(towerId: string, soundType: 'shoot' | 'impact'): boolean {
+    const norm = this.normalizeTowerId(towerId);
+    const mp3 = `/assets/sfx/towers/${norm}_${soundType}.mp3`;
+    const wav = `/assets/sfx/towers/${norm}_${soundType}.wav`;
+    const a = this.audioFileCache.get(mp3) || this.audioFileCache.get(wav);
+    return !!(a && !isNaN(a.duration) && a.duration > 0);
+  }
+
+  /**
+   * Audition helper for Sound Editor: plays shoot sound with optional custom pitch, bypassing throttle.
+   */
+  public playTowerShootAudition(towerId: string, customPitch?: number): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const norm = this.normalizeTowerId(towerId);
+
+    if (this.tryPlayAudioFile(`${norm}_shoot.mp3`) || this.tryPlayAudioFile(`${norm}_shoot.wav`)) {
+      return;
+    }
+
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const vol = this.volume;
+      const pitch = customPitch !== undefined ? customPitch : this.getPitchMultiplier();
+
+      switch (norm) {
+        case 'archer': this.synthArcherShoot(ctx, now, vol, pitch); break;
+        case 'cannon': this.synthCannonShoot(ctx, now, vol, pitch); break;
+        case 'bomb': this.synthBombShoot(ctx, now, vol, pitch); break;
+        case 'bell': this.synthBellShoot(ctx, now, vol, pitch); break;
+        case 'spear': this.synthSpearShoot(ctx, now, vol, pitch); break;
+        case 'gun': this.synthGunShoot(ctx, now, vol, pitch); break;
+        case 'water_cannon': this.synthWaterCannonShoot(ctx, now, vol, pitch); break;
+        case 'chinthe': this.synthChintheShoot(ctx, now, vol, pitch); break;
+        case 'dragon': this.synthDragonShoot(ctx, now, vol, pitch); break;
+        case 'sein_pyaung': this.synthSeinPyaungShoot(ctx, now, vol, pitch); break;
+        default: this.synthArcherShoot(ctx, now, vol, pitch); break;
+      }
+    } catch {}
+  }
+
+  /**
+   * Audition helper for Sound Editor: plays impact sound with optional custom pitch, bypassing throttle.
+   */
+  public playTowerImpactAudition(towerId: string, customPitch?: number): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const norm = this.normalizeTowerId(towerId);
+
+    if (this.tryPlayAudioFile(`${norm}_impact.mp3`) || this.tryPlayAudioFile(`${norm}_impact.wav`)) {
+      return;
+    }
+
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const vol = this.volume;
+      const pitch = customPitch !== undefined ? customPitch : this.getPitchMultiplier();
+
+      switch (norm) {
+        case 'archer': this.synthArcherImpact(ctx, now, vol, pitch); break;
+        case 'cannon': this.synthCannonImpact(ctx, now, vol, pitch); break;
+        case 'bomb': this.synthBombImpact(ctx, now, vol, pitch); break;
+        case 'bell': this.synthBellImpact(ctx, now, vol, pitch); break;
+        case 'spear': this.synthSpearImpact(ctx, now, vol, pitch); break;
+        case 'gun': this.synthGunImpact(ctx, now, vol, pitch); break;
+        case 'water_cannon': this.synthWaterCannonImpact(ctx, now, vol, pitch); break;
+        case 'chinthe': this.synthChintheImpact(ctx, now, vol, pitch); break;
+        case 'dragon': this.synthDragonImpact(ctx, now, vol, pitch); break;
+        case 'sein_pyaung': this.synthSeinPyaungImpact(ctx, now, vol, pitch); break;
+        default: this.synthArcherImpact(ctx, now, vol, pitch); break;
+      }
+    } catch {}
+  }
+
+  public playTowerShoot(towerId: string): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const norm = this.normalizeTowerId(towerId);
+    if (!this.throttle(`shoot_${norm}`, 30)) return;
+
+    // Check for drop-in audio files first
+    if (this.tryPlayAudioFile(`${norm}_shoot.mp3`) || this.tryPlayAudioFile(`${norm}_shoot.wav`)) {
+      return;
+    }
+
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const vol = this.volume;
+      const pitch = this.getPitchMultiplier();
+
+      switch (norm) {
+        case 'archer':
+          this.synthArcherShoot(ctx, now, vol, pitch);
+          break;
+        case 'cannon':
+          this.synthCannonShoot(ctx, now, vol, pitch);
+          break;
+        case 'bomb':
+          this.synthBombShoot(ctx, now, vol, pitch);
+          break;
+        case 'bell':
+          this.synthBellShoot(ctx, now, vol, pitch);
+          break;
+        case 'spear':
+          this.synthSpearShoot(ctx, now, vol, pitch);
+          break;
+        case 'gun':
+          this.synthGunShoot(ctx, now, vol, pitch);
+          break;
+        case 'water_cannon':
+          this.synthWaterCannonShoot(ctx, now, vol, pitch);
+          break;
+        case 'chinthe':
+          this.synthChintheShoot(ctx, now, vol, pitch);
+          break;
+        case 'dragon':
+          this.synthDragonShoot(ctx, now, vol, pitch);
+          break;
+        case 'sein_pyaung':
+          this.synthSeinPyaungShoot(ctx, now, vol, pitch);
+          break;
+        default:
+          this.synthArcherShoot(ctx, now, vol, pitch);
+          break;
+      }
+    } catch {
+      // Silently catch
+    }
+  }
+
+  /**
+   * Play impact sound for any of the 10 towers.
+   */
+  public playTowerImpact(towerId: string): void {
+    if (this.isMuted || this.volume <= 0) return;
+    const norm = this.normalizeTowerId(towerId);
+    if (!this.throttle(`impact_${norm}`, 30)) return;
+
+    // Check for drop-in audio files first
+    if (this.tryPlayAudioFile(`${norm}_impact.mp3`) || this.tryPlayAudioFile(`${norm}_impact.wav`)) {
+      return;
+    }
+
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const vol = this.volume;
+      const pitch = this.getPitchMultiplier();
+
+      switch (norm) {
+        case 'archer':
+          this.synthArcherImpact(ctx, now, vol, pitch);
+          break;
+        case 'cannon':
+          this.synthCannonImpact(ctx, now, vol, pitch);
+          break;
+        case 'bomb':
+          this.synthBombImpact(ctx, now, vol, pitch);
+          break;
+        case 'bell':
+          this.synthBellImpact(ctx, now, vol, pitch);
+          break;
+        case 'spear':
+          this.synthSpearImpact(ctx, now, vol, pitch);
+          break;
+        case 'gun':
+          this.synthGunImpact(ctx, now, vol, pitch);
+          break;
+        case 'water_cannon':
+          this.synthWaterCannonImpact(ctx, now, vol, pitch);
+          break;
+        case 'chinthe':
+          this.synthChintheImpact(ctx, now, vol, pitch);
+          break;
+        case 'dragon':
+          this.synthDragonImpact(ctx, now, vol, pitch);
+          break;
+        case 'sein_pyaung':
+          this.synthSeinPyaungImpact(ctx, now, vol, pitch);
+          break;
+        default:
+          this.synthArcherImpact(ctx, now, vol, pitch);
+          break;
+      }
+    } catch {
+      // Silently catch
+    }
+  }
+
+  // --- 1. ARCHER TOWER ---
+  private synthArcherShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(560 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(180 * pitch, time + 0.08);
+
+    gain.gain.setValueAtTime(vol * 0.22, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.09);
+  }
+
+  private synthArcherImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(680 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(110 * pitch, time + 0.06);
+
+    gain.gain.setValueAtTime(vol * 0.25, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.07);
+  }
+
+  // --- 2. CANNON TOWER ---
+  private synthCannonShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // 1. Heavy low punch
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(115 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(32 * pitch, time + 0.38);
+
+    gain.gain.setValueAtTime(vol * 0.55, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.40);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.40);
+
+    // 2. Gunpowder explosion blast noise
+    const noise = ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(850, time);
+    filter.frequency.exponentialRampToValueAtTime(180, time + 0.25);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(vol * 0.35, time);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(time);
+    noise.stop(time + 0.28);
+  }
+
+  private synthCannonImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // Ground shockwave thud
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(90 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(26 * pitch, time + 0.45);
+
+    gain.gain.setValueAtTime(vol * 0.5, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.48);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.48);
+
+    // Earth crunch noise
+    const noise = ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(340, time);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(vol * 0.28, time);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(time);
+    noise.stop(time + 0.32);
+  }
+
+  // --- 3. BOMB THROWING TOWER ---
+  private synthBombShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(360 * pitch, time + 0.18);
+
+    gain.gain.setValueAtTime(vol * 0.28, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.20);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.20);
+  }
+
+  private synthBombImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // Mortar shell detonation
+    const noise = ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1400, time);
+    filter.frequency.exponentialRampToValueAtTime(120, time + 0.45);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(vol * 0.48, time);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.48);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(time);
+    noise.stop(time + 0.48);
+
+    const sub = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(120 * pitch, time);
+    sub.frequency.exponentialRampToValueAtTime(32 * pitch, time + 0.40);
+
+    subGain.gain.setValueAtTime(vol * 0.42, time);
+    subGain.gain.exponentialRampToValueAtTime(0.001, time + 0.42);
+
+    sub.connect(subGain);
+    subGain.connect(ctx.destination);
+    sub.start(time);
+    sub.stop(time + 0.42);
+  }
+
+  // --- 4. BELL TOWER ---
+  private synthBellShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // Resonant Burmese temple bronze bell chime
+    const harmonics = [440 * pitch, 660 * pitch, 880 * pitch, 1320 * pitch];
+    harmonics.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(freq, time);
+
+      const decay = 1.0 - idx * 0.15;
+      gain.gain.setValueAtTime(vol * (0.24 / (idx + 1)), time);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + decay);
+    });
+  }
+
+  private synthBellImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // Sonic wave psychic distortion ring
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(380 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(260 * pitch, time + 0.35);
+
+    gain.gain.setValueAtTime(vol * 0.22, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.38);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.38);
+  }
+
+  // --- 5. SPEAR TOWER ---
+  private synthSpearShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(360 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(140 * pitch, time + 0.10);
+
+    gain.gain.setValueAtTime(vol * 0.26, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.11);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.11);
+  }
+
+  private synthSpearImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(280 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(75 * pitch, time + 0.12);
+
+    gain.gain.setValueAtTime(vol * 0.32, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.13);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.13);
+  }
+
+  // --- 6. GUN TOWER ---
+  private synthGunShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // Sharp flintlock musket report
+    const noise = ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2200, time);
+    filter.frequency.exponentialRampToValueAtTime(450, time + 0.12);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(vol * 0.45, time);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(time);
+    noise.stop(time + 0.14);
+
+    const pop = ctx.createOscillator();
+    const popGain = ctx.createGain();
+    pop.type = 'triangle';
+    pop.frequency.setValueAtTime(280 * pitch, time);
+    pop.frequency.exponentialRampToValueAtTime(50 * pitch, time + 0.10);
+
+    popGain.gain.setValueAtTime(vol * 0.35, time);
+    popGain.gain.exponentialRampToValueAtTime(0.001, time + 0.11);
+
+    pop.connect(popGain);
+    popGain.connect(ctx.destination);
+    pop.start(time);
+    pop.stop(time + 0.11);
+  }
+
+  private synthGunImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(850 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(140 * pitch, time + 0.08);
+
+    gain.gain.setValueAtTime(vol * 0.28, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.09);
+  }
+
+  // --- 7. WATER CANNON ---
+  private synthWaterCannonShoot(ctx: AudioContext, time: number, vol: number, _pitch: number): void {
+    const noise = ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(420, time);
+    filter.frequency.exponentialRampToValueAtTime(950, time + 0.22);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(vol * 0.32, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(time);
+    noise.stop(time + 0.25);
+  }
+
+  private synthWaterCannonImpact(ctx: AudioContext, time: number, vol: number, _pitch: number): void {
+    const noise = ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(600, time);
+    filter.frequency.exponentialRampToValueAtTime(180, time + 0.30);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(vol * 0.36, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(time);
+    noise.stop(time + 0.32);
+  }
+
+  // --- 8. CHINTHE STATUE ---
+  private synthChintheShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(60 * pitch, time + 0.35);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(480, time);
+
+    gain.gain.setValueAtTime(vol * 0.35, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.38);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.38);
+  }
+
+  private synthChintheImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const chime = ctx.createOscillator();
+    const chimeGain = ctx.createGain();
+    chime.type = 'triangle';
+    chime.frequency.setValueAtTime(587 * pitch, time);
+
+    chimeGain.gain.setValueAtTime(vol * 0.26, time);
+    chimeGain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+
+    chime.connect(chimeGain);
+    chimeGain.connect(ctx.destination);
+    chime.start(time);
+    chime.stop(time + 0.35);
+  }
+
+  // --- 9. DRAGON TOWER ---
+  private synthDragonShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // Draconic roar + flame whoosh
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(75 * pitch, time + 0.30);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(520, time);
+
+    gain.gain.setValueAtTime(vol * 0.32, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.32);
+  }
+
+  private synthDragonImpact(ctx: AudioContext, time: number, vol: number, _pitch: number): void {
+    const noise = ctx.createBufferSource();
+    noise.buffer = this.getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(900, time);
+    filter.frequency.exponentialRampToValueAtTime(300, time + 0.35);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(vol * 0.34, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.38);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(time);
+    noise.stop(time + 0.38);
+  }
+
+  // --- 10. SEIN PYAUNG ---
+  private synthSeinPyaungShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // Heavy sniper blast + supersonic snap
+    const snap = ctx.createOscillator();
+    const snapGain = ctx.createGain();
+    snap.type = 'triangle';
+    snap.frequency.setValueAtTime(1800 * pitch, time);
+    snap.frequency.exponentialRampToValueAtTime(250 * pitch, time + 0.05);
+
+    snapGain.gain.setValueAtTime(vol * 0.35, time);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+
+    snap.connect(snapGain);
+    snapGain.connect(ctx.destination);
+    snap.start(time);
+    snap.stop(time + 0.06);
+
+    const boom = ctx.createOscillator();
+    const boomGain = ctx.createGain();
+    boom.type = 'sine';
+    boom.frequency.setValueAtTime(130 * pitch, time);
+    boom.frequency.exponentialRampToValueAtTime(25 * pitch, time + 0.48);
+
+    boomGain.gain.setValueAtTime(vol * 0.58, time);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, time + 0.50);
+
+    boom.connect(boomGain);
+    boomGain.connect(ctx.destination);
+    boom.start(time);
+    boom.stop(time + 0.50);
+  }
+
+  private synthSeinPyaungImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(110 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(22 * pitch, time + 0.55);
+
+    gain.gain.setValueAtTime(vol * 0.52, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.58);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.58);
+  }
+
 }
+
 
 export const soundEffects = new SoundEffectsManager();

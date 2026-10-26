@@ -64,7 +64,7 @@ export interface MapDefinition {
    * longer refill so it stays strong without being free. Missing entries fall
    * back to {@link DEFAULT_DEPLOY_RULES}.
    */
-  portalOverrides?: Record<string, { maxCharges?: number; chargeSec?: number }>;
+  portalOverrides?: Record<string, { maxCharges?: number; chargeSec?: number; flipX?: boolean }>;
   slots: TowerSlot[];
   checkpoints: number[];
   base: Vec2;
@@ -137,6 +137,8 @@ export interface MapPortal {
   maxCharges?: number;
   /** Seconds to regen one charge; `undefined` falls back to the shared default. */
   chargeSec?: number;
+  /** Whether the portal sprite should be mirrored horizontally. */
+  flipX?: boolean;
 }
 
 /**
@@ -219,6 +221,30 @@ export function mapPortals(map: MapDefinition): MapPortal[] {
 }
 
 /**
+ * Determines whether a portal should be flipped horizontally based on its path direction.
+ * Returns true if the path heads to the left (dx < 0), false if it heads to the right (dx >= 0).
+ *
+ * @param map - The map containing the path definitions.
+ * @param portal - The portal to evaluate.
+ */
+export function portalShouldFlipX(map: MapDefinition, portal: MapPortal): boolean {
+  if (portal.flipX !== undefined) {
+    return portal.flipX;
+  }
+  for (const pathId of portal.pathIds) {
+    const path = mapPath(map, pathId);
+    if (!path || path.length < 2) continue;
+    for (let i = 1; i < path.length; i++) {
+      const dx = path[i].x - portal.x;
+      if (Math.abs(dx) > 1) {
+        return dx < 0;
+      }
+    }
+  }
+  return portal.x > 640;
+}
+
+/**
  * Sentinel map id meaning "draw one at random when the draft begins".
  *
  * @remarks Stored verbatim in room metadata and the lobby's map selector so the
@@ -258,6 +284,7 @@ export const KONBAUNG_MAP: MapDefinition = {
   lanes: 2,
   thumbnail: "/assets/maps/map_1_konbaung/preview.png",
   pathHalfWidth: 26,
+  holderScale: 1,
   path: [],
   portals: [
     { x: 20, y: 108 },
@@ -266,16 +293,27 @@ export const KONBAUNG_MAP: MapDefinition = {
   paths: {
     top: [
       { x: 20, y: 108 },
-      { x: 256, y: 112 },
+      { x: 291, y: 114 },
       { x: 317, y: 158 },
       { x: 338, y: 266 },
-      { x: 594, y: 274 },
-      { x: 688, y: 194 },
-      { x: 750, y: 150 },
-      { x: 821, y: 169 },
-      { x: 834, y: 271 },
-      { x: 858, y: 349 },
-      { x: 1005, y: 375 },
+      { x: 403, y: 278 },
+      { x: 509, y: 276 },
+      { x: 584, y: 274 },
+      { x: 674, y: 214 },
+      { x: 714, y: 161 },
+      { x: 786, y: 151 },
+      { x: 815, y: 168 },
+      { x: 829, y: 188 },
+      { x: 835, y: 232 },
+      { x: 835, y: 257 },
+      { x: 838, y: 283 },
+      { x: 841, y: 321 },
+      { x: 854, y: 343 },
+      { x: 874, y: 353 },
+      { x: 914, y: 360 },
+      { x: 946, y: 359 },
+      { x: 974, y: 359 },
+      { x: 994, y: 360 },
     ],
     bottom: [
       { x: 26, y: 586 },
@@ -301,9 +339,17 @@ export const KONBAUNG_MAP: MapDefinition = {
     { slotIndex: 2, x: 758, y: 219 },
     { slotIndex: 3, x: 394, y: 509 },
     { slotIndex: 4, x: 1035, y: 550 },
-    { slotIndex: 5, x: 169, y: 651 },
-    { slotIndex: 6, x: 383, y: 378 },
+    { slotIndex: 5, x: 145, y: 633 },
+    { slotIndex: 6, x: 394, y: 386 },
     { slotIndex: 7, x: 191, y: 484 },
+    { slotIndex: 8, x: 913, y: 310 },
+    { slotIndex: 9, x: 800, y: 374 },
+    { slotIndex: 10, x: 843, y: 666 },
+    { slotIndex: 11, x: 639, y: 562 },
+    { slotIndex: 12, x: 204, y: 632 },
+  ],
+  props: [
+
   ],
   checkpoints: [1, 3],
   base: { x: 1119, y: 370 },
@@ -1119,14 +1165,14 @@ export const TWISTER_MAP: MapDefinition = {
   holderScale: 1,
   path: [],
   portals: [
-    { x: 45, y: 13 },
-    { x: 34, y: 694 },
-    { x: 1239, y: 681 },
-    { x: 1218, y: 37 },
+    { x: 71, y: 34 },
+    { x: 39, y: 692 },
+    { x: 1238, y: 674 },
+    { x: 1205, y: 39 },
   ],
   paths: {
     p_0: [
-      { x: 48, y: 23 },
+      { x: 71, y: 34 },
       { x: 73, y: 39 },
       { x: 106, y: 61 },
       { x: 144, y: 72 },
@@ -1315,7 +1361,40 @@ export const TWISTER_MAP: MapDefinition = {
     pa_7: "Pa 7",
   },
   slots: [
-
+    { slotIndex: 0, x: 394, y: 279 },
+    { slotIndex: 1, x: 491, y: 333 },
+    { slotIndex: 2, x: 430, y: 143 },
+    { slotIndex: 3, x: 109, y: 114 },
+    { slotIndex: 4, x: 215, y: 59 },
+    { slotIndex: 5, x: 94, y: 241 },
+    { slotIndex: 6, x: 198, y: 659 },
+    { slotIndex: 7, x: 105, y: 602 },
+    { slotIndex: 8, x: 196, y: 532 },
+    { slotIndex: 9, x: 126, y: 467 },
+    { slotIndex: 10, x: 525, y: 477 },
+    { slotIndex: 11, x: 596, y: 447 },
+    { slotIndex: 12, x: 380, y: 426 },
+    { slotIndex: 13, x: 269, y: 371 },
+    { slotIndex: 14, x: 907, y: 153 },
+    { slotIndex: 15, x: 996, y: 106 },
+    { slotIndex: 16, x: 1109, y: 167 },
+    { slotIndex: 17, x: 1057, y: 292 },
+    { slotIndex: 18, x: 1091, y: 667 },
+    { slotIndex: 19, x: 1176, y: 596 },
+    { slotIndex: 20, x: 926, y: 591 },
+    { slotIndex: 21, x: 853, y: 666 },
+    { slotIndex: 22, x: 791, y: 506 },
+    { slotIndex: 23, x: 727, y: 250 },
+    { slotIndex: 24, x: 1195, y: 238 },
+    { slotIndex: 25, x: 425, y: 586 },
+    { slotIndex: 26, x: 104, y: 351 },
+    { slotIndex: 27, x: 338, y: 181 },
+    { slotIndex: 28, x: 578, y: 229 },
+    { slotIndex: 29, x: 396, y: 52 },
+    { slotIndex: 30, x: 307, y: 88 },
+  ],
+  props: [
+    { id: "prop_1792990221212_b19e", typeId: "tree_banyan", x: 633, y: 704 },
   ],
   checkpoints: [1, 3],
   base: { x: 638, y: 354 },
@@ -1324,49 +1403,167 @@ export const TWISTER_MAP: MapDefinition = {
 
 export const RIVER_MAP: MapDefinition = {
   id: "river",
-  name: "Map 9: River Delta",
-  description: "Fertile alluvial delta divided by winding river streams and island crossing points.",
+  name: "Map 9: River (Delta)",
+  description: "Custom tactical layout with precision waypoints and strategic tower pads.",
   lanes: 2,
   thumbnail: "/assets/maps/map_9_river/preview.png",
   pathHalfWidth: 26,
-  holderScale: 1.0,
+  holderScale: 1,
   path: [],
   portals: [
-    { x: 60, y: 240 },
-    { x: 60, y: 480 },
+    { x: 118, y: 64 },
+    { x: 1185, y: 52 },
   ],
   paths: {
-    north: [
-      { x: 60, y: 240 },
-      { x: 320, y: 220 },
-      { x: 600, y: 300 },
-      { x: 880, y: 240 },
-      { x: 1160, y: 360 },
+    p_1: [
+      { x: 127, y: 68 },
+      { x: 161, y: 90 },
+      { x: 185, y: 100 },
+      { x: 207, y: 114 },
+      { x: 229, y: 130 },
+      { x: 253, y: 147 },
+      { x: 228, y: 166 },
+      { x: 204, y: 180 },
+      { x: 176, y: 192 },
+      { x: 164, y: 212 },
+      { x: 174, y: 223 },
+      { x: 194, y: 237 },
+      { x: 219, y: 243 },
+      { x: 250, y: 247 },
+      { x: 278, y: 244 },
+      { x: 319, y: 227 },
+      { x: 349, y: 197 },
+      { x: 363, y: 178 },
+      { x: 397, y: 160 },
+      { x: 437, y: 151 },
+      { x: 476, y: 159 },
+      { x: 496, y: 179 },
+      { x: 477, y: 209 },
+      { x: 445, y: 221 },
+      { x: 427, y: 233 },
+      { x: 446, y: 249 },
+      { x: 469, y: 266 },
+      { x: 483, y: 274 },
+      { x: 503, y: 286 },
+      { x: 517, y: 297 },
+      { x: 517, y: 316 },
+      { x: 480, y: 333 },
+      { x: 464, y: 360 },
+      { x: 476, y: 379 },
+      { x: 516, y: 383 },
+      { x: 566, y: 389 },
+      { x: 590, y: 407 },
+      { x: 571, y: 430 },
+      { x: 525, y: 451 },
+      { x: 478, y: 474 },
+      { x: 444, y: 492 },
+      { x: 403, y: 484 },
+      { x: 371, y: 467 },
+      { x: 344, y: 441 },
+      { x: 296, y: 441 },
+      { x: 259, y: 460 },
+      { x: 278, y: 492 },
+      { x: 290, y: 509 },
+      { x: 268, y: 531 },
+      { x: 265, y: 559 },
+      { x: 295, y: 577 },
+      { x: 330, y: 583 },
+      { x: 375, y: 563 },
+      { x: 408, y: 547 },
+      { x: 434, y: 554 },
+      { x: 474, y: 568 },
+      { x: 498, y: 579 },
+      { x: 523, y: 593 },
+      { x: 543, y: 602 },
+      { x: 566, y: 613 },
     ],
-    south: [
-      { x: 60, y: 480 },
-      { x: 320, y: 500 },
-      { x: 600, y: 420 },
-      { x: 880, y: 480 },
-      { x: 1160, y: 360 },
+    p_2: [
+      { x: 1175, y: 58 },
+      { x: 1131, y: 79 },
+      { x: 1093, y: 101 },
+      { x: 1057, y: 123 },
+      { x: 1028, y: 144 },
+      { x: 1068, y: 169 },
+      { x: 1096, y: 193 },
+      { x: 1081, y: 228 },
+      { x: 1034, y: 240 },
+      { x: 981, y: 231 },
+      { x: 933, y: 208 },
+      { x: 900, y: 186 },
+      { x: 869, y: 159 },
+      { x: 833, y: 138 },
+      { x: 809, y: 128 },
+      { x: 776, y: 124 },
+      { x: 723, y: 141 },
+      { x: 708, y: 168 },
+      { x: 723, y: 190 },
+      { x: 699, y: 213 },
+      { x: 666, y: 230 },
+      { x: 639, y: 251 },
+      { x: 624, y: 280 },
+      { x: 638, y: 303 },
+      { x: 667, y: 314 },
+      { x: 686, y: 310 },
+      { x: 724, y: 322 },
+      { x: 756, y: 337 },
+      { x: 786, y: 354 },
+      { x: 821, y: 376 },
+      { x: 856, y: 404 },
+      { x: 885, y: 411 },
+      { x: 927, y: 417 },
+      { x: 964, y: 404 },
+      { x: 999, y: 394 },
+      { x: 1030, y: 381 },
+      { x: 1063, y: 379 },
+      { x: 1083, y: 399 },
+      { x: 1081, y: 426 },
+      { x: 1050, y: 446 },
+      { x: 1013, y: 463 },
+      { x: 1013, y: 482 },
+      { x: 1050, y: 507 },
+      { x: 1076, y: 530 },
+      { x: 1088, y: 553 },
+      { x: 1067, y: 583 },
+      { x: 1030, y: 600 },
+      { x: 986, y: 609 },
+      { x: 936, y: 583 },
+      { x: 904, y: 568 },
+      { x: 859, y: 553 },
+      { x: 824, y: 556 },
+      { x: 786, y: 577 },
+      { x: 763, y: 593 },
+      { x: 737, y: 606 },
+      { x: 724, y: 616 },
     ],
   },
   pathLabels: {
-    north: "Upper Stream",
-    south: "Lower Bank",
+    p_1: "P 1",
+    p_2: "P 2",
   },
   slots: [
-    { slotIndex: 0, x: 220, y: 360 },
-    { slotIndex: 1, x: 450, y: 230 },
-    { slotIndex: 2, x: 450, y: 490 },
-    { slotIndex: 3, x: 600, y: 180 },
-    { slotIndex: 4, x: 600, y: 540 },
-    { slotIndex: 5, x: 740, y: 360 },
-    { slotIndex: 6, x: 980, y: 220 },
-    { slotIndex: 7, x: 980, y: 500 },
+    { slotIndex: 0, x: 269, y: 191 },
+    { slotIndex: 1, x: 431, y: 189 },
+    { slotIndex: 2, x: 324, y: 474 },
+    { slotIndex: 3, x: 367, y: 236 },
+    { slotIndex: 4, x: 326, y: 540 },
+    { slotIndex: 5, x: 530, y: 357 },
+    { slotIndex: 6, x: 1036, y: 203 },
+    { slotIndex: 7, x: 1034, y: 417 },
+    { slotIndex: 8, x: 761, y: 166 },
+    { slotIndex: 9, x: 684, y: 349 },
+    { slotIndex: 10, x: 600, y: 337 },
+    { slotIndex: 11, x: 746, y: 541 },
+    { slotIndex: 12, x: 538, y: 552 },
+    { slotIndex: 13, x: 1157, y: 594 },
+    { slotIndex: 14, x: 1047, y: 667 },
+    { slotIndex: 15, x: 910, y: 666 },
+    { slotIndex: 16, x: 929, y: 157 },
+  ],
+  props: [
+
   ],
   checkpoints: [1, 3],
-  base: { x: 1160, y: 360 },
+  base: { x: 636, y: 637 },
   baseDisplaySize: { width: 180, height: 120 },
 };
 

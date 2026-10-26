@@ -7,6 +7,10 @@ import {
   mapPathIds,
   mapPath,
   mapPortals,
+  portalShouldFlipX,
+  INNWA_MAP,
+  BAGAN_MAP,
+  MANDALAY_MAP,
   type MapDefinition,
 } from "@root/shared";
 
@@ -210,5 +214,64 @@ describe("map portals", () => {
     assert.strictEqual(portals.length, 1, "the unreachable portal is not offered");
     // Ids stay tied to the editor's list order, so overrides keep lining up.
     assert.strictEqual(portals[0].id, "portal-0");
+  });
+
+  describe("portalShouldFlipX", () => {
+    it("returns false for tracks heading right (dx > 0)", () => {
+      const map: MapDefinition = {
+        id: "right_track",
+        path: [],
+        paths: { main: [{ x: 50, y: 100 }, { x: 300, y: 100 }] },
+        slots: [],
+        checkpoints: [],
+        base: { x: 600, y: 100 },
+      };
+      const portal = mapPortals(map)[0];
+      assert.strictEqual(portalShouldFlipX(map, portal), false);
+    });
+
+    it("returns true for tracks heading left (dx < 0)", () => {
+      const map: MapDefinition = {
+        id: "left_track",
+        path: [],
+        paths: { main: [{ x: 1200, y: 100 }, { x: 900, y: 100 }] },
+        slots: [],
+        checkpoints: [],
+        base: { x: 200, y: 100 },
+      };
+      const portal = mapPortals(map)[0];
+      assert.strictEqual(portalShouldFlipX(map, portal), true);
+    });
+
+    it("respects explicit flipX override in portalOverrides", () => {
+      const map: MapDefinition = {
+        id: "override_flip",
+        path: [],
+        paths: { main: [{ x: 50, y: 100 }, { x: 300, y: 100 }] },
+        slots: [],
+        checkpoints: [],
+        base: { x: 600, y: 100 },
+        portalOverrides: { "portal-0": { flipX: true } },
+      };
+      const portal = mapPortals(map)[0];
+      assert.strictEqual(portalShouldFlipX(map, portal), true);
+    });
+
+    it("evaluates real canonical battlefields accurately", () => {
+      // Innwa: portal-0 heads right (false), portal-1 heads left (true)
+      const innwaPortals = mapPortals(INNWA_MAP);
+      assert.strictEqual(portalShouldFlipX(INNWA_MAP, innwaPortals[0]), false);
+      assert.strictEqual(portalShouldFlipX(INNWA_MAP, innwaPortals[1]), true);
+
+      // Bagan: portal-0 and portal-1 head right (false), portal-2 heads left (true)
+      const baganPortals = mapPortals(BAGAN_MAP);
+      assert.strictEqual(portalShouldFlipX(BAGAN_MAP, baganPortals[0]), false);
+      assert.strictEqual(portalShouldFlipX(BAGAN_MAP, baganPortals[1]), false);
+      assert.strictEqual(portalShouldFlipX(BAGAN_MAP, baganPortals[2]), true);
+
+      // Mandalay: east bridge portal heads left (true)
+      const mandalayPortals = mapPortals(MANDALAY_MAP);
+      assert.strictEqual(portalShouldFlipX(MANDALAY_MAP, mandalayPortals[1]), true);
+    });
   });
 });

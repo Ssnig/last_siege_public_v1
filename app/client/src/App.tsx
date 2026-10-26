@@ -12,6 +12,7 @@ import { OrientationPrompt } from './componenets/mobile/OrientationPrompt';
 import { MobileFullscreenGate } from './componenets/mobile/MobileFullscreenGate';
 import { InitialLoadingScreen } from './componenets/common/InitialLoadingScreen';
 import { MapEditor } from './componenets/editor/MapEditor';
+import { SoundEditor } from './componenets/soundEditor/SoundEditor';
 import { EffectsOverlay } from './componenets/common/EffectsOverlay';
 import { BGMRouteSync } from './componenets/audio/BGMRouteSync';
 import { AlmanacPage } from './componenets/almanac/AlmanacPage';
@@ -56,6 +57,8 @@ export default function App() {
             <Route path="/lobby" element={<Lobby client={client} />} />
             <Route path="/game/:roomId" element={<GameRoute />} />
             <Route path="/editor" element={<MapEditor />} />
+            <Route path="/sounds" element={<SoundEditor />} />
+            <Route path="/dev/sounds" element={<SoundEditor />} />
             <Route path="/almanac" element={<AlmanacPage />} />
             <Route path="*" element={<Navigate to="/lobby" replace />} />
           </Routes>

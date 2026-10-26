@@ -5,7 +5,7 @@
 [![Phaser 3](https://img.shields.io/badge/Phaser-3%2F4-ff69b4.svg)](https://phaser.io/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4.3-38bdf8.svg)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x%2F6.x-3178c6.svg)](https://www.typescriptlang.org/)
-[![Tests Passing](https://img.shields.io/badge/Tests-129%20passing-brightgreen.svg)]()
+[![Tests Passing](https://img.shields.io/badge/Tests-133%20passing-brightgreen.svg)]()
 
 An asymmetric, competitive 1v1 real-time multiplayer tower defense game set in the rich historical eras and landscapes of ancient Burma (Bagan, Konbaung, Inle, Mandalay, and beyond). Built from the ground up with **React 19**, **Phaser 3**, and **Colyseus 0.18** within a modular TypeScript monorepo.
 
@@ -231,6 +231,29 @@ Editor URL: http://localhost:5173/dev/editor
 
 ---
 
+## 🔊 In-Browser Sound Studio & Audio Editor
+
+The game features a dedicated in-browser **Sound Studio** accessible directly at `/sounds` or `/dev/sounds` (or via the **Sound Studio** button in the in-game Settings modal):
+
+```text
+Studio URL: http://localhost:5173/sounds (or /dev/sounds)
+```
+
+### Studio Workbench Features
+- **Individual Tower Sound Auditioning:** Inspect and trigger tailored shooting and impact sounds for all 10 defense towers (`archer`, `cannon`, `bomb`, `bell`, `spear`, `gun`, `water_cannon`, `chinthe`, `dragon`, `sein_pyaung`).
+- **Interactive Oscillogram Waveforms:** Real-time animated canvas visualizers render live audio output waves upon sound playback.
+- **Pitch Tuning ($0.8\times$ to $1.2\times$):** Fine-tune pitch multipliers in real time to preview variations before committing changes.
+- **Rapid-Fire Volley Testing:** Simulate a sustained 5-shot attack volley timed precisely to each tower's in-game fire rate (e.g., Archer @ 0.5s intervals, Cannon @ 3.0s intervals).
+- **Combat Sequence Simulation:** Test the full combat acoustic loop: `Shoot` $\to$ `Simulated Projectile Travel` $\to$ `Impact Burst`.
+- **Drag-and-Drop Sound Replacement:** Drop or upload custom audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`) directly onto any tower's Shoot or Impact slot.
+- **Vite Dev Middleware Persistence:** Custom audio uploads are written directly to `app/client/public/assets/sfx/towers/` via Vite dev endpoints (`/api/dev/save-sound`), persisting across page reloads.
+- **One-Click Procedural Reset:** Instantly revert custom sound overrides back to procedural Web Audio synthesis with the "Reset to Default Synthesis" button (`/api/dev/delete-sound`).
+- **Combat & Ambient Soundboard:** Audition global combat stings (War Drums, Victory Fanfare, Defeat Dirge), mob death cries, and base core alerts.
+- **Soundtrack Music Browser:** Inspect and audition all background music themes with instantaneous pause/play controls.
+- **Zero Audio Interference:** Background music is automatically silenced while inside the Sound Studio, allowing clear listening and tuning of individual sound effects.
+
+---
+
 ## 🏆 Competitive Ranking & Elo System
 
 A skill-based competitive rating system tracks player progress across online matches:
@@ -274,7 +297,7 @@ TD_Game/
 │       │   ├── game/            # Phases, damage channels, targeting algorithms
 │       │   ├── auth/            # JWT, Google OAuth, Guest auth routes
 │       │   └── models/          # MongoDB User & Guest schemas
-│       └── test/                # 129 Mocha integration & balance tests
+│       └── test/                # 133 Mocha integration & balance tests
 │
 └── packages/
     └── shared/                  # Shared Game Core (Shared by Client & Server)
@@ -363,7 +386,7 @@ npm run build:client   # Generates production bundle in app/client/dist/
 
 ## 🧪 Testing & Quality Assurance
 
-The server workspace houses an automated test suite featuring **129 passing tests** covering every aspect of match logic, simulation math, network state changes, and balance limits:
+The server workspace houses an automated test suite featuring **133 passing tests** covering every aspect of match logic, simulation math, network state changes, and balance limits:
 
 ```bash
 npm test
