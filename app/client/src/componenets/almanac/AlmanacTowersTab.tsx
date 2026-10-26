@@ -445,25 +445,73 @@ export const AlmanacTowersTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Special Tower Modifiers / Effects */}
-          {(towerType.splashRadius || towerType.onHitEffect || towerType.attackMode) && (
-            <div className="p-3 bg-amber-950/30 rounded-lg border border-amber-600/40 flex items-center gap-3">
-              <div className="text-xs">
-                <span className="font-bold text-amber-300">Special Properties: </span>
-                {towerType.splashRadius && (
-                  <span className="text-slate-200">
-                    Deals Area of Effect (AoE) splash across a <strong>{towerType.splashRadius}px</strong> radius.{' '}
-                  </span>
-                )}
-                {towerType.onHitEffect?.type === 'slow' && (
-                  <span className="text-slate-200">
-                    Slows struck targets by <strong>{Math.round(towerType.onHitEffect.magnitude * 100)}%</strong> for{' '}
-                    <strong>{towerType.onHitEffect.durationSec}s</strong>.{' '}
-                  </span>
-                )}
+          {/* Special Tower Modifiers / Tier Scaling Effects */}
+          {(currentTier.special || towerType.splashRadius || towerType.onHitEffect || towerType.attackMode) && (
+            <div className="p-3 bg-amber-950/40 rounded-lg border border-amber-600/50 flex flex-col gap-1.5 shadow-inner">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-600/60 font-mono">
+                  Tier {selectedTierIndex + 1} Special Effect
+                </span>
                 {towerType.attackMode === 'aoe_pulse' && (
-                  <span className="text-slate-200">
-                    Emits a full 360-degree sonic shockwave that damages and cracks every foe in range simultaneously.{' '}
+                  <span className="text-[10px] text-purple-300 font-bold bg-purple-950/60 px-2 py-0.5 rounded border border-purple-600/60">
+                    360° Shockwave Pulse
+                  </span>
+                )}
+                {towerType.splashRadius && (
+                  <span className="text-[10px] text-orange-300 font-bold bg-orange-950/60 px-2 py-0.5 rounded border border-orange-600/60">
+                    AoE Splash ({towerType.splashRadius}px)
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-slate-200 leading-relaxed">
+                {currentTier.special?.windupMaxBonus !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Ramping Windup:</strong> Consecutive shots build +10% fire rate stacks up to <strong>+{Math.round(currentTier.special.windupMaxBonus * 100)}%</strong> max attack speed. Decays to 0 if idle for more than 2.0s.
+                  </span>
+                )}
+                {currentTier.special?.armorPierceRatio !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Armor Piercing:</strong> High-explosive splash ignores <strong>{Math.round(currentTier.special.armorPierceRatio * 100)}%</strong> of target physical armor.
+                  </span>
+                )}
+                {selectedId === 'bomb' && currentTier.special?.knockbackPx !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Demolition Concussion:</strong> Direct hits and concussive blasts knock targets backward along the path by <strong>{currentTier.special.knockbackPx}px</strong>.
+                  </span>
+                )}
+                {currentTier.special?.pulseSlow !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Echoing Terror:</strong> Sonic pulse inflicts a <strong>{Math.round(currentTier.special.pulseSlow * 100)}%</strong> slow on all mobs in radius for 1.5s.
+                  </span>
+                )}
+                {currentTier.special?.bleedTotalDamage !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Lacerating Bleed:</strong> Fast piercing thrusts inflict physical bleed dealing <strong>{currentTier.special.bleedTotalDamage}</strong> total bleed damage over 3.0s.
+                  </span>
+                )}
+                {currentTier.special?.prioritizeSupport && (
+                  <span>
+                    <strong className="text-amber-300">Bounty Hunter:</strong> Prioritizes high-value support casters (Healers, Drummers). Awards <strong>+{currentTier.special.bonusGoldOnKill}g</strong> bonus gold on kill.
+                  </span>
+                )}
+                {currentTier.special?.drenchSlow !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Drench & Soak:</strong> Drenches struck enemies for 2.5s, applying a <strong>{Math.round(currentTier.special.drenchSlow * 100)}%</strong> slow and amplifying incoming mental damage by <strong>+{Math.round((currentTier.special.drenchVulnerability ?? 0) * 100)}%</strong>.
+                  </span>
+                )}
+                {currentTier.special?.silenceSec !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Temple Gatekeeper:</strong> Sacred roar knocks targets backward by <strong>{currentTier.special.knockbackPx ?? 0}px</strong> and silences active mob auras and abilities for <strong>{currentTier.special.silenceSec}s</strong>.
+                  </span>
+                )}
+                {currentTier.special?.deathExplosionDamage !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Cataclysmic Detonation:</strong> When an enemy is slain by dragon fire, they detonate in an AoE explosion of spiritual flame dealing <strong>{currentTier.special.deathExplosionDamage}</strong> mental damage within a <strong>{currentTier.special.deathExplosionRadius ?? 50}px</strong> blast radius.
+                  </span>
+                )}
+                {currentTier.special?.armorStripPermanent !== undefined && (
+                  <span>
+                    <strong className="text-amber-300">Armor Crushing:</strong> Heavy kinetic shells permanently strip <strong>{currentTier.special.armorStripPermanent}</strong> physical armor from the target per hit.
                   </span>
                 )}
               </div>

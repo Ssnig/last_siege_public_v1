@@ -118,4 +118,45 @@ describe("selectTarget", () => {
     );
     assert.strictEqual(result?.id, "normal-in-range");
   });
+
+  it("prioritizes an in-range support unit over a closer normal unit when prioritizeSupport is true", () => {
+    const result = selectTarget(
+      [
+        candidate("normal-front", 20, 0, 100),
+        { ...candidate("healer-support", 50, 0, 400), support: true },
+      ],
+      tower,
+      140,
+      true,
+    );
+    assert.strictEqual(result?.id, "healer-support");
+  });
+
+  it("picks closer normal unit when prioritizeSupport is false even if support is present", () => {
+    const result = selectTarget(
+      [
+        candidate("normal-front", 20, 0, 100),
+        { ...candidate("healer-support", 50, 0, 400), support: true },
+      ],
+      tower,
+      140,
+      false,
+    );
+    assert.strictEqual(result?.id, "normal-front");
+  });
+
+  it("prioritizes taunt over support even when prioritizeSupport is true", () => {
+    const result = selectTarget(
+      [
+        candidate("normal-front", 20, 0, 100),
+        { ...candidate("healer-support", 40, 0, 300), support: true },
+        { ...candidate("shield-guy", 60, 0, 500), taunt: true },
+      ],
+      tower,
+      140,
+      true,
+    );
+    assert.strictEqual(result?.id, "shield-guy");
+  });
 });
+

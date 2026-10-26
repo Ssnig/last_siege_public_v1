@@ -266,8 +266,16 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
 
 export const HEAL_VFX_SHEET_KEY = "vfx_heal_aura_sheet";
 export const HEAL_VFX_ANIM_KEY = "vfx_heal_aura";
+export const BRUTE_HEAL_VFX_SHEET_KEY = "vfx_brute_heal_sheet";
+export const BRUTE_HEAL_VFX_ANIM_KEY = "vfx_brute_heal";
 export const SPEED_BOOST_VFX_SHEET_KEY = "vfx_speed_boost_sheet";
 export const SPEED_BOOST_VFX_ANIM_KEY = "vfx_speed_boost";
+export const BELU_SKILL_VFX_SHEET_KEY = "vfx_belu_skill_sheet";
+export const BELU_ARMOR_VFX_ANIM_KEY = "vfx_belu_armor";
+export const BELU_MENTAL_VFX_ANIM_KEY = "vfx_belu_mental";
+export const SONE_MA_SKILL_VFX_SHEET_KEY = "vfx_sone_ma_skill_sheet";
+export const SONE_MA_TRIGGER_VFX_ANIM_KEY = "vfx_sone_ma_trigger";
+export const SONE_MA_STUN_VFX_ANIM_KEY = "vfx_sone_ma_stun_loop";
 
 /**
  * Manages loading, pinpointing, slicing, and animating unit spritesheets.
@@ -310,11 +318,47 @@ export class UnitAnimationManager {
       );
     }
 
+    // Preload Brute self-heal VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(BRUTE_HEAL_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        BRUTE_HEAL_VFX_SHEET_KEY,
+        "/assets/units/Brute/heal_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
     // Preload speed boost VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
     if (!scene.textures.exists(SPEED_BOOST_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         SPEED_BOOST_VFX_SHEET_KEY,
         "/assets/units/doe_pat/speed_boost_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
+    // Preload Belu skill VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(BELU_SKILL_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        BELU_SKILL_VFX_SHEET_KEY,
+        "/assets/units/Belu/skill_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
+    // Preload Sone Ma curse/stun VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(SONE_MA_SKILL_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        SONE_MA_SKILL_VFX_SHEET_KEY,
+        "/assets/units/SoneMa/skill_vfx.png",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -391,6 +435,24 @@ export class UnitAnimationManager {
     }
 
     if (
+      scene.textures.exists(BRUTE_HEAL_VFX_SHEET_KEY) &&
+      !scene.anims.exists(BRUTE_HEAL_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(BRUTE_HEAL_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: BRUTE_HEAL_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(BRUTE_HEAL_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(7, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 12,
+          repeat: 0,
+        });
+      }
+    }
+
+    if (
       scene.textures.exists(SPEED_BOOST_VFX_SHEET_KEY) &&
       !scene.anims.exists(SPEED_BOOST_VFX_ANIM_KEY)
     ) {
@@ -404,6 +466,82 @@ export class UnitAnimationManager {
           }),
           frameRate: 12,
           repeat: 0,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(BELU_SKILL_VFX_SHEET_KEY) &&
+      !scene.anims.exists(BELU_ARMOR_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(BELU_SKILL_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        // Top row (frames 0..3): physical armor stack gained
+        scene.anims.create({
+          key: BELU_ARMOR_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(BELU_SKILL_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(3, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 10,
+          repeat: 0,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(BELU_SKILL_VFX_SHEET_KEY) &&
+      !scene.anims.exists(BELU_MENTAL_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(BELU_SKILL_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 4) {
+        // Bottom row (frames 4..7): mental strength stack gained
+        scene.anims.create({
+          key: BELU_MENTAL_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(BELU_SKILL_VFX_SHEET_KEY, {
+            start: 4,
+            end: Math.min(7, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 10,
+          repeat: 0,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(SONE_MA_SKILL_VFX_SHEET_KEY) &&
+      !scene.anims.exists(SONE_MA_TRIGGER_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(SONE_MA_SKILL_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        // Top row (frames 0..3): trigger curse animation on tower, played once
+        scene.anims.create({
+          key: SONE_MA_TRIGGER_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(SONE_MA_SKILL_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(3, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 10,
+          repeat: 0,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(SONE_MA_SKILL_VFX_SHEET_KEY) &&
+      !scene.anims.exists(SONE_MA_STUN_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(SONE_MA_SKILL_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 4) {
+        // Bottom row (frames 4..7): special stun effect on tower, looped
+        scene.anims.create({
+          key: SONE_MA_STUN_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(SONE_MA_SKILL_VFX_SHEET_KEY, {
+            start: 4,
+            end: Math.min(7, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 8,
+          repeat: -1,
         });
       }
     }
@@ -458,6 +596,38 @@ export class UnitAnimationManager {
   }
 
   /**
+   * Spawns a one-shot Brute self-heal VFX sprite at `(x, y)` from `/assets/units/Brute/heal_vfx.png`.
+   */
+  static spawnBruteHealVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    const sheetKey = scene.textures.exists(BRUTE_HEAL_VFX_SHEET_KEY)
+      ? BRUTE_HEAL_VFX_SHEET_KEY
+      : HEAL_VFX_SHEET_KEY;
+    const animKey = scene.anims.exists(BRUTE_HEAL_VFX_ANIM_KEY)
+      ? BRUTE_HEAL_VFX_ANIM_KEY
+      : HEAL_VFX_ANIM_KEY;
+
+    if (!scene.textures.exists(sheetKey) || !scene.anims.exists(animKey)) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, sheetKey)
+      .setOrigin(0.5, 0.85)
+      .setScale(0.12);
+
+    vfx.play(animKey);
+    vfx.once(`animationcomplete-${animKey}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
+  }
+
+  /**
    * Spawns a one-shot speed boost VFX sprite at `(x, y)` that destroys itself when finished.
    */
   static spawnSpeedBoostVfx(
@@ -482,6 +652,117 @@ export class UnitAnimationManager {
       vfx.destroy();
     });
 
+    return vfx;
+  }
+
+  /**
+   * Spawns a one-shot Belu physical armor stack VFX sprite at `(x, y)` that destroys itself when finished.
+   */
+  static spawnBeluArmorVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (
+      !scene.textures.exists(BELU_SKILL_VFX_SHEET_KEY) ||
+      !scene.anims.exists(BELU_ARMOR_VFX_ANIM_KEY)
+    ) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, BELU_SKILL_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.85)
+      .setScale(0.15);
+
+    vfx.play(BELU_ARMOR_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${BELU_ARMOR_VFX_ANIM_KEY}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
+  }
+
+  /**
+   * Spawns a one-shot Belu mental strength stack VFX sprite at `(x, y)` that destroys itself when finished.
+   */
+  static spawnBeluMentalVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (
+      !scene.textures.exists(BELU_SKILL_VFX_SHEET_KEY) ||
+      !scene.anims.exists(BELU_MENTAL_VFX_ANIM_KEY)
+    ) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, BELU_SKILL_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.85)
+      .setScale(0.15);
+
+    vfx.play(BELU_MENTAL_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${BELU_MENTAL_VFX_ANIM_KEY}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
+  }
+
+  /**
+   * Spawns Sone Ma curse/stun VFX on a tower at `(x, y)`.
+   * Plays the top row trigger animation once, then transitions into the bottom row stun loop until destroyed.
+   */
+  static spawnSoneMaStunVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (
+      !scene.textures.exists(SONE_MA_SKILL_VFX_SHEET_KEY) ||
+      !scene.anims.exists(SONE_MA_TRIGGER_VFX_ANIM_KEY)
+    ) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, SONE_MA_SKILL_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.8)
+      .setScale(0.14);
+
+    vfx.play(SONE_MA_TRIGGER_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${SONE_MA_TRIGGER_VFX_ANIM_KEY}`, () => {
+      if (vfx.active && scene.anims.exists(SONE_MA_STUN_VFX_ANIM_KEY)) {
+        vfx.play(SONE_MA_STUN_VFX_ANIM_KEY);
+      }
+    });
+
+    return vfx;
+  }
+
+  /**
+   * Spawns Sone Ma stun loop VFX directly on a tower at `(x, y)`.
+   */
+  static spawnSoneMaStunLoopVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (
+      !scene.textures.exists(SONE_MA_SKILL_VFX_SHEET_KEY) ||
+      !scene.anims.exists(SONE_MA_STUN_VFX_ANIM_KEY)
+    ) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, SONE_MA_SKILL_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.8)
+      .setScale(0.14);
+
+    vfx.play(SONE_MA_STUN_VFX_ANIM_KEY);
     return vfx;
   }
 

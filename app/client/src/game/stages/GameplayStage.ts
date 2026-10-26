@@ -3,6 +3,7 @@ import { Callbacks, Room } from "@colyseus/sdk";
 import {
   MESSAGES,
   EFFECT_TYPES,
+  TOWER_EFFECT_TYPES,
   samplePath,
   samplePathWithLateral,
   mapPath,
@@ -11,12 +12,14 @@ import {
   type MapDefinition,
   type Mob,
   type MobAbilityPayload,
+  type MobDeathExplosionPayload,
   type Projectile,
   type Tower,
   type TowerAttackPayload,
   type Vec2,
   type YouEconomyPayload,
   type AttackerBufferPayload,
+  type TowerTierSpecial,
   TOWER_TYPES,
   MATCH_RULES,
   portalChargeRules,
@@ -99,6 +102,8 @@ type TowerRecord = {
   tower: Tower;
   sprite: Phaser.GameObjects.Sprite;
   levelBadge?: Phaser.GameObjects.Container;
+  stunVfx?: Phaser.GameObjects.Sprite;
+  wasStunned?: boolean;
 };
 
 /** A mob and the sprites that render it: body plus its health bar. */
@@ -116,6 +121,10 @@ type MobRecord = {
   hpFill: Phaser.GameObjects.Rectangle;
   /** Active VFX sprites (e.g. heal aura) riding on this mob. */
   vfxSprites?: Set<Phaser.GameObjects.Sprite>;
+  /** Last known physical armor stacks (for Belu adaptive defense VFX). */
+  lastArmorStacks?: number;
+  /** Last known mental strength stacks (for Belu adaptive defense VFX). */
+  lastMentalStacks?: number;
 };
 
 /** A portal: its spin sprite plus the charge pips drawn above it. */
@@ -608,7 +617,7 @@ export class GameplayStage {
       const baseSprite = this.scene.textures.exists("tower_placeholder_1")
         ? this.scene.add
             .image(slot.x, slot.y, "tower_placeholder_1")
-            .setDisplaySize(52 * holderScale, 40 * holderScale)
+            .setDisplaySize(65 * holderScale, 50 * holderScale)
             .setDepth(DEPTH.SLOTS_LAYER)
             .setName("tower-slot-base")
         : null;
@@ -616,7 +625,7 @@ export class GameplayStage {
 
       // 2. Interactive hit area
       const placeholder = this.scene.add
-        .circle(slot.x, slot.y, 24 * holderScale, 0x000000, 0.001)
+        .circle(slot.x, slot.y, 30 * holderScale, 0x000000, 0.001)
         .setDepth(DEPTH.SLOTS_LAYER + 0.01)
         .setName("tower-slot");
       placeholder.setData("slotIndex", slot.slotIndex);
@@ -1047,7 +1056,7 @@ export class GameplayStage {
 
     // Glowing selection halo directly around the active tower base
     this.selectionHalo = this.scene.add
-      .circle(slot.x, slot.y, 42, 0xfbbf24, 0.22)
+      .circle(slot.x, slot.y, 50, 0xfbbf24, 0.22)
       .setStrokeStyle(2.5, 0xfbbf24, 0.9)
       .setDepth(DEPTH.SLOTS_LAYER + 0.1);
     this.root?.add(this.selectionHalo);
@@ -1055,7 +1064,7 @@ export class GameplayStage {
     // Geometry layout: clamp horizontally and anchor above tower
     const clampedX = Phaser.Math.Clamp(slot.x, 175, 1280 - 175);
     const isTopHalf = slot.y < 340;
-    const buttonY = isTopHalf ? slot.y + 82 : Math.max(92, slot.y - 82);
+    const buttonY = isTopHalf ? slot.y + 96 : Math.max(92, slot.y - 96);
     const panelY = isTopHalf ? buttonY + 78 : buttonY - 78;
     const panelW = 290;
 
@@ -1067,8 +1076,9 @@ export class GameplayStage {
     this.towerInfoPanel.setDepth(DEPTH.UI_LAYER);
     this.root?.add(this.towerInfoPanel);
 
+    const specialSummary = this.getTowerSpecialSummary(currentTier?.special);
     const pw = Math.max(panelW, 300);
-    const ph = 96;
+    const ph = specialSummary ? 116 : 96;
 
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x0a0f1d, 0.95);
@@ -1139,7 +1149,27 @@ export class GameplayStage {
       )
       .setOrigin(0, 0.5);
 
-    this.towerInfoPanel.add([bg, nameText, damageTypeText, dmgRangeText, spdTierText]);
+    const elements: Phaser.GameObjects.GameObject[] = [
+      bg,
+      nameText,
+      damageTypeText,
+      dmgRangeText,
+      spdTierText,
+    ];
+
+    if (specialSummary) {
+      const specialText = this.scene.add
+        .text(-pw / 2 + 16, -ph / 2 + 102, specialSummary, {
+          fontSize: "12px",
+          fontFamily: "Arial, sans-serif",
+          fontStyle: "italic",
+          color: "#fde047",
+        })
+        .setOrigin(0, 0.5);
+      elements.push(specialText);
+    }
+
+    this.towerInfoPanel.add(elements);
 
     if (isAttackerInspect) {
       // Attackers can inspect towers but not upgrade or sell them.
@@ -1202,6 +1232,21 @@ export class GameplayStage {
     });
     this.sellButton.container.setDepth(DEPTH.UI_LAYER);
     this.root?.add(this.sellButton.container);
+  }
+
+  private getTowerSpecialSummary(special?: TowerTierSpecial): string | null {
+    if (!special) return null;
+    if (special.windupMaxBonus) return `Windup: +10% SPD/shot (max +${Math.round(special.windupMaxBonus * 100)}%)`;
+    if (special.armorPierceRatio) return `Armor Pierce: Ignores ${Math.round(special.armorPierceRatio * 100)}% armor`;
+    if (special.bleedTotalDamage) return `Bleed: ${special.bleedTotalDamage} dmg over 3s`;
+    if (special.pulseSlow) return `Pulse: ${Math.round(special.pulseSlow * 100)}% slow for 1.5s`;
+    if (special.prioritizeSupport) return `Bounty Hunter: Targets support, +${special.bonusGoldOnKill}g`;
+    if (special.drenchSlow) return `Drench: ${Math.round(special.drenchSlow * 100)}% slow, +${Math.round((special.drenchVulnerability ?? 0) * 100)}% mental vuln`;
+    if (special.silenceSec) return `Roar: ${special.knockbackPx}px knockback, ${special.silenceSec}s silence`;
+    if (special.deathExplosionDamage) return `Detonation: ${special.deathExplosionDamage} dmg on kill (${special.deathExplosionRadius}px)`;
+    if (special.armorStripPermanent) return `Crush: Permanently strips ${special.armorStripPermanent} armor/hit`;
+    if (special.knockbackPx) return `Knockback: ${special.knockbackPx}px`;
+    return null;
   }
 
   /**
@@ -1398,6 +1443,21 @@ export class GameplayStage {
       if (slot) {
         this.renderTower(slot, tower, String(key));
 
+        const record = this.towers.get(slot.slotIndex);
+        if (record && tower.effects?.has(TOWER_EFFECT_TYPES.stun)) {
+          record.wasStunned = true;
+          const vfx = UnitAnimationManager.spawnSoneMaStunLoopVfx(
+            this.scene,
+            record.sprite.x,
+            record.sprite.y,
+          );
+          if (vfx) {
+            vfx.setDepth(record.sprite.depth + 0.0001);
+            (this.actors ?? this.root)?.add(vfx);
+            record.stunVfx = vfx;
+          }
+        }
+
         this.unsubscribers.push(
           callbacks.listen(tower, "level", () => {
             const record = this.towers.get(slot.slotIndex);
@@ -1439,6 +1499,7 @@ export class GameplayStage {
       const slot = this.map.slots.find((s) => s.slotIndex === tower.slotIndex);
       if (!slot) return;
       const record = this.towers.get(slot.slotIndex);
+      record?.stunVfx?.destroy();
       record?.sprite.destroy();
       record?.levelBadge?.destroy();
       this.towers.delete(slot.slotIndex);
@@ -1557,7 +1618,7 @@ export class GameplayStage {
         sprite = this.scene.add
           .sprite(slot.x, slot.y, sheetKey, 0)
           .setOrigin(design.origin.x, design.origin.y)
-          .setScale((design.id === "dragon" ? 0.1 : 0.12) * holderScale)
+          .setScale((design.id === "dragon" ? 0.125 : 0.15) * holderScale)
           .setDisplaySize(design.displaySize.width * holderScale, design.displaySize.height * holderScale)
           .setDepth(actorDepth(slot.y));
         if (this.scene.anims.exists(idleKey)) {
@@ -1664,6 +1725,11 @@ export class GameplayStage {
         .setOrigin(0, 0.5)
         .setDepth(DEPTH.ACTORS_LAYER + 2);
 
+      const initialArmor =
+        mob.effects?.get(EFFECT_TYPES.armor_stack)?.magnitude ?? 0;
+      const initialMental =
+        mob.effects?.get(EFFECT_TYPES.mental_stack)?.magnitude ?? 0;
+
       const record: MobRecord = {
         id: String(key),
         typeId: mob.typeId,
@@ -1672,6 +1738,8 @@ export class GameplayStage {
         sprite,
         hpBg,
         hpFill,
+        lastArmorStacks: initialArmor,
+        lastMentalStacks: initialMental,
       };
       this.mobSprites.set(mob, record);
       this.mobsById.set(record.id, record);
@@ -1712,7 +1780,8 @@ export class GameplayStage {
 
         if (
           payload.abilityType === "heal_aura" ||
-          payload.abilityType === "speed_aura"
+          payload.abilityType === "speed_aura" ||
+          payload.abilityType === "self_heal"
         ) {
           for (const targetId of payload.targetIds) {
             const target = this.mobsById.get(targetId);
@@ -1725,11 +1794,17 @@ export class GameplayStage {
                     target.sprite.x,
                     target.sprite.y,
                   )
-                : UnitAnimationManager.spawnSpeedBoostVfx(
-                    this.scene,
-                    target.sprite.x,
-                    target.sprite.y,
-                  );
+                : payload.abilityType === "self_heal"
+                  ? UnitAnimationManager.spawnBruteHealVfx(
+                      this.scene,
+                      target.sprite.x,
+                      target.sprite.y,
+                    )
+                  : UnitAnimationManager.spawnSpeedBoostVfx(
+                      this.scene,
+                      target.sprite.x,
+                      target.sprite.y,
+                    );
             if (vfx) {
               vfx.setDepth(target.sprite.depth + 0.0001);
               (this.actors ?? this.root)?.add(vfx);
@@ -1797,6 +1872,28 @@ export class GameplayStage {
       },
     );
     this.unsubscribers.push(offTowerAttack);
+
+    const offDeathExplosion = this.room.onMessage(
+      MESSAGES.mobDeathExplosion,
+      (payload: MobDeathExplosionPayload) => {
+        if (this.destroyed) return;
+
+        const target = this.mobsById.get(payload.mobId);
+        const x = target ? target.x : payload.x;
+        const y = target ? target.y : payload.y;
+
+        const vfx = TowerAnimationManager.spawnDragonExplosionVfx(
+          this.scene,
+          x,
+          y,
+        );
+        if (vfx) {
+          vfx.setDepth(actorDepth(y) + 0.0005);
+          (this.actors ?? this.root)?.add(vfx);
+        }
+      },
+    );
+    this.unsubscribers.push(offDeathExplosion);
   }
 
   /** Per-frame pass repositioning every tracked mob sprite and its health bar. */
@@ -1806,12 +1903,62 @@ export class GameplayStage {
   }
 
   /**
+   * Spawns Sone Ma curse/stun VFX on a newly stunned tower.
+   */
+  private playTowerStunVfx(record: TowerRecord): void {
+    record.stunVfx?.destroy();
+    record.stunVfx = undefined;
+
+    const vfx = UnitAnimationManager.spawnSoneMaStunVfx(
+      this.scene,
+      record.sprite.x,
+      record.sprite.y,
+    );
+    if (!vfx) return;
+
+    vfx.setDepth(record.sprite.depth + 0.0001);
+    (this.actors ?? this.root)?.add(vfx);
+    record.stunVfx = vfx;
+
+    vfx.once(Phaser.GameObjects.Events.DESTROY, () => {
+      if (record.stunVfx === vfx) {
+        record.stunVfx = undefined;
+      }
+    });
+  }
+
+  /**
    * Turns each tower to face the mob it is shooting.
    */
   private updateTowerFacing(): void {
     if (this.destroyed || this.towers.size === 0) return;
 
     for (const record of this.towers.values()) {
+      const isStunned = record.tower.effects?.has(TOWER_EFFECT_TYPES.stun);
+      if (isStunned) {
+        record.sprite.setTint(0x94a3b8);
+        if (record.sprite.anims?.isPlaying) {
+          record.sprite.anims.pause();
+        }
+
+        if (!record.wasStunned) {
+          record.wasStunned = true;
+          this.playTowerStunVfx(record);
+        }
+
+        continue;
+      } else {
+        record.sprite.setTint(0xffffff);
+        if (record.sprite.anims?.isPaused) {
+          record.sprite.anims.resume();
+        }
+
+        if (record.wasStunned) {
+          record.wasStunned = false;
+          record.stunVfx?.destroy();
+          record.stunVfx = undefined;
+        }
+      }
       const design = getTowerDesign(record.tower.typeId);
       if (design.id === "archer" || design.id === "bomb" || design.id === "spear") {
         const sprite = record.sprite as Phaser.GameObjects.Sprite;
@@ -2057,6 +2204,55 @@ export class GameplayStage {
 
     // Status tint: a slowed mob reads cold blue, a cracked one violet.
     record.sprite.setTint(this.mobEffectTint(mob));
+
+    // Adaptive defense stack VFX for Belu Ogre
+    if (record.typeId === "belu") {
+      const currentArmor =
+        mob.effects?.get(EFFECT_TYPES.armor_stack)?.magnitude ?? 0;
+      const currentMental =
+        mob.effects?.get(EFFECT_TYPES.mental_stack)?.magnitude ?? 0;
+
+      if (currentArmor > (record.lastArmorStacks ?? 0)) {
+        const vfx = UnitAnimationManager.spawnBeluArmorVfx(
+          this.scene,
+          point.x,
+          point.y,
+        );
+        if (vfx) {
+          vfx.setDepth(record.sprite.depth + 0.0001);
+          (this.actors ?? this.root)?.add(vfx);
+          if (!record.vfxSprites) {
+            record.vfxSprites = new Set();
+          }
+          record.vfxSprites.add(vfx);
+          vfx.once(Phaser.GameObjects.Events.DESTROY, () => {
+            record.vfxSprites?.delete(vfx);
+          });
+        }
+      }
+
+      if (currentMental > (record.lastMentalStacks ?? 0)) {
+        const vfx = UnitAnimationManager.spawnBeluMentalVfx(
+          this.scene,
+          point.x,
+          point.y,
+        );
+        if (vfx) {
+          vfx.setDepth(record.sprite.depth + 0.0001);
+          (this.actors ?? this.root)?.add(vfx);
+          if (!record.vfxSprites) {
+            record.vfxSprites = new Set();
+          }
+          record.vfxSprites.add(vfx);
+          vfx.once(Phaser.GameObjects.Events.DESTROY, () => {
+            record.vfxSprites?.delete(vfx);
+          });
+        }
+      }
+
+      record.lastArmorStacks = currentArmor;
+      record.lastMentalStacks = currentMental;
+    }
 
     // Face the direction of travel (art is a side-view sprite, so flip, not rotate).
     const ahead = samplePath(path, Math.min(1, mob.progress + 0.02));
@@ -2639,6 +2835,11 @@ export class GameplayStage {
     this.root?.destroy(true);
     this.root = undefined;
 
+    for (const record of this.towers.values()) {
+      record.stunVfx?.destroy();
+      record.sprite.destroy();
+      record.levelBadge?.destroy();
+    }
     this.towers.clear();
     this.deckCards.clear();
   }

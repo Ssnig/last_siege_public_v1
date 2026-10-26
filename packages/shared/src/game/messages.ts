@@ -58,6 +58,8 @@ export const MESSAGES = {
   mobAbility: "mob_ability",
   /** Server → client (broadcast): a non-projectile AoE tower (e.g. Bell Tower) pulsed. */
   towerAttack: "tower_attack",
+  /** Server → client (broadcast): a mob detonated / exploded on death (e.g. Dragon Tower cataclysmic detonation). */
+  mobDeathExplosion: "mob_death_explosion",
   /** Client → server: this client has finished loading game assets. */
   clientAssetsLoaded: "client_assets_loaded",
   /** Server → client (broadcast): asset loading status update while waiting. */
@@ -282,7 +284,7 @@ export interface MobAbilityPayload {
   /** Server mob id of the caster (e.g. "mob-1-top-0"). */
   casterId: string;
   /** Ability archetype that fired. */
-  abilityType: "heal_aura" | "speed_aura";
+  abilityType: "heal_aura" | "speed_aura" | "self_heal";
   /** Server mob ids of all allied mobs affected by this ability cast. */
   targetIds: string[];
 }
@@ -297,4 +299,18 @@ export interface TowerAttackPayload {
   targetIds: string[];
   /** World positions of hit mobs (used as fallback if a mob died on the same tick). */
   targets: Array<{ id: string; x: number; y: number }>;
+}
+
+/** Payload of the `mob_death_explosion` broadcast message. */
+export interface MobDeathExplosionPayload {
+  /** Server mob id of the exploded mob. */
+  mobId: string;
+  /** World x position of the explosion. */
+  x: number;
+  /** World y position of the explosion. */
+  y: number;
+  /** Radius of the explosion in world px. */
+  radius: number;
+  /** Archetype id of the tower that caused the detonation (e.g. "dragon"). */
+  sourceTowerTypeId: string;
 }

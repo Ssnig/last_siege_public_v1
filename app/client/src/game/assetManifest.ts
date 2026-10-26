@@ -122,6 +122,7 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 't09_dragon', url: '/assets/towers/09_dragon_tower/dragon_tower.png', type: 'image', category: 'tower', label: 'Dragon Tower' },
   { id: 't09_dragon_mirr', url: '/assets/towers/09_dragon_tower/dragon_tower_mirrored.png', type: 'image', category: 'tower', label: 'Dragon Mirrored' },
   { id: 't09_anim', url: '/assets/towers/09_dragon_tower/dragon_attack.png', type: 'image', category: 'tower', label: 'Dragon Fire Attack' },
+  { id: 't09_skill_vfx', url: '/assets/towers/09_dragon_tower/skill_vfx.png', type: 'image', category: 'tower', label: 'Dragon Cataclysmic Detonation VFX' },
   { id: 't09_icon', url: '/assets/towers/09_dragon_tower/icon.jpg', type: 'image', category: 'tower', label: 'Dragon Icon' },
 
   { id: 't10_tower', url: '/assets/towers/10_sein_pyaung/sein_pyaung.png', type: 'image', category: 'tower', label: 'Sein Pyaung Sniper' },
@@ -163,8 +164,11 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 'u_doe_pat_speed_vfx', url: '/assets/units/doe_pat/speed_boost_vfx.png', type: 'image', category: 'unit', label: 'Speed Boost VFX' },
 
   { id: 'u_belu_face', url: '/assets/units/Belu/face.jpg', type: 'image', category: 'unit', label: 'Belu Ogre Icon' },
+  { id: 'u_belu_skill_vfx', url: '/assets/units/Belu/skill_vfx.png', type: 'image', category: 'unit', label: 'Belu Skill VFX' },
   { id: 'u_general_face', url: '/assets/units/General/face.jpg', type: 'image', category: 'unit', label: 'Royal Bo General Icon' },
   { id: 'u_sone_ma_face', url: '/assets/units/SoneMa/face.jpg', type: 'image', category: 'unit', label: 'Sone Ma Sorceress Icon' },
+  { id: 'u_sone_ma_skill_vfx', url: '/assets/units/SoneMa/skill_vfx.png', type: 'image', category: 'unit', label: 'Sone Ma Skill VFX' },
+  { id: 'u_brute_heal_vfx', url: '/assets/units/Brute/heal_vfx.png', type: 'image', category: 'unit', label: 'Brute Self-Heal VFX' },
 
   // Audio
   { id: 'music_lobby', url: '/assets/music/Lobby.mp3', type: 'audio', category: 'audio', label: 'Lobby & Menu Theme' },

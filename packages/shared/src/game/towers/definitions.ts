@@ -217,12 +217,12 @@ export const CORE_TOWER_TYPES: Record<string, TowerType> = {
 /** Legacy tower aliases for backward compatibility with earlier tests and maps. */
 export const LEGACY_TOWER_ALIASES: Record<string, TowerType> = {
   basic: {
-    ...CORE_TOWER_TYPES.archer,
+    ...((towersJson as any).archer ?? CORE_TOWER_TYPES.archer),
     id: "basic",
     name: "Arrow Tower (Basic)",
   },
   bertha: {
-    ...CORE_TOWER_TYPES.cannon,
+    ...((towersJson as any).cannon ?? CORE_TOWER_TYPES.cannon),
     id: "bertha",
     name: "Royal Cannon (Bertha)",
   },
@@ -237,24 +237,24 @@ export const LEGACY_TOWER_ALIASES: Record<string, TowerType> = {
     ],
   },
   sniper: {
-    ...CORE_TOWER_TYPES.gun,
+    ...((towersJson as any).gun ?? CORE_TOWER_TYPES.gun),
     id: "sniper",
     name: "Gun Tower (Sniper)",
   },
   arcanist: {
-    ...CORE_TOWER_TYPES.bell,
+    ...((towersJson as any).bell ?? CORE_TOWER_TYPES.bell),
     id: "arcanist",
     name: "Arcanist Tower",
     damageType: "mental",
   },
   archmage: {
-    ...CORE_TOWER_TYPES.bell,
+    ...((towersJson as any).bell ?? CORE_TOWER_TYPES.bell),
     id: "archmage",
     name: "Archmage Tower",
     damageType: "mental",
   },
   tesla: {
-    ...CORE_TOWER_TYPES.bell,
+    ...((towersJson as any).bell ?? CORE_TOWER_TYPES.bell),
     id: "tesla",
     name: "Tesla Tower",
     damageType: "mental",
@@ -263,10 +263,8 @@ export const LEGACY_TOWER_ALIASES: Record<string, TowerType> = {
 
 /** Full catalog combining towers.json, balanced CORE_TOWER_TYPES, and legacy aliases. */
 export const TOWER_TYPES: Record<string, TowerType> = {
-  basic: LEGACY_TOWER_ALIASES.basic,
-  pitchfork: LEGACY_TOWER_ALIASES.pitchfork,
-  ...(towersJson as unknown as Record<string, TowerType>),
   ...CORE_TOWER_TYPES,
+  ...(towersJson as unknown as Record<string, TowerType>),
   ...LEGACY_TOWER_ALIASES,
 };
 
@@ -283,7 +281,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_archer",
     projectilePath: "/assets/towers/01_archer_tower/projectile_vfx.png",
     iconPath: "/assets/towers/01_archer_tower/icon.jpg",
-    displaySize: { width: 54, height: 58 },
+    displaySize: { width: 68, height: 73 },
     origin: { x: 0.5, y: 0.82 },
     tactical: {
       title: "ARCHER TOWER",
@@ -302,7 +300,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_cannon",
     projectilePath: "/assets/towers/02_cannon/projectile.png",
     iconPath: "/assets/towers/02_cannon/icon.png",
-    displaySize: { width: 56, height: 56 },
+    displaySize: { width: 70, height: 70 },
     origin: { x: 0.5, y: 0.78 },
     tactical: {
       title: "ROYAL CANNON",
@@ -321,7 +319,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_bomb",
     projectilePath: "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png",
     iconPath: "/assets/towers/03_bomb_throwing_tower/icon.jpg",
-    displaySize: { width: 56, height: 56 },
+    displaySize: { width: 70, height: 70 },
     origin: { x: 0.5, y: 0.78 },
     tactical: {
       title: "BOMB THROWING TOWER",
@@ -340,7 +338,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_bell",
     projectilePath: "/assets/towers/04_bell_tower/attack_vfx.png",
     iconPath: "/assets/towers/04_bell_tower/icon.jpg",
-    displaySize: { width: 52, height: 58 },
+    displaySize: { width: 65, height: 73 },
     origin: { x: 0.5, y: 0.82 },
     tactical: {
       title: "SACRED BELL TOWER",
@@ -359,7 +357,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_spear",
     projectilePath: "/assets/towers/05_spear_tower/projectile_vfx.png",
     iconPath: "/assets/towers/05_spear_tower/icon.jpg",
-    displaySize: { width: 52, height: 60 },
+    displaySize: { width: 65, height: 75 },
     origin: { x: 0.5, y: 0.78 },
     tactical: {
       title: "SPEAR TOWER",
@@ -378,7 +376,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_gun",
     projectilePath: "/assets/towers/06_gun_tower/projectile.png",
     iconPath: "/assets/towers/06_gun_tower/icon.png",
-    displaySize: { width: 52, height: 58 },
+    displaySize: { width: 65, height: 73 },
     origin: { x: 0.5, y: 0.82 },
     tactical: {
       title: "ROYAL GUN TOWER",
@@ -397,7 +395,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_water_cannon",
     projectilePath: "/assets/towers/07_water_cannon/projectile.png",
     iconPath: "/assets/towers/07_water_cannon/icon.jpg",
-    displaySize: { width: 54, height: 60 },
+    displaySize: { width: 68, height: 75 },
     origin: { x: 0.5, y: 0.82 },
     tactical: {
       title: "WATER CANNON",
@@ -416,7 +414,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_chinthe",
     projectilePath: "/assets/towers/08_chinthe_statue/projectile.png",
     iconPath: "/assets/towers/08_chinthe_statue/icon.jpg",
-    displaySize: { width: 54, height: 60 },
+    displaySize: { width: 68, height: 75 },
     origin: { x: 0.5, y: 0.82 },
     tactical: {
       title: "CHINTHE GUARDIAN",
@@ -435,7 +433,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_dragon",
     projectilePath: "/assets/towers/09_dragon_tower/projectile.png",
     iconPath: "/assets/towers/09_dragon_tower/icon.jpg",
-    displaySize: { width: 50, height: 74 },
+    displaySize: { width: 63, height: 93 },
     origin: { x: 0.5, y: 0.82 },
     tactical: {
       title: "DRAGON TOWER",
@@ -454,7 +452,7 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     projectileKey: "proj_sein_pyaung",
     projectilePath: "/assets/towers/10_sein_pyaung/vfx.png",
     iconPath: "/assets/towers/10_sein_pyaung/icon.jpg",
-    displaySize: { width: 56, height: 62 },
+    displaySize: { width: 70, height: 78 },
     origin: { x: 0.5, y: 0.82 },
     tactical: {
       title: "SEIN PYAUNG",

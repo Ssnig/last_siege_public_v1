@@ -1,4 +1,5 @@
 import { schema, t, type SchemaType } from "@colyseus/schema";
+import { TowerEffect } from "./TowerEffect.js";
 
 /**
  * A defender tower occupying a fixed slot from `MapDefinition.slots`.
@@ -18,6 +19,8 @@ export const Tower = schema({
   invested: t.uint16().default(0),
   cooldown: t.float32().default(0),
   targetId: t.string().optional(),
+  /** Active status effects (e.g. stun, haste, slow) currently riding on the tower. */
+  effects: t.map(TowerEffect),
 }, "Tower");
 
 export type Tower = SchemaType<typeof Tower>;

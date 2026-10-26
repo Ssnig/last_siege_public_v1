@@ -47,9 +47,21 @@ export const EFFECT_TYPES = {
   heal: "heal",
   /** Boosts the mob's movement speed. Magnitude is the bonus speed fraction (`0.4` = 40% faster). */
   haste: "haste",
+  /** Physical armor stacks gained reactively from taking physical hits (e.g. Belu Ogre). Magnitude is stack count (1..5). */
+  armor_stack: "armor_stack",
+  /** Mental strength stacks gained reactively from taking mental hits (e.g. Belu Ogre). Magnitude is stack count (1..5). */
+  mental_stack: "mental_stack",
+  /** Bleed damage over time from piercing weapons (e.g. Spear Tower). Magnitude is remaining damage. */
+  bleed: "bleed",
+  /** Drenched status from water attacks. Slows and multiplies incoming mental damage. */
+  drench: "drench",
+  /** Silences mob active auras and abilities (e.g. Chinthe Guardian roar). */
+  silence: "silence",
+  /** Physical armor stripped from heavy mortar shells (e.g. Sein Pyaung). Magnitude is flat armor stripped. */
+  armor_crush: "armor_crush",
 } as const;
 
-/** A status effect type. */
+/** A status effect type on a mob. */
 export type EffectType = (typeof EFFECT_TYPES)[keyof typeof EFFECT_TYPES];
 
 /** Default lifetime of each effect, in seconds. */
@@ -59,7 +71,29 @@ export const EFFECT_DURATION_SEC: Record<EffectType, number> = {
   stun: 1.5,
   heal: 3,
   haste: 4,
+  armor_stack: 9999,
+  mental_stack: 9999,
+  bleed: 3.0,
+  drench: 2.5,
+  silence: 2.0,
+  armor_crush: 9999,
 };
+
+/**
+ * Status effects (positive buffs and negative debuffs) a tower can carry.
+ */
+export const TOWER_EFFECT_TYPES = {
+  /** Disables the tower from acquiring targets or firing. Magnitude is stun duration in seconds. */
+  stun: "stun",
+  /** Boosts tower fire rate. Magnitude is fractional bonus (e.g. `0.25` = +25% fire rate). */
+  haste: "haste",
+  /** Reduces tower fire rate. Magnitude is fractional penalty (e.g. `0.25` = -25% fire rate). */
+  slow: "slow",
+} as const;
+
+/** A status effect type on a tower. */
+export type TowerEffectType =
+  (typeof TOWER_EFFECT_TYPES)[keyof typeof TOWER_EFFECT_TYPES];
 
 /** Armor of a mob type: flat physical damage absorbed per hit. */
 export function mobArmor(typeId: string): number {

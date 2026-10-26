@@ -304,8 +304,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
     // 5. Draw Tower Holders (H0..Hn) with authentic Burmese Lotus Stone Dais
     slots.forEach((s) => {
-      const baseW = 52 * holderScale;
-      const baseH = 40 * holderScale;
+      const baseW = 65 * holderScale;
+      const baseH = 50 * holderScale;
 
       if (towerBaseImgRef.current && isTowerBaseLoaded) {
         // Draw authentic Konbaung lotus stone foundation dais
@@ -319,7 +319,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       } else {
         // Fallback procedural dais
         ctx.beginPath();
-        ctx.ellipse(s.x, s.y, 26 * holderScale, 20 * holderScale, 0, 0, Math.PI * 2);
+        ctx.ellipse(s.x, s.y, 32 * holderScale, 25 * holderScale, 0, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(180, 83, 9, 0.4)";
         ctx.fill();
         ctx.strokeStyle = "#d97706";
@@ -333,7 +333,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         draggedItemRef.current?.index === s.slotIndex;
       if (isDraggingThis) {
         ctx.beginPath();
-        ctx.ellipse(s.x, s.y, 30 * holderScale, 24 * holderScale, 0, 0, Math.PI * 2);
+        ctx.ellipse(s.x, s.y, 36 * holderScale, 30 * holderScale, 0, 0, Math.PI * 2);
         ctx.strokeStyle = "#fef08a";
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 4]);
@@ -345,8 +345,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       if (previewTowers && archerTowerImgRef.current && isArcherTowerLoaded) {
         ctx.save();
         ctx.globalAlpha = 0.88;
-        const tW = 54 * holderScale;
-        const tH = 58 * holderScale;
+        const tW = 68 * holderScale;
+        const tH = 73 * holderScale;
         ctx.drawImage(
           archerTowerImgRef.current,
           0,
@@ -362,7 +362,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       }
 
       // Tower Holder badge (H0, H1) - Ornate Konbaung pill
-      const badgeY = previewTowers ? s.y - 56 * holderScale : s.y - 28 * holderScale;
+      const badgeY = previewTowers ? s.y - 68 * holderScale : s.y - 28 * holderScale;
       const badgeW = Math.max(28, 34 * holderScale);
       const badgeH = Math.max(16, 20 * holderScale);
       ctx.beginPath();

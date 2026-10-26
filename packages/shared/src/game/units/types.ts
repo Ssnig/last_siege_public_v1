@@ -1,9 +1,9 @@
 /** Supported mob support/buff ability archetypes. */
-export type MobAbilityType = "heal_aura" | "speed_aura";
+export type MobAbilityType = "heal_aura" | "speed_aura" | "self_heal";
 
 /** Active ability configuration for a support/caster mob. */
 export interface MobAbilityConfig {
-  /** Ability archetype (e.g. "heal_aura" or "speed_aura"). */
+  /** Ability archetype (e.g. "heal_aura", "speed_aura", or "self_heal"). */
   type: MobAbilityType;
   /** Radius in world px within which allied mobs are checked and affected. */
   radius: number;
@@ -13,6 +13,8 @@ export interface MobAbilityConfig {
   triggerHpThreshold?: number;
   /** Flat HP restored to each damaged ally in radius (capped at maxHp, for "heal_aura"). */
   healAmount?: number;
+  /** Fraction of maxHp restored on cast (e.g. 0.1 = 10% maxHp, for "self_heal"). */
+  healFraction?: number;
   /** Fractional movement speed bonus granted to allies in radius (e.g. 0.4 = +40%, for "speed_aura"). */
   speedBoost?: number;
   /** Duration in seconds of the applied speed buff (for "speed_aura"; < 0.5 * cooldownSec). */
@@ -24,6 +26,24 @@ export interface MobAbilityConfig {
   paceSlowFactor?: number;
   /** Seconds the caster pauses movement while playing its cast animation. */
   castDurationSec?: number;
+}
+
+/** Progressive movement speed ramp configuration for long-lane scaling units. */
+export interface MobSpeedRampConfig {
+  /** Maximum fractional speed bonus reached at `rampDurationSec` (`1.0` = +100% = 2x speed). */
+  maxBonusFraction: number;
+  /** Seconds of lane travel required to reach `maxBonusFraction`. */
+  rampDurationSec: number;
+}
+
+/** Reactive defense stacking when taking physical or mental hits (e.g. Belu Ogre). */
+export interface MobAdaptiveDefenseConfig {
+  /** Maximum total stacks combined across physical and mental hits (e.g. 5). */
+  maxStacks: number;
+  /** Flat physical armor gained per physical damage stack (e.g. 2.4 -> 12 armor at 5 stacks). */
+  armorPerStack: number;
+  /** Mental strength gained per mental damage stack (e.g. 0.2 -> 1.0 at 5 stacks). */
+  mentalStrengthPerStack: number;
 }
 
 /** Attacker unit (mob) archetype definition. */
@@ -60,6 +80,14 @@ export interface MobType {
    * targeting range, overriding normal nearest-to-base priority.
    */
   taunt?: boolean;
-  /** Optional active support/buff ability triggered along the lane. */
+  /** Optional active support/buff/self ability triggered along the lane. */
   ability?: MobAbilityConfig;
+  /** Optional progressive speed acceleration over time alive on the lane. */
+  speedRamp?: MobSpeedRampConfig;
+  /** Optional reactive armor / mental strength stacking upon taking hits. */
+  adaptiveDefense?: MobAdaptiveDefenseConfig;
+  /** Optional movement speed (in px/s) the mob drops to after taking its first hit. */
+  damagedSpeed?: number;
+  /** Optional duration (in seconds) to stun the tower that lands the killing blow on this mob. */
+  onDeathTowerStunSec?: number;
 }

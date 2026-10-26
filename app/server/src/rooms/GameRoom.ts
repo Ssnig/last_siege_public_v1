@@ -5,6 +5,7 @@ import {
   RoomState,
   Player,
   Tower,
+  TowerEffect,
   Mob,
   MobEffect,
   Projectile,
@@ -34,6 +35,8 @@ import {
   portalChargeRules,
   DAMAGE_TYPES,
   EFFECT_TYPES,
+  EFFECT_DURATION_SEC,
+  TOWER_EFFECT_TYPES,
   combineEffectMagnitude,
   effectiveSpeed,
   mentalDamageTaken,
@@ -50,6 +53,7 @@ import {
   type DraftReadyIntent,
   type DraftRoundUpdatePayload,
   type EffectType,
+  type TowerEffectType,
   type GameOverPayload,
   type GameOverReason,
   type MapDefinition,
@@ -62,6 +66,7 @@ import {
   type TowerAttackPayload,
   type UpgradeTowerIntent,
   type TowerTier,
+  type TowerTierSpecial,
   type Vec2,
   type YouEconomyPayload,
   type RatingUpdateInfo,
@@ -280,6 +285,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   /** Remaining cast-animation movement pause in seconds per caster mob id. */
   private mobCastPause = new Map<string, number>();
+
+  /** Slot index of the tower that spawned each in-flight projectile, keyed by projectile id. */
+  private projectileSourceSlot = new Map<string, number>();
+
+  /** Scaling special tier configuration of the tower that fired each in-flight projectile. */
+  private projectileSpecial = new Map<string, TowerTierSpecial>();
+
+  /** Current consecutive shot wind-up stacks for ramping fire-rate towers (Archer), keyed by `${ownerId}-${slotIndex}`. */
+  private towerWindupStacks = new Map<string, number>();
+
+  /** Match time in seconds when a tower last fired, keyed by `${ownerId}-${slotIndex}`. */
+  private towerLastFireTime = new Map<string, number>();
+
+  /** Elapsed time in seconds each living mob has spent on the lane, keyed by mob id. */
+  private mobAliveSec = new Map<string, number>();
+
+  /** Initial spawn speed of each living mob (before progressive speed ramps), keyed by mob id. */
+  private mobInitialSpeed = new Map<string, number>();
 
   plugins = definePlugins({
     /**
@@ -966,6 +989,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
         : sellRefund(tower.invested);
 
     this.state.towers.delete(payload.towerId);
+    const towerKey = `${client.sessionId}-${tower.slotIndex}`;
+    this.towerWindupStacks.delete(towerKey);
+    this.towerLastFireTime.delete(towerKey);
     this.economies.set(
       client.sessionId,
       (this.economies.get(client.sessionId) ?? 0) + refund,
@@ -1596,6 +1622,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.clearProjectiles();
     this.resetCombatRuntime();
     this.state.towers.clear();
+    this.towerWindupStacks.clear();
+    this.towerLastFireTime.clear();
     this.attackerBuffers.clear();
     this.acceptedDecks.clear();
     this.state.coreHp = MATCH_RULES.coreHp;
@@ -2050,6 +2078,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     } else if (this.lastPhase === "combat") {
       this.clearMobs();
       this.clearProjectiles();
+      this.towerWindupStacks.clear();
+      this.towerLastFireTime.clear();
       this.releaseQueue = [];
     }
 
@@ -2065,6 +2095,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private beginCombatSim(): void {
     this.incomeExpired = false;
     this.incomePushAccumulator = 0;
+    this.towerWindupStacks.clear();
+    this.towerLastFireTime.clear();
     this.state.suddenDeath = false;
     this.portalCharges.clear();
 
@@ -2320,8 +2352,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.suddenDeath = false;
     this.projectileAim.clear();
     this.projectileSplash.clear();
+    this.projectileSourceSlot.clear();
     this.mobAbilityCooldowns.clear();
     this.mobCastPause.clear();
+    this.mobAliveSec.clear();
+    this.mobInitialSpeed.clear();
   }
 
   /** Named path ids on a map that are long enough to actually walk. */
@@ -2353,6 +2388,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       const jitter = 1 + (Math.random() * 2 - 1) * MOB_SPEED_JITTER;
       const id = `mob-${batchId}-${assignedPathId}-${i}`;
 
+      const speed = type.speed * jitter;
+      this.mobInitialSpeed.set(id, speed);
+
       this.state.mobs.set(
         id,
         new Mob({
@@ -2362,7 +2400,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
           progress: 0,
           hp: type.maxHp,
           maxHp: type.maxHp,
-          speed: type.speed * jitter,
+          speed,
           bounty: type.bounty,
           checkpoint: 0,
           state: "moving",
@@ -2416,6 +2454,24 @@ export class GameRoom extends Room<{ state: RoomState }> {
       }
 
       this.tickMobEffects(mob, dt);
+      if (mob.hp <= 0) {
+        const bleed = mob.effects.get(EFFECT_TYPES.bleed);
+        const killerOwnerId = bleed?.sourceId || "";
+        this.killMob(id, mob, killerOwnerId);
+        continue;
+      }
+      const aliveSec = (this.mobAliveSec.get(id) ?? 0) + dt;
+      this.mobAliveSec.set(id, aliveSec);
+
+      const mobType = MOB_TYPES[mob.typeId];
+      if (mobType?.speedRamp) {
+        const initialSpeed = this.mobInitialSpeed.get(id) ?? mob.speed;
+        const ratio =
+          mobType.speedRamp.rampDurationSec > 0
+            ? Math.min(1, aliveSec / mobType.speedRamp.rampDurationSec)
+            : 1;
+        mob.speed = initialSpeed * (1 + mobType.speedRamp.maxBonusFraction * ratio);
+      }
 
       // Pause movement while playing an ability cast animation.
       const castPause = this.mobCastPause.get(id);
@@ -2431,7 +2487,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       }
 
       const hasPaceSlow =
-        MOB_TYPES[mob.typeId]?.ability?.paceSlowFactor !== undefined;
+        mobType?.ability?.paceSlowFactor !== undefined;
       const speed = this.mobSpeed(
         mob,
         id,
@@ -2440,7 +2496,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
       mob.progress += (speed / total) * dt;
 
       if (mob.progress >= 1) {
-        const mobType = MOB_TYPES[mob.typeId];
         this.leakToCore(mobType?.leakDamage ?? 0);
 
         // Leak pity refund: defender receives a portion of bounty so leaks don't cause starvation
@@ -2466,6 +2521,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.state.mobs.delete(id);
       this.mobAbilityCooldowns.delete(id);
       this.mobCastPause.delete(id);
+      this.mobAliveSec.delete(id);
+      this.mobInitialSpeed.delete(id);
     }
   }
 
@@ -2503,6 +2560,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (this.state.mobs.size > 0) this.state.mobs.clear();
     this.mobAbilityCooldowns.clear();
     this.mobCastPause.clear();
+    this.mobAliveSec.clear();
+    this.mobInitialSpeed.clear();
   }
 
   /**
@@ -2535,8 +2594,21 @@ export class GameRoom extends Room<{ state: RoomState }> {
       );
       positions.set(id, point);
       const remaining = Math.max(0, 1 - mob.progress) * pathLength(path);
-      const taunt = MOB_TYPES[mob.typeId]?.taunt;
-      candidates.push({ id, x: point.x, y: point.y, remaining, taunt });
+      const mobType = MOB_TYPES[mob.typeId];
+      const taunt = mobType?.taunt;
+      const isSupport =
+        mob.typeId === "say_sayar" ||
+        mob.typeId === "doe_pat" ||
+        mobType?.ability?.type === "heal_aura" ||
+        mobType?.ability?.type === "speed_aura";
+      candidates.push({
+        id,
+        x: point.x,
+        y: point.y,
+        remaining,
+        taunt,
+        support: isSupport,
+      });
     }
 
     this.simulateProjectiles(dt, positions);
@@ -2562,6 +2634,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     for (const [casterId, caster] of this.state.mobs) {
       if (caster.hp <= 0) continue;
+      // Silenced mobs cannot cast abilities
+      if (caster.effects.has(EFFECT_TYPES.silence)) continue;
       const type = MOB_TYPES[caster.typeId];
       const ability = type?.ability;
       if (!ability) continue;
@@ -2678,6 +2752,29 @@ export class GameRoom extends Room<{ state: RoomState }> {
           targetIds: boostedIds,
         };
         this.broadcast(MESSAGES.mobAbility, payload);
+      } else if (ability.type === "self_heal") {
+        if (caster.hp >= caster.maxHp) {
+          continue;
+        }
+        const healAmount = Math.max(
+          1,
+          Math.round(caster.maxHp * (ability.healFraction ?? 0.1)),
+        );
+        caster.hp = Math.min(caster.maxHp, caster.hp + healAmount);
+
+        this.mobAbilityCooldowns.set(casterId, ability.cooldownSec);
+        const castDuration = ability.castDurationSec ?? 0.4;
+        if (castDuration > 0) {
+          this.mobCastPause.set(casterId, castDuration);
+          caster.state = "casting";
+        }
+
+        const payload: MobAbilityPayload = {
+          casterId,
+          abilityType: "self_heal",
+          targetIds: [casterId],
+        };
+        this.broadcast(MESSAGES.mobAbility, payload);
       }
     }
   }
@@ -2689,13 +2786,44 @@ export class GameRoom extends Room<{ state: RoomState }> {
     candidates: readonly TargetCandidate[],
   ): void {
     for (const tower of this.state.towers.values()) {
+      this.tickTowerEffects(tower, dt);
+
+      // Stunned towers cannot acquire targets, count down cooldown, or fire.
+      if (tower.effects.has(TOWER_EFFECT_TYPES.stun)) {
+        tower.targetId = undefined;
+        continue;
+      }
+
       const type = TOWER_TYPES[tower.typeId];
       const tier = type ? tierAt(type, tower.level) : null;
       const slot = map.slots.find((s) => s.slotIndex === tower.slotIndex);
       if (!tier || !slot) continue;
 
+      // Apply tower haste / slow status effects to cooldown recovery rate.
+      const towerHaste =
+        tower.effects.get(TOWER_EFFECT_TYPES.haste)?.magnitude ?? 0;
+      const towerSlow =
+        tower.effects.get(TOWER_EFFECT_TYPES.slow)?.magnitude ?? 0;
+      const cdRate = Math.max(
+        0.1,
+        (1 - Math.min(0.9, towerSlow)) * (1 + Math.max(0, towerHaste)),
+      );
+
       // Clamp so a long idle period never stockpiles "negative" cooldown.
-      tower.cooldown = Math.max(0, tower.cooldown - dt);
+      tower.cooldown = Math.max(0, tower.cooldown - dt * cdRate);
+
+      // Archer wind-up: consecutive shots build +10% fire rate stacks up to windupMaxBonus.
+      // If idle > 2.0s without firing, stacks decay to 0.
+      const towerKey = `${tower.ownerId}-${tower.slotIndex}`;
+      const lastFire = this.towerLastFireTime.get(towerKey) ?? 0;
+      if (this.matchTime - lastFire > 2.0) {
+        this.towerWindupStacks.set(towerKey, 0);
+      }
+      const windupStacks = this.towerWindupStacks.get(towerKey) ?? 0;
+      const windupBonus = tier.special?.windupMaxBonus
+        ? Math.min(tier.special.windupMaxBonus, windupStacks * 0.10)
+        : 0;
+      const effectiveFireRate = tier.fireRate * (1 + windupBonus);
 
       if (type?.attackMode === "aoe_pulse") {
         const inRange = candidates.filter(
@@ -2704,7 +2832,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
         tower.targetId = inRange[0]?.id;
         if (inRange.length === 0 || tower.cooldown > 0) continue;
 
-        tower.cooldown = 1 / tier.fireRate;
+        tower.cooldown = 1 / effectiveFireRate;
+        this.towerWindupStacks.set(towerKey, windupStacks + 1);
+        this.towerLastFireTime.set(towerKey, this.matchTime);
+
         const damageType = type.damageType ?? DAMAGE_TYPES.mental;
         const targetIds: string[] = [];
         const targets: Array<{ id: string; x: number; y: number }> = [];
@@ -2716,6 +2847,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
             this.towerDamage(tier),
             tower.ownerId,
             damageType,
+            tower.typeId,
+            tower.slotIndex,
+            tier.special,
           );
         }
 
@@ -2729,12 +2863,19 @@ export class GameRoom extends Room<{ state: RoomState }> {
         continue;
       }
 
-      const target = selectTarget(candidates, slot, tier.range);
+      const target = selectTarget(
+        candidates,
+        slot,
+        tier.range,
+        !!tier.special?.prioritizeSupport,
+      );
       tower.targetId = target?.id;
 
       if (!target || tower.cooldown > 0) continue;
 
-      tower.cooldown = 1 / tier.fireRate;
+      tower.cooldown = 1 / effectiveFireRate;
+      this.towerWindupStacks.set(towerKey, windupStacks + 1);
+      this.towerLastFireTime.set(towerKey, this.matchTime);
       this.spawnProjectile(tower, slot, target, tier);
     }
   }
@@ -2780,6 +2921,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     // land (and artillery can still splash) after its target dies.
     this.projectileAim.set(id, { x: target.x, y: target.y });
     this.projectileSplash.set(id, TOWER_TYPES[tower.typeId]?.splashRadius ?? 0);
+    this.projectileSourceSlot.set(id, tower.slotIndex);
+    if (tier.special) {
+      this.projectileSpecial.set(id, tier.special);
+    }
   }
 
   /** Homes every projectile toward its aim and resolves the shot on arrival. */
@@ -2822,6 +2967,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.state.projectiles.delete(id);
       this.projectileAim.delete(id);
       this.projectileSplash.delete(id);
+      this.projectileSourceSlot.delete(id);
+      this.projectileSpecial.delete(id);
     }
   }
 
@@ -2856,10 +3003,20 @@ export class GameRoom extends Room<{ state: RoomState }> {
       }
     }
 
+    const sourceSlotIndex = this.projectileSourceSlot.get(id);
+    const special = this.projectileSpecial.get(id);
     for (const mobId of hit) {
       const damageType =
         TOWER_TYPES[projectile.typeId]?.damageType ?? DAMAGE_TYPES.physical;
-      this.damageMob(mobId, projectile.damage, ownerId, damageType, projectile.typeId);
+      this.damageMob(
+        mobId,
+        projectile.damage,
+        ownerId,
+        damageType,
+        projectile.typeId,
+        sourceSlotIndex,
+        special,
+      );
     }
   }
 
@@ -2877,23 +3034,165 @@ export class GameRoom extends Room<{ state: RoomState }> {
     ownerId: string,
     damageType: DamageType,
     sourceTowerTypeId?: string,
+    sourceSlotIndex?: number,
+    special?: TowerTierSpecial,
   ): void {
     const mob = this.state.mobs.get(mobId);
     if (!mob) return;
 
     const type = MOB_TYPES[mob.typeId];
+    const adaptive = type?.adaptiveDefense;
+    const physStacks =
+      mob.effects.get(EFFECT_TYPES.armor_stack)?.magnitude ?? 0;
+    const mentalStacks =
+      mob.effects.get(EFFECT_TYPES.mental_stack)?.magnitude ?? 0;
+
+    // Flat armor stripped by Sein Pyaung armor_crush
+    const armorCrush =
+      mob.effects.get(EFFECT_TYPES.armor_crush)?.magnitude ?? 0;
+    const rawArmor =
+      (type?.armor ?? 0) + (adaptive ? physStacks * adaptive.armorPerStack : 0);
+    const baseEffectiveArmor = Math.max(0, rawArmor - armorCrush);
+
+    // Cannon armor pierce ignores a fraction of effective armor
+    const effectiveArmor =
+      special?.armorPierceRatio !== undefined && special.armorPierceRatio > 0
+        ? Math.max(0, baseEffectiveArmor * (1 - special.armorPierceRatio))
+        : baseEffectiveArmor;
+
+    // Water Cannon drench status amplifies incoming mental damage
+    const drenchMag =
+      mob.effects.get(EFFECT_TYPES.drench)?.magnitude ?? 0;
+
     const applied =
       damageType === DAMAGE_TYPES.mental
-        ? mentalDamageTaken(damage, this.debuffMagnitude(mob))
-        : physicalDamageTaken(damage, type?.armor ?? 0);
+        ? mentalDamageTaken(damage, this.debuffMagnitude(mob)) * (1 + drenchMag)
+        : physicalDamageTaken(damage, effectiveArmor);
 
-    mob.hp = Math.max(0, mob.hp - Math.round(applied));
+    const roundedDamage = Math.round(applied);
+    mob.hp = Math.max(0, mob.hp - roundedDamage);
+
+    // Monkey Burst of Speed: drops from very fast initial speed to average speed upon first taking damage
+    if (
+      roundedDamage > 0 &&
+      type?.damagedSpeed !== undefined &&
+      mob.speed > type.damagedSpeed
+    ) {
+      mob.speed = type.damagedSpeed;
+      this.mobInitialSpeed.set(mobId, type.damagedSpeed);
+    }
+
+    // Belu Ogre Adaptive Defense: gains physical armor stack on physical hit or mental strength stack on mental hit (max 5 combined)
+    if (adaptive && damage > 0) {
+      const totalStacks = physStacks + mentalStacks;
+      if (totalStacks < adaptive.maxStacks) {
+        if (damageType === DAMAGE_TYPES.physical) {
+          mob.effects.set(
+            EFFECT_TYPES.armor_stack,
+            new MobEffect({
+              type: EFFECT_TYPES.armor_stack,
+              magnitude: physStacks + 1,
+              remaining: EFFECT_DURATION_SEC.armor_stack,
+              sourceId: ownerId,
+            }),
+          );
+        } else if (damageType === DAMAGE_TYPES.mental) {
+          mob.effects.set(
+            EFFECT_TYPES.mental_stack,
+            new MobEffect({
+              type: EFFECT_TYPES.mental_stack,
+              magnitude: mentalStacks + 1,
+              remaining: EFFECT_DURATION_SEC.mental_stack,
+              sourceId: ownerId,
+            }),
+          );
+        }
+      }
+    }
 
     if (damageType === DAMAGE_TYPES.mental) {
       this.applyMentalDebuff(mob, type, ownerId);
     }
 
-    // Apply any tower-specific on-hit status effects (e.g. Cannon 25% slow for 1.5s)
+    // Sein Pyaung: Permanently strips physical armor from the target per hit
+    if (special?.armorStripPermanent !== undefined && special.armorStripPermanent > 0) {
+      const existingCrush =
+        mob.effects.get(EFFECT_TYPES.armor_crush)?.magnitude ?? 0;
+      mob.effects.set(
+        EFFECT_TYPES.armor_crush,
+        new MobEffect({
+          type: EFFECT_TYPES.armor_crush,
+          magnitude: existingCrush + special.armorStripPermanent,
+          remaining: EFFECT_DURATION_SEC.armor_crush,
+          sourceId: ownerId,
+        }),
+      );
+    }
+
+    // Water Cannon: Drench and slow status
+    if (special?.drenchSlow !== undefined && special.drenchSlow > 0) {
+      this.applyMobEffect(
+        mob,
+        EFFECT_TYPES.slow,
+        special.drenchSlow,
+        EFFECT_DURATION_SEC.drench,
+        ownerId,
+      );
+    }
+    if (special?.drenchVulnerability !== undefined && special.drenchVulnerability > 0) {
+      this.applyMobEffect(
+        mob,
+        EFFECT_TYPES.drench,
+        special.drenchVulnerability,
+        EFFECT_DURATION_SEC.drench,
+        ownerId,
+      );
+    }
+
+    // Bell Tower: Echoing terror AoE pulse slow
+    if (special?.pulseSlow !== undefined && special.pulseSlow > 0) {
+      this.applyMobEffect(
+        mob,
+        EFFECT_TYPES.slow,
+        special.pulseSlow,
+        1.5,
+        ownerId,
+      );
+    }
+
+    // Spear Tower: Lacerating bleed
+    if (special?.bleedTotalDamage !== undefined && special.bleedTotalDamage > 0) {
+      this.applyMobEffect(
+        mob,
+        EFFECT_TYPES.bleed,
+        special.bleedTotalDamage,
+        EFFECT_DURATION_SEC.bleed,
+        ownerId,
+      );
+    }
+
+    // Chinthe Guardian: Sacred roar silence
+    if (special?.silenceSec !== undefined && special.silenceSec > 0) {
+      this.applyMobEffect(
+        mob,
+        EFFECT_TYPES.silence,
+        1,
+        special.silenceSec,
+        ownerId,
+      );
+    }
+
+    // Bomb Throwing Tower / Chinthe Guardian: Knockback along path
+    if (special?.knockbackPx !== undefined && special.knockbackPx > 0) {
+      const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+      const path = this.pathFor(map, mob.pathId);
+      const total = path ? pathLength(path) : 0;
+      if (total > 0) {
+        mob.progress = Math.max(0, mob.progress - special.knockbackPx / total);
+      }
+    }
+
+    // Apply any general tower-specific on-hit status effects
     if (sourceTowerTypeId) {
       const towerDef = TOWER_TYPES[sourceTowerTypeId];
       if (towerDef?.onHitEffect) {
@@ -2909,10 +3208,105 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (mob.hp > 0) return;
 
+    this.killMob(mobId, mob, ownerId, sourceSlotIndex, sourceTowerTypeId, special);
+  }
+
+  /**
+   * Resolves on-death mechanics (Sone Ma stun, Dragon detonation, Gun bounty bonus),
+   * removes the mob from the field, and awards the defender their bounty.
+   */
+  private killMob(
+    mobId: string,
+    mob: Mob,
+    ownerId: string,
+    sourceSlotIndex?: number,
+    sourceTowerTypeId?: string,
+    special?: TowerTierSpecial,
+  ): void {
+    const type = MOB_TYPES[mob.typeId];
+
+    // Sone Ma On-Death Curse: stuns the tower that killed her for 5 seconds
+    if (
+      type?.onDeathTowerStunSec &&
+      type.onDeathTowerStunSec > 0 &&
+      sourceSlotIndex !== undefined
+    ) {
+      const killerTower = [...this.state.towers.values()].find(
+        (t) => t.slotIndex === sourceSlotIndex,
+      );
+      if (killerTower) {
+        this.applyTowerEffect(
+          killerTower,
+          TOWER_EFFECT_TYPES.stun,
+          type.onDeathTowerStunSec,
+          type.onDeathTowerStunSec,
+          mobId,
+        );
+      }
+    }
+
+    // Dragon Tower: Cataclysmic detonation on kill
+    if (
+      sourceTowerTypeId === "dragon" &&
+      special?.deathExplosionDamage !== undefined &&
+      special.deathExplosionDamage > 0
+    ) {
+      const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+      const path = this.pathFor(map, mob.pathId);
+      if (path && path.length >= 2) {
+        const halfWidth = map.pathHalfWidth ?? 0;
+        const deathPos = samplePathWithLateral(
+          path,
+          mob.progress,
+          mob.seed,
+          halfWidth,
+        );
+        const radius = special.deathExplosionRadius ?? 50;
+        const explosionDamage = special.deathExplosionDamage;
+
+        this.broadcast(MESSAGES.mobDeathExplosion, {
+          mobId,
+          x: deathPos.x,
+          y: deathPos.y,
+          radius,
+          sourceTowerTypeId: "dragon",
+        });
+
+        // Damage all other living mobs within explosion radius
+        for (const [otherId, otherMob] of this.state.mobs) {
+          if (otherId === mobId || otherMob.hp <= 0) continue;
+          const otherPath = this.pathFor(map, otherMob.pathId);
+          if (!otherPath || otherPath.length < 2) continue;
+          const otherPos = samplePathWithLateral(
+            otherPath,
+            otherMob.progress,
+            otherMob.seed,
+            halfWidth,
+          );
+          if (Math.hypot(otherPos.x - deathPos.x, otherPos.y - deathPos.y) <= radius) {
+            this.damageMob(
+              otherId,
+              explosionDamage,
+              ownerId,
+              DAMAGE_TYPES.mental,
+              "dragon",
+              sourceSlotIndex,
+              special,
+            );
+          }
+        }
+      }
+    }
+
     this.state.mobs.delete(mobId);
     this.mobAbilityCooldowns.delete(mobId);
     this.mobCastPause.delete(mobId);
-    this.awardBounty(ownerId, mob.bounty);
+    this.mobAliveSec.delete(mobId);
+    this.mobInitialSpeed.delete(mobId);
+
+    // Bounty: Base bounty + bonus gold on kill if Gun Tower
+    const bonusGold = special?.bonusGoldOnKill ?? 0;
+    this.awardBounty(ownerId, mob.bounty + bonusGold);
   }
 
   /**
@@ -2938,19 +3332,41 @@ export class GameRoom extends Room<{ state: RoomState }> {
     type: MobType | undefined,
     sourceId: string,
   ): void {
-    const strength = type?.mentalStrength ?? 0.5;
+    const adaptive = type?.adaptiveDefense;
+    const mentalStacks =
+      mob.effects.get(EFFECT_TYPES.mental_stack)?.magnitude ?? 0;
+    const strength = Math.min(
+      1,
+      (type?.mentalStrength ?? 0.5) +
+        (adaptive ? mentalStacks * adaptive.mentalStrengthPerStack : 0),
+    );
     const magnitude = mentalDebuffMagnitude(strength);
 
     // A mob with full mental strength shrugs the crack off completely.
-    if (magnitude <= 0) return;
+    if (magnitude <= 0) {
+      mob.effects.delete(EFFECT_TYPES.debuff);
+      return;
+    }
 
-    this.applyMobEffect(
-      mob,
-      EFFECT_TYPES.debuff,
-      magnitude,
-      DEFAULT_COMBAT_RULES.debuffDurationSec,
-      sourceId,
-    );
+    // For adaptive defense mobs whose mental strength grows per mental hit,
+    // update any existing debuff downward to reflect their increased resolve.
+    const existingDebuff = mob.effects.get(EFFECT_TYPES.debuff);
+    if (existingDebuff && adaptive) {
+      existingDebuff.magnitude = magnitude;
+      existingDebuff.remaining = Math.max(
+        existingDebuff.remaining,
+        DEFAULT_COMBAT_RULES.debuffDurationSec,
+      );
+      if (sourceId) existingDebuff.sourceId = sourceId;
+    } else {
+      this.applyMobEffect(
+        mob,
+        EFFECT_TYPES.debuff,
+        magnitude,
+        DEFAULT_COMBAT_RULES.debuffDurationSec,
+        sourceId,
+      );
+    }
 
     // A fully broken mob also loses its footing.
     if (strength <= 0) {
@@ -2998,8 +3414,48 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (mob.effects.size === 0) return;
 
     for (const [key, effect] of [...mob.effects]) {
+      // Spear bleed: deals physical damage continuously over duration
+      if (key === EFFECT_TYPES.bleed && effect.remaining > 0) {
+        const totalDuration = EFFECT_DURATION_SEC.bleed || 3.0;
+        const damageThisTick = (effect.magnitude / totalDuration) * dt;
+        mob.hp = Math.max(0, mob.hp - damageThisTick);
+      }
+
       effect.remaining -= dt;
       if (effect.remaining <= 0) mob.effects.delete(key);
+    }
+  }
+
+  /** Puts a status effect (e.g. stun, haste, slow) on a tower. */
+  private applyTowerEffect(
+    tower: Tower,
+    type: TowerEffectType,
+    magnitude: number,
+    durationSec: number,
+    sourceId: string,
+  ): void {
+    const existing = tower.effects.get(type);
+
+    if (existing) {
+      existing.magnitude = combineEffectMagnitude(existing.magnitude, magnitude);
+      existing.remaining = Math.max(existing.remaining, durationSec);
+      if (sourceId) existing.sourceId = sourceId;
+      return;
+    }
+
+    tower.effects.set(
+      type,
+      new TowerEffect({ type, magnitude, remaining: durationSec, sourceId }),
+    );
+  }
+
+  /** Counts a tower's status effects down and drops expired ones. */
+  private tickTowerEffects(tower: Tower, dt: number): void {
+    if (tower.effects.size === 0) return;
+
+    for (const [key, effect] of [...tower.effects]) {
+      effect.remaining -= dt;
+      if (effect.remaining <= 0) tower.effects.delete(key);
     }
   }
 
@@ -3012,11 +3468,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (mob.effects.has(EFFECT_TYPES.stun)) return 0;
 
     let baseSpeed = mob.speed;
-    const ability = MOB_TYPES[mob.typeId]?.ability;
+    const mobType = MOB_TYPES[mob.typeId];
+    const ability = mobType?.ability;
     if (
       ability?.paceSlowFactor !== undefined &&
       mobId !== undefined &&
-      positions
+      positions &&
+      !mob.effects.has(EFFECT_TYPES.silence)
     ) {
       const selfPos = positions.get(mobId);
       if (selfPos) {
@@ -3066,5 +3524,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (this.state.projectiles.size > 0) this.state.projectiles.clear();
     this.projectileAim.clear();
     this.projectileSplash.clear();
+    this.projectileSourceSlot.clear();
+    this.projectileSpecial.clear();
   }
 }
