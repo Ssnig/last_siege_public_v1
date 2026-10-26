@@ -17,12 +17,12 @@ const UNIT_EXTRA_DATA: Record<string, UnitVisualAndLore> = {
   monkey: {
     faceUrl: '/assets/units/monkey/face.jpg',
     sheetUrl: '/assets/units/monkey/spritesheet.png',
-    role: 'Fast Swarmer & Economy Builder',
+    role: 'Burst-Speed Swarmer & Economy Builder',
     title: 'Forest Scavenger',
-    description: 'Agile simian raiders that bolt through lanes at blinding speed. Cheap to deploy, perfect for early income farming and slipping through slow single-shot defenses.',
-    tacticalTip: 'Send in dense batches during early rounds to boost recurring gold income without breaking your budget.',
-    bestPairedWith: ['Shield Bearer (to soak arrows)', 'Doe Pat Drummer (for supersonic rush)'],
-    counteredBy: ['Archer Tower (rapid fire)', 'Cannon (splash stagger)'],
+    description: 'Agile simian raiders that bolt out of the gates with an initial 130 Burst of Speed! Once struck by any tower damage, they drop down to an average 65 movement speed.',
+    tacticalTip: 'Pair with a Shield Bearer in front to soak hits so Monkeys maintain their 130 sprint speed much deeper into the lane!',
+    bestPairedWith: ['Shield Bearer (to preserve burst speed)', 'Doe Pat Drummer (for supersonic rush)'],
+    counteredBy: ['Bell Tower (AoE strips burst speed early)', 'Archer Tower (rapid fire)'],
   },
   horse_rider: {
     faceUrl: '/assets/units/horse_rider/face.jpg',
@@ -57,12 +57,12 @@ const UNIT_EXTRA_DATA: Record<string, UnitVisualAndLore> = {
   a_ba: {
     faceUrl: '/assets/units/a_ba/face.jpg',
     sheetUrl: '/assets/units/a_ba/spritesheet.png',
-    role: 'High-Resolve Nat Medium',
+    role: 'Accelerating Nat Medium',
     title: 'Spirit Medium (A-Ba)',
-    description: 'Revered shaman communing with the 37 Nats. Sturdy health pool combined with full mental immunity (1.0 Mental Strength).',
-    tacticalTip: 'Exceptional frontline leader that absorbs spiritual spells while advancing steadily toward the palace.',
-    bestPairedWith: ['Say Sayar', 'Bush Sneak'],
-    counteredBy: ['Concentrated Physical Burst', 'Gun Tower'],
+    description: 'Revered shaman communing with the 37 Nats. Starts at a steady 45 speed and continuously accelerates as he progresses along the path, reaching 2x speed (90) after 25 seconds.',
+    tacticalTip: 'Ideal for long winding lanes! Combine with full mental immunity (100% Mental Strength) to race through late-lane defenses.',
+    bestPairedWith: ['Say Sayar (keeps him alive during ramp)', 'Shield Bearer'],
+    counteredBy: ['Front-Loaded Physical Burst', 'Gun Tower'],
   },
   chon_toe: {
     faceUrl: '/assets/units/chon_toe/face.jpg',
@@ -127,22 +127,22 @@ const UNIT_EXTRA_DATA: Record<string, UnitVisualAndLore> = {
   belu: {
     faceUrl: '/assets/units/Belu/face.jpg',
     sheetUrl: '/assets/units/Belu/spritesheet.png',
-    role: 'Mythical Ogre Behemoth',
+    role: 'Adaptive Mythical Ogre Behemoth',
     title: 'Belu Ogre',
-    description: 'Fearsome horned ogre descending from legendary folklore. Possesses monstrous 950 HP, 7 heavy armor, and a devastating 5 Leak Damage upon breaching the royal court.',
-    tacticalTip: 'A terrifying siege juggernaut with 80% mental resistance. Unlike Sar Bal Gyi, the Belu easily withstands bell resonance, demanding heavy physical or mortar fire.',
+    description: 'Fearsome horned ogre with 950 HP that starts at 0 Armor and 0% Mental Strength, but adapts whenever hit (up to 5 total stacks): up to 12 Armor at 5 physical hits or 100% Mental Strength at 5 mental hits.',
+    tacticalTip: 'Punishes mono-damage defense lines! Defenders must mix physical and mental towers carefully or bait his 5 adaptive stacks early.',
     bestPairedWith: ['Say Sayar (massive HP pool healing)', 'Doe Pat Drummer (overcoming slow stride)'],
-    counteredBy: ['Spear Tower (piercing thrusts)', 'Sein Pyaung Mortar (crushing artillery)'],
+    counteredBy: ['Mixed Physical + Mental Defense', 'Sein Pyaung Mortar (high single-hit burst)'],
   },
   brute: {
     faceUrl: '/assets/units/Brute/face.png',
     sheetUrl: '/assets/units/Brute/spritesheet.png',
-    role: 'Armored Shock Linebreaker',
+    role: 'Self-Regenerating Shock Bruiser',
     title: 'Heavy Brute',
-    description: 'Towering warrior bearing hefty plate armor and iron gauntlets. Built to absorb concentrated crossfire and clear the vanguard line for faster allies.',
-    tacticalTip: 'Formidable mid-game anchor with 560 HP and 5 armor. Susceptible to mental terror due to low resolve (25%), so steer clear of bell resonance.',
+    description: 'Resilient bandit enforcer with 460 HP and 4 armor who regenerates 10% of his maximum health every 10 seconds whenever injured.',
+    tacticalTip: 'Excels against chip damage and spread-out defenses where his 10-second self-heal can trigger multiple times down the lane.',
     bestPairedWith: ['Bandit Raider (follow-up surge)', 'Say Sayar Physician'],
-    counteredBy: ['Bell Tower (low mental resolve)', 'High-Tier Gun Tower'],
+    counteredBy: ['Bell Tower (low mental resolve)', 'Concentrated Single-Target Burst'],
   },
   general: {
     faceUrl: '/assets/units/General/face.jpg',
@@ -157,12 +157,12 @@ const UNIT_EXTRA_DATA: Record<string, UnitVisualAndLore> = {
   sone_ma: {
     faceUrl: '/assets/units/SoneMa/face.jpg',
     sheetUrl: '/assets/units/SoneMa/spritesheet.png',
-    role: 'Occult Nat Sorceress',
+    role: 'Occult Hex Sorceress',
     title: 'Sone Ma Sorceress',
-    description: 'Mystical practitioner of ancient occult arts and spirit charms. Possesses an unshakeable 1.0 Mental Strength, rendering all spiritual bells and mental crack harmless.',
-    tacticalTip: 'Complete mental immunity combined with high 65 movement speed makes Sone Ma the ultimate threat against magic and bell fortifications.',
-    bestPairedWith: ['Belu Ogre (physical tank)', 'Doe Pat Drummer'],
-    counteredBy: ['Archer Tower (rapid physical volleys)', 'Gun Tower Sniper'],
+    description: 'Mystical practitioner of ancient occult arts. Possesses 100% Mental Strength and unleashes a Dying Hex when slain, stunning the tower that killed her for 5 seconds!',
+    tacticalTip: 'Send Sone Ma ahead of your main wave so a high-value defender tower kills her and gets stunned for 5 full seconds while your heavy units march past!',
+    bestPairedWith: ['War Elephant (capitalizes on stunned tower)', 'Belu Ogre'],
+    counteredBy: ['Low-cost Archer Tower (baits the death stun away from heavy towers)'],
   },
 };
 
@@ -253,9 +253,34 @@ export const AlmanacUnitsTab: React.FC = () => {
                         Healer
                       </span>
                     )}
+                    {m?.ability?.type === 'self_heal' && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 border border-emerald-500/60 text-emerald-300">
+                        Self-Heal
+                      </span>
+                    )}
                     {m?.ability?.type === 'speed_aura' && (
                       <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-yellow-950 border border-yellow-500/60 text-yellow-300">
                         Drummer
+                      </span>
+                    )}
+                    {m?.speedRamp && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-950 border border-sky-500/60 text-sky-300">
+                        Ramp
+                      </span>
+                    )}
+                    {m?.adaptiveDefense && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-950 border border-purple-500/60 text-purple-300">
+                        Adaptive
+                      </span>
+                    )}
+                    {m?.damagedSpeed !== undefined && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-950 border border-amber-500/60 text-amber-300">
+                        Burst
+                      </span>
+                    )}
+                    {m?.onDeathTowerStunSec && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-fuchsia-950 border border-fuchsia-500/60 text-fuchsia-300">
+                        Hex Stun
                       </span>
                     )}
                   </div>
@@ -382,7 +407,7 @@ export const AlmanacUnitsTab: React.FC = () => {
           </div>
 
           {/* Unique Special Ability Banner */}
-          {(mob.ability || mob.taunt) && (
+          {(mob.ability || mob.taunt || mob.speedRamp || mob.adaptiveDefense || mob.damagedSpeed !== undefined || mob.onDeathTowerStunSec) && (
             <div className="p-3.5 bg-gradient-to-r from-amber-950/40 to-slate-900 rounded-lg border border-amber-500/50 flex items-start gap-3">
               <div className="text-xs">
                 <h5 className="font-bold text-amber-300 uppercase tracking-wide">
@@ -400,10 +425,35 @@ export const AlmanacUnitsTab: React.FC = () => {
                     every <strong>{mob.ability.cooldownSec}s</strong>, restoring <strong>{mob.ability.healAmount} HP</strong> to all injured comrades below 50% health!
                   </p>
                 )}
+                {mob.ability?.type === 'self_heal' && (
+                  <p className="text-slate-200 mt-1 leading-relaxed">
+                    <strong>Battlefield Second Wind:</strong> Regenerates <strong>{Math.round((mob.ability.healFraction || 0.1) * 100)}% of Max HP ({Math.round(mob.maxHp * (mob.ability.healFraction || 0.1))} HP)</strong> every <strong>{mob.ability.cooldownSec}s</strong> whenever injured!
+                  </p>
+                )}
                 {mob.ability?.type === 'speed_aura' && (
                   <p className="text-slate-200 mt-1 leading-relaxed">
                     <strong>Martial War Drums:</strong> Beats resonant drums in a <strong>{mob.ability.radius}px</strong> radius,
                     granting a massive <strong>+{Math.round((mob.ability.speedBoost || 0.4) * 100)}% Speed Boost</strong> to all nearby allies for {mob.ability.durationSec}s!
+                  </p>
+                )}
+                {mob.speedRamp && (
+                  <p className="text-slate-200 mt-1 leading-relaxed">
+                    <strong>Spiritual Momentum:</strong> Starts at <strong>{mob.speed} speed</strong> and continuously accelerates along the lane, reaching <strong>{(1 + mob.speedRamp.maxBonusFraction)}x speed ({Math.round(mob.speed * (1 + mob.speedRamp.maxBonusFraction))})</strong> after <strong>{mob.speedRamp.rampDurationSec}s</strong>!
+                  </p>
+                )}
+                {mob.adaptiveDefense && (
+                  <p className="text-slate-200 mt-1 leading-relaxed">
+                    <strong>Adaptive Carapace (Max {mob.adaptiveDefense.maxStacks} Stacks):</strong> Each physical hit grants <strong>+{mob.adaptiveDefense.armorPerStack} Armor</strong> (up to {Math.round(mob.adaptiveDefense.armorPerStack * mob.adaptiveDefense.maxStacks)} Armor at {mob.adaptiveDefense.maxStacks} stacks), while each mental hit grants <strong>+{Math.round(mob.adaptiveDefense.mentalStrengthPerStack * 100)}% Mental Strength</strong> (up to {Math.round(mob.adaptiveDefense.mentalStrengthPerStack * mob.adaptiveDefense.maxStacks * 100)}% at {mob.adaptiveDefense.maxStacks} stacks).
+                  </p>
+                )}
+                {mob.damagedSpeed !== undefined && (
+                  <p className="text-slate-200 mt-1 leading-relaxed">
+                    <strong>Burst of Speed:</strong> Bolts down the lane at <strong>{mob.speed} speed</strong> until taking damage from a tower for the first time, after which movement speed permanently drops to <strong>{mob.damagedSpeed}</strong>.
+                  </p>
+                )}
+                {mob.onDeathTowerStunSec && (
+                  <p className="text-slate-200 mt-1 leading-relaxed">
+                    <strong>Dying Hex:</strong> Upon death, curses the tower that dealt the killing blow, <strong>stunning it for {mob.onDeathTowerStunSec} seconds</strong>!
                   </p>
                 )}
               </div>

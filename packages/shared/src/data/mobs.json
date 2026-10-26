@@ -4,6 +4,7 @@
     "name": "Monkey",
     "maxHp": 45,
     "speed": 130,
+    "damagedSpeed": 65,
     "bounty": 6,
     "leakDamage": 1,
     "cost": 8,
@@ -79,12 +80,16 @@
     "id": "a_ba",
     "name": "Nat Spirit Medium",
     "maxHp": 320,
-    "speed": 70,
+    "speed": 45,
     "bounty": 22,
     "leakDamage": 2,
     "cost": 30,
     "armor": 0,
     "mentalStrength": 1,
+    "speedRamp": {
+      "maxBonusFraction": 1,
+      "rampDurationSec": 25
+    },
     "strongAgainst": [
       "single target",
       "mental"
@@ -228,8 +233,13 @@
     "bounty": 65,
     "leakDamage": 5,
     "cost": 85,
-    "armor": 7,
-    "mentalStrength": 0.8,
+    "armor": 0,
+    "mentalStrength": 0,
+    "adaptiveDefense": {
+      "maxStacks": 5,
+      "armorPerStack": 2.4,
+      "mentalStrengthPerStack": 0.2
+    },
     "strongAgainst": [
       "physical",
       "aoe"
@@ -242,13 +252,20 @@
   "brute": {
     "id": "brute",
     "name": "Heavy Brute",
-    "maxHp": 560,
+    "maxHp": 460,
     "speed": 48,
-    "bounty": 35,
+    "bounty": 40,
     "leakDamage": 3,
-    "cost": 50,
-    "armor": 5,
+    "cost": 60,
+    "armor": 4,
     "mentalStrength": 0.25,
+    "ability": {
+      "type": "self_heal",
+      "radius": 0,
+      "cooldownSec": 10,
+      "healFraction": 0.1,
+      "castDurationSec": 0.4
+    },
     "strongAgainst": [
       "aoe"
     ],
@@ -285,6 +302,7 @@
     "cost": 45,
     "armor": 0,
     "mentalStrength": 1.0,
+    "onDeathTowerStunSec": 5,
     "strongAgainst": [
       "mental",
       "single target"

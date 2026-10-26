@@ -9,7 +9,37 @@ export interface TowerOnHitEffect {
   durationSec: number;
 }
 
-/** One level of a tower: full stats and the gold cost to reach it. */
+/** Scaling special effect attributes for a tower tier (Levels 1 -> 2 -> 3). */
+export interface TowerTierSpecial {
+  /** Archer: Maximum bonus fire rate fraction reached through consecutive shots (e.g. 0.40 -> +40%). */
+  windupMaxBonus?: number;
+  /** Cannon: Fraction of target armor ignored by splash damage (0.25 = 25% armor ignore). */
+  armorPierceRatio?: number;
+  /** Bomb / Chinthe: Distance in px the target is knocked back along the path on hit. */
+  knockbackPx?: number;
+  /** Bell: Movement speed slow fraction applied to all mobs in the AoE pulse (e.g. 0.15 = 15%). */
+  pulseSlow?: number;
+  /** Spear: Total physical bleed damage dealt over 3 seconds. */
+  bleedTotalDamage?: number;
+  /** Gun: Bonus gold awarded to defender when this tower scores the killing blow. */
+  bonusGoldOnKill?: number;
+  /** Gun: Whether this tower prioritizes high-value support casters (Healers, Drummers). */
+  prioritizeSupport?: boolean;
+  /** Water Cannon: Slow fraction applied by drench (e.g. 0.15 = 15%). */
+  drenchSlow?: number;
+  /** Water Cannon: Extra multiplier on incoming mental damage while drenched (e.g. 0.15 = +15%). */
+  drenchVulnerability?: number;
+  /** Chinthe: Duration in seconds mob abilities and auras are silenced. */
+  silenceSec?: number;
+  /** Dragon: Damage dealt in spiritual explosion when an enemy is slain by dragon fire. */
+  deathExplosionDamage?: number;
+  /** Dragon: Radius in px of the on-death spiritual explosion. */
+  deathExplosionRadius?: number;
+  /** Sein Pyaung: Flat physical armor permanently stripped from the target on hit. */
+  armorStripPermanent?: number;
+}
+
+/** One level of a tower: full stats, scaling special effects, and the gold cost to reach it. */
 export interface TowerTier {
   /** Gold to reach this level. `tiers[0].cost` is the build cost. */
   cost: number;
@@ -23,6 +53,8 @@ export interface TowerTier {
   fireRate: number;
   /** Projectile speed, in px/s. */
   projectileSpeed: number;
+  /** Scaling special passive or on-hit modifier for this tier. */
+  special?: TowerTierSpecial;
 }
 
 /**

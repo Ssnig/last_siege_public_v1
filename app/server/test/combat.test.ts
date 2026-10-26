@@ -169,17 +169,16 @@ describe("tower shooting speeds and cannon on-hit slow effect", () => {
     assert.ok(Math.abs(getTowerCooldown("cannon", 1) - 3.0) < 0.01);
   });
 
-  it("cannon has 25% slow on-hit effect for 1.5 seconds", () => {
+  it("cannon has armor pierce scaling special effect", () => {
     const cannon = TOWER_TYPES.cannon;
-    assert.ok(cannon.onHitEffect, "cannon must define an onHitEffect");
-    assert.strictEqual(cannon.onHitEffect.type, "slow");
-    assert.strictEqual(cannon.onHitEffect.magnitude, 0.25);
-    assert.strictEqual(cannon.onHitEffect.durationSec, 1.5);
+    assert.strictEqual(cannon.tiers[0].special?.armorPierceRatio, 0.25);
+    assert.strictEqual(cannon.tiers[1].special?.armorPierceRatio, 0.50);
+    assert.strictEqual(cannon.tiers[2].special?.armorPierceRatio, 0.75);
   });
 
-  it("effectiveSpeed reduces speed by 25% when hit by cannon slow", () => {
+  it("effectiveSpeed reduces speed by 25% when hit by 25% slow", () => {
     const baseSpeed = 100;
-    const slowed = effectiveSpeed(baseSpeed, [TOWER_TYPES.cannon.onHitEffect!.magnitude]);
+    const slowed = effectiveSpeed(baseSpeed, [0.25]);
     assert.strictEqual(slowed, 75, "100 base speed with 0.25 slow factor leaves 75 speed (25% reduction)");
   });
 });

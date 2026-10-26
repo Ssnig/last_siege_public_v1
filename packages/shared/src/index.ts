@@ -1,6 +1,7 @@
 export * from "./types/lobby.js";
 export * from "./schema/Player.js";
 export * from "./schema/Tower.js";
+export * from "./schema/TowerEffect.js";
 export * from "./schema/Mob.js";
 export * from "./schema/MobEffect.js";
 export * from "./schema/Projectile.js";

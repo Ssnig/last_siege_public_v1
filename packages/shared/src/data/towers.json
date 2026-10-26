@@ -3,31 +3,40 @@
     "id": "cannon",
     "name": "Cannon",
     "damageType": "physical",
-    "splashRadius": 60,
+    "splashRadius": 75,
     "tiers": [
       {
         "cost": 140,
-        "damage": 32,
+        "damage": 24,
         "range": 110,
         "fireRate": 0.333333,
         "projectileSpeed": 300,
-        "damageMax": 48
+        "damageMax": 36,
+        "special": {
+          "armorPierceRatio": 0.25
+        }
       },
       {
         "cost": 230,
-        "damage": 60,
+        "damage": 48,
         "range": 120,
         "fireRate": 0.36,
         "projectileSpeed": 320,
-        "damageMax": 90
+        "damageMax": 72,
+        "special": {
+          "armorPierceRatio": 0.50
+        }
       },
       {
         "cost": 390,
-        "damage": 120,
+        "damage": 96,
         "range": 135,
         "fireRate": 0.4,
         "projectileSpeed": 340,
-        "damageMax": 180
+        "damageMax": 144,
+        "special": {
+          "armorPierceRatio": 0.75
+        }
       }
     ],
     "onHitEffect": {
@@ -54,7 +63,10 @@
         "range": 140,
         "fireRate": 2,
         "projectileSpeed": 400,
-        "damageMax": 14
+        "damageMax": 14,
+        "special": {
+          "windupMaxBonus": 0.40
+        }
       },
       {
         "cost": 105,
@@ -62,7 +74,10 @@
         "range": 160,
         "fireRate": 2.15,
         "projectileSpeed": 430,
-        "damageMax": 26
+        "damageMax": 26,
+        "special": {
+          "windupMaxBonus": 0.60
+        }
       },
       {
         "cost": 185,
@@ -70,7 +85,10 @@
         "range": 185,
         "fireRate": 2.3,
         "projectileSpeed": 460,
-        "damageMax": 48
+        "damageMax": 48,
+        "special": {
+          "windupMaxBonus": 0.80
+        }
       }
     ],
     "strongAgainst": [
@@ -84,6 +102,7 @@
     "id": "bomb",
     "name": "Bomb Throwing Tower",
     "damageType": "physical",
+    "splashRadius": 45,
     "tiers": [
       {
         "cost": 110,
@@ -91,7 +110,10 @@
         "range": 130,
         "fireRate": 0.5,
         "projectileSpeed": 280,
-        "damageMax": 36
+        "damageMax": 36,
+        "special": {
+          "knockbackPx": 15
+        }
       },
       {
         "cost": 190,
@@ -99,7 +121,10 @@
         "range": 145,
         "fireRate": 0.55,
         "projectileSpeed": 300,
-        "damageMax": 72
+        "damageMax": 72,
+        "special": {
+          "knockbackPx": 25
+        }
       },
       {
         "cost": 320,
@@ -107,7 +132,10 @@
         "range": 165,
         "fireRate": 0.6,
         "projectileSpeed": 320,
-        "damageMax": 144
+        "damageMax": 144,
+        "special": {
+          "knockbackPx": 35
+        }
       }
     ],
     "strongAgainst": [
@@ -130,7 +158,10 @@
         "range": 135,
         "fireRate": 0.45,
         "projectileSpeed": 320,
-        "damageMax": 18
+        "damageMax": 18,
+        "special": {
+          "pulseSlow": 0.15
+        }
       },
       {
         "cost": 165,
@@ -138,7 +169,10 @@
         "range": 150,
         "fireRate": 0.5,
         "projectileSpeed": 350,
-        "damageMax": 36
+        "damageMax": 36,
+        "special": {
+          "pulseSlow": 0.25
+        }
       },
       {
         "cost": 280,
@@ -146,7 +180,10 @@
         "range": 170,
         "fireRate": 0.55,
         "projectileSpeed": 380,
-        "damageMax": 72
+        "damageMax": 72,
+        "special": {
+          "pulseSlow": 0.35
+        }
       }
     ],
     "strongAgainst": [
@@ -168,7 +205,10 @@
         "range": 125,
         "fireRate": 1,
         "projectileSpeed": 350,
-        "damageMax": 12
+        "damageMax": 12,
+        "special": {
+          "bleedTotalDamage": 5
+        }
       },
       {
         "cost": 85,
@@ -176,7 +216,10 @@
         "range": 140,
         "fireRate": 1.1,
         "projectileSpeed": 375,
-        "damageMax": 24
+        "damageMax": 24,
+        "special": {
+          "bleedTotalDamage": 12
+        }
       },
       {
         "cost": 150,
@@ -184,7 +227,10 @@
         "range": 160,
         "fireRate": 1.2,
         "projectileSpeed": 400,
-        "damageMax": 46
+        "damageMax": 46,
+        "special": {
+          "bleedTotalDamage": 20
+        }
       }
     ],
     "strongAgainst": [
@@ -209,7 +255,11 @@
         "range": 210,
         "fireRate": 1,
         "projectileSpeed": 520,
-        "damageMax": 46
+        "damageMax": 46,
+        "special": {
+          "prioritizeSupport": true,
+          "bonusGoldOnKill": 1
+        }
       },
       {
         "cost": 225,
@@ -217,7 +267,11 @@
         "range": 240,
         "fireRate": 1.1,
         "projectileSpeed": 550,
-        "damageMax": 86
+        "damageMax": 86,
+        "special": {
+          "prioritizeSupport": true,
+          "bonusGoldOnKill": 2
+        }
       },
       {
         "cost": 385,
@@ -225,7 +279,11 @@
         "range": 275,
         "fireRate": 1.2,
         "projectileSpeed": 580,
-        "damageMax": 186
+        "damageMax": 186,
+        "special": {
+          "prioritizeSupport": true,
+          "bonusGoldOnKill": 3
+        }
       }
     ],
     "strongAgainst": [
@@ -249,7 +307,11 @@
         "range": 130,
         "fireRate": 0.8,
         "projectileSpeed": 320,
-        "damageMax": 6
+        "damageMax": 6,
+        "special": {
+          "drenchSlow": 0.15,
+          "drenchVulnerability": 0.15
+        }
       },
       {
         "cost": 75,
@@ -257,7 +319,11 @@
         "range": 145,
         "fireRate": 0.9,
         "projectileSpeed": 340,
-        "damageMax": 10
+        "damageMax": 10,
+        "special": {
+          "drenchSlow": 0.20,
+          "drenchVulnerability": 0.25
+        }
       },
       {
         "cost": 130,
@@ -265,7 +331,11 @@
         "range": 160,
         "fireRate": 1.0,
         "projectileSpeed": 360,
-        "damageMax": 18
+        "damageMax": 18,
+        "special": {
+          "drenchSlow": 0.25,
+          "drenchVulnerability": 0.35
+        }
       }
     ],
     "strongAgainst": [
@@ -289,7 +359,11 @@
         "range": 150,
         "fireRate": 0.7,
         "projectileSpeed": 400,
-        "damageMax": 45
+        "damageMax": 45,
+        "special": {
+          "knockbackPx": 10,
+          "silenceSec": 1.5
+        }
       },
       {
         "cost": 210,
@@ -297,7 +371,11 @@
         "range": 170,
         "fireRate": 0.75,
         "projectileSpeed": 420,
-        "damageMax": 88
+        "damageMax": 88,
+        "special": {
+          "knockbackPx": 20,
+          "silenceSec": 2.0
+        }
       },
       {
         "cost": 360,
@@ -305,7 +383,11 @@
         "range": 190,
         "fireRate": 0.8,
         "projectileSpeed": 440,
-        "damageMax": 178
+        "damageMax": 178,
+        "special": {
+          "knockbackPx": 30,
+          "silenceSec": 2.5
+        }
       }
     ],
     "strongAgainst": [
@@ -328,7 +410,11 @@
         "range": 160,
         "fireRate": 0.7,
         "projectileSpeed": 380,
-        "damageMax": 55
+        "damageMax": 55,
+        "special": {
+          "deathExplosionDamage": 40,
+          "deathExplosionRadius": 50
+        }
       },
       {
         "cost": 250,
@@ -336,7 +422,11 @@
         "range": 180,
         "fireRate": 0.75,
         "projectileSpeed": 400,
-        "damageMax": 110
+        "damageMax": 110,
+        "special": {
+          "deathExplosionDamage": 80,
+          "deathExplosionRadius": 60
+        }
       },
       {
         "cost": 420,
@@ -344,7 +434,11 @@
         "range": 200,
         "fireRate": 0.8,
         "projectileSpeed": 420,
-        "damageMax": 210
+        "damageMax": 210,
+        "special": {
+          "deathExplosionDamage": 140,
+          "deathExplosionRadius": 75
+        }
       }
     ],
     "strongAgainst": [
@@ -368,7 +462,10 @@
         "range": 220,
         "fireRate": 0.38,
         "projectileSpeed": 560,
-        "damageMax": 52
+        "damageMax": 52,
+        "special": {
+          "armorStripPermanent": 1
+        }
       },
       {
         "cost": 215,
@@ -376,7 +473,10 @@
         "range": 250,
         "fireRate": 0.42,
         "projectileSpeed": 600,
-        "damageMax": 98
+        "damageMax": 98,
+        "special": {
+          "armorStripPermanent": 2
+        }
       },
       {
         "cost": 370,
@@ -384,7 +484,10 @@
         "range": 285,
         "fireRate": 0.48,
         "projectileSpeed": 640,
-        "damageMax": 195
+        "damageMax": 195,
+        "special": {
+          "armorStripPermanent": 3
+        }
       }
     ],
     "strongAgainst": [

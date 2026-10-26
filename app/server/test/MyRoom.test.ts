@@ -18,6 +18,8 @@ import {
   DEFAULT_ECONOMY,
   DEFAULT_DEPLOY_RULES,
   MATCH_RULES,
+  EFFECT_TYPES,
+  TOWER_EFFECT_TYPES,
   buildCost,
   sellRefund,
   upgradeCost,
@@ -1484,5 +1486,352 @@ describe("testing your Colyseus app", () => {
       Math.abs(slow.magnitude - 0.2) < 1e-6,
       `the slow keeps 80% of the speed (magnitude ${slow.magnitude})`,
     );
+  });
+
+  it("monkey starts at 130 speed and drops to 65 upon taking damage", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["monkey", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["archer"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    assert.ok(mob.speed > 115, `monkey starts with burst speed (was ${mob.speed})`);
+
+    await waitFor(() => mob.hp < mob.maxHp, 15000);
+    assert.strictEqual(mob.speed, 65, "monkey drops permanently to 65 speed upon taking damage");
+  });
+
+  it("a_ba accelerates steadily from 45 toward 90 speed as time elapses", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "bagan",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["a_ba", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["archer"] });
+    await waitForPhase(room, "building");
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "a_ba" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    const initialSpeed = mob.speed;
+    assert.ok(initialSpeed >= 40 && initialSpeed <= 50, `a_ba starts around 45 speed (was ${initialSpeed})`);
+
+    await new Promise((r) => setTimeout(r, 2500));
+    assert.ok(mob.speed > initialSpeed, `a_ba accelerates over time (${initialSpeed} -> ${mob.speed})`);
+  });
+
+  it("brute has 460 HP, 4 armor, and self_heal ability", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["brute", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["archer"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "brute" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    const bruteType = MOB_TYPES["brute"];
+    assert.strictEqual(mob.maxHp, 460, "brute has 460 maxHp");
+    assert.strictEqual(bruteType.armor, 4, "brute has 4 base armor in config");
+    assert.strictEqual(bruteType.ability?.type, "self_heal", "brute has self_heal ability");
+    assert.strictEqual(bruteType.ability?.healFraction, 0.1, "brute heals 10% maxHp");
+
+    await waitFor(() => mob.hp < mob.maxHp, 15000);
+    assert.ok(mob.hp < mob.maxHp, "brute takes damage");
+  });
+
+  it("belu gains adaptive armor stacks up to 5 when taking physical damage", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["belu", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["archer"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "belu" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    const beluType = MOB_TYPES["belu"];
+    assert.strictEqual(beluType.armor, 0, "belu starts with 0 armor in config");
+    assert.strictEqual(beluType.mentalStrength, 0, "belu starts with 0 mental strength in config");
+
+    await waitFor(() => mob.effects.has(EFFECT_TYPES.armor_stack), 15000);
+    const stack = mob.effects.get(EFFECT_TYPES.armor_stack);
+    assert.ok(stack, "armor_stack effect tracked");
+    assert.ok(stack.magnitude >= 1, `belu gained armor stack (stacks: ${stack.magnitude})`);
+  });
+
+  it("sone_ma stuns the tower that killed her for 5 seconds", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["sone_ma", "sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["archer"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "archer", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "sone_ma" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    mob.hp = 10; // Prime with low HP so the archer's arrow is lethal
+
+    await waitFor(() => {
+      return [...room.state.towers.values()].some((t) =>
+        t.effects.has(TOWER_EFFECT_TYPES.stun),
+      );
+    }, 15000);
+
+    const stunnedTower = [...room.state.towers.values()].find((t) =>
+      t.effects.has(TOWER_EFFECT_TYPES.stun),
+    );
+    assert.ok(stunnedTower, "a tower was stunned by killing sone_ma");
+    const stun = stunnedTower.effects.get(TOWER_EFFECT_TYPES.stun);
+    assert.ok(stun, "killing tower has stun effect");
+    assert.ok(stun.remaining > 0 && stun.remaining <= 5, `stun duration is initialized to 5s (remaining: ${stun.remaining})`);
+  });
+
+  it("spear tower inflicts physical bleed status effect on hit", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["bandit"] });
+    defender.send(MESSAGES.draftReady, { deck: ["spear"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "spear", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "bandit" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    await waitFor(() => mob.effects.has(EFFECT_TYPES.bleed), 15000);
+    const bleed = mob.effects.get(EFFECT_TYPES.bleed);
+    assert.ok(bleed, "target has bleed status effect");
+    assert.strictEqual(bleed.magnitude, 5, "Lv1 spear inflicts 5 bleed damage");
+    assert.ok(bleed.remaining > 0 && bleed.remaining <= 3.0, "bleed duration within 3.0s");
+  });
+
+  it("water_cannon drenches and slows target mob", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["gya_pu"] });
+    defender.send(MESSAGES.draftReady, { deck: ["water_cannon"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "water_cannon", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "gya_pu" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    await waitFor(() => mob.effects.has(EFFECT_TYPES.drench), 15000);
+    const drench = mob.effects.get(EFFECT_TYPES.drench);
+    const slow = mob.effects.get(EFFECT_TYPES.slow);
+    assert.ok(drench, "target has drench effect");
+    assert.ok(slow, "target has slow effect");
+    assert.strictEqual(drench.magnitude, 0.15, "Lv1 drench vulnerability is 15%");
+    assert.strictEqual(slow.magnitude, 0.15, "Lv1 drench slow is 15%");
+  });
+
+  it("chinthe guardian silences mob on hit", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["chinthe"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "chinthe", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "sar_bal_gyi" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    await waitFor(() => mob.effects.has(EFFECT_TYPES.silence), 15000);
+    const silence = mob.effects.get(EFFECT_TYPES.silence);
+    assert.ok(silence, "target has silence effect");
+    assert.ok(silence.remaining > 0 && silence.remaining <= 1.5, "Lv1 silence duration is 1.5s");
+  });
+
+  it("sein_pyaung strips physical armor via armor_crush on hit", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["sar_bal_gyi"] });
+    defender.send(MESSAGES.draftReady, { deck: ["sein_pyaung"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "sein_pyaung", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "sar_bal_gyi" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    await waitFor(() => mob.effects.has(EFFECT_TYPES.armor_crush), 15000);
+    const crush = mob.effects.get(EFFECT_TYPES.armor_crush);
+    assert.ok(crush, "target has armor_crush effect");
+    assert.ok(crush.magnitude >= 1, "Lv1 strips at least 1 armor per hit");
+  });
+
+  it("gun tower awards bonus gold on kill", async function () {
+    this.timeout(40000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    attacker.send(MESSAGES.draftReady, { deck: ["monkey"] });
+    defender.send(MESSAGES.draftReady, { deck: ["gun"] });
+    await waitForPhase(room, "building");
+
+    const slots = MAPS[room.state.mapId].slots;
+    defender.send(MESSAGES.placeTower, { typeId: "gun", slotIndex: slots[0].slotIndex });
+    await waitFor(() => room.state.towers.size === 1);
+
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+    await waitFor(() => room.state.mobs.size > 0);
+
+    const mob = [...room.state.mobs.values()][0];
+    mob.hp = 1; // Prime low HP so the gun tower shot kills instantly
+
+    // Monkey bounty is 6. Gun Tower Lv1 bonus gold on kill is +1, totaling at least 7 gold.
+    const initialDefenderGold = (room as any).economies.get(defender.sessionId) ?? 0;
+    await waitFor(() => {
+      const currentGold = (room as any).economies.get(defender.sessionId) ?? 0;
+      return currentGold >= initialDefenderGold + 6 + 1;
+    }, 15000);
+
+    const finalGold = (room as any).economies.get(defender.sessionId) ?? 0;
+    assert.ok(finalGold >= initialDefenderGold + 6 + 1, "gun tower kill awarded base bounty 6 + bonus gold 1");
   });
 });

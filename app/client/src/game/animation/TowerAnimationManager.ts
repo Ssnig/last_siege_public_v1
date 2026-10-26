@@ -34,7 +34,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     idleNE: [0, 1, 2, 3],
     fireNE: [4, 5, 6, 7],
     frameRate: 8,
-    scale: 0.12,
+    scale: 0.15,
   },
   bomb: {
     id: "bomb",
@@ -49,7 +49,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     idleNE: [0, 1, 2, 3],
     fireNE: [4, 5, 6, 7],
     frameRate: 8,
-    scale: 0.12,
+    scale: 0.15,
   },
   spear: {
     id: "spear",
@@ -64,7 +64,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     idleNE: [0, 1, 2, 3],
     fireNE: [4, 5, 6, 7],
     frameRate: 8,
-    scale: 0.12,
+    scale: 0.15,
   },
   water_cannon: {
     id: "water_cannon",
@@ -79,7 +79,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     idleNE: [4, 5],
     fireNE: [6, 7],
     frameRate: 10,
-    scale: 0.12,
+    scale: 0.15,
   },
   chinthe: {
     id: "chinthe",
@@ -94,7 +94,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     idleNE: [4, 5],
     fireNE: [6, 7],
     frameRate: 10,
-    scale: 0.12,
+    scale: 0.15,
   },
   dragon: {
     id: "dragon",
@@ -109,7 +109,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     idleNE: [4, 5],
     fireNE: [6, 7],
     frameRate: 10,
-    scale: 0.12,
+    scale: 0.125,
   },
   bell: {
     id: "bell",
@@ -124,7 +124,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     idleNE: [0, 1, 2, 3],
     fireNE: [4, 5, 6, 7],
     frameRate: 7,
-    scale: 0.12,
+    scale: 0.15,
   },
   sein_pyaung: {
     id: "sein_pyaung",
@@ -139,12 +139,14 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     idleNE: [4, 5],
     fireNE: [6, 7],
     frameRate: 10,
-    scale: 0.12,
+    scale: 0.15,
   },
 };
 
 export const BELL_ATTACK_VFX_SHEET_KEY = "vfx_bell_attack_sheet";
 export const BELL_ATTACK_VFX_ANIM_KEY = "vfx_bell_attack";
+export const DRAGON_EXPLOSION_VFX_SHEET_KEY = "vfx_dragon_explosion_sheet";
+export const DRAGON_EXPLOSION_VFX_ANIM_KEY = "vfx_dragon_explosion";
 
 export class TowerAnimationManager {
   static preload(scene: Phaser.Scene): void {
@@ -193,6 +195,17 @@ export class TowerAnimationManager {
       scene.load.spritesheet(
         BELL_ATTACK_VFX_SHEET_KEY,
         "/assets/towers/04_bell_tower/attack_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
+    if (!scene.textures.exists(DRAGON_EXPLOSION_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        DRAGON_EXPLOSION_VFX_SHEET_KEY,
+        "/assets/towers/09_dragon_tower/skill_vfx.png",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -325,6 +338,24 @@ export class TowerAnimationManager {
         });
       }
     }
+
+    if (
+      scene.textures.exists(DRAGON_EXPLOSION_VFX_SHEET_KEY) &&
+      !scene.anims.exists(DRAGON_EXPLOSION_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(DRAGON_EXPLOSION_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: DRAGON_EXPLOSION_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(DRAGON_EXPLOSION_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(7, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 14,
+          repeat: 0,
+        });
+      }
+    }
   }
 
   /**
@@ -349,6 +380,35 @@ export class TowerAnimationManager {
 
     vfx.play(BELL_ATTACK_VFX_ANIM_KEY);
     vfx.once(`animationcomplete-${BELL_ATTACK_VFX_ANIM_KEY}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
+  }
+
+  /**
+   * Spawns a one-shot Dragon Naga death explosion VFX sprite on an exploded mob at `(x, y)`.
+   * Plays all 8 frames in order as a single burst.
+   */
+  static spawnDragonExplosionVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (
+      !scene.textures.exists(DRAGON_EXPLOSION_VFX_SHEET_KEY) ||
+      !scene.anims.exists(DRAGON_EXPLOSION_VFX_ANIM_KEY)
+    ) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, DRAGON_EXPLOSION_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.85)
+      .setScale(0.18);
+
+    vfx.play(DRAGON_EXPLOSION_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${DRAGON_EXPLOSION_VFX_ANIM_KEY}`, () => {
       vfx.destroy();
     });
 
