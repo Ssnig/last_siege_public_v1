@@ -2427,6 +2427,10 @@ export class GameplayStage {
     const cam = this.scene.cameras.main;
     this.scene.input.addPointer(2);
 
+    let lastTapTime = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+
     this.onCameraPointerDown = (pointer: Phaser.Input.Pointer) => {
       const p1 = this.scene.input.pointer1;
       const p2 = this.scene.input.pointer2;
@@ -2445,6 +2449,21 @@ export class GameplayStage {
 
       // Only the primary button pans the camera.
       if (!pointer.primaryDown) return;
+
+      // Double-tap battlefield check (ignoring taps on tower slots)
+      if (!this.scene.registry.get("ui:overTowerSlot")) {
+        const now = Date.now();
+        const dt = now - lastTapTime;
+        const dist = Math.hypot(pointer.x - lastTapX, pointer.y - lastTapY);
+        if (dt > 40 && dt < 350 && dist < 30) {
+          this.scene.game?.events.emit("toggle-ui");
+          lastTapTime = 0;
+        } else {
+          lastTapTime = now;
+          lastTapX = pointer.x;
+          lastTapY = pointer.y;
+        }
+      }
 
       this.isDragging = true;
       this.dragActive = false;
