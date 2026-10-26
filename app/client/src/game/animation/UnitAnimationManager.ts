@@ -945,7 +945,7 @@ export class UnitAnimationManager {
     const vfx = scene.add
       .sprite(x, y, BASE_BREACH_VFX_SHEET_KEY)
       .setOrigin(0.5, 0.55)
-      .setScale(0.38);
+      .setScale(0.14);
 
     vfx.play(BASE_BREACH_VFX_ANIM_KEY);
     vfx.once(`animationcomplete-${BASE_BREACH_VFX_ANIM_KEY}`, () => {
