@@ -383,48 +383,48 @@ export const AlmanacUnitsTab: React.FC = () => {
 
         {/* Inspector Body */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 custom-scrollbar">
-          {/* Main Primary Combat Stats Grid (High Density, Immediate Mobile View) */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5">
+          {/* Main Primary Combat Stats Grid: 3 rows x 2 columns */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Health</span>
-              <span className="text-sm sm:text-base font-black text-rose-400 font-mono">{mob.maxHp} HP</span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Total HP</span>
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Health</span>
+              <span className="text-base sm:text-lg font-black text-rose-400 font-mono leading-tight">{mob.maxHp} HP</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Total HP</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Armor</span>
-              <span className="text-sm sm:text-base font-black text-blue-300 font-mono">
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Armor</span>
+              <span className="text-base sm:text-lg font-black text-blue-300 font-mono leading-tight">
                 {(mob.armor ?? 0) > 0 ? `${mob.armor} Armor` : '0 (None)'}
               </span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Physical defense</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Physical defense</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Resolve</span>
-              <span className="text-sm sm:text-base font-black text-purple-300 font-mono">
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Resolve</span>
+              <span className="text-base sm:text-lg font-black text-purple-300 font-mono leading-tight">
                 {((mob.mentalStrength ?? 0.5) * 100).toFixed(0)}%
               </span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Mental strength</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Mental strength</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Speed</span>
-              <span className="text-sm sm:text-base font-black text-amber-300 font-mono">
-                {mob.speed} <span className={`text-[10px] font-normal ${speedTierColor}`}>({speedTier})</span>
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Speed</span>
+              <span className="text-base sm:text-lg font-black text-amber-300 font-mono leading-tight">
+                {mob.speed} <span className={`text-xs font-normal ${speedTierColor}`}>({speedTier})</span>
               </span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Movement rate</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Movement rate</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Deploy Cost</span>
-              <span className="text-sm sm:text-base font-black text-amber-300 font-mono">{mob.cost}g</span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Attacker gold</span>
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Deploy Cost</span>
+              <span className="text-base sm:text-lg font-black text-amber-300 font-mono leading-tight">{mob.cost}g</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Attacker gold</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Kill Bounty</span>
-              <span className="text-sm sm:text-base font-black text-yellow-400 font-mono">+{mob.bounty}g</span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Defender reward</span>
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Kill Bounty</span>
+              <span className="text-base sm:text-lg font-black text-yellow-400 font-mono leading-tight">+{mob.bounty}g</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Defender reward</span>
             </div>
           </div>
 

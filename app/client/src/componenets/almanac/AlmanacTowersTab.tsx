@@ -315,46 +315,46 @@ export const AlmanacTowersTab: React.FC = () => {
 
         {/* Inspector Body */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 custom-scrollbar">
-          {/* Main Primary Combat Stats Grid (High Density, Immediate Mobile View) */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5">
+          {/* Main Primary Combat Stats Grid: 3 rows x 2 columns */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Gold Cost</span>
-              <span className="text-sm sm:text-base font-black text-amber-300 font-mono">{currentTier.cost}g</span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Total Cost</span>
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Gold Cost</span>
+              <span className="text-base sm:text-lg font-black text-amber-300 font-mono leading-tight">{currentTier.cost}g</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Total Cost</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Damage</span>
-              <span className="text-sm sm:text-base font-black text-white font-mono">
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Damage</span>
+              <span className="text-base sm:text-lg font-black text-white font-mono leading-tight">
                 {minDmg}{maxDmg !== minDmg ? ` - ${maxDmg}` : ''}
               </span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Per Shot</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Per Shot</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">DPS</span>
-              <span className="text-sm sm:text-base font-black text-emerald-400 font-mono">
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">DPS</span>
+              <span className="text-base sm:text-lg font-black text-emerald-400 font-mono leading-tight">
                 ~{dpsMin}{dpsMax !== dpsMin ? ` - ${dpsMax}` : ''}
               </span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Effective DPS</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Effective DPS</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Range</span>
-              <span className="text-sm sm:text-base font-black text-amber-200 font-mono">{currentTier.range} px</span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Firing Radius</span>
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Range</span>
+              <span className="text-base sm:text-lg font-black text-amber-200 font-mono leading-tight">{currentTier.range} px</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">Firing Radius</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Cadence</span>
-              <span className="text-sm sm:text-base font-black text-amber-200 font-mono">{attackInterval}s</span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">{fireRate.toFixed(2)}/s</span>
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Cadence</span>
+              <span className="text-base sm:text-lg font-black text-amber-200 font-mono leading-tight">{attackInterval}s</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">{fireRate.toFixed(2)}/s</span>
             </div>
 
             <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Channel</span>
-              <span className="text-sm sm:text-base font-black text-amber-200 font-mono capitalize truncate">{damageType}</span>
-              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">
+              <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block font-medium">Channel</span>
+              <span className="text-base sm:text-lg font-black text-amber-200 font-mono capitalize truncate leading-tight">{damageType}</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">
                 {damageType === 'mental' ? 'Pierces Armor' : 'Blunted by Armor'}
               </span>
             </div>
