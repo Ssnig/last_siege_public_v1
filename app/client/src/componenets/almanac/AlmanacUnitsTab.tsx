@@ -144,7 +144,6 @@ export const AlmanacUnitsTab: React.FC = () => {
       <div className="w-full md:w-80 lg:w-96 flex flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
         <div className="p-3 border-b border-amber-600/30 bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">⚔️</span>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-200 font-['Almendra',serif]">
               Invading Host ({UNIT_IDS.length} Units)
             </span>
@@ -191,17 +190,17 @@ export const AlmanacUnitsTab: React.FC = () => {
                     </h4>
                     {m?.taunt && (
                       <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-red-950 border border-red-500/60 text-red-300">
-                        🛡️ Taunt
+                        Taunt
                       </span>
                     )}
                     {m?.ability?.type === 'heal_aura' && (
                       <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 border border-emerald-500/60 text-emerald-300">
-                        💚 Healer
+                        Healer
                       </span>
                     )}
                     {m?.ability?.type === 'speed_aura' && (
                       <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-yellow-950 border border-yellow-500/60 text-yellow-300">
-                        ⚡ Drummer
+                        Drummer
                       </span>
                     )}
                   </div>
@@ -323,7 +322,6 @@ export const AlmanacUnitsTab: React.FC = () => {
           {/* Unique Special Ability Banner */}
           {(mob.ability || mob.taunt) && (
             <div className="p-3.5 bg-gradient-to-r from-amber-950/40 to-slate-900 rounded-lg border border-amber-500/50 flex items-start gap-3">
-              <span className="text-2xl">⚡</span>
               <div className="text-xs">
                 <h5 className="font-bold text-amber-300 uppercase tracking-wide">
                   Active Battlefield Ability:
@@ -363,26 +361,26 @@ export const AlmanacUnitsTab: React.FC = () => {
           {/* Tactical Synergies and Counters */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="bg-emerald-950/20 p-3 rounded-lg border border-emerald-800/40">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1.5">
-                <span>🤝</span> Best Wave Combos
+              <div className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1.5">
+                Best Wave Combos
               </div>
               <ul className="text-xs text-slate-300 space-y-1">
                 {info.bestPairedWith.map((item, i) => (
                   <li key={i} className="flex items-center gap-1.5">
-                    <span className="text-emerald-400 font-bold">✓</span> {item}
+                    <span className="text-emerald-400 font-bold font-mono">+</span> {item}
                   </li>
                 ))}
               </ul>
             </div>
 
             <div className="bg-rose-950/20 p-3 rounded-lg border border-rose-800/40">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-300 uppercase tracking-wider mb-1.5">
-                <span>⚠️</span> Hard Tower Counters
+              <div className="text-xs font-bold text-rose-300 uppercase tracking-wider mb-1.5">
+                Hard Tower Counters
               </div>
               <ul className="text-xs text-slate-300 space-y-1">
                 {info.counteredBy.map((item, i) => (
                   <li key={i} className="flex items-center gap-1.5">
-                    <span className="text-rose-400 font-bold">✗</span> {item}
+                    <span className="text-rose-400 font-bold font-mono">-</span> {item}
                   </li>
                 ))}
               </ul>
@@ -391,7 +389,6 @@ export const AlmanacUnitsTab: React.FC = () => {
 
           {/* Field Note */}
           <div className="p-3 bg-slate-900/90 rounded-lg border border-amber-500/40 flex items-start gap-2.5">
-            <span className="text-lg">💡</span>
             <div className="text-xs leading-relaxed">
               <span className="font-bold text-amber-300">Warlord's Strategy: </span>
               <span className="text-slate-300">{info.tacticalTip}</span>

@@ -12,15 +12,14 @@ type AlmanacTab = 'towers' | 'units' | 'maps' | 'codex';
 interface TabItem {
   id: AlmanacTab;
   label: string;
-  icon: string;
   badge?: string;
 }
 
 const TABS: TabItem[] = [
-  { id: 'codex', label: 'War Codex', icon: '📜', badge: 'Guide' },
-  { id: 'towers', label: 'Towers', icon: '🏹', badge: '10' },
-  { id: 'units', label: 'Units', icon: '⚔️', badge: '10' },
-  { id: 'maps', label: 'Battlefields', icon: '🗺️', badge: '9' },
+  { id: 'codex', label: 'War Codex', badge: 'Guide' },
+  { id: 'towers', label: 'Towers', badge: '10' },
+  { id: 'units', label: 'Units', badge: '10' },
+  { id: 'maps', label: 'Battlefields', badge: '9' },
 ];
 
 export const AlmanacPage: React.FC = () => {
@@ -74,7 +73,9 @@ export const AlmanacPage: React.FC = () => {
                   boxShadow: 'inset 0 1px 0 rgba(254,240,138,0.2)',
                 }}
               >
-                <span>❮</span>
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
                 <span className="hidden sm:inline">Lobby</span>
               </button>
 
@@ -85,7 +86,7 @@ export const AlmanacPage: React.FC = () => {
                   Royal Almanac & War Codex
                 </h1>
                 <p className="text-[10px] sm:text-xs text-amber-300/70 font-['Almendra',serif] truncate">
-                  Authoritative Compendium of the Konbaung Dynasty
+                  Authoritative Compendium of the Konbaung Realm
                 </p>
               </div>
             </div>
@@ -99,14 +100,13 @@ export const AlmanacPage: React.FC = () => {
                     key={tab.id}
                     onClick={() => handleSelectTab(tab.id)}
                     onMouseEnter={() => soundEffects.playHover()}
-                    className={`px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       isActive
                         ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black shadow-[0_0_12px_rgba(245,158,11,0.5)] scale-[1.02]'
                         : 'text-amber-200/70 hover:text-white hover:bg-slate-900/80'
                     }`}
                   >
-                    <span>{tab.icon}</span>
-                    <span className="hidden sm:inline font-['Almendra',serif]">{tab.label}</span>
+                    <span className="font-['Almendra',serif]">{tab.label}</span>
                     {tab.badge && (
                       <span
                         className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
