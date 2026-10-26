@@ -219,6 +219,9 @@ export class GameplayStage {
   private baseHpBarWidth = 120;
   private lastCoreHp?: number;
   private lastBreachVfxTime = 0;
+  /** Caches the visual center coordinates of mob sprites for projectile targeting and hit VFX. */
+  private recentMobCenters: Map<string, { x: number; y: number; time: number }> = new Map();
+  private lastMobCentersPrune = 0;
 
   private selectedSlotIndex?: number;
   private rangeCircle?: Phaser.GameObjects.Arc;
@@ -267,6 +270,16 @@ export class GameplayStage {
     this.updateMobs();
     this.updateProjectiles();
     this.updateTowerFacing();
+
+    const now = performance.now();
+    if (now - this.lastMobCentersPrune > 5000) {
+      this.lastMobCentersPrune = now;
+      for (const [id, entry] of this.recentMobCenters) {
+        if (now - entry.time > 4000) {
+          this.recentMobCenters.delete(id);
+        }
+      }
+    }
 
     // Mobs move every frame, so the y-sort has to run with them: this is what
     // applies `actorDepth`, since Phaser ignores `depth` on Container children.
@@ -2015,9 +2028,10 @@ export class GameplayStage {
       (payload: GunBountyProcPayload) => {
         if (this.destroyed) return;
 
+        const center = this.getMobSpriteCenter(payload.mobId);
         const target = this.mobsById.get(payload.mobId);
-        const x = target ? target.x : payload.x;
-        const y = target ? target.y : payload.y;
+        const x = center ? center.x : (target ? target.x : payload.x);
+        const y = center ? center.y : (target ? target.y : payload.y);
 
         const vfx = TowerAnimationManager.spawnGunBountyProcVfx(
           this.scene,
@@ -2384,6 +2398,16 @@ export class GameplayStage {
     record.y = point.y;
     record.lastProgress = mob.progress;
 
+    // Cache the mob sprite visual center for projectile homing and hit VFX
+    const originY = record.sprite.originY ?? 0.8;
+    const displayH = record.sprite.displayHeight || 64;
+    const centerY = point.y - (originY - 0.5) * displayH;
+    this.recentMobCenters.set(record.id, {
+      x: point.x,
+      y: centerY,
+      time: performance.now(),
+    });
+
     if (record.vfxSprites && record.vfxSprites.size > 0) {
       record.vfxSprites.forEach((vfx) => {
         if (vfx.active) {
@@ -2698,8 +2722,13 @@ export class GameplayStage {
         ? this.mobsById.get(projectile.targetId)
         : undefined;
       if (initialTarget) {
-        const idx = initialTarget.x - projectile.x;
-        const idy = initialTarget.y - projectile.y;
+        const center = !this.isAoETower(projectile.typeId)
+          ? this.getMobSpriteCenter(projectile.targetId)
+          : undefined;
+        const targetX = center ? center.x : initialTarget.x;
+        const targetY = center ? center.y : initialTarget.y;
+        const idx = targetX - projectile.x;
+        const idy = targetY - projectile.y;
         if (idx * idx + idy * idy > 0.01) {
           sprite.setRotation(Math.atan2(idy, idx));
         }
@@ -2715,13 +2744,20 @@ export class GameplayStage {
       if (!sprite) return;
       const design = getTowerDesign(projectile.typeId);
       soundEffects.playTowerImpact(design.id);
+
+      const isAoE = this.isAoETower(projectile.typeId);
+      const mobCenter = !isAoE ? this.getMobSpriteCenter(projectile.targetId) : undefined;
+      const hitX = mobCenter ? mobCenter.x : sprite.x;
+      const hitY = mobCenter ? mobCenter.y : sprite.y;
+      sprite.setPosition(hitX, hitY);
+
       if (design.id === "archer") {
         if (!this.scene.textures.exists("archer_vfx_sheet")) {
           this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("archer_vfx_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "archer_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "archer_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("archer_splash_anim")) {
             this.scene.anims.create({ key: "archer_splash_anim", frames: this.scene.anims.generateFrameNumbers("archer_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2735,7 +2771,7 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("bomb_vfx_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "bomb_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "bomb_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("bomb_splash_anim")) {
             this.scene.anims.create({ key: "bomb_splash_anim", frames: this.scene.anims.generateFrameNumbers("bomb_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2749,7 +2785,7 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("spear_vfx_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "spear_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "spear_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("spear_splash_anim")) {
             this.scene.anims.create({ key: "spear_splash_anim", frames: this.scene.anims.generateFrameNumbers("spear_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2763,7 +2799,7 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("water_splash_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "water_splash_sheet").setOrigin(0.5, 0.5).setScale(0.06).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "water_splash_sheet").setOrigin(0.5, 0.5).setScale(0.06).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("water_splash_anim")) {
             this.scene.anims.create({ key: "water_splash_anim", frames: this.scene.anims.generateFrameNumbers("water_splash_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2777,7 +2813,7 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("dragon_attack_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "dragon_attack_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "dragon_attack_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("dragon_splash_anim")) {
             this.scene.anims.create({ key: "dragon_splash_anim", frames: this.scene.anims.generateFrameNumbers("dragon_attack_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2791,9 +2827,9 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "sein_pyaung_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "sein_pyaung_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("sein_pyaung_splash_anim")) {
-            this.scene.anims.create({ key: "sein_pyaung_splash_anim", frames: this.scene.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+            this.scene.anims.create({ key: "sein_pyaung_splash_anim", frames: this.scene.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 0, end: 3 }), frameRate: 15, repeat: 0 });
           }
           splash.play("sein_pyaung_splash_anim");
           splash.once("animationcomplete", () => splash.destroy());
@@ -2804,7 +2840,7 @@ export class GameplayStage {
           this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
-        const hit = TowerAnimationManager.spawnGunHitVfx(this.scene, sprite.x, sprite.y);
+        const hit = TowerAnimationManager.spawnGunHitVfx(this.scene, hitX, hitY);
         if (hit) {
           (this.root ?? this.actors)?.add(hit);
         }
@@ -2824,10 +2860,25 @@ export class GameplayStage {
     if (this.destroyed || this.projectileSprites.size === 0) return;
 
     this.projectileSprites.forEach((sprite, projectile) => {
-      const dx = projectile.x - sprite.x;
-      const dy = projectile.y - sprite.y;
+      let destX = projectile.x;
+      let destY = projectile.y;
+
+      const isAoE = this.isAoETower(projectile.typeId);
+      if (!isAoE && projectile.targetId) {
+        const center = this.getMobSpriteCenter(projectile.targetId);
+        if (center) {
+          const dist = Math.hypot(center.x - sprite.x, center.y - sprite.y);
+          if (dist < 45) {
+            destX = center.x;
+            destY = center.y;
+          }
+        }
+      }
+
+      const dx = destX - sprite.x;
+      const dy = destY - sprite.y;
       if (dx * dx + dy * dy > 0.01) sprite.setRotation(Math.atan2(dy, dx));
-      sprite.setPosition(projectile.x, projectile.y);
+      sprite.setPosition(destX, destY);
     });
   }
 
@@ -2917,6 +2968,40 @@ export class GameplayStage {
   /** Resolves a mob's `pathId` against the map's tracks. */
   private pathFor(pathId: string): Vec2[] | undefined {
     return mapPath(this.map, pathId);
+  }
+
+  /**
+   * Resolves the visual center coordinates of a mob sprite.
+   * If the mob was recently destroyed, checks the recent mob centers cache.
+   */
+  private getMobSpriteCenter(mobId?: string): { x: number; y: number } | undefined {
+    if (!mobId) return undefined;
+    const record = this.mobsById.get(mobId);
+    if (record?.sprite?.active) {
+      const originY = record.sprite.originY ?? 0.8;
+      const displayH = record.sprite.displayHeight || 64;
+      return { x: record.sprite.x, y: record.sprite.y - (originY - 0.5) * displayH };
+    }
+    const cached = this.recentMobCenters.get(mobId);
+    if (cached) return { x: cached.x, y: cached.y };
+    return undefined;
+  }
+
+  /**
+   * Returns true if the tower deals area-of-effect or ground splash damage rather than direct mob targeting.
+   */
+  private isAoETower(towerId: string): boolean {
+    if (
+      towerId === "bomb" ||
+      towerId === "sein_pyaung" ||
+      towerId === "cannon" ||
+      towerId === "water_cannon" ||
+      towerId === "bell"
+    ) {
+      return true;
+    }
+    const type = TOWER_TYPES[towerId];
+    return (type?.splashRadius ?? 0) > 0 || type?.attackMode === "aoe_pulse";
   }
 
   /**

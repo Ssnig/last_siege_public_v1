@@ -3013,8 +3013,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     // Remember where the shot is headed and how wide it bursts, so it can still
     // land (and artillery can still splash) after its target dies.
-    this.projectileAim.set(id, { x: target.x, y: target.y });
-    this.projectileSplash.set(id, TOWER_TYPES[tower.typeId]?.splashRadius ?? 0);
+    const splash = TOWER_TYPES[tower.typeId]?.splashRadius ?? 0;
+    const isAoE = splash > 0;
+    const targetY = isAoE ? target.y : target.y - 24;
+    this.projectileAim.set(id, { x: target.x, y: targetY });
+    this.projectileSplash.set(id, splash);
     this.projectileSourceSlot.set(id, tower.slotIndex);
     if (tier.special) {
       this.projectileSpecial.set(id, tier.special);
@@ -3036,9 +3039,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
       // lands rather than being deleted the instant its target dies.
       const target = positions.get(projectile.targetId);
       const aim = this.projectileAim.get(id);
+      const isAoE = (this.projectileSplash.get(id) ?? 0) > 0;
       if (target && aim) {
         aim.x = target.x;
-        aim.y = target.y;
+        aim.y = isAoE ? target.y : target.y - 24;
       }
       const destination = aim ?? { x: projectile.x, y: projectile.y };
 
@@ -3048,6 +3052,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       const step = projectile.speed * dt;
 
       if (distance <= step + PROJECTILE_HIT_RADIUS) {
+        projectile.x = destination.x;
+        projectile.y = destination.y;
         this.resolveProjectileImpact(id, projectile, destination, positions);
         finished.push(id);
         continue;
