@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ACTIVE_TOWER_IDS,
   TOWER_DESIGNS,
@@ -8,126 +8,6 @@ import {
 } from '@root/shared';
 import { soundEffects } from '../../audio/soundEffects';
 import { DAMAGE_BADGE_STYLE, damageTypeOfTower } from '../../game/damageTypes';
-
-/**
- * Renders the accurate single sprite for any tower.
- * For towers with spritesheets (Sein Pyaung, Bell) or compound sprites (Water Cannon, Chinthe, Dragon),
- * draws the single idle sprite rather than displaying the raw multi-frame spritesheet grid.
- */
-const TowerSpriteCanvas: React.FC<{ towerId: string; design: TowerDesignConfig }> = ({
-  towerId,
-  design,
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let active = true;
-
-    if (
-      towerId === 'archer' ||
-      towerId === 'bomb' ||
-      towerId === 'spear' ||
-      towerId === 'gun' ||
-      towerId === 'sein_pyaung' ||
-      towerId === 'bell'
-    ) {
-      const img = new Image();
-      img.src = design.texturePath;
-      img.onload = () => {
-        if (!active) return;
-        canvas.width = 688;
-        canvas.height = 768;
-        ctx.clearRect(0, 0, 688, 768);
-        // Draw frame 0 from the 4x2 spritesheet (each frame is 688x768)
-        ctx.drawImage(img, 0, 0, 688, 768, 0, 0, 688, 768);
-      };
-    } else if (towerId === 'water_cannon') {
-      const baseImg = new Image();
-      const gunImg = new Image();
-      baseImg.src = '/assets/towers/07_water_cannon/tower.png';
-      gunImg.src = '/assets/towers/07_water_cannon/water_gun.png';
-
-      let loaded = 0;
-      const onLoad = () => {
-        loaded++;
-        if (loaded < 2 || !active) return;
-        canvas.width = 688;
-        canvas.height = 768;
-        ctx.clearRect(0, 0, 688, 768);
-        ctx.drawImage(baseImg, 0, 0, 688, 768);
-        ctx.drawImage(gunImg, 0, 0, 688, 768, 0, 0, 688, 768);
-      };
-      baseImg.onload = onLoad;
-      gunImg.onload = onLoad;
-    } else if (towerId === 'chinthe') {
-      const baseImg = new Image();
-      const lionImg = new Image();
-      baseImg.src = '/assets/towers/08_chinthe_statue/tower.png';
-      lionImg.src = '/assets/towers/08_chinthe_statue/lion_gurdian.png';
-
-      let loaded = 0;
-      const onLoad = () => {
-        loaded++;
-        if (loaded < 2 || !active) return;
-        canvas.width = 688;
-        canvas.height = 768;
-        ctx.clearRect(0, 0, 688, 768);
-        ctx.drawImage(baseImg, 0, 0, 688, 768);
-        ctx.drawImage(lionImg, 0, 0, 688, 768, 0, 0, 688, 768);
-      };
-      baseImg.onload = onLoad;
-      lionImg.onload = onLoad;
-    } else if (towerId === 'dragon') {
-      const baseImg = new Image();
-      const dragonImg = new Image();
-      baseImg.src = '/assets/towers/09_dragon_tower/tower.png';
-      dragonImg.src = '/assets/towers/09_dragon_tower/dragon_tower.png';
-
-      let loaded = 0;
-      const onLoad = () => {
-        loaded++;
-        if (loaded < 2 || !active) return;
-        canvas.width = 600;
-        canvas.height = 896;
-        ctx.clearRect(0, 0, 600, 896);
-        ctx.drawImage(baseImg, 0, 0, 600, 896);
-        ctx.drawImage(dragonImg, 0, 0, 600, 896, 0, 0, 600, 896);
-      };
-      baseImg.onload = onLoad;
-      dragonImg.onload = onLoad;
-    } else {
-      // Standard static towers: archer, cannon, bomb, spear, gun
-      const img = new Image();
-      img.src = design.texturePath;
-      img.onload = () => {
-        if (!active) return;
-        const w = img.naturalWidth || 500;
-        const h = img.naturalHeight || 500;
-        canvas.width = w;
-        canvas.height = h;
-        ctx.clearRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0);
-      };
-    }
-
-    return () => {
-      active = false;
-    };
-  }, [towerId, design]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="max-h-40 max-w-[200px] object-contain filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.8)] z-10 transition-transform duration-300 hover:scale-105"
-      aria-label={design.name}
-    />
-  );
-};
 
 interface TowerLore {
   title: string;
@@ -257,9 +137,9 @@ export const AlmanacTowersTab: React.FC = () => {
   const attackInterval = (1 / fireRate).toFixed(2);
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row gap-4 h-full min-h-0 overflow-hidden">
-      {/* ──── Left Column: Tower Cards Gallery ──── */}
-      <div className="w-full md:w-80 lg:w-96 flex flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
+    <div className="flex-1 flex flex-col md:flex-row gap-2.5 sm:gap-4 h-full min-h-0 overflow-hidden">
+      {/* ──── Desktop Left Column: Tower Cards Gallery ──── */}
+      <div className="hidden md:flex w-72 lg:w-80 flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
         <div className="p-3 border-b border-amber-600/30 bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-200 font-['Almendra',serif]">
@@ -337,42 +217,83 @@ export const AlmanacTowersTab: React.FC = () => {
         </div>
       </div>
 
+      {/* ──── Mobile Top Horizontal Selector Strip (visible only on mobile) ──── */}
+      <div className="flex md:hidden overflow-x-auto gap-2 p-1.5 bg-slate-950/90 rounded-xl border border-amber-600/40 shrink-0 custom-scrollbar">
+        {ACTIVE_TOWER_IDS.map((id) => {
+          const d = TOWER_DESIGNS[id];
+          const t = TOWER_TYPES[id];
+          const isSelected = id === selectedId;
+          const tDmgType = damageTypeOfTower(id);
+          const tBadge = DAMAGE_BADGE_STYLE[tDmgType];
+          const baseCost = t?.tiers?.[0]?.cost ?? 50;
+
+          return (
+            <button
+              key={id}
+              onClick={() => {
+                soundEffects.playClick();
+                setSelectedId(id);
+              }}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg shrink-0 cursor-pointer transition-all border text-left ${
+                isSelected
+                  ? 'bg-gradient-to-r from-amber-950 via-amber-900/60 to-slate-900 border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.4)]'
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800'
+              }`}
+            >
+              <img
+                src={d?.iconPath || d?.texturePath}
+                alt={d?.name}
+                className="w-8 h-8 rounded-md object-cover border border-amber-500/40 shrink-0"
+              />
+              <div className="min-w-0">
+                <div className={`text-[11px] font-bold truncate max-w-[85px] ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
+                  {d?.name || id}
+                </div>
+                <div className="text-[9px] font-mono text-amber-300/80">
+                  {baseCost}g • <span style={{ color: tBadge.accent }}>{tDmgType === 'mental' ? 'Mental' : 'Phys'}</span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* ──── Right Column: Tower Detail Inspector ──── */}
       <div className="flex-1 flex flex-col bg-slate-950/90 rounded-xl border border-amber-600/50 overflow-hidden shadow-2xl min-h-0">
         {/* Inspector Header */}
-        <div className="p-3.5 sm:p-4 border-b border-amber-600/30 bg-gradient-to-r from-amber-950/50 via-slate-900 to-slate-950 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-950 border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] shrink-0">
+        <div className="p-3 sm:p-4 border-b border-amber-600/30 bg-gradient-to-r from-amber-950/50 via-slate-900 to-slate-950 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-slate-950 border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] shrink-0">
               <img
                 src={design.iconPath || design.texturePath}
                 alt={design.name}
                 className="w-full h-full object-cover"
               />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-xl font-black text-amber-200 font-['Almendra',serif] tracking-wide">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-xl font-black text-amber-200 font-['Almendra',serif] tracking-wide truncate">
                   {design.name}
                 </h3>
                 <span
-                  className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                  className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0"
                   style={{
                     color: badgeStyle.accent,
                     borderColor: `${badgeStyle.accent}66`,
                     backgroundColor: `${badgeStyle.accent}20`,
                   }}
                 >
-                  {damageType === 'mental' ? 'Mental Damage (Armor Piercing)' : 'Physical Damage (Armor Blunted)'}
+                  {damageType === 'mental' ? 'Mental (Armor Piercing)' : 'Physical (Blunted by Armor)'}
                 </span>
               </div>
-              <p className="text-xs text-amber-400/80 font-serif italic mt-0.5">
-                {lore.title} — <span className="text-slate-300 not-italic font-sans text-[11px]">{lore.role}</span>
+              <p className="text-[11px] sm:text-xs text-amber-400/80 font-serif italic mt-0.5 truncate">
+                {lore.title} — <span className="text-slate-300 not-italic font-sans text-[10px] sm:text-[11px]">{lore.role}</span>
               </p>
             </div>
           </div>
 
           {/* Tier Switcher Buttons */}
-          <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-lg border border-amber-600/40">
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-900 p-1 rounded-lg border border-amber-600/40 shrink-0">
             {tiers.map((_, idx) => (
               <button
                 key={idx}
@@ -380,7 +301,7 @@ export const AlmanacTowersTab: React.FC = () => {
                   soundEffects.playClick();
                   setSelectedTierIndex(idx);
                 }}
-                className={`px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1 rounded text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
                   selectedTierIndex === idx
                     ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow-md font-black scale-105'
                     : 'text-amber-200/70 hover:text-white hover:bg-slate-800'
@@ -393,146 +314,138 @@ export const AlmanacTowersTab: React.FC = () => {
         </div>
 
         {/* Inspector Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-          {/* Main Showcase: Graphic + Core Numerical Gauges */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-            {/* Tower Visual Stage */}
-            <div className="lg:col-span-5 bg-gradient-to-b from-slate-900 to-slate-950 rounded-xl border border-amber-600/30 p-4 flex flex-col items-center justify-center relative min-h-[180px]">
-              <div className="absolute inset-0 bg-radial-at-c from-amber-500/10 via-transparent to-transparent pointer-events-none" />
-              <TowerSpriteCanvas towerId={selectedId} design={design} />
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 custom-scrollbar">
+          {/* Main Primary Combat Stats Grid (High Density, Immediate Mobile View) */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5">
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Gold Cost</span>
+              <span className="text-sm sm:text-base font-black text-amber-300 font-mono">{currentTier.cost}g</span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Total Cost</span>
             </div>
 
-            {/* Combat Stats Grid */}
-            <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Gold Cost</span>
-                <span className="text-base font-black text-amber-300 font-mono">{currentTier.cost}g</span>
-                <span className="text-[9px] text-slate-500 block">Total Investment</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Damage</span>
+              <span className="text-sm sm:text-base font-black text-white font-mono">
+                {minDmg}{maxDmg !== minDmg ? ` - ${maxDmg}` : ''}
+              </span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Per Shot</span>
+            </div>
 
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Damage / Shot</span>
-                <span className="text-base font-black text-white font-mono">
-                  {minDmg}{maxDmg !== minDmg ? ` - ${maxDmg}` : ''}
-                </span>
-                <span className="text-[9px] text-slate-500 block">Damage per attack</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">DPS</span>
+              <span className="text-sm sm:text-base font-black text-emerald-400 font-mono">
+                ~{dpsMin}{dpsMax !== dpsMin ? ` - ${dpsMax}` : ''}
+              </span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Effective DPS</span>
+            </div>
 
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Effective DPS</span>
-                <span className="text-base font-black text-emerald-400 font-mono">
-                  ~{dpsMin}{dpsMax !== dpsMin ? ` - ${dpsMax}` : ''}
-                </span>
-                <span className="text-[9px] text-slate-500 block">Damage per second</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Range</span>
+              <span className="text-sm sm:text-base font-black text-amber-200 font-mono">{currentTier.range} px</span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Firing Radius</span>
+            </div>
 
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Attack Range</span>
-                <span className="text-base font-black text-amber-200 font-mono">{currentTier.range} px</span>
-                <span className="text-[9px] text-slate-500 block">Firing radius</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Cadence</span>
+              <span className="text-sm sm:text-base font-black text-amber-200 font-mono">{attackInterval}s</span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">{fireRate.toFixed(2)}/s</span>
+            </div>
 
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Attack Cadence</span>
-                <span className="text-base font-black text-amber-200 font-mono">{attackInterval}s</span>
-                <span className="text-[9px] text-slate-500 block">{fireRate.toFixed(2)} attacks / sec</span>
-              </div>
-
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Damage Channel</span>
-                <span className="text-base font-black text-amber-200 font-mono capitalize">{damageType}</span>
-                <span className="text-[9px] text-slate-500 block">{damageType === 'mental' ? 'Bypasses Armor' : 'Mitigated by Armor'}</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Channel</span>
+              <span className="text-sm sm:text-base font-black text-amber-200 font-mono capitalize truncate">{damageType}</span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">
+                {damageType === 'mental' ? 'Pierces Armor' : 'Blunted by Armor'}
+              </span>
             </div>
           </div>
 
-          {/* Special Tower Modifiers / Tier Scaling Effects */}
-          {(currentTier.special || towerType.splashRadius || towerType.onHitEffect || towerType.attackMode || towerType.armorPenetration) && (
-            <div className="p-3 bg-amber-950/40 rounded-lg border border-amber-600/50 flex flex-col gap-1.5 shadow-inner">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-600/60 font-mono">
-                  Tier {selectedTierIndex + 1} Special Effect
+          {/* Tier Abilities & Special Modifiers (Immediate View Under Stats) */}
+          <div className="p-3 bg-amber-950/40 rounded-lg border border-amber-600/50 flex flex-col gap-1.5 shadow-inner">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-600/60 font-mono">
+                Tier {selectedTierIndex + 1} Ability & Modifiers
+              </span>
+              {towerType.attackMode === 'aoe_pulse' && (
+                <span className="text-[10px] text-purple-300 font-bold bg-purple-950/60 px-2 py-0.5 rounded border border-purple-600/60">
+                  360° Shockwave Pulse
                 </span>
-                {towerType.attackMode === 'aoe_pulse' && (
-                  <span className="text-[10px] text-purple-300 font-bold bg-purple-950/60 px-2 py-0.5 rounded border border-purple-600/60">
-                    360° Shockwave Pulse
-                  </span>
-                )}
-                {towerType.splashRadius && (
-                  <span className="text-[10px] text-orange-300 font-bold bg-orange-950/60 px-2 py-0.5 rounded border border-orange-600/60">
-                    AoE Splash ({towerType.splashRadius}px)
-                  </span>
-                )}
-                {towerType.armorPenetration && (
-                  <span className="text-[10px] text-yellow-300 font-bold bg-yellow-950/60 px-2 py-0.5 rounded border border-yellow-600/60">
-                    Armor Piercing ({Math.round(towerType.armorPenetration * 100)}%)
-                  </span>
-                )}
-                {towerType.onHitEffect?.type === 'slow' && (
-                  <span className="text-[10px] text-blue-300 font-bold bg-blue-950/60 px-2 py-0.5 rounded border border-blue-600/60">
-                    Slow ({Math.round(towerType.onHitEffect.magnitude * 100)}%, {towerType.onHitEffect.durationSec}s)
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-slate-200 leading-relaxed">
-                {currentTier.special?.windupMaxBonus !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Ramping Windup:</strong> Consecutive shots build +10% fire rate stacks up to <strong>+{Math.round(currentTier.special.windupMaxBonus * 100)}%</strong> max attack speed. Decays to 0 if idle for more than 2.0s.
-                  </span>
-                )}
-                {currentTier.special?.armorPierceRatio !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Armor Piercing:</strong> High-explosive splash ignores <strong>{Math.round(currentTier.special.armorPierceRatio * 100)}%</strong> of target physical armor.
-                  </span>
-                )}
-                {selectedId === 'bomb' && currentTier.special?.knockbackPx !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Demolition Concussion:</strong> Direct hits and concussive blasts knock targets backward along the path by <strong>{currentTier.special.knockbackPx}px</strong>.
-                  </span>
-                )}
-                {currentTier.special?.pulseSlow !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Echoing Terror:</strong> Sonic pulse inflicts a <strong>{Math.round(currentTier.special.pulseSlow * 100)}%</strong> slow on all mobs in radius for 1.5s.
-                  </span>
-                )}
-                {currentTier.special?.bleedTotalDamage !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Lacerating Bleed:</strong> Fast piercing thrusts inflict physical bleed dealing <strong>{currentTier.special.bleedTotalDamage}</strong> total bleed damage over 3.0s.
-                  </span>
-                )}
-                {currentTier.special?.prioritizeSupport && (
-                  <span>
-                    <strong className="text-amber-300">Bounty Hunter:</strong> Prioritizes high-value support casters (Healers, Drummers). Awards <strong>+{currentTier.special.bonusGoldOnKill}g</strong> bonus gold on kill.
-                  </span>
-                )}
-                {currentTier.special?.drenchSlow !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Drench & Soak:</strong> Drenches struck enemies for 2.5s, applying a <strong>{Math.round(currentTier.special.drenchSlow * 100)}%</strong> slow and amplifying incoming mental damage by <strong>+{Math.round((currentTier.special.drenchVulnerability ?? 0) * 100)}%</strong>.
-                  </span>
-                )}
-                {currentTier.special?.silenceSec !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Temple Gatekeeper:</strong> Sacred roar knocks targets backward by <strong>{currentTier.special.knockbackPx ?? 0}px</strong> and silences active mob auras and abilities for <strong>{currentTier.special.silenceSec}s</strong>.
-                  </span>
-                )}
-                {currentTier.special?.deathExplosionDamage !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Cataclysmic Detonation:</strong> When an enemy is slain by dragon fire, they detonate in an AoE explosion of spiritual flame dealing <strong>{currentTier.special.deathExplosionDamage}</strong> mental damage within a <strong>{currentTier.special.deathExplosionRadius ?? 50}px</strong> blast radius.
-                  </span>
-                )}
-                {currentTier.special?.armorStripPermanent !== undefined && (
-                  <span>
-                    <strong className="text-amber-300">Armor Crushing:</strong> Heavy kinetic shells permanently strip <strong>{currentTier.special.armorStripPermanent}</strong> physical armor from the target per hit.
-                  </span>
-                )}
-                {towerType.armorPenetration && (
-                  <span className="text-slate-200">
-                    Armor Piercing: Ignores <strong>{Math.round(towerType.armorPenetration * 100)}%</strong> of target physical armor.{' '}
-                  </span>
-                )}
-              </div>
+              )}
+              {towerType.splashRadius && (
+                <span className="text-[10px] text-orange-300 font-bold bg-orange-950/60 px-2 py-0.5 rounded border border-orange-600/60">
+                  AoE Splash ({towerType.splashRadius}px)
+                </span>
+              )}
+              {towerType.armorPenetration && (
+                <span className="text-[10px] text-yellow-300 font-bold bg-yellow-950/60 px-2 py-0.5 rounded border border-yellow-600/60">
+                  Armor Piercing ({Math.round(towerType.armorPenetration * 100)}%)
+                </span>
+              )}
+              {towerType.onHitEffect?.type === 'slow' && (
+                <span className="text-[10px] text-blue-300 font-bold bg-blue-950/60 px-2 py-0.5 rounded border border-blue-600/60">
+                  Slow ({Math.round(towerType.onHitEffect.magnitude * 100)}%, {towerType.onHitEffect.durationSec}s)
+                </span>
+              )}
             </div>
-          )}
+
+            <div className="text-xs text-slate-200 leading-relaxed">
+              {currentTier.special?.windupMaxBonus !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Ramping Windup:</strong> Consecutive shots build +10% fire rate stacks up to <strong>+{Math.round(currentTier.special.windupMaxBonus * 100)}%</strong> max attack speed. Decays to 0 if idle for more than 2.0s.
+                </p>
+              )}
+              {currentTier.special?.armorPierceRatio !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Armor Piercing:</strong> High-explosive splash ignores <strong>{Math.round(currentTier.special.armorPierceRatio * 100)}%</strong> of target physical armor.
+                </p>
+              )}
+              {selectedId === 'bomb' && currentTier.special?.knockbackPx !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Demolition Concussion:</strong> Direct hits and concussive blasts knock targets backward along the path by <strong>{currentTier.special.knockbackPx}px</strong>.
+                </p>
+              )}
+              {currentTier.special?.pulseSlow !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Echoing Terror:</strong> Sonic pulse inflicts a <strong>{Math.round(currentTier.special.pulseSlow * 100)}%</strong> slow on all mobs in radius for 1.5s.
+                </p>
+              )}
+              {currentTier.special?.bleedTotalDamage !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Lacerating Bleed:</strong> Fast piercing thrusts inflict physical bleed dealing <strong>{currentTier.special.bleedTotalDamage}</strong> total bleed damage over 3.0s.
+                </p>
+              )}
+              {currentTier.special?.prioritizeSupport && (
+                <p>
+                  <strong className="text-amber-300">Bounty Hunter:</strong> Prioritizes high-value support casters (Healers, Drummers). Awards <strong>+{currentTier.special.bonusGoldOnKill}g</strong> bonus gold on kill.
+                </p>
+              )}
+              {currentTier.special?.drenchSlow !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Drench & Soak:</strong> Drenches struck enemies for 2.5s, applying a <strong>{Math.round(currentTier.special.drenchSlow * 100)}%</strong> slow and amplifying incoming mental damage by <strong>+{Math.round((currentTier.special.drenchVulnerability ?? 0) * 100)}%</strong>.
+                </p>
+              )}
+              {currentTier.special?.silenceSec !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Temple Gatekeeper:</strong> Sacred roar knocks targets backward by <strong>{currentTier.special.knockbackPx ?? 0}px</strong> and silences active mob auras and abilities for <strong>{currentTier.special.silenceSec}s</strong>.
+                </p>
+              )}
+              {currentTier.special?.deathExplosionDamage !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Cataclysmic Detonation:</strong> When an enemy is slain by dragon fire, they detonate in an AoE explosion of spiritual flame dealing <strong>{currentTier.special.deathExplosionDamage}</strong> mental damage within a <strong>{currentTier.special.deathExplosionRadius ?? 50}px</strong> blast radius.
+                </p>
+              )}
+              {currentTier.special?.armorStripPermanent !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Armor Crushing:</strong> Heavy kinetic shells permanently strip <strong>{currentTier.special.armorStripPermanent}</strong> physical armor from the target per hit.
+                </p>
+              )}
+              {!currentTier.special && !towerType.splashRadius && !towerType.onHitEffect && !towerType.attackMode && !towerType.armorPenetration && (
+                <p className="text-slate-300 italic">
+                  Standard baseline attack mode. Upgrade to higher tiers to unlock specialized tactical combat abilities.
+                </p>
+              )}
+            </div>
+          </div>
 
           {/* Lore & Historical Context */}
           <div className="bg-slate-900/60 p-3.5 rounded-lg border border-slate-800">

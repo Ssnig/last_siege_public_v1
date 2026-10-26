@@ -47,12 +47,12 @@ export const AlmanacPage: React.FC = () => {
       <div className="absolute inset-0 backdrop-blur-[4px] bg-black/40 pointer-events-none" />
 
       {/* Main Full-Height Container */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-2 sm:px-6 h-[98vh] py-2 flex flex-col gap-2.5 animate-fadeIn">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-1.5 sm:px-6 h-[99vh] py-1.5 sm:py-2 flex flex-col gap-2 animate-fadeIn">
         {/* ═══ Header Bar ═══ */}
         <div className="relative shrink-0">
           <GoldCrest />
           <div
-            className="relative rounded-xl px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between"
+            className="relative rounded-xl px-2 sm:px-6 py-1.5 sm:py-3 flex items-center justify-between gap-1.5"
             style={{
               background: 'linear-gradient(135deg, #8c2e2c 0%, #6b1e1e 50%, #4a1212 100%)',
               border: '2px solid #c59b27',
@@ -60,11 +60,11 @@ export const AlmanacPage: React.FC = () => {
             }}
           >
             {/* Left: Back Button & Title */}
-            <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-4 min-w-0 shrink-0">
               <button
                 onClick={handleReturnToLobby}
                 onMouseEnter={() => soundEffects.playHover()}
-                className="px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0"
+                className="px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-xs font-bold tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center gap-1 shrink-0"
                 style={{
                   fontFamily: "'Almendra SC', 'Almendra', serif",
                   background: 'linear-gradient(180deg, #782220, #541414)',
@@ -80,19 +80,22 @@ export const AlmanacPage: React.FC = () => {
               </button>
 
               <div className="min-w-0">
+                <span className="sm:hidden text-xs font-bold text-amber-100 tracking-wider truncate uppercase font-['MedievalSharp',serif]">
+                  Almanac
+                </span>
                 <h1
-                  className="text-base sm:text-2xl font-bold text-amber-100 tracking-wider truncate uppercase font-['MedievalSharp',serif]"
+                  className="hidden sm:block text-base sm:text-2xl font-bold text-amber-100 tracking-wider truncate uppercase font-['MedievalSharp',serif]"
                 >
                   Royal Almanac & War Codex
                 </h1>
-                <p className="text-[10px] sm:text-xs text-amber-300/70 font-['Almendra',serif] truncate">
+                <p className="hidden sm:block text-[10px] sm:text-xs text-amber-300/70 font-['Almendra',serif] truncate">
                   Authoritative Compendium of the Konbaung Realm
                 </p>
               </div>
             </div>
 
             {/* Right: Tab Navigation Switchers */}
-            <div className="flex items-center gap-1 sm:gap-2 bg-slate-950/70 p-1 rounded-xl border border-amber-600/40 shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-2 bg-slate-950/70 p-0.5 sm:p-1 rounded-xl border border-amber-600/40 shrink-0">
               {TABS.map((tab) => {
                 const isActive = tab.id === activeTab;
                 return (
@@ -100,7 +103,7 @@ export const AlmanacPage: React.FC = () => {
                     key={tab.id}
                     onClick={() => handleSelectTab(tab.id)}
                     onMouseEnter={() => soundEffects.playHover()}
-                    className={`px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-1.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                       isActive
                         ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black shadow-[0_0_12px_rgba(245,158,11,0.5)] scale-[1.02]'
                         : 'text-amber-200/70 hover:text-white hover:bg-slate-900/80'
@@ -109,7 +112,7 @@ export const AlmanacPage: React.FC = () => {
                     <span className="font-['Almendra',serif]">{tab.label}</span>
                     {tab.badge && (
                       <span
-                        className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                        className={`hidden sm:inline text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
                           isActive
                             ? 'bg-slate-950 text-amber-300 font-bold'
                             : 'bg-slate-800 text-slate-300'

@@ -194,9 +194,9 @@ export const AlmanacUnitsTab: React.FC = () => {
   const speedTierColor = mob.speed >= 100 ? 'text-amber-400' : mob.speed >= 60 ? 'text-emerald-400' : 'text-slate-300';
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row gap-4 h-full min-h-0 overflow-hidden">
-      {/* ──── Left Column: Unit Gallery ──── */}
-      <div className="w-full md:w-80 lg:w-96 flex flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
+    <div className="flex-1 flex flex-col md:flex-row gap-2.5 sm:gap-4 h-full min-h-0 overflow-hidden">
+      {/* ──── Desktop Left Column: Unit Gallery ──── */}
+      <div className="hidden md:flex w-72 lg:w-80 flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
         <div className="p-3 border-b border-amber-600/30 bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-200 font-['Almendra',serif]">
@@ -303,162 +303,227 @@ export const AlmanacUnitsTab: React.FC = () => {
         </div>
       </div>
 
+      {/* ──── Mobile Top Horizontal Selector Strip (visible only on mobile) ──── */}
+      <div className="flex md:hidden overflow-x-auto gap-2 p-1.5 bg-slate-950/90 rounded-xl border border-amber-600/40 shrink-0 custom-scrollbar">
+        {UNIT_IDS.map((id) => {
+          const m = MOB_TYPES[id];
+          const meta = UNIT_EXTRA_DATA[id];
+          const isSelected = id === selectedId;
+
+          return (
+            <button
+              key={id}
+              onClick={() => {
+                soundEffects.playClick();
+                setSelectedId(id);
+              }}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg shrink-0 cursor-pointer transition-all border text-left ${
+                isSelected
+                  ? 'bg-gradient-to-r from-amber-950 via-amber-900/60 to-slate-900 border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.4)]'
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800'
+              }`}
+            >
+              <img
+                src={meta?.faceUrl}
+                alt={m?.name}
+                className="w-8 h-8 rounded-md object-cover border border-amber-500/40 shrink-0"
+              />
+              <div className="min-w-0">
+                <div className={`text-[11px] font-bold truncate max-w-[85px] ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
+                  {m?.name || id}
+                </div>
+                <div className="text-[9px] font-mono text-amber-300/80">
+                  {m?.cost}g • <span className="text-slate-400">{m?.maxHp}hp</span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* ──── Right Column: Unit Detail Inspector ──── */}
       <div className="flex-1 flex flex-col bg-slate-950/90 rounded-xl border border-amber-600/50 overflow-hidden shadow-2xl min-h-0">
         {/* Inspector Header */}
-        <div className="p-3.5 sm:p-4 border-b border-amber-600/30 bg-gradient-to-r from-amber-950/50 via-slate-900 to-slate-950 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-950 border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] shrink-0">
+        <div className="p-3 sm:p-4 border-b border-amber-600/30 bg-gradient-to-r from-amber-950/50 via-slate-900 to-slate-950 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-slate-950 border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] shrink-0">
               <img
                 src={info.faceUrl}
                 alt={mob.name}
                 className="w-full h-full object-cover"
               />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base sm:text-xl font-black text-amber-200 font-['Almendra',serif] tracking-wide">
-                    {mob.name}
-                  </h3>
-                  {mob.nickname && (
-                    <span className="text-xs font-serif italic text-amber-400 font-normal">
-                      "{mob.nickname}"
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/40 bg-amber-950/40 text-amber-300">
-                  Cost: {mob.cost} Gold
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-xl font-black text-amber-200 font-['Almendra',serif] tracking-wide truncate">
+                  {mob.name}
+                </h3>
+                {mob.nickname && (
+                  <span className="text-xs font-serif italic text-amber-400 font-normal">
+                    "{mob.nickname}"
+                  </span>
+                )}
+                <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/40 bg-amber-950/40 text-amber-300 shrink-0">
+                  Cost: {mob.cost}g
                 </span>
               </div>
-              <p className="text-xs text-amber-400/80 font-serif italic mt-0.5">
-                {info.title} — <span className="text-slate-300 not-italic font-sans text-[11px]">{info.role}</span>
+              <p className="text-[11px] sm:text-xs text-amber-400/80 font-serif italic mt-0.5 truncate">
+                {info.title} — <span className="text-slate-300 not-italic font-sans text-[10px] sm:text-[11px]">{info.role}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Leak Penalty:</span>
-            <span className="text-xs font-black px-2 py-1 bg-red-950/80 border border-red-500/60 rounded text-red-200 font-mono">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] sm:text-xs text-slate-400">Leak Penalty:</span>
+            <span className="text-[11px] sm:text-xs font-black px-2 py-0.5 sm:py-1 bg-red-950/80 border border-red-500/60 rounded text-red-200 font-mono">
               -{mob.leakDamage} Palace HP
             </span>
           </div>
         </div>
 
         {/* Inspector Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-          {/* Visual Presentation + Core Stats */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-            {/* Unit Face / Portrait Stage */}
-            <div className="lg:col-span-4 bg-gradient-to-b from-slate-900 to-slate-950 rounded-xl border border-amber-600/30 p-4 flex flex-col items-center justify-center relative min-h-[170px]">
-              <div className="absolute inset-0 bg-radial-at-c from-amber-500/10 via-transparent to-transparent pointer-events-none" />
-              <img
-                src={info.faceUrl}
-                alt={mob.name}
-                className="w-28 h-28 rounded-xl object-cover border-2 border-amber-400/60 shadow-[0_8px_20px_rgba(0,0,0,0.8)] z-10"
-              />
-              <span className="text-[11px] text-amber-300 font-mono mt-2 z-10">
-                Speed: <strong className={speedTierColor}>{speedTier} ({mob.speed})</strong>
-              </span>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 custom-scrollbar">
+          {/* Main Primary Combat Stats Grid (High Density, Immediate Mobile View) */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5">
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Health</span>
+              <span className="text-sm sm:text-base font-black text-rose-400 font-mono">{mob.maxHp} HP</span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Total HP</span>
             </div>
 
-            {/* Combat Gauges */}
-            <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Health (HP)</span>
-                <span className="text-base font-black text-rose-400 font-mono">{mob.maxHp} HP</span>
-                <span className="text-[9px] text-slate-500 block">Total hit points</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Armor</span>
+              <span className="text-sm sm:text-base font-black text-blue-300 font-mono">
+                {(mob.armor ?? 0) > 0 ? `${mob.armor} Armor` : '0 (None)'}
+              </span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Physical defense</span>
+            </div>
 
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Physical Armor</span>
-                <span className="text-base font-black text-blue-300 font-mono">
-                  {(mob.armor ?? 0) > 0 ? `${mob.armor} Armor` : '0 (None)'}
-                </span>
-                <span className="text-[9px] text-slate-500 block">Blunts physical arrows</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Resolve</span>
+              <span className="text-sm sm:text-base font-black text-purple-300 font-mono">
+                {((mob.mentalStrength ?? 0.5) * 100).toFixed(0)}%
+              </span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Mental strength</span>
+            </div>
 
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Mental Strength</span>
-                <span className="text-base font-black text-purple-300 font-mono">
-                  {((mob.mentalStrength ?? 0.5) * 100).toFixed(0)}% Resolve
-                </span>
-                <span className="text-[9px] text-slate-500 block">Resists Bell pulse crack</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Speed</span>
+              <span className="text-sm sm:text-base font-black text-amber-300 font-mono">
+                {mob.speed} <span className={`text-[10px] font-normal ${speedTierColor}`}>({speedTier})</span>
+              </span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Movement rate</span>
+            </div>
 
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Deployment Cost</span>
-                <span className="text-base font-black text-amber-300 font-mono">{mob.cost} Gold</span>
-                <span className="text-[9px] text-slate-500 block">Attacker investment</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Deploy Cost</span>
+              <span className="text-sm sm:text-base font-black text-amber-300 font-mono">{mob.cost}g</span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Attacker gold</span>
+            </div>
 
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Defender Bounty</span>
-                <span className="text-base font-black text-yellow-400 font-mono">+{mob.bounty} Gold</span>
-                <span className="text-[9px] text-slate-500 block">Reward when slain</span>
-              </div>
-
-              <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Leak Damage</span>
-                <span className="text-base font-black text-red-400 font-mono">-{mob.leakDamage} Core HP</span>
-                <span className="text-[9px] text-slate-500 block">On reaching palace</span>
-              </div>
+            <div className="bg-slate-900/80 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Kill Bounty</span>
+              <span className="text-sm sm:text-base font-black text-yellow-400 font-mono">+{mob.bounty}g</span>
+              <span className="text-[8px] sm:text-[9px] text-slate-500 block truncate">Defender reward</span>
             </div>
           </div>
 
-          {/* Unique Special Ability Banner */}
-          {(mob.ability || mob.taunt || mob.speedRamp || mob.adaptiveDefense || mob.damagedSpeed !== undefined || mob.onDeathTowerStunSec) && (
-            <div className="p-3.5 bg-gradient-to-r from-amber-950/40 to-slate-900 rounded-lg border border-amber-500/50 flex items-start gap-3">
-              <div className="text-xs">
-                <h5 className="font-bold text-amber-300 uppercase tracking-wide">
-                  Active Battlefield Ability:
-                </h5>
-                {mob.taunt && (
-                  <p className="text-slate-200 mt-1 leading-relaxed">
-                    <strong>Royal Taunt:</strong> Emits an authoritative challenge that overrides tower targeting.
-                    Every tower in range is forced to attack this unit before any other targets!
-                  </p>
-                )}
-                {mob.ability?.type === 'heal_aura' && (
-                  <p className="text-slate-200 mt-1 leading-relaxed">
-                    <strong>Herbalist Healing Aura:</strong> Emits an emerald aura in a <strong>{mob.ability.radius}px</strong> radius
-                    every <strong>{mob.ability.cooldownSec}s</strong>, restoring <strong>{mob.ability.healAmount} HP</strong> to all injured comrades below 50% health!
-                  </p>
-                )}
-                {mob.ability?.type === 'self_heal' && (
-                  <p className="text-slate-200 mt-1 leading-relaxed">
-                    <strong>Battlefield Second Wind:</strong> Regenerates <strong>{Math.round((mob.ability.healFraction || 0.1) * 100)}% of Max HP ({Math.round(mob.maxHp * (mob.ability.healFraction || 0.1))} HP)</strong> every <strong>{mob.ability.cooldownSec}s</strong> whenever injured!
-                  </p>
-                )}
-                {mob.ability?.type === 'speed_aura' && (
-                  <p className="text-slate-200 mt-1 leading-relaxed">
-                    <strong>Martial War Drums:</strong> Beats resonant drums in a <strong>{mob.ability.radius}px</strong> radius,
-                    granting a massive <strong>+{Math.round((mob.ability.speedBoost || 0.4) * 100)}% Speed Boost</strong> to all nearby allies for {mob.ability.durationSec}s!
-                  </p>
-                )}
-                {mob.speedRamp && (
-                  <p className="text-slate-200 mt-1 leading-relaxed">
-                    <strong>Spiritual Momentum:</strong> Starts at <strong>{mob.speed} speed</strong> and continuously accelerates along the lane, reaching <strong>{(1 + mob.speedRamp.maxBonusFraction)}x speed ({Math.round(mob.speed * (1 + mob.speedRamp.maxBonusFraction))})</strong> after <strong>{mob.speedRamp.rampDurationSec}s</strong>!
-                  </p>
-                )}
-                {mob.adaptiveDefense && (
-                  <p className="text-slate-200 mt-1 leading-relaxed">
-                    <strong>Adaptive Carapace (Max {mob.adaptiveDefense.maxStacks} Stacks):</strong> Each physical hit grants <strong>+{mob.adaptiveDefense.armorPerStack} Armor</strong> (up to {Math.round(mob.adaptiveDefense.armorPerStack * mob.adaptiveDefense.maxStacks)} Armor at {mob.adaptiveDefense.maxStacks} stacks), while each mental hit grants <strong>+{Math.round(mob.adaptiveDefense.mentalStrengthPerStack * 100)}% Mental Strength</strong> (up to {Math.round(mob.adaptiveDefense.mentalStrengthPerStack * mob.adaptiveDefense.maxStacks * 100)}% at {mob.adaptiveDefense.maxStacks} stacks).
-                  </p>
-                )}
-                {mob.damagedSpeed !== undefined && (
-                  <p className="text-slate-200 mt-1 leading-relaxed">
-                    <strong>Burst of Speed:</strong> Bolts down the lane at <strong>{mob.speed} speed</strong> until taking damage from a tower for the first time, after which movement speed permanently drops to <strong>{mob.damagedSpeed}</strong>.
-                  </p>
-                )}
-                {mob.onDeathTowerStunSec && (
-                  <p className="text-slate-200 mt-1 leading-relaxed">
-                    <strong>Dying Hex:</strong> Upon death, curses the tower that dealt the killing blow, <strong>stunning it for {mob.onDeathTowerStunSec} seconds</strong>!
-                  </p>
-                )}
-              </div>
+          {/* Unique Special Ability Banner (Immediate View Under Stats) */}
+          <div className="p-3 bg-amber-950/40 rounded-lg border border-amber-600/50 flex flex-col gap-1.5 shadow-inner">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-600/60 font-mono">
+                Active Battlefield Ability & Traits
+              </span>
+              {mob.taunt && (
+                <span className="text-[10px] text-red-300 font-bold bg-red-950/60 px-2 py-0.5 rounded border border-red-600/60">
+                  Royal Taunt
+                </span>
+              )}
+              {mob.ability?.type === 'heal_aura' && (
+                <span className="text-[10px] text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-600/60">
+                  Healer Aura
+                </span>
+              )}
+              {mob.ability?.type === 'self_heal' && (
+                <span className="text-[10px] text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-600/60">
+                  Regeneration
+                </span>
+              )}
+              {mob.ability?.type === 'speed_aura' && (
+                <span className="text-[10px] text-yellow-300 font-bold bg-yellow-950/60 px-2 py-0.5 rounded border border-yellow-600/60">
+                  War Drummer
+                </span>
+              )}
+              {mob.speedRamp && (
+                <span className="text-[10px] text-sky-300 font-bold bg-sky-950/60 px-2 py-0.5 rounded border border-sky-600/60">
+                  Speed Ramp
+                </span>
+              )}
+              {mob.adaptiveDefense && (
+                <span className="text-[10px] text-purple-300 font-bold bg-purple-950/60 px-2 py-0.5 rounded border border-purple-600/60">
+                  Adaptive Armor
+                </span>
+              )}
+              {mob.damagedSpeed !== undefined && (
+                <span className="text-[10px] text-amber-300 font-bold bg-amber-950/60 px-2 py-0.5 rounded border border-amber-600/60">
+                  Sprint Burst
+                </span>
+              )}
+              {mob.onDeathTowerStunSec && (
+                <span className="text-[10px] text-fuchsia-300 font-bold bg-fuchsia-950/60 px-2 py-0.5 rounded border border-fuchsia-600/60">
+                  Dying Hex
+                </span>
+              )}
             </div>
-          )}
+
+            <div className="text-xs text-slate-200 leading-relaxed">
+              {mob.taunt && (
+                <p>
+                  <strong className="text-amber-300">Royal Taunt:</strong> Emits an authoritative challenge that overrides tower targeting. Every tower in range is forced to attack this unit before any other targets!
+                </p>
+              )}
+              {mob.ability?.type === 'heal_aura' && (
+                <p>
+                  <strong className="text-amber-300">Herbalist Healing Aura:</strong> Emits an emerald aura in a <strong>{mob.ability.radius}px</strong> radius every <strong>{mob.ability.cooldownSec}s</strong>, restoring <strong>{mob.ability.healAmount} HP</strong> to all injured comrades below 50% health!
+                </p>
+              )}
+              {mob.ability?.type === 'self_heal' && (
+                <p>
+                  <strong className="text-amber-300">Battlefield Second Wind:</strong> Regenerates <strong>{Math.round((mob.ability.healFraction || 0.1) * 100)}% of Max HP ({Math.round(mob.maxHp * (mob.ability.healFraction || 0.1))} HP)</strong> every <strong>{mob.ability.cooldownSec}s</strong> whenever injured!
+                </p>
+              )}
+              {mob.ability?.type === 'speed_aura' && (
+                <p>
+                  <strong className="text-amber-300">Martial War Drums:</strong> Beats resonant drums in a <strong>{mob.ability.radius}px</strong> radius, granting a massive <strong>+{Math.round((mob.ability.speedBoost || 0.4) * 100)}% Speed Boost</strong> to all nearby allies for {mob.ability.durationSec}s!
+                </p>
+              )}
+              {mob.speedRamp && (
+                <p>
+                  <strong className="text-amber-300">Spiritual Momentum:</strong> Starts at <strong>{mob.speed} speed</strong> and continuously accelerates along the lane, reaching <strong>{(1 + mob.speedRamp.maxBonusFraction)}x speed ({Math.round(mob.speed * (1 + mob.speedRamp.maxBonusFraction))})</strong> after <strong>{mob.speedRamp.rampDurationSec}s</strong>!
+                </p>
+              )}
+              {mob.adaptiveDefense && (
+                <p>
+                  <strong className="text-amber-300">Adaptive Carapace (Max {mob.adaptiveDefense.maxStacks} Stacks):</strong> Each physical hit grants <strong>+{mob.adaptiveDefense.armorPerStack} Armor</strong> (up to {Math.round(mob.adaptiveDefense.armorPerStack * mob.adaptiveDefense.maxStacks)} Armor at {mob.adaptiveDefense.maxStacks} stacks), while each mental hit grants <strong>+{Math.round(mob.adaptiveDefense.mentalStrengthPerStack * 100)}% Mental Strength</strong> (up to {Math.round(mob.adaptiveDefense.mentalStrengthPerStack * mob.adaptiveDefense.maxStacks * 100)}% at {mob.adaptiveDefense.maxStacks} stacks).
+                </p>
+              )}
+              {mob.damagedSpeed !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Burst of Speed:</strong> Bolts down the lane at <strong>{mob.speed} speed</strong> until taking damage from a tower for the first time, after which movement speed permanently drops to <strong>{mob.damagedSpeed}</strong>.
+                </p>
+              )}
+              {mob.onDeathTowerStunSec && (
+                <p>
+                  <strong className="text-amber-300">Dying Hex:</strong> Upon death, curses the tower that dealt the killing blow, <strong>stunning it for {mob.onDeathTowerStunSec} seconds</strong>!
+                </p>
+              )}
+              {!mob.ability && !mob.taunt && !mob.speedRamp && !mob.adaptiveDefense && mob.damagedSpeed === undefined && !mob.onDeathTowerStunSec && (
+                <p className="text-slate-300 italic">
+                  Standard Vanguard: Durable frontline raider without active spellcast abilities.
+                </p>
+              )}
+            </div>
+          </div>
 
           {/* Lore & Background */}
           <div className="bg-slate-900/60 p-3.5 rounded-lg border border-slate-800">

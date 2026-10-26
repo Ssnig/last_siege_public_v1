@@ -286,9 +286,9 @@ export const AlmanacMapsTab: React.FC = () => {
   }, [selectedMapId, showPaths, showSlots, showPortals, showBase, mapBgUrl, activeMap]);
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row gap-4 h-full min-h-0 overflow-hidden">
-      {/* ──── Left Column: Battlefields List ──── */}
-      <div className="w-full md:w-80 lg:w-88 flex flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
+    <div className="flex-1 flex flex-col md:flex-row gap-2.5 sm:gap-4 h-full min-h-0 overflow-hidden">
+      {/* ──── Desktop Left Column: Battlefields List ──── */}
+      <div className="hidden md:flex w-72 lg:w-80 flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
         <div className="p-3 border-b border-amber-600/30 bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-200 font-['Almendra',serif]">
@@ -354,6 +354,43 @@ export const AlmanacMapsTab: React.FC = () => {
             );
           })}
         </div>
+      </div>
+
+      {/* ──── Mobile Top Horizontal Selector Strip (visible only on mobile) ──── */}
+      <div className="flex md:hidden overflow-x-auto gap-2 p-1.5 bg-slate-950/90 rounded-xl border border-amber-600/40 shrink-0 custom-scrollbar">
+        {CANONICAL_MAPS.map((m) => {
+          const isSelected = m.id === selectedMapId;
+          const thumb = MAP_IMAGE_URLS[m.id]?.map || `/assets/maps/map_1_konbaung/map.jpg`;
+
+          return (
+            <button
+              key={m.id}
+              onClick={() => {
+                soundEffects.playClick();
+                setSelectedMapId(m.id);
+              }}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg shrink-0 cursor-pointer transition-all border text-left ${
+                isSelected
+                  ? 'bg-gradient-to-r from-amber-950 via-amber-900/60 to-slate-900 border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.4)]'
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800'
+              }`}
+            >
+              <img
+                src={thumb}
+                alt={m.name}
+                className="w-8 h-8 rounded-md object-cover border border-amber-500/40 shrink-0"
+              />
+              <div className="min-w-0">
+                <div className={`text-[11px] font-bold truncate max-w-[85px] ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
+                  {m.name || m.id}
+                </div>
+                <div className="text-[9px] font-mono text-amber-300/80">
+                  {m.lanes || 2}L • {m.slots?.length || 5} Pads
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* ──── Right Column: Map Showcase & Tactical Canvas ──── */}
