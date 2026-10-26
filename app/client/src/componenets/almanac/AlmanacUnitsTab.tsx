@@ -114,6 +114,56 @@ const UNIT_EXTRA_DATA: Record<string, UnitVisualAndLore> = {
     bestPairedWith: ['Sar Bal Gyi', 'War Elephant', 'Horse Rider'],
     counteredBy: ['Cannon (slow counteracts speed)', 'Gun Tower (picks off drummer)'],
   },
+  bandit: {
+    faceUrl: '/assets/units/Bandit/face.png',
+    sheetUrl: '/assets/units/Bandit/spritesheet.png',
+    role: 'Swift Raider & Outlaw Vanguard',
+    title: 'Bandit Raider',
+    description: 'Ruthless woodland plunderers roaming between provinces. Bolstered by light armor and rapid movement, bandits charge past sluggish defenses to breach outer barriers.',
+    tacticalTip: 'High-speed infiltration unit with a touch of physical armor. Ideal for overwhelming towers when deployed alongside simian swarms.',
+    bestPairedWith: ['Monkey (swarming)', 'Doe Pat Drummer (blistering sprint)'],
+    counteredBy: ['Archer Tower (rapid arrows)', 'Cannon (splash stagger)'],
+  },
+  belu: {
+    faceUrl: '/assets/units/Belu/face.jpg',
+    sheetUrl: '/assets/units/Belu/spritesheet.png',
+    role: 'Mythical Ogre Behemoth',
+    title: 'Belu Ogre',
+    description: 'Fearsome horned ogre descending from legendary folklore. Possesses monstrous 950 HP, 7 heavy armor, and a devastating 5 Leak Damage upon breaching the royal court.',
+    tacticalTip: 'A terrifying siege juggernaut with 80% mental resistance. Unlike Sar Bal Gyi, the Belu easily withstands bell resonance, demanding heavy physical or mortar fire.',
+    bestPairedWith: ['Say Sayar (massive HP pool healing)', 'Doe Pat Drummer (overcoming slow stride)'],
+    counteredBy: ['Spear Tower (piercing thrusts)', 'Sein Pyaung Mortar (crushing artillery)'],
+  },
+  brute: {
+    faceUrl: '/assets/units/Brute/face.png',
+    sheetUrl: '/assets/units/Brute/spritesheet.png',
+    role: 'Armored Shock Linebreaker',
+    title: 'Heavy Brute',
+    description: 'Towering warrior bearing hefty plate armor and iron gauntlets. Built to absorb concentrated crossfire and clear the vanguard line for faster allies.',
+    tacticalTip: 'Formidable mid-game anchor with 560 HP and 5 armor. Susceptible to mental terror due to low resolve (25%), so steer clear of bell resonance.',
+    bestPairedWith: ['Bandit Raider (follow-up surge)', 'Say Sayar Physician'],
+    counteredBy: ['Bell Tower (low mental resolve)', 'High-Tier Gun Tower'],
+  },
+  general: {
+    faceUrl: '/assets/units/General/face.jpg',
+    sheetUrl: '/assets/units/General/spritesheet.png',
+    role: 'Elite Royal Bo Commander',
+    title: 'Royal Bo General',
+    description: 'Venerated battlefield warlord marching under the royal peacock standard. Combines 6 heavy armor with an exceptional 90% mental resolve to lead relentless assaults.',
+    tacticalTip: 'Well-rounded commander with high survivability against both physical and mental assaults. Forces defense lines into multi-tower commitments.',
+    bestPairedWith: ['Shield Bearer (taunt protection)', 'War Elephant', 'Say Sayar'],
+    counteredBy: ['Concentrated Single-Target Burst', 'Water Cannon (slowing advance)'],
+  },
+  sone_ma: {
+    faceUrl: '/assets/units/SoneMa/face.jpg',
+    sheetUrl: '/assets/units/SoneMa/spritesheet.png',
+    role: 'Occult Nat Sorceress',
+    title: 'Sone Ma Sorceress',
+    description: 'Mystical practitioner of ancient occult arts and spirit charms. Possesses an unshakeable 1.0 Mental Strength, rendering all spiritual bells and mental crack harmless.',
+    tacticalTip: 'Complete mental immunity combined with high 65 movement speed makes Sone Ma the ultimate threat against magic and bell fortifications.',
+    bestPairedWith: ['Belu Ogre (physical tank)', 'Doe Pat Drummer'],
+    counteredBy: ['Archer Tower (rapid physical volleys)', 'Gun Tower Sniper'],
+  },
 };
 
 const UNIT_IDS = [
@@ -127,6 +177,11 @@ const UNIT_IDS = [
   'say_sayar',
   'shield_guy',
   'doe_pat',
+  'bandit',
+  'belu',
+  'brute',
+  'general',
+  'sone_ma',
 ];
 
 export const AlmanacUnitsTab: React.FC = () => {

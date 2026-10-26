@@ -21,6 +21,51 @@ export interface TowerAnimManifest {
 }
 
 export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
+  archer: {
+    id: "archer",
+    sheetKey: "tower_archer_sheet",
+    sheetPath: "/assets/towers/01_archer_tower/sheet.png",
+    frameWidth: 688,
+    frameHeight: 768,
+    cols: 4,
+    rows: 2,
+    idleSE: [0, 1, 2, 3],
+    fireSE: [4, 5, 6, 7],
+    idleNE: [0, 1, 2, 3],
+    fireNE: [4, 5, 6, 7],
+    frameRate: 8,
+    scale: 0.12,
+  },
+  bomb: {
+    id: "bomb",
+    sheetKey: "tower_bomb_sheet",
+    sheetPath: "/assets/towers/03_bomb_throwing_tower/sheet.png",
+    frameWidth: 688,
+    frameHeight: 768,
+    cols: 4,
+    rows: 2,
+    idleSE: [0, 1, 2, 3],
+    fireSE: [4, 5, 6, 7],
+    idleNE: [0, 1, 2, 3],
+    fireNE: [4, 5, 6, 7],
+    frameRate: 8,
+    scale: 0.12,
+  },
+  spear: {
+    id: "spear",
+    sheetKey: "tower_spear_sheet",
+    sheetPath: "/assets/towers/05_spear_tower/sheet.png",
+    frameWidth: 688,
+    frameHeight: 768,
+    cols: 4,
+    rows: 2,
+    idleSE: [0, 1, 2, 3],
+    fireSE: [4, 5, 6, 7],
+    idleNE: [0, 1, 2, 3],
+    fireNE: [4, 5, 6, 7],
+    frameRate: 8,
+    scale: 0.12,
+  },
   water_cannon: {
     id: "water_cannon",
     sheetKey: "tower_water_cannon_sheet",
@@ -158,7 +203,34 @@ export class TowerAnimationManager {
 
   static createAnimations(scene: Phaser.Scene): void {
     for (const manifest of Object.values(TOWER_ANIM_MANIFESTS)) {
-      if (manifest.id === "water_cannon") {
+      if (manifest.id === "archer" || manifest.id === "bomb" || manifest.id === "spear") {
+        if (scene.textures.exists(manifest.sheetKey)) {
+          const idleKey = `${manifest.id}_idle`;
+          const fireKey = `${manifest.id}_fire`;
+          if (!scene.anims.exists(idleKey)) {
+            scene.anims.create({
+              key: idleKey,
+              frames: scene.anims.generateFrameNumbers(manifest.sheetKey, {
+                start: 0,
+                end: 3,
+              }),
+              frameRate: manifest.frameRate,
+              repeat: -1,
+            });
+          }
+          if (!scene.anims.exists(fireKey)) {
+            scene.anims.create({
+              key: fireKey,
+              frames: scene.anims.generateFrameNumbers(manifest.sheetKey, {
+                start: 4,
+                end: 7,
+              }),
+              frameRate: manifest.frameRate * 1.5,
+              repeat: 0,
+            });
+          }
+        }
+      } else if (manifest.id === "water_cannon") {
         if (scene.textures.exists(manifest.sheetKey)) {
           if (!scene.anims.exists("water_cannon_idle_se")) scene.anims.create({ key: "water_cannon_idle_se", frames: scene.anims.generateFrameNumbers(manifest.sheetKey, { frames: manifest.idleSE }), frameRate: manifest.frameRate, repeat: -1 });
           if (!scene.anims.exists("water_cannon_fire_se")) scene.anims.create({ key: "water_cannon_fire_se", frames: scene.anims.generateFrameNumbers(manifest.sheetKey, { frames: manifest.fireSE }), frameRate: manifest.frameRate * 1.2, repeat: 0 });

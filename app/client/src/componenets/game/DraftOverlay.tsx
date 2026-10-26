@@ -6,6 +6,7 @@ import {
   TOWER_TYPES,
   ACTIVE_TOWER_IDS,
   CORE_UNIT_IDS,
+  getTowerDesign,
   type DraftRoundUpdatePayload,
   type MobType,
   type TowerType,
@@ -44,79 +45,79 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     title: 'ARCHER TOWER',
     weakness: 'Armored Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/01_archer_tower/tower.png',
+    iconSrc: '/assets/towers/01_archer_tower/icon.jpg',
   },
   basic: {
     title: 'ARCHER TOWER',
     weakness: 'Armored Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/01_archer_tower/tower.png',
+    iconSrc: '/assets/towers/01_archer_tower/icon.jpg',
   },
   cannon: {
     title: 'CANNON',
     weakness: 'Quick Units',
     stacks: 'Max 5',
-    iconSrc: '/assets/towers/02_cannon/tower.png',
+    iconSrc: '/assets/towers/02_cannon/icon.png',
   },
   bomb: {
     title: 'BOMB THROWING TOWER',
     weakness: 'Single Fast Targets',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/03_bomb_throwing_tower/tower.png',
+    iconSrc: '/assets/towers/03_bomb_throwing_tower/icon.jpg',
   },
   bell: {
     title: 'BELL TOWER',
     weakness: 'Long-Range Snipers',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/04_bell_tower/tower.png',
+    iconSrc: '/assets/towers/04_bell_tower/icon.jpg',
   },
   spear: {
     title: 'SPEAR TOWER',
     weakness: 'Heavy Cavalry',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/05_spear_tower/tower.png',
+    iconSrc: '/assets/towers/05_spear_tower/icon.jpg',
   },
   pitchfork: {
     title: 'SPEAR TOWER',
     weakness: 'Heavy Cavalry',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/05_spear_tower/tower.png',
+    iconSrc: '/assets/towers/05_spear_tower/icon.jpg',
   },
   gun: {
     title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/06_gun_tower/tower.png',
+    iconSrc: '/assets/towers/06_gun_tower/icon.png',
   },
   sniper: {
     title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/06_gun_tower/tower.png',
+    iconSrc: '/assets/towers/06_gun_tower/icon.png',
   },
   water_cannon: {
     title: 'WATER CANNON',
     weakness: 'Fast Units',
     stacks: 'Max 6',
-    iconSrc: '/assets/towers/07_water_cannon/tower.png',
+    iconSrc: '/assets/towers/07_water_cannon/icon.jpg',
   },
   chinthe: {
     title: 'CHINTHE GUARDIAN',
     weakness: 'Armored Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/08_chinthe_statue/tower.png',
+    iconSrc: '/assets/towers/08_chinthe_statue/icon.jpg',
   },
   dragon: {
     title: 'DRAGON TOWER',
     weakness: 'Resistant Hordes',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/09_dragon_tower/tower.png',
+    iconSrc: '/assets/towers/09_dragon_tower/icon.jpg',
   },
   sein_pyaung: {
     title: 'SEIN PYAUNG',
     weakness: 'Heavy Armor & Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/10_sein_pyaung/tower.png',
+    iconSrc: '/assets/towers/10_sein_pyaung/icon.jpg',
   },
   arcanist: {
     title: 'ROYAL ARCANIST',
@@ -211,7 +212,7 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     title: 'BELU OGRE',
     weakness: 'Mental Attacks & Artillery',
     stacks: 'Max 4',
-    iconSrc: '/assets/units/Belu/face.png',
+    iconSrc: '/assets/units/Belu/face.jpg',
   },
   brute: {
     title: 'HEAVY BRUTE',
@@ -223,13 +224,13 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     title: 'ROYAL BO GENERAL',
     weakness: 'Concentrated Single-Target Burst',
     stacks: 'Max 6',
-    iconSrc: '/assets/units/General/face.png',
+    iconSrc: '/assets/units/General/face.jpg',
   },
   sone_ma: {
     title: 'SONE MA SORCERESS',
     weakness: 'Physical Snipers & Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/units/SoneMa/face.png',
+    iconSrc: '/assets/units/SoneMa/face.jpg',
   },
 };
 
@@ -283,23 +284,23 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
     return role;
   }, [room, role]);
 
-  // Synced 10-unit mob pool from server for this match
+  // Synced mob pool from server for this match (all available units)
   const [syncedMobPool, setSyncedMobPool] = useState<string[]>(() => {
     const pool = (room?.state as any)?.draftMobPool;
-    if (pool && pool.length >= 10) {
+    if (pool && pool.length > 0) {
       return Array.from(pool);
     }
     return CORE_UNIT_IDS;
   });
 
-  // 10 items in player's own catalog
+  // Items in player's own catalog
   const catalogList = useMemo(() => {
     if (effectiveRole === 'defender') {
       return ACTIVE_TOWER_IDS.map((id) => TOWER_TYPES[id]).filter(Boolean);
     }
-    const pool = (syncedMobPool && syncedMobPool.length >= 10)
+    const pool = (syncedMobPool && syncedMobPool.length > 0)
       ? syncedMobPool
-      : ((room?.state as any)?.draftMobPool && (room?.state as any).draftMobPool.length >= 10)
+      : ((room?.state as any)?.draftMobPool && (room?.state as any).draftMobPool.length > 0)
         ? Array.from((room?.state as any).draftMobPool)
         : CORE_UNIT_IDS;
     return (pool as string[]).map((id) => MOB_TYPES[id]).filter(Boolean);
@@ -495,7 +496,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
         if (opponentPicks) setEnemyPicks(opponentPicks);
         if (myPicks) setLockedPicks(myPicks);
-        if (payload.availableMobPool && payload.availableMobPool.length >= 10) {
+        if (payload.availableMobPool && payload.availableMobPool.length > 0) {
           setSyncedMobPool(payload.availableMobPool);
         }
 
@@ -612,7 +613,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         stat3Value: spd,
         weakness: custom.weakness || 'High Mobility',
         stacks: custom.stacks || 'Max 6',
-        iconSrc: custom.iconSrc,
+        iconSrc: custom.iconSrc || getTowerDesign(id)?.iconPath,
         traits: [
           {
             label: 'Damage',
@@ -662,7 +663,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   const renderItemVisual = (id: string, isTargetEnemy: boolean = false, isBig: boolean = false) => {
     const isTargetTower = isTargetEnemy ? effectiveRole === 'attacker' : effectiveRole === 'defender';
     const custom = isTargetTower ? TACTICAL_TOWERS[id] : TACTICAL_MOBS[id];
-    const iconSrc = custom?.iconSrc;
+    const iconSrc = custom?.iconSrc || (isTargetTower ? getTowerDesign(id)?.iconPath : undefined);
 
     if (iconSrc) {
       return (
@@ -999,10 +1000,10 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
               </div>
             </div>
 
-            {/* Bottom Panel — 10 Selection Pool Cards (5x2 Grid) */}
+            {/* Bottom Panel — Selection Pool Cards (Scrollable for 15+ Units) */}
             <div
-              className={`relative flex-1 rounded-lg p-2 flex flex-col justify-center ${
-                isCompact ? 'min-h-0' : 'min-h-[220px]'
+              className={`relative flex-1 rounded-lg p-2 flex flex-col min-h-0 overflow-hidden ${
+                isCompact ? 'min-h-[160px]' : 'min-h-[220px]'
               }`}
               style={{
                 background: 'rgba(26, 12, 17, 0.9)',
@@ -1010,102 +1011,108 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                 boxShadow: 'inset 0 0 20px rgba(0,0,0,0.8)',
               }}
             >
-              <div
-                className={`grid gap-1.5 sm:gap-2 ${
-                  isCompact
-                    ? 'grid-cols-3 min-[520px]:grid-cols-5'
-                    : 'grid-cols-5 grid-rows-2 h-full'
-                }`}
-              >
-                {catalogList.map((item) => {
-                  const isLocked = lockedPicks.includes(item.id);
-                  const isRoundPick = roundPicks.includes(item.id);
-                  const isInspected = inspectedTarget.id === item.id && !inspectedTarget.isEnemy;
+              {catalogList.length > 10 && (
+                <div className="flex items-center justify-between pb-1 px-1 text-[10px] sm:text-xs text-amber-300/80 font-mono shrink-0">
+                  <span>Available Roster ({catalogList.length} units)</span>
+                  <span className="text-[9px] sm:text-[10px] text-amber-400/70 italic">Scroll for more ↓</span>
+                </div>
+              )}
+              <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+                <div
+                  className={`grid gap-1.5 sm:gap-2 ${
+                    isCompact
+                      ? 'grid-cols-3 min-[520px]:grid-cols-5'
+                      : 'grid-cols-5'
+                  }`}
+                >
+                  {catalogList.map((item) => {
+                    const isLocked = lockedPicks.includes(item.id);
+                    const isRoundPick = roundPicks.includes(item.id);
+                    const isInspected = inspectedTarget.id === item.id && !inspectedTarget.isEnemy;
 
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => toggleSelect(item.id)}
-                      className={`group relative rounded-md flex flex-col justify-between p-1 select-none overflow-hidden transition-all duration-150 transform ${
-                        isCompact ? 'min-h-[104px]' : ''
-                      } ${
-                        isLocked
-                          ? 'opacity-85 cursor-default'
-                          : 'cursor-pointer hover:-translate-y-0.5 active:translate-y-0'
-                      }`}
-                      style={{
-                        background: isLocked
-                          ? 'linear-gradient(180deg, #3d1f14 0%, #20110a 100%)'
-                          : isRoundPick
-                            ? 'linear-gradient(180deg, #4a1215 0%, #2f080b 100%)'
-                            : 'linear-gradient(180deg, #241418 0%, #160a0e 100%)',
-                        border: isLocked
-                          ? '2px solid #fce38a'
-                          : isRoundPick
-                            ? '2px solid #ffe066'
-                            : isInspected
-                              ? '2px solid #d4af37'
-                              : '1.5px solid #8a661b',
-                        boxShadow: isRoundPick
-                          ? '0 0 10px rgba(255, 224, 102, 0.7), inset 0 0 6px rgba(255, 224, 102, 0.3)'
-                          : '0 2px 6px rgba(0,0,0,0.6)',
-                      }}
-                    >
-                      {/* Top-Right Info "i" Badge */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setInspectedTarget({ id: item.id, isEnemy: false });
-                        }}
-                        className="absolute top-0.5 right-0.5 z-10 w-4 h-4 rounded-full bg-[#1c1117] border border-[#d4af37] text-[10px] font-black text-[#fef08a] flex items-center justify-center hover:bg-[#ffe066] hover:text-black transition"
-                        title="View details"
-                      >
-                        i
-                      </button>
-
-                      {/* Damage-type badge on the card border */}
-                      {renderDamageBadge(item.id) && (
-                        <span className="absolute -top-1.5 -left-1.5 z-10">
-                          {renderDamageBadge(item.id)}
-                        </span>
-                      )}
-
-                      {/* Center Sprite on Parchment Frame */}
+                    return (
                       <div
-                        className="w-full flex-1 min-h-[50px] rounded flex items-center justify-center p-1 overflow-hidden"
+                        key={item.id}
+                        onClick={() => toggleSelect(item.id)}
+                        className={`group relative rounded-md flex flex-col justify-between p-1 select-none overflow-hidden transition-all duration-150 transform min-h-[104px] sm:min-h-[114px] ${
+                          isLocked
+                            ? 'opacity-85 cursor-default'
+                            : 'cursor-pointer hover:-translate-y-0.5 active:translate-y-0'
+                        }`}
                         style={{
-                          background: '#e6d2b5',
-                          border: '1px solid #c59b27',
-                          boxShadow: 'inset 0 0 5px rgba(146,64,14,0.3)',
+                          background: isLocked
+                            ? 'linear-gradient(180deg, #3d1f14 0%, #20110a 100%)'
+                            : isRoundPick
+                              ? 'linear-gradient(180deg, #4a1215 0%, #2f080b 100%)'
+                              : 'linear-gradient(180deg, #241418 0%, #160a0e 100%)',
+                          border: isLocked
+                            ? '2px solid #fce38a'
+                            : isRoundPick
+                              ? '2px solid #ffe066'
+                              : isInspected
+                                ? '2px solid #d4af37'
+                                : '1.5px solid #8a661b',
+                          boxShadow: isRoundPick
+                            ? '0 0 10px rgba(255, 224, 102, 0.7), inset 0 0 6px rgba(255, 224, 102, 0.3)'
+                            : '0 2px 6px rgba(0,0,0,0.6)',
                         }}
                       >
-                        {renderItemVisual(item.id, false)}
-                      </div>
+                        {/* Top-Right Info "i" Badge */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInspectedTarget({ id: item.id, isEnemy: false });
+                          }}
+                          className="absolute top-0.5 right-0.5 z-10 w-4 h-4 rounded-full bg-[#1c1117] border border-[#d4af37] text-[10px] font-black text-[#fef08a] flex items-center justify-center hover:bg-[#ffe066] hover:text-black transition"
+                          title="View details"
+                        >
+                          i
+                        </button>
 
-                      {/* Bottom Nameplate & Status */}
-                      <div className="mt-1 flex flex-col items-center justify-center leading-none text-center">
-                        <span
-                          className="text-[10px] sm:text-[11px] font-bold text-[#fff5d6] truncate w-full"
-                          style={{ textShadow: '1px 1px 0px #000' }}
+                        {/* Damage-type badge on the card border */}
+                        {renderDamageBadge(item.id) && (
+                          <span className="absolute -top-1.5 -left-1.5 z-10">
+                            {renderDamageBadge(item.id)}
+                          </span>
+                        )}
+
+                        {/* Center Sprite on Parchment Frame */}
+                        <div
+                          className="w-full flex-1 min-h-[50px] rounded flex items-center justify-center p-1 overflow-hidden"
+                          style={{
+                            background: '#e6d2b5',
+                            border: '1px solid #c59b27',
+                            boxShadow: 'inset 0 0 5px rgba(146,64,14,0.3)',
+                          }}
                         >
-                          {item.name}
-                        </span>
-                        <span
-                          className={`text-[8px] sm:text-[9px] font-black uppercase mt-0.5 tracking-wider ${
-                            isLocked
-                              ? 'text-amber-300'
-                              : isRoundPick
-                                ? 'text-emerald-400'
-                                : 'text-amber-500/80'
-                          }`}
-                        >
-                          {isLocked ? 'LOCKED IN ✓' : isRoundPick ? 'SELECTED' : 'AVAILABLE'}
-                        </span>
+                          {renderItemVisual(item.id, false)}
+                        </div>
+
+                        {/* Bottom Nameplate & Status */}
+                        <div className="mt-1 flex flex-col items-center justify-center leading-none text-center">
+                          <span
+                            className="text-[10px] sm:text-[11px] font-bold text-[#fff5d6] truncate w-full"
+                            style={{ textShadow: '1px 1px 0px #000' }}
+                          >
+                            {item.name}
+                          </span>
+                          <span
+                            className={`text-[8px] sm:text-[9px] font-black uppercase mt-0.5 tracking-wider ${
+                              isLocked
+                                ? 'text-amber-300'
+                                : isRoundPick
+                                  ? 'text-emerald-400'
+                                  : 'text-amber-500/80'
+                            }`}
+                          >
+                            {isLocked ? 'LOCKED IN ✓' : isRoundPick ? 'SELECTED' : 'AVAILABLE'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
