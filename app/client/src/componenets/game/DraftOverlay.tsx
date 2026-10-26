@@ -24,6 +24,12 @@ interface DraftOverlayProps {
   onConfirm?: (deck: string[]) => void;
 }
 
+export interface EffectTag {
+  label: string;
+  style: string;
+  description?: string;
+}
+
 interface TacticalData {
   title: string;
   nickname?: string;
@@ -42,6 +48,8 @@ interface TacticalData {
   iconSrc?: string;
   /** Extra stat pairs shown under the tactical row (damage type, armor, ...). */
   traits?: { label: string; value: string }[];
+  /** Concise effect tags representing active skills and unique traits (Heal, Buff, Stun, etc.) */
+  effectTags?: EffectTag[];
 }
 
 const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
@@ -237,6 +245,200 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     iconSrc: '/assets/units/SoneMa/face.jpg',
   },
 };
+
+/** Concise effect tag badge data for mobs (e.g. Heal, Buff, Stun, Adaptive, Taunt) */
+export function getMobEffectTags(mobOrId: MobType | string): EffectTag[] {
+  const mob: MobType | undefined =
+    typeof mobOrId === 'string' ? MOB_TYPES[mobOrId] : mobOrId;
+  const id = typeof mobOrId === 'string' ? mobOrId : mob?.id;
+  if (!mob && !id) return [];
+
+  const tags: EffectTag[] = [];
+
+  // Active / Special skill effects
+  if (mob?.ability?.type === 'heal_aura') {
+    tags.push({
+      label: 'Heal',
+      style: 'bg-emerald-950/90 border-emerald-500/80 text-emerald-300',
+      description: 'Emits a healing aura to nearby wounded allies',
+    });
+  } else if (mob?.ability?.type === 'self_heal') {
+    tags.push({
+      label: 'Self Heal',
+      style: 'bg-emerald-950/90 border-emerald-500/80 text-emerald-300',
+      description: 'Periodically regenerates health when damaged',
+    });
+  }
+
+  if (mob?.ability?.type === 'speed_aura') {
+    tags.push({
+      label: 'Buff',
+      style: 'bg-cyan-950/90 border-cyan-500/80 text-cyan-300',
+      description: 'Grants +40% speed boost aura to nearby allies',
+    });
+  }
+
+  if (mob?.adaptiveDefense) {
+    tags.push({
+      label: 'Adaptive',
+      style: 'bg-amber-950/90 border-amber-500/80 text-amber-300',
+      description: 'Gains armor stacks from physical hits, mental resistance from mental hits',
+    });
+  }
+
+  if ((mob as any)?.onDeathTowerStunSec) {
+    tags.push({
+      label: 'Stun',
+      style: 'bg-purple-950/90 border-purple-500/80 text-purple-300',
+      description: `Hex Curse: Stuns the killing tower for ${(mob as any).onDeathTowerStunSec}s on death`,
+    });
+  }
+
+  if ((mob as any)?.taunt) {
+    tags.push({
+      label: 'Taunt',
+      style: 'bg-rose-950/90 border-rose-500/80 text-rose-300',
+      description: 'Forces defender towers in range to attack him first',
+    });
+  }
+
+  if ((mob as any)?.speedRamp) {
+    tags.push({
+      label: 'Speed Ramp',
+      style: 'bg-sky-950/90 border-sky-500/80 text-sky-300',
+      description: 'Continuously accelerates over travel time up to 2x speed',
+    });
+  }
+
+  if (mob?.damagedSpeed && mob.speed > mob.damagedSpeed) {
+    tags.push({
+      label: 'Speed Burst',
+      style: 'bg-yellow-950/90 border-yellow-500/80 text-yellow-300',
+      description: 'High initial sprint speed until struck by tower damage',
+    });
+  }
+
+  // Tactical traits for baseline units without active skills
+  if (tags.length === 0) {
+    if ((mob?.armor ?? 0) >= 8) {
+      tags.push({
+        label: 'Heavy Armor',
+        style: 'bg-stone-900/90 border-stone-500/80 text-stone-300',
+        description: 'Heavy physical armor plating',
+      });
+    } else if ((mob?.maxHp ?? 0) >= 1000) {
+      tags.push({
+        label: 'Colossal',
+        style: 'bg-orange-950/90 border-orange-500/80 text-orange-300',
+        description: 'Colossal health pool with massive leak damage',
+      });
+    } else if ((mob?.mentalStrength ?? 0) >= 1 && (mob?.armor ?? 0) === 0) {
+      tags.push({
+        label: 'Spirit',
+        style: 'bg-indigo-950/90 border-indigo-500/80 text-indigo-300',
+        description: 'Spiritual entity with full mental resistance',
+      });
+    } else if ((mob?.armor ?? 0) >= 4) {
+      tags.push({
+        label: 'Armored',
+        style: 'bg-stone-900/90 border-stone-500/80 text-stone-300',
+      });
+    } else if ((mob?.speed ?? 0) >= 100) {
+      tags.push({
+        label: 'Fast',
+        style: 'bg-zinc-900/90 border-zinc-500/80 text-zinc-300',
+      });
+    }
+  }
+
+  return tags;
+}
+
+/** 1-line tactical note explaining special mob abilities in the Unit Overview */
+export function getMobEffectNote(mobOrId: MobType | string): string | undefined {
+  const mob: MobType | undefined =
+    typeof mobOrId === 'string' ? MOB_TYPES[mobOrId] : mobOrId;
+  if (!mob) return undefined;
+
+  if (mob.ability?.type === 'heal_aura') {
+    return 'Emits an 80 HP healing pulse to nearby wounded allies every 6s.';
+  }
+  if (mob.ability?.type === 'self_heal') {
+    return 'Regenerates 10% maximum health every 10s when injured.';
+  }
+  if (mob.ability?.type === 'speed_aura') {
+    return 'Grants +40% speed boost aura to nearby allies for 4s.';
+  }
+  if (mob.adaptiveDefense) {
+    return 'Gains armor stacks from physical hits and mental resistance from mental hits (max 5 stacks).';
+  }
+  if ((mob as any).onDeathTowerStunSec) {
+    return `Hex Curse: Stuns the tower that killed her for ${(mob as any).onDeathTowerStunSec} seconds.`;
+  }
+  if ((mob as any).taunt) {
+    return 'Battle Roar: Forces all defender towers in range to focus fire on him.';
+  }
+  if ((mob as any).speedRamp) {
+    return 'Nat Spirit Pace: Accelerates along the lane, reaching 2x speed after 25 seconds.';
+  }
+  if (mob.damagedSpeed && mob.speed > mob.damagedSpeed) {
+    return `Burst Sprint: Sprints at ${mob.speed} speed until struck, then slows to ${mob.damagedSpeed}.`;
+  }
+  return undefined;
+}
+
+/** Concise specialty tags for towers in the inspector overview */
+export function getTowerEffectTags(towerOrId: any): EffectTag[] {
+  const tower = typeof towerOrId === 'string' ? TOWER_TYPES[towerOrId] : towerOrId;
+  const id = typeof towerOrId === 'string' ? towerOrId : tower?.id;
+  if (!tower && !id) return [];
+
+  const tags: EffectTag[] = [];
+  if (id === 'cannon' || id === 'bomb') {
+    tags.push({
+      label: 'AoE',
+      style: 'bg-orange-950/90 border-orange-500/80 text-orange-300',
+      description: 'Area-of-effect splash damage',
+    });
+  } else if (id === 'sein_pyaung') {
+    tags.push({
+      label: 'Mortar',
+      style: 'bg-orange-950/90 border-orange-500/80 text-orange-300',
+      description: 'Heavy long-range explosive mortar',
+    });
+  } else if (id === 'water_cannon') {
+    tags.push({
+      label: 'Slow',
+      style: 'bg-blue-950/90 border-blue-500/80 text-blue-300',
+      description: 'Slows target movement speed',
+    });
+  } else if (id === 'chinthe') {
+    tags.push({
+      label: 'Stun',
+      style: 'bg-purple-950/90 border-purple-500/80 text-purple-300',
+      description: 'Chance to briefly stun targets',
+    });
+  } else if (id === 'dragon') {
+    tags.push({
+      label: 'Explosion',
+      style: 'bg-red-950/90 border-red-500/80 text-red-300',
+      description: 'Killed targets explode dealing AoE damage',
+    });
+  } else if (id === 'spear') {
+    tags.push({
+      label: 'Armor Pen',
+      style: 'bg-emerald-950/90 border-emerald-500/80 text-emerald-300',
+      description: 'Bypasses enemy physical armor',
+    });
+  } else if (id === 'gun' || id === 'sniper') {
+    tags.push({
+      label: 'Sniper',
+      style: 'bg-amber-950/90 border-amber-500/80 text-amber-300',
+      description: 'High-damage long-range precision shots',
+    });
+  }
+  return tags;
+}
 
 /** SVG corner filigree for royal panels */
 const CornerFlourish: React.FC<{ position: 'tl' | 'tr' | 'bl' | 'br' }> = ({ position }) => {
@@ -638,6 +840,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         stacks: custom.stacks || 'Max 6',
         iconSrc: custom.iconSrc || getTowerDesign(id)?.iconPath,
         traits,
+        effectTags: getTowerEffectTags(tower ?? id),
       };
     } else {
       const mob = (MOB_TYPES[id] as MobType) || catalogList[0];
@@ -667,21 +870,40 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         weakness: weakAgainst.length > 0 ? weakAgainst.join(', ') : custom.weakness || 'Concentrated Fire',
         strongAgainst,
         weakAgainst,
-        notes: (mob as any)?.notes,
+        notes: (mob as any)?.notes || getMobEffectNote(mob ?? id),
         stacks: custom.stacks || 'Max 20',
         iconSrc: custom.iconSrc,
         traits: [
           { label: 'Armor', value: String(mob?.armor ?? 0) },
           { label: 'Mental', value: `${Math.round((mob?.mentalStrength ?? 0.5) * 100)}%` },
         ],
+        effectTags: getMobEffectTags(mob ?? id),
       };
     }
   }, [inspectedTarget, effectiveRole, catalogList]);
 
-  // Damage-type badge for tower cards (mobs have no damage channel)
-  const renderDamageBadge = (id: string) => {
-    if (!TOWER_TYPES[id]) return null;
-    return <DamageTypeBadge type={damageTypeOfTower(id)} size={18} />;
+  // Top-left card badge: damage type badge for towers or concise effect tag for mobs
+  const renderUnitTagBadge = (id: string) => {
+    if (TOWER_TYPES[id]) {
+      return (
+        <span className="absolute -top-1.5 -left-1.5 z-10">
+          <DamageTypeBadge type={damageTypeOfTower(id)} size={18} />
+        </span>
+      );
+    }
+    const tags = getMobEffectTags(id);
+    if (tags.length === 0) return null;
+    const primary = tags[0];
+    return (
+      <span className="absolute -top-1 -left-1 z-10 pointer-events-none">
+        <span
+          className={`px-1.5 py-0.2 rounded text-[7.5px] font-black uppercase tracking-wider border shadow-md ${primary.style}`}
+          title={primary.description}
+        >
+          {primary.label}
+        </span>
+      </span>
+    );
   };
 
   // Render illustration / sprite
@@ -980,15 +1202,26 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                       </span>
                     )}
                   </div>
-                  {inspectorData.isEnemy ? (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-950 border border-red-500 text-red-300">
-                      ENEMY UNIT
-                    </span>
-                  ) : (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-950 border border-amber-500 text-amber-300">
-                      YOUR ROSTER
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {inspectorData.effectTags?.map((tag) => (
+                      <span
+                        key={tag.label}
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shadow-sm ${tag.style}`}
+                        title={tag.description}
+                      >
+                        {tag.label}
+                      </span>
+                    ))}
+                    {inspectorData.isEnemy ? (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-950 border border-red-500 text-red-300">
+                        ENEMY UNIT
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-950 border border-amber-500 text-amber-300">
+                        YOUR ROSTER
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Horizontal Gold Divider */}
@@ -1041,17 +1274,33 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   </div>
                 )}
 
-                {/* Combat traits (damage channel, armor, mental strength) */}
-                {inspectorData.traits && inspectorData.traits.length > 0 && (
-                  <div className="text-[11px] sm:text-xs text-[#e2d5be] mt-0.5 truncate">
-                    {inspectorData.traits.map((trait, index) => (
-                      <span key={trait.label}>
-                        {index > 0 && <span className="mx-1.5 text-amber-500/70">•</span>}
-                        <span className="text-amber-300 font-semibold">{trait.label}:</span> {trait.value}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {/* Combat traits (damage channel, armor, mental strength) & Effect Tags */}
+                <div className="text-[11px] sm:text-xs text-[#e2d5be] mt-0.5 truncate flex items-center flex-wrap gap-x-2">
+                  {inspectorData.traits && inspectorData.traits.length > 0 && (
+                    <div className="flex items-center flex-wrap gap-x-2">
+                      {inspectorData.traits.map((trait, index) => (
+                        <span key={trait.label}>
+                          {index > 0 && <span className="mx-1.5 text-amber-500/70">•</span>}
+                          <span className="text-amber-300 font-semibold">{trait.label}:</span> {trait.value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {inspectorData.effectTags && inspectorData.effectTags.length > 0 && (
+                    <div className="flex items-center gap-1 ml-auto">
+                      <span className="text-[10px] text-amber-400/80 font-bold uppercase tracking-wider">Tag:</span>
+                      {inspectorData.effectTags.map((tag) => (
+                        <span
+                          key={tag.label}
+                          className={`px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider border shadow-sm ${tag.style}`}
+                          title={tag.description}
+                        >
+                          {tag.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1125,12 +1374,8 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                           i
                         </button>
 
-                        {/* Damage-type badge on the card border */}
-                        {renderDamageBadge(item.id) && (
-                          <span className="absolute -top-1.5 -left-1.5 z-10">
-                            {renderDamageBadge(item.id)}
-                          </span>
-                        )}
+                        {/* Top-left badge: Damage type for towers, effect tag for mobs */}
+                        {renderUnitTagBadge(item.id)}
 
                         {/* Center Sprite on Parchment Frame */}
                         <div
@@ -1225,11 +1470,8 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                         }}
                         title="Click to inspect enemy stats in Details Inspector"
                       >
-                        {renderDamageBadge(enemyItem.id) && (
-                          <span className="absolute -top-1.5 -left-1.5 z-10">
-                            {renderDamageBadge(enemyItem.id)}
-                          </span>
-                        )}
+                        {/* Top-left badge: Damage type for towers, effect tag for mobs */}
+                        {renderUnitTagBadge(enemyItem.id)}
                         <div
                           className="w-full flex-1 rounded flex items-center justify-center p-0.5 overflow-hidden"
                           style={{ background: '#e6d2b5' }}
@@ -1325,11 +1567,8 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                         }}
                         title={isCommitted ? 'Locked in' : 'Click to remove'}
                       >
-                        {renderDamageBadge(item.id) && (
-                          <span className="absolute -top-1.5 -left-1.5 z-10">
-                            {renderDamageBadge(item.id)}
-                          </span>
-                        )}
+                        {/* Top-left badge: Damage type for towers, effect tag for mobs */}
+                        {renderUnitTagBadge(item.id)}
                         <div
                           className="w-full flex-1 rounded flex items-center justify-center p-0.5 overflow-hidden"
                           style={{ background: '#e6d2b5' }}
