@@ -1329,6 +1329,18 @@ export class GameRoom extends Room<{ state: RoomState }> {
     charges.charges -= 1;
     charges.regenAcc = 0;
 
+    const unitCostTotal = buffer.reduce(
+      (total, typeId) => total + (MOB_TYPES[typeId]?.cost ?? 0),
+      0,
+    );
+    const incomeGainRate = DEFAULT_ECONOMY.attackerIncomeGainRate ?? 0;
+    const incomeBoost = unitCostTotal * incomeGainRate;
+    if (incomeBoost > 0) {
+      const currentRate =
+        this.incomeRates.get(sessionId) ?? DEFAULT_ECONOMY.attackerBaseIncome;
+      this.incomeRates.set(sessionId, currentRate + incomeBoost);
+    }
+
     let atMatchTime = this.matchTime;
     for (const typeId of buffer) {
       this.releaseQueue.push({ atMatchTime, pathId, typeId, count: 1 });
@@ -1336,7 +1348,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
 
     console.log(
-      `Room ${this.roomId}: attacker deploying ${buffer.length} unit(s) through ${portal.id} on ${pathId}`,
+      `Room ${this.roomId}: attacker deploying ${buffer.length} unit(s) through ${portal.id} on ${pathId} (income +${incomeBoost.toFixed(2)}/s)`,
     );
 
     this.attackerBuffers.set(sessionId, []);

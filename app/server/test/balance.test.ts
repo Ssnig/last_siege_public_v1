@@ -111,15 +111,10 @@ describe("balance.ts shape guards", () => {
     assert.ok(DEFAULT_DEPLOY_RULES.staggerSec > 0, "deployed units must leave apart");
   });
 
-  it("economy rules gate the attacker's unit income on a progress threshold", () => {
+  it("economy rules define a positive attacker income gain rate on deploy", () => {
     assert.ok(
-      DEFAULT_ECONOMY.attackerUnitIncomeRate > 0,
-      "deep units must pay the attacker something",
-    );
-    assert.ok(
-      DEFAULT_ECONOMY.attackerUnitIncomeThreshold > 0
-        && DEFAULT_ECONOMY.attackerUnitIncomeThreshold < 1,
-      "the deep threshold must sit between spawn and the core",
+      DEFAULT_ECONOMY.attackerIncomeGainRate > 0,
+      "deployed units must permanently increase attacker income",
     );
   });
 

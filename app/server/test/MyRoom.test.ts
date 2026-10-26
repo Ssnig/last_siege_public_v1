@@ -984,7 +984,7 @@ describe("testing your Colyseus app", () => {
     );
   });
 
-  it("adds the deep-unit bonus to the attacker's passive income past halfway", async () => {
+  it("adds permanent income to the attacker on deploying units", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
       mapId: "konbaung",
@@ -997,44 +997,36 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
+    const internals = room as unknown as {
+      economies: Map<string, number>;
+      incomeRates: Map<string, number>;
+      effectiveIncomeRate: (sessionId: string, role: string) => number;
+      accrueIncome: (dt: number) => void;
+    };
+
+    const initialRate = internals.effectiveIncomeRate(attacker.sessionId, "attacker");
+    assert.strictEqual(initialRate, DEFAULT_ECONOMY.attackerBaseIncome);
+
     attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
 
-    // `economies`/`deepIncomeRate` are private, but the harness holds the room.
-    const internals = room as unknown as {
-      economies: Map<string, number>;
-      deepIncomeRate: () => number;
-      effectiveIncomeRate: (sessionId: string, role: string) => number;
-      accrueIncome: (dt: number) => void;
-    };
-    const mob = [...room.state.mobs.values()][0];
-    mob.speed = 0;
+    const expectedBoost =
+      (MOB_TYPES["monkey"]?.cost ?? 0) * DEFAULT_ECONOMY.attackerIncomeGainRate;
+    assert.ok(expectedBoost > 0, "the fixture unit has a cost and a positive income gain rate");
 
-    // Below the threshold the unit offers no bonus.
-    mob.progress = 0.4;
-    assert.strictEqual(internals.deepIncomeRate(), 0, "no bonus before halfway");
-
-    // Past halfway it becomes a bonus on top of the normal passive income.
-    mob.progress = 0.6;
-    const bonus = internals.deepIncomeRate();
-    const unitBonus =
-      (MOB_TYPES["monkey"]?.cost ?? 0) * DEFAULT_ECONOMY.attackerUnitIncomeRate;
-    assert.ok(unitBonus > 0, "the fixture unit has a cost and a positive rate");
-    assert.ok(Math.abs(bonus - unitBonus) < 1e-9, "bonus scales with the unit's cost");
-
+    const updatedRate = internals.effectiveIncomeRate(attacker.sessionId, "attacker");
     assert.ok(
-      internals.effectiveIncomeRate(attacker.sessionId, "attacker")
-        >= DEFAULT_ECONOMY.attackerBaseIncome + bonus - 1e-9,
-      "the reported passive rate includes the deep bonus",
+      Math.abs(updatedRate - (DEFAULT_ECONOMY.attackerBaseIncome + expectedBoost)) < 1e-9,
+      "the reported passive rate includes the permanent deploy boost",
     );
 
     const before = internals.economies.get(attacker.sessionId) ?? 0;
     internals.accrueIncome(1);
     const after = internals.economies.get(attacker.sessionId) ?? 0;
     assert.ok(
-      after - before >= (DEFAULT_ECONOMY.attackerBaseIncome + bonus) * 0.99,
-      "a tick credits base income plus the deep bonus",
+      after - before >= (DEFAULT_ECONOMY.attackerBaseIncome + expectedBoost) * 0.99,
+      "a tick credits base income plus the permanent deploy boost",
     );
   });
 
@@ -1451,7 +1443,7 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "building");
 
     // The bell tower is a mental tower, so the palace guard's armor (8) does
-    // not blunt its 12-18 shot, keeping the health loss inside that band.
+    // not blunt its shot, keeping the health loss inside its damage band.
     const slots = MAPS[room.state.mapId].slots;
     defender.send(MESSAGES.placeTower, { typeId: "bell", slotIndex: slots[0].slotIndex });
     await waitFor(() => room.state.towers.size === 1);
@@ -1471,9 +1463,12 @@ describe("testing your Colyseus app", () => {
     const mob = [...room.state.mobs.values()].find((m) => m.hp < m.maxHp);
     assert.ok(mob, "the mob took a hit");
     const loss = mob.maxHp - mob.hp;
+    const bellT1 = TOWER_TYPES["bell"]!.tiers[0];
+    const minDmg = bellT1.damage;
+    const maxDmg = bellT1.damageMax ?? bellT1.damage;
     assert.ok(
-      loss >= 12 && loss <= 18,
-      `a mental hit ignores armor, so the loss stays in the bell's 12-18 band (was ${loss})`,
+      loss >= minDmg && loss <= maxDmg,
+      `a mental hit ignores armor, so the loss stays in the bell's ${minDmg}-${maxDmg} band (was ${loss})`,
     );
 
     const debuff = mob.effects.get("debuff");
