@@ -681,7 +681,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     );
 
     // If fewer than 2 valid picks, auto-fill the rest from unpicked pool entries
-    const pool = role === "attacker" && this.draftMobPool.length >= 10 ? this.draftMobPool : Object.keys(catalog);
+    const pool = role === "attacker" && this.draftMobPool.length > 0 ? this.draftMobPool : Object.keys(catalog);
     const available = pool.filter(
       (id) => !currentDeck.includes(id) && !validPicks.includes(id),
     );
@@ -1649,15 +1649,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
   }
 
   /**
-   * Initializes or re-rolls the 10-unit draft pool for this match from ALL_MOB_IDS.
+   * Initializes the draft pool for this match from ALL_MOB_IDS (all catalog mobs available).
    */
   private initDraftMobPool(): void {
     const all = [...ALL_MOB_IDS];
-    for (let i = all.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [all[i], all[j]] = [all[j], all[i]];
-    }
-    this.draftMobPool = all.slice(0, 10);
+    this.draftMobPool = all;
     this.state.draftMobPool.clear();
     for (const id of this.draftMobPool) {
       this.state.draftMobPool.push(id);

@@ -28,7 +28,13 @@ const TowerSpriteCanvas: React.FC<{ towerId: string; design: TowerDesignConfig }
 
     let active = true;
 
-    if (towerId === 'sein_pyaung') {
+    if (
+      towerId === 'archer' ||
+      towerId === 'bomb' ||
+      towerId === 'spear' ||
+      towerId === 'sein_pyaung' ||
+      towerId === 'bell'
+    ) {
       const img = new Image();
       img.src = design.texturePath;
       img.onload = () => {
@@ -36,18 +42,7 @@ const TowerSpriteCanvas: React.FC<{ towerId: string; design: TowerDesignConfig }
         canvas.width = 688;
         canvas.height = 768;
         ctx.clearRect(0, 0, 688, 768);
-        // Draw frame 0 (SE idle) from the 4x2 spritesheet (each frame is 688x768)
-        ctx.drawImage(img, 0, 0, 688, 768, 0, 0, 688, 768);
-      };
-    } else if (towerId === 'bell') {
-      const img = new Image();
-      img.src = design.texturePath;
-      img.onload = () => {
-        if (!active) return;
-        canvas.width = 688;
-        canvas.height = 768;
-        ctx.clearRect(0, 0, 688, 768);
-        // Draw frame 0 from the 4x2 spritesheet
+        // Draw frame 0 from the 4x2 spritesheet (each frame is 688x768)
         ctx.drawImage(img, 0, 0, 688, 768, 0, 0, 688, 768);
       };
     } else if (towerId === 'water_cannon') {
@@ -266,7 +261,6 @@ export const AlmanacTowersTab: React.FC = () => {
       <div className="w-full md:w-80 lg:w-96 flex flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
         <div className="p-3 border-b border-amber-600/30 bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🏹</span>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-200 font-['Almendra',serif]">
               Arsenal of Citadel ({ACTIVE_TOWER_IDS.length} Towers)
             </span>
@@ -322,7 +316,7 @@ export const AlmanacTowersTab: React.FC = () => {
                         backgroundColor: `${tBadge.accent}15`,
                       }}
                     >
-                      {tDmgType === 'mental' ? '🧠 Mental' : '⚔️ Physical'}
+                      {tDmgType === 'mental' ? 'Mental' : 'Physical'}
                     </span>
                   </div>
 
@@ -367,7 +361,7 @@ export const AlmanacTowersTab: React.FC = () => {
                     backgroundColor: `${badgeStyle.accent}20`,
                   }}
                 >
-                  {damageType === 'mental' ? '🧠 Mental Damage (Armor Piercing)' : '⚔️ Physical Damage (Armor Blunted)'}
+                  {damageType === 'mental' ? 'Mental Damage (Armor Piercing)' : 'Physical Damage (Armor Blunted)'}
                 </span>
               </div>
               <p className="text-xs text-amber-400/80 font-serif italic mt-0.5">
@@ -454,7 +448,6 @@ export const AlmanacTowersTab: React.FC = () => {
           {/* Special Tower Modifiers / Effects */}
           {(towerType.splashRadius || towerType.onHitEffect || towerType.attackMode) && (
             <div className="p-3 bg-amber-950/30 rounded-lg border border-amber-600/40 flex items-center gap-3">
-              <span className="text-xl">✨</span>
               <div className="text-xs">
                 <span className="font-bold text-amber-300">Special Properties: </span>
                 {towerType.splashRadius && (
@@ -490,26 +483,26 @@ export const AlmanacTowersTab: React.FC = () => {
           {/* Tactical Advice & Counters */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="bg-emerald-950/20 p-3 rounded-lg border border-emerald-800/40">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1.5">
-                <span>🛡️</span> Dominates / Counters
+              <div className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1.5">
+                Dominates / Counters
               </div>
               <ul className="text-xs text-slate-300 space-y-1">
                 {lore.bestAgainst.map((item, i) => (
                   <li key={i} className="flex items-center gap-1.5">
-                    <span className="text-emerald-400 font-bold">✓</span> {item}
+                    <span className="text-emerald-400 font-bold font-mono">+</span> {item}
                   </li>
                 ))}
               </ul>
             </div>
 
             <div className="bg-rose-950/20 p-3 rounded-lg border border-rose-800/40">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-300 uppercase tracking-wider mb-1.5">
-                <span>⚠️</span> Vulnerable Against
+              <div className="text-xs font-bold text-rose-300 uppercase tracking-wider mb-1.5">
+                Vulnerable Against
               </div>
               <ul className="text-xs text-slate-300 space-y-1">
                 {lore.weakAgainst.map((item, i) => (
                   <li key={i} className="flex items-center gap-1.5">
-                    <span className="text-rose-400 font-bold">✗</span> {item}
+                    <span className="text-rose-400 font-bold font-mono">-</span> {item}
                   </li>
                 ))}
               </ul>
@@ -518,7 +511,6 @@ export const AlmanacTowersTab: React.FC = () => {
 
           {/* Commander's Tip */}
           <div className="p-3 bg-slate-900/90 rounded-lg border border-amber-500/40 flex items-start gap-2.5">
-            <span className="text-lg">💡</span>
             <div className="text-xs leading-relaxed">
               <span className="font-bold text-amber-300">Commander's Field Note: </span>
               <span className="text-slate-300">{lore.tacticalTip}</span>

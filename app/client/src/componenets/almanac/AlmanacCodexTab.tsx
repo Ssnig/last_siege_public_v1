@@ -6,7 +6,11 @@ export const AlmanacCodexTab: React.FC = () => {
       {/* Intro Banner */}
       <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-r from-amber-950/60 via-slate-900 to-slate-950 border border-amber-600/40 shadow-xl">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">📜</span>
+          <svg className="w-8 h-8 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+            <path d="M6 6h10" />
+            <path d="M6 10h10" />
+          </svg>
           <div>
             <h3 className="text-lg sm:text-xl font-black text-amber-200 font-['Almendra',serif] tracking-wider uppercase">
               The Royal War Codex & Combat Doctrines
@@ -24,7 +28,6 @@ export const AlmanacCodexTab: React.FC = () => {
         <div className="bg-slate-950/80 rounded-xl border border-amber-600/40 p-4 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2.5">
-              <span className="text-2xl">⚔️</span>
               <h4 className="text-sm sm:text-base font-bold text-amber-200 font-['Almendra',serif] uppercase tracking-wide">
                 1. Dual Damage Channels
               </h4>
@@ -37,7 +40,7 @@ export const AlmanacCodexTab: React.FC = () => {
             <div className="space-y-2.5">
               <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-700">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-200 mb-1">
-                  <span>⚔️ Physical Damage (Steel & Gunpowder)</span>
+                  <span>Physical Damage (Steel & Gunpowder)</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Blunted by Armor</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -48,7 +51,7 @@ export const AlmanacCodexTab: React.FC = () => {
 
               <div className="p-2.5 rounded-lg bg-purple-950/30 border border-purple-500/40">
                 <div className="flex items-center justify-between text-xs font-bold text-purple-200 mb-1">
-                  <span>🧠 Mental Damage (Sacred Resonances)</span>
+                  <span>Mental Damage (Sacred Resonances)</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-900/60 text-purple-300">Bypasses Armor</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
@@ -60,7 +63,7 @@ export const AlmanacCodexTab: React.FC = () => {
           </div>
 
           <div className="mt-3 pt-2 border-t border-slate-800 text-[11px] text-amber-300/80 italic font-serif">
-            💡 Tip: When defenders build heavy armored vanguards, pivot into Sacred Bell Towers!
+            Tip: When defenders build heavy armored vanguards, pivot into Sacred Bell Towers!
           </div>
         </div>
 
@@ -68,7 +71,6 @@ export const AlmanacCodexTab: React.FC = () => {
         <div className="bg-slate-950/80 rounded-xl border border-amber-600/40 p-4 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2.5">
-              <span className="text-2xl">💰</span>
               <h4 className="text-sm sm:text-base font-bold text-amber-200 font-['Almendra',serif] uppercase tracking-wide">
                 2. The Economy Engine
               </h4>
@@ -81,7 +83,7 @@ export const AlmanacCodexTab: React.FC = () => {
             <div className="space-y-2.5">
               <div className="p-2.5 rounded-lg bg-amber-950/30 border border-amber-600/40">
                 <div className="flex items-center justify-between text-xs font-bold text-amber-300 mb-1">
-                  <span>⚔️ Attacker: Wave Income Scaling</span>
+                  <span>Attacker: Wave Income Scaling</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/60 text-amber-200 font-mono">Recurring Income</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
@@ -92,7 +94,7 @@ export const AlmanacCodexTab: React.FC = () => {
 
               <div className="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-600/40">
                 <div className="flex items-center justify-between text-xs font-bold text-emerald-300 mb-1">
-                  <span>🛡️ Defender: Kill Bounties & Upgrades</span>
+                  <span>Defender: Kill Bounties & Upgrades</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/60 text-emerald-200 font-mono">70% Refund</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
@@ -104,7 +106,7 @@ export const AlmanacCodexTab: React.FC = () => {
           </div>
 
           <div className="mt-3 pt-2 border-t border-slate-800 text-[11px] text-amber-300/80 italic font-serif">
-            💡 Tip: Attackers who stop sending waves forfeit economic growth and will be overwhelmed in the late game!
+            Tip: Attackers who stop sending waves forfeit economic growth and will be overwhelmed in the late game!
           </div>
         </div>
 
@@ -112,7 +114,6 @@ export const AlmanacCodexTab: React.FC = () => {
         <div className="bg-slate-950/80 rounded-xl border border-amber-600/40 p-4 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2.5">
-              <span className="text-2xl">⏳</span>
               <h4 className="text-sm sm:text-base font-bold text-amber-200 font-['Almendra',serif] uppercase tracking-wide">
                 3. Match Lifecycle & Phase Flow
               </h4>
@@ -158,7 +159,7 @@ export const AlmanacCodexTab: React.FC = () => {
           </div>
 
           <div className="mt-3 pt-2 border-t border-slate-800 text-[11px] text-amber-300/80 italic font-serif">
-            💡 Tip: The match ends when Palace Core HP reaches 0 (Attacker wins) or defense holds to the end (Defender wins)!
+            Tip: The match ends when Palace Core HP reaches 0 (Attacker wins) or defense holds to the end (Defender wins)!
           </div>
         </div>
 
@@ -166,7 +167,6 @@ export const AlmanacCodexTab: React.FC = () => {
         <div className="bg-slate-950/80 rounded-xl border border-amber-600/40 p-4 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2.5">
-              <span className="text-2xl">✨</span>
               <h4 className="text-sm sm:text-base font-bold text-amber-200 font-['Almendra',serif] uppercase tracking-wide">
                 4. Tactical Abilities & Aggro Rules
               </h4>
@@ -178,8 +178,8 @@ export const AlmanacCodexTab: React.FC = () => {
 
             <div className="space-y-2 text-xs">
               <div className="bg-slate-900/70 p-2 rounded border border-slate-800">
-                <div className="flex items-center gap-2 text-red-300 font-bold mb-0.5">
-                  <span>🛡️</span> Royal Taunt (Shield Bearer)
+                <div className="text-red-300 font-bold mb-0.5">
+                  Royal Taunt (Shield Bearer)
                 </div>
                 <p className="text-[11px] text-slate-300">
                   By default, towers target the enemy closest to the royal palace.
@@ -189,8 +189,8 @@ export const AlmanacCodexTab: React.FC = () => {
               </div>
 
               <div className="bg-slate-900/70 p-2 rounded border border-slate-800">
-                <div className="flex items-center gap-2 text-emerald-300 font-bold mb-0.5">
-                  <span>💚</span> Herbalist Healing Aura (Say Sayar)
+                <div className="text-emerald-300 font-bold mb-0.5">
+                  Herbalist Healing Aura (Say Sayar)
                 </div>
                 <p className="text-[11px] text-slate-300">
                   Emits an emerald healing pulse restoring 80 HP to all nearby wounded allies below 50% HP every 6 seconds.
@@ -199,8 +199,8 @@ export const AlmanacCodexTab: React.FC = () => {
               </div>
 
               <div className="bg-slate-900/70 p-2 rounded border border-slate-800">
-                <div className="flex items-center gap-2 text-yellow-300 font-bold mb-0.5">
-                  <span>⚡</span> Martial War Drums (Doe Pat Drummer)
+                <div className="text-yellow-300 font-bold mb-0.5">
+                  Martial War Drums (Doe Pat Drummer)
                 </div>
                 <p className="text-[11px] text-slate-300">
                   Grants a blistering +40% Speed Boost aura to all surrounding troops, allowing slow heavy tanks to sprint past dangerous choke points.
@@ -210,7 +210,7 @@ export const AlmanacCodexTab: React.FC = () => {
           </div>
 
           <div className="mt-3 pt-2 border-t border-slate-800 text-[11px] text-amber-300/80 italic font-serif">
-            💡 Tip: AoE pulses from Bell Towers and splash from Cannons ignore Taunt redirects and damage all units in the area!
+            Tip: AoE pulses from Bell Towers and splash from Cannons ignore Taunt redirects and damage all units in the area!
           </div>
         </div>
       </div>

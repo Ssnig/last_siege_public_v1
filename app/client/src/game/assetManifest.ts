@@ -82,25 +82,25 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 'slot_active_halo', url: '/assets/ui/hud/slot_active_halo.png', type: 'image', category: 'ui', label: 'Slot Active Halo' },
 
   // Towers
-  { id: 't01_tower', url: '/assets/towers/01_archer_tower/tower.png', type: 'image', category: 'tower', label: 'Archer Tower' },
-  { id: 't01_proj', url: '/assets/towers/01_archer_tower/projectile.png', type: 'image', category: 'tower', label: 'Archer Arrow' },
-  { id: 't01_icon', url: '/assets/towers/01_archer_tower/icon.png', type: 'image', category: 'tower', label: 'Archer Icon' },
+  { id: 't01_tower', url: '/assets/towers/01_archer_tower/sheet.png', type: 'image', category: 'tower', label: 'Archer Tower' },
+  { id: 't01_proj', url: '/assets/towers/01_archer_tower/projectile_vfx.png', type: 'image', category: 'tower', label: 'Archer Arrow' },
+  { id: 't01_icon', url: '/assets/towers/01_archer_tower/icon.jpg', type: 'image', category: 'tower', label: 'Archer Icon' },
 
   { id: 't02_tower', url: '/assets/towers/02_cannon/tower.png', type: 'image', category: 'tower', label: 'Cannon Tower' },
   { id: 't02_proj', url: '/assets/towers/02_cannon/projectile.png', type: 'image', category: 'tower', label: 'Cannon Ball' },
   { id: 't02_icon', url: '/assets/towers/02_cannon/icon.png', type: 'image', category: 'tower', label: 'Cannon Icon' },
 
-  { id: 't03_tower', url: '/assets/towers/03_bomb_throwing_tower/tower.png', type: 'image', category: 'tower', label: 'Bomb Tower' },
-  { id: 't03_proj', url: '/assets/towers/03_bomb_throwing_tower/projectile.png', type: 'image', category: 'tower', label: 'Bomb Projectile' },
-  { id: 't03_icon', url: '/assets/towers/03_bomb_throwing_tower/icon.png', type: 'image', category: 'tower', label: 'Bomb Icon' },
+  { id: 't03_tower', url: '/assets/towers/03_bomb_throwing_tower/sheet.png', type: 'image', category: 'tower', label: 'Bomb Tower' },
+  { id: 't03_proj', url: '/assets/towers/03_bomb_throwing_tower/projectile_vfx.png', type: 'image', category: 'tower', label: 'Bomb Projectile' },
+  { id: 't03_icon', url: '/assets/towers/03_bomb_throwing_tower/icon.jpg', type: 'image', category: 'tower', label: 'Bomb Icon' },
 
   { id: 't04_tower', url: '/assets/towers/04_bell_tower/bell_tower.png', type: 'image', category: 'tower', label: 'Bell Tower' },
   { id: 't04_vfx', url: '/assets/towers/04_bell_tower/attack_vfx.png', type: 'image', category: 'tower', label: 'Bell Sound Pulse VFX' },
   { id: 't04_icon', url: '/assets/towers/04_bell_tower/icon.jpg', type: 'image', category: 'tower', label: 'Bell Tower Icon' },
 
-  { id: 't05_tower', url: '/assets/towers/05_spear_tower/tower.png', type: 'image', category: 'tower', label: 'Spear Tower' },
-  { id: 't05_proj', url: '/assets/towers/05_spear_tower/projectile.png', type: 'image', category: 'tower', label: 'Spear Projectile' },
-  { id: 't05_icon', url: '/assets/towers/05_spear_tower/icon.png', type: 'image', category: 'tower', label: 'Spear Icon' },
+  { id: 't05_tower', url: '/assets/towers/05_spear_tower/sheet.png', type: 'image', category: 'tower', label: 'Spear Tower' },
+  { id: 't05_proj', url: '/assets/towers/05_spear_tower/projectile_vfx.png', type: 'image', category: 'tower', label: 'Spear Projectile' },
+  { id: 't05_icon', url: '/assets/towers/05_spear_tower/icon.jpg', type: 'image', category: 'tower', label: 'Spear Icon' },
 
   { id: 't06_tower', url: '/assets/towers/06_gun_tower/tower.png', type: 'image', category: 'tower', label: 'Gun Tower' },
   { id: 't06_proj', url: '/assets/towers/06_gun_tower/projectile.png', type: 'image', category: 'tower', label: 'Gunshot' },
@@ -161,6 +161,10 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 'u_doe_pat_sheet', url: '/assets/units/doe_pat/sheet.png', type: 'image', category: 'unit', label: 'Doe Pat Drummer' },
   { id: 'u_doe_pat_face', url: '/assets/units/doe_pat/face.jpg', type: 'image', category: 'unit', label: 'Doe Pat Icon' },
   { id: 'u_doe_pat_speed_vfx', url: '/assets/units/doe_pat/speed_boost_vfx.png', type: 'image', category: 'unit', label: 'Speed Boost VFX' },
+
+  { id: 'u_belu_face', url: '/assets/units/Belu/face.jpg', type: 'image', category: 'unit', label: 'Belu Ogre Icon' },
+  { id: 'u_general_face', url: '/assets/units/General/face.jpg', type: 'image', category: 'unit', label: 'Royal Bo General Icon' },
+  { id: 'u_sone_ma_face', url: '/assets/units/SoneMa/face.jpg', type: 'image', category: 'unit', label: 'Sone Ma Sorceress Icon' },
 
   // Audio
   { id: 'music_lobby', url: '/assets/music/Lobby.mp3', type: 'audio', category: 'audio', label: 'Lobby & Menu Theme' },

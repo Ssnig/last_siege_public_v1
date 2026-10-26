@@ -140,7 +140,19 @@ export const LandingPage: React.FC = () => {
           title="Royal Almanac & War Codex"
           aria-label="Almanac"
         >
-          <span className="text-xl sm:text-2xl filter drop-shadow">📖</span>
+          <svg
+            className="w-[55%] h-[55%] text-amber-300/80 group-hover:text-amber-300 transition-all duration-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+            <path d="M6 6h10" />
+            <path d="M6 10h10" />
+          </svg>
         </button>
 
         {/* Top-Right Settings Gear Icon Button */}

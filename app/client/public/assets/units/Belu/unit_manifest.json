@@ -13,7 +13,7 @@
     "y": 0.917
   },
   "spritesheetFile": "spritesheet.png",
-  "faceFile": "face.png",
+  "faceFile": "face.jpg",
   "walkFrames": {
     "start": 0,
     "end": 3

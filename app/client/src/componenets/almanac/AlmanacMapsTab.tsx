@@ -275,7 +275,7 @@ export const AlmanacMapsTab: React.FC = () => {
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('🏛️ Royal Palace', bx, by - baseHeight / 2 - 8);
+        ctx.fillText('Royal Palace', bx, by - baseHeight / 2 - 8);
         ctx.restore();
       }
     };
@@ -291,7 +291,6 @@ export const AlmanacMapsTab: React.FC = () => {
       <div className="w-full md:w-80 lg:w-88 flex flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
         <div className="p-3 border-b border-amber-600/30 bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🗺️</span>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-200 font-['Almendra',serif]">
               Realm Battlefields ({CANONICAL_MAPS.length} Maps)
             </span>
@@ -385,7 +384,7 @@ export const AlmanacMapsTab: React.FC = () => {
                   : 'bg-slate-900 border-slate-700 text-slate-400'
               }`}
             >
-              🛤️ Paths: {showPaths ? 'ON' : 'OFF'}
+              Paths: {showPaths ? 'ON' : 'OFF'}
             </button>
             <button
               onClick={() => setShowSlots((prev) => !prev)}
@@ -395,7 +394,7 @@ export const AlmanacMapsTab: React.FC = () => {
                   : 'bg-slate-900 border-slate-700 text-slate-400'
               }`}
             >
-              🛡️ Slots: {showSlots ? 'ON' : 'OFF'}
+              Slots: {showSlots ? 'ON' : 'OFF'}
             </button>
             <button
               onClick={() => setShowPortals((prev) => !prev)}
@@ -405,7 +404,7 @@ export const AlmanacMapsTab: React.FC = () => {
                   : 'bg-slate-900 border-slate-700 text-slate-400'
               }`}
             >
-              🌀 Portals: {showPortals ? 'ON' : 'OFF'}
+              Portals: {showPortals ? 'ON' : 'OFF'}
             </button>
             <button
               onClick={() => setShowBase((prev) => !prev)}
@@ -415,7 +414,7 @@ export const AlmanacMapsTab: React.FC = () => {
                   : 'bg-slate-900 border-slate-700 text-slate-400'
               }`}
             >
-              🏛️ Palace: {showBase ? 'ON' : 'OFF'}
+              Palace: {showBase ? 'ON' : 'OFF'}
             </button>
           </div>
         </div>
@@ -462,7 +461,7 @@ export const AlmanacMapsTab: React.FC = () => {
           {/* Choke Point & Terrain Analysis */}
           <div className="bg-slate-900/70 p-3.5 rounded-lg border border-amber-600/30">
             <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-1 font-['Almendra',serif] flex items-center gap-1.5">
-              <span>📍</span> Strategic Choke Points & Terrain
+              Strategic Choke Points & Terrain
             </h4>
             <p className="text-xs text-slate-300 leading-relaxed font-serif">
               {tactical.chokePoint}
@@ -472,8 +471,8 @@ export const AlmanacMapsTab: React.FC = () => {
           {/* Commander Briefing: Defender vs Attacker */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="bg-blue-950/20 p-3 rounded-lg border border-blue-800/40">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300 uppercase tracking-wider mb-1.5">
-                <span>🛡️</span> Defender Citadel Strategy
+              <div className="text-xs font-bold text-blue-300 uppercase tracking-wider mb-1.5">
+                Defender Citadel Strategy
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
                 {tactical.defenderAdvice}
@@ -481,8 +480,8 @@ export const AlmanacMapsTab: React.FC = () => {
             </div>
 
             <div className="bg-amber-950/20 p-3 rounded-lg border border-amber-800/40">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 uppercase tracking-wider mb-1.5">
-                <span>⚔️</span> Attacker Invasion Strategy
+              <div className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-1.5">
+                Attacker Invasion Strategy
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
                 {tactical.attackerAdvice}

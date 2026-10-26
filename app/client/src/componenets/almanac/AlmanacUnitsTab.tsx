@@ -114,6 +114,56 @@ const UNIT_EXTRA_DATA: Record<string, UnitVisualAndLore> = {
     bestPairedWith: ['Sar Bal Gyi', 'War Elephant', 'Horse Rider'],
     counteredBy: ['Cannon (slow counteracts speed)', 'Gun Tower (picks off drummer)'],
   },
+  bandit: {
+    faceUrl: '/assets/units/Bandit/face.png',
+    sheetUrl: '/assets/units/Bandit/spritesheet.png',
+    role: 'Swift Raider & Outlaw Vanguard',
+    title: 'Bandit Raider',
+    description: 'Ruthless woodland plunderers roaming between provinces. Bolstered by light armor and rapid movement, bandits charge past sluggish defenses to breach outer barriers.',
+    tacticalTip: 'High-speed infiltration unit with a touch of physical armor. Ideal for overwhelming towers when deployed alongside simian swarms.',
+    bestPairedWith: ['Monkey (swarming)', 'Doe Pat Drummer (blistering sprint)'],
+    counteredBy: ['Archer Tower (rapid arrows)', 'Cannon (splash stagger)'],
+  },
+  belu: {
+    faceUrl: '/assets/units/Belu/face.jpg',
+    sheetUrl: '/assets/units/Belu/spritesheet.png',
+    role: 'Mythical Ogre Behemoth',
+    title: 'Belu Ogre',
+    description: 'Fearsome horned ogre descending from legendary folklore. Possesses monstrous 950 HP, 7 heavy armor, and a devastating 5 Leak Damage upon breaching the royal court.',
+    tacticalTip: 'A terrifying siege juggernaut with 80% mental resistance. Unlike Sar Bal Gyi, the Belu easily withstands bell resonance, demanding heavy physical or mortar fire.',
+    bestPairedWith: ['Say Sayar (massive HP pool healing)', 'Doe Pat Drummer (overcoming slow stride)'],
+    counteredBy: ['Spear Tower (piercing thrusts)', 'Sein Pyaung Mortar (crushing artillery)'],
+  },
+  brute: {
+    faceUrl: '/assets/units/Brute/face.png',
+    sheetUrl: '/assets/units/Brute/spritesheet.png',
+    role: 'Armored Shock Linebreaker',
+    title: 'Heavy Brute',
+    description: 'Towering warrior bearing hefty plate armor and iron gauntlets. Built to absorb concentrated crossfire and clear the vanguard line for faster allies.',
+    tacticalTip: 'Formidable mid-game anchor with 560 HP and 5 armor. Susceptible to mental terror due to low resolve (25%), so steer clear of bell resonance.',
+    bestPairedWith: ['Bandit Raider (follow-up surge)', 'Say Sayar Physician'],
+    counteredBy: ['Bell Tower (low mental resolve)', 'High-Tier Gun Tower'],
+  },
+  general: {
+    faceUrl: '/assets/units/General/face.jpg',
+    sheetUrl: '/assets/units/General/spritesheet.png',
+    role: 'Elite Royal Bo Commander',
+    title: 'Royal Bo General',
+    description: 'Venerated battlefield warlord marching under the royal peacock standard. Combines 6 heavy armor with an exceptional 90% mental resolve to lead relentless assaults.',
+    tacticalTip: 'Well-rounded commander with high survivability against both physical and mental assaults. Forces defense lines into multi-tower commitments.',
+    bestPairedWith: ['Shield Bearer (taunt protection)', 'War Elephant', 'Say Sayar'],
+    counteredBy: ['Concentrated Single-Target Burst', 'Water Cannon (slowing advance)'],
+  },
+  sone_ma: {
+    faceUrl: '/assets/units/SoneMa/face.jpg',
+    sheetUrl: '/assets/units/SoneMa/spritesheet.png',
+    role: 'Occult Nat Sorceress',
+    title: 'Sone Ma Sorceress',
+    description: 'Mystical practitioner of ancient occult arts and spirit charms. Possesses an unshakeable 1.0 Mental Strength, rendering all spiritual bells and mental crack harmless.',
+    tacticalTip: 'Complete mental immunity combined with high 65 movement speed makes Sone Ma the ultimate threat against magic and bell fortifications.',
+    bestPairedWith: ['Belu Ogre (physical tank)', 'Doe Pat Drummer'],
+    counteredBy: ['Archer Tower (rapid physical volleys)', 'Gun Tower Sniper'],
+  },
 };
 
 const UNIT_IDS = [
@@ -127,6 +177,11 @@ const UNIT_IDS = [
   'say_sayar',
   'shield_guy',
   'doe_pat',
+  'bandit',
+  'belu',
+  'brute',
+  'general',
+  'sone_ma',
 ];
 
 export const AlmanacUnitsTab: React.FC = () => {
@@ -144,7 +199,6 @@ export const AlmanacUnitsTab: React.FC = () => {
       <div className="w-full md:w-80 lg:w-96 flex flex-col shrink-0 bg-slate-950/80 rounded-xl border border-amber-600/40 overflow-hidden shadow-lg">
         <div className="p-3 border-b border-amber-600/30 bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">⚔️</span>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-200 font-['Almendra',serif]">
               Invading Host ({UNIT_IDS.length} Units)
             </span>
@@ -191,17 +245,17 @@ export const AlmanacUnitsTab: React.FC = () => {
                     </h4>
                     {m?.taunt && (
                       <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-red-950 border border-red-500/60 text-red-300">
-                        🛡️ Taunt
+                        Taunt
                       </span>
                     )}
                     {m?.ability?.type === 'heal_aura' && (
                       <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 border border-emerald-500/60 text-emerald-300">
-                        💚 Healer
+                        Healer
                       </span>
                     )}
                     {m?.ability?.type === 'speed_aura' && (
                       <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-yellow-950 border border-yellow-500/60 text-yellow-300">
-                        ⚡ Drummer
+                        Drummer
                       </span>
                     )}
                   </div>
@@ -323,7 +377,6 @@ export const AlmanacUnitsTab: React.FC = () => {
           {/* Unique Special Ability Banner */}
           {(mob.ability || mob.taunt) && (
             <div className="p-3.5 bg-gradient-to-r from-amber-950/40 to-slate-900 rounded-lg border border-amber-500/50 flex items-start gap-3">
-              <span className="text-2xl">⚡</span>
               <div className="text-xs">
                 <h5 className="font-bold text-amber-300 uppercase tracking-wide">
                   Active Battlefield Ability:
@@ -363,26 +416,26 @@ export const AlmanacUnitsTab: React.FC = () => {
           {/* Tactical Synergies and Counters */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="bg-emerald-950/20 p-3 rounded-lg border border-emerald-800/40">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1.5">
-                <span>🤝</span> Best Wave Combos
+              <div className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1.5">
+                Best Wave Combos
               </div>
               <ul className="text-xs text-slate-300 space-y-1">
                 {info.bestPairedWith.map((item, i) => (
                   <li key={i} className="flex items-center gap-1.5">
-                    <span className="text-emerald-400 font-bold">✓</span> {item}
+                    <span className="text-emerald-400 font-bold font-mono">+</span> {item}
                   </li>
                 ))}
               </ul>
             </div>
 
             <div className="bg-rose-950/20 p-3 rounded-lg border border-rose-800/40">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-300 uppercase tracking-wider mb-1.5">
-                <span>⚠️</span> Hard Tower Counters
+              <div className="text-xs font-bold text-rose-300 uppercase tracking-wider mb-1.5">
+                Hard Tower Counters
               </div>
               <ul className="text-xs text-slate-300 space-y-1">
                 {info.counteredBy.map((item, i) => (
                   <li key={i} className="flex items-center gap-1.5">
-                    <span className="text-rose-400 font-bold">✗</span> {item}
+                    <span className="text-rose-400 font-bold font-mono">-</span> {item}
                   </li>
                 ))}
               </ul>
@@ -391,7 +444,6 @@ export const AlmanacUnitsTab: React.FC = () => {
 
           {/* Field Note */}
           <div className="p-3 bg-slate-900/90 rounded-lg border border-amber-500/40 flex items-start gap-2.5">
-            <span className="text-lg">💡</span>
             <div className="text-xs leading-relaxed">
               <span className="font-bold text-amber-300">Warlord's Strategy: </span>
               <span className="text-slate-300">{info.tacticalTip}</span>
