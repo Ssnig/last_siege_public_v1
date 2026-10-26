@@ -2882,10 +2882,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (!mob) return;
 
     const type = MOB_TYPES[mob.typeId];
+    const towerDef = sourceTowerTypeId ? TOWER_TYPES[sourceTowerTypeId] : undefined;
+    const armorPen = towerDef?.armorPenetration ?? 0;
     const applied =
       damageType === DAMAGE_TYPES.mental
         ? mentalDamageTaken(damage, this.debuffMagnitude(mob))
-        : physicalDamageTaken(damage, type?.armor ?? 0);
+        : physicalDamageTaken(damage, type?.armor ?? 0, armorPen);
 
     mob.hp = Math.max(0, mob.hp - Math.round(applied));
 

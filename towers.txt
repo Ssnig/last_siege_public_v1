@@ -1,160 +1,160 @@
-================================================================================
-                           TD GAME - TOWERS CATALOG
-================================================================================
-# Instructions:
-# Edit the fields below as needed.
-# - nickname: Custom short name or callsign for this tower
-# - strong_against: Unit types or compositions this tower counters (comma-separated)
-# - weak_against: Unit types or compositions that counter this tower (comma-separated)
-# - notes: Any design, lore, or tactical notes
-================================================================================
-
-[cannon]
-id = cannon
-name = Cannon
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = physical
-attack_speed = 1 shot per 3.0s (0.33 attacks/sec) [with 25% slow for 1.5s]
-base_cost = 140
-tier_costs = 140, 230, 390
-tier_damages = 32, 60, 120
-tier_ranges = 110, 120, 135
-special_effect = slow: 25% for 1.5s
-notes = 
-
-[archer]
-id = archer
-name = Archer Tower
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = physical
-attack_speed = 1 shot per 0.5s (2.0 attacks/sec)
-base_cost = 55
-tier_costs = 55, 105, 185
-tier_damages = 10, 18, 32
-tier_ranges = 140, 160, 185
-special_effect = None
-notes = 
-
-[bomb]
-id = bomb
-name = Bomb Throwing Tower
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = physical
-attack_speed = 1 shot per 2.0s (0.5 attacks/sec)
-base_cost = 110
-tier_costs = 110, 190, 320
-tier_damages = 24, 48, 96
-tier_ranges = 130, 145, 165
-special_effect = None
-notes = 
-
-[bell]
-id = bell
-name = Bell Tower
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = mental
-attack_speed = 1 pulse per 1.5s (0.67 attacks/sec)
-base_cost = 95
-tier_costs = 95, 165, 280
-tier_damages = 12, 24, 48
-tier_ranges = 135, 150, 170
-special_effect = None
-notes = 
-
-[spear]
-id = spear
-name = Spear Tower
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = physical
-attack_speed = 1 shot per 1.0s (1.0 attacks/sec)
-base_cost = 45
-tier_costs = 45, 85, 150
-tier_damages = 8, 16, 30
-tier_ranges = 125, 140, 160
-special_effect = None
-notes = 
-
-[gun]
-id = gun
-name = Gun Tower
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = physical
-attack_speed = 1 shot per 1.0s (1.0 attacks/sec)
-base_cost = 130
-tier_costs = 130, 225, 385
-tier_damages = 30, 58, 124
-tier_ranges = 210, 240, 275
-special_effect = None
-notes = 
-
-[water_cannon]
-id = water_cannon
-name = Water Cannon
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = mental
-attack_speed = 1 burst per 1.8s (0.56 attacks/sec)
-base_cost = 40
-tier_costs = 40, 75, 130
-tier_damages = 4, 7, 12
-tier_ranges = 130, 145, 160
-special_effect = None
-notes = 
-
-[chinthe]
-id = chinthe
-name = Chinthe Guardian
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = mental
-attack_speed = 1 strike per 2.2s (0.45 attacks/sec)
-base_cost = 120
-tier_costs = 120, 210, 360
-tier_damages = 30, 58, 118
-tier_ranges = 150, 170, 190
-special_effect = None
-notes = 
-
-[dragon]
-id = dragon
-name = Dragon Tower
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = mental
-attack_speed = 1 breath per 1.2s (0.83 attacks/sec)
-base_cost = 150
-tier_costs = 150, 250, 420
-tier_damages = 35, 70, 140
-tier_ranges = 160, 180, 200
-special_effect = None
-notes = 
-
-[sein_pyaung]
-id = sein_pyaung
-name = Sein Pyaung
-nickname = 
-strong_against = 
-weak_against = 
-damage_type = physical
-attack_speed = 1 shot per 3.5s (0.29 attacks/sec)
-base_cost = 125
-tier_costs = 125, 215, 370
-tier_damages = 36, 68, 135
-tier_ranges = 220, 250, 285
-special_effect = None
-notes = 
+================================================================================
+                           TD GAME - TOWERS CATALOG
+================================================================================
+# Instructions:
+# Edit the fields below as needed.
+# - nickname: Custom short name or callsign for this tower
+# - strong_against: Unit types or compositions this tower counters (comma-separated)
+# - weak_against: Unit types or compositions that counter this tower (comma-separated)
+# - notes: Any design, lore, or tactical notes
+================================================================================
+
+[cannon]
+id = cannon
+name = Cannon
+nickname = 
+strong_against = armor, high hp
+weak_against = fast units
+damage_type = physical
+attack_speed = 1 shot per 3.0s (0.33 attacks/sec) [with 25% slow for 1.5s]
+base_cost = 140
+tier_costs = 140, 230, 390
+tier_damages = 32, 60, 120
+tier_ranges = 110, 120, 135
+special_effect = slow: 25% for 1.5s
+notes = 
+
+[archer]
+id = archer
+name = Archer Tower
+nickname = 
+strong_against = flying
+weak_against = armor 
+damage_type = physical
+attack_speed = 1 shot per 0.5s (2.0 attacks/sec)
+base_cost = 55
+tier_costs = 55, 105, 185
+tier_damages = 10, 18, 32
+tier_ranges = 140, 160, 185
+special_effect = None
+notes = 
+
+[bomb]
+id = bomb
+name = Bomb Throwing Tower
+nickname = 
+strong_against = groups
+weak_against = high hp, flying
+damage_type = physical
+attack_speed = 1 shot per 2.0s (0.5 attacks/sec)
+base_cost = 110
+tier_costs = 110, 190, 320
+tier_damages = 24, 48, 96
+tier_ranges = 130, 145, 165
+special_effect = None
+notes = 
+
+[bell]
+id = bell
+name = Bell Tower
+nickname = 
+strong_against = groups
+weak_against = mental resist, high hp
+damage_type = mental
+attack_speed = 1 pulse per 1.5s (0.67 attacks/sec)
+base_cost = 95
+tier_costs = 95, 165, 280
+tier_damages = 12, 24, 48
+tier_ranges = 135, 150, 170
+special_effect = None
+notes = 
+
+[spear]
+id = spear
+name = Spear Tower
+nickname = 
+strong_against = armor, flying
+weak_against = fast, high hp, groups
+damage_type = physical
+attack_speed = 1 shot per 1.0s (1.0 attacks/sec)
+base_cost = 45
+tier_costs = 45, 85, 150
+tier_damages = 8, 16, 30
+tier_ranges = 125, 140, 160
+special_effect = armor_piercing: 50%
+notes = 
+
+[gun]
+id = gun
+name = Gun Tower
+nickname = 
+strong_against = high hp, armor, flying
+weak_against = fast, groups
+damage_type = physical
+attack_speed = 1 shot per 1.0s (1.0 attacks/sec)
+base_cost = 130
+tier_costs = 130, 225, 385
+tier_damages = 30, 58, 124
+tier_ranges = 210, 240, 275
+special_effect = None
+notes = 
+
+[water_cannon]
+id = water_cannon
+name = Water Cannon
+nickname = 
+strong_against = fast units, armor, groups
+weak_against = mental resist, high hp
+damage_type = mental
+attack_speed = 1 burst per 1.8s (0.56 attacks/sec)
+base_cost = 40
+tier_costs = 40, 75, 130
+tier_damages = 4, 7, 12
+tier_ranges = 130, 145, 160
+special_effect = None
+notes = 
+
+[chinthe]
+id = chinthe
+name = Chinthe Guardian
+nickname = 
+strong_against = heavy armor, high hp
+weak_against = fast swarms, mental resist
+damage_type = mental
+attack_speed = 1 strike per 2.2s (0.45 attacks/sec)
+base_cost = 120
+tier_costs = 120, 210, 360
+tier_damages = 30, 58, 118
+tier_ranges = 150, 170, 190
+special_effect = None
+notes = 
+
+[dragon]
+id = dragon
+name = Dragon Tower
+nickname = 
+strong_against = groups, armor
+weak_against = flying, high hp, mental resist
+damage_type = mental
+attack_speed = 1 breath per 1.2s (0.83 attacks/sec)
+base_cost = 150
+tier_costs = 150, 250, 420
+tier_damages = 35, 70, 140
+tier_ranges = 160, 180, 200
+special_effect = None
+notes = 
+
+[sein_pyaung]
+id = sein_pyaung
+name = Sein Pyaung
+nickname = 
+strong_against = high hp, single target, healers/buffers
+weak_against = fast swarms, groups
+damage_type = physical
+attack_speed = 1 shot per 3.5s (0.29 attacks/sec)
+base_cost = 125
+tier_costs = 125, 215, 370
+tier_damages = 36, 68, 135
+tier_ranges = 220, 250, 285
+special_effect = None
+notes = 

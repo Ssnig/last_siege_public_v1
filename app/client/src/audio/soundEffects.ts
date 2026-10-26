@@ -23,6 +23,7 @@ class SoundEffectsManager {
       } catch {
         // Fallback to default volume if localStorage is restricted
       }
+      this.preloadTowerSounds();
     }
   }
 
@@ -434,6 +435,24 @@ class SoundEffectsManager {
     return lower;
   }
 
+  public preloadTowerSounds(): void {
+    if (typeof window === 'undefined') return;
+    const towerIds = [
+      'archer', 'cannon', 'bomb', 'bell', 'spear',
+      'gun', 'water_cannon', 'chinthe', 'dragon', 'sein_pyaung'
+    ];
+    for (const id of towerIds) {
+      for (const kind of ['shoot', 'impact'] as const) {
+        const path = `/assets/sfx/towers/${id}_${kind}.wav`;
+        if (!this.audioFileCache.has(path)) {
+          const audio = new Audio(path);
+          audio.preload = 'auto';
+          this.audioFileCache.set(path, audio);
+        }
+      }
+    }
+  }
+
   private tryPlayAudioFile(filename: string): boolean {
     if (typeof window === 'undefined') return false;
     const path = `/assets/sfx/towers/${filename}`;
@@ -441,17 +460,29 @@ class SoundEffectsManager {
     if (cached === undefined) {
       const audio = new Audio(path);
       audio.volume = this.volume;
+      audio.preload = 'auto';
       this.audioFileCache.set(path, audio);
       cached = audio;
     }
-    if (cached && !isNaN(cached.duration) && cached.duration > 0) {
-      try {
-        const clone = cached.cloneNode() as HTMLAudioElement;
-        clone.volume = this.volume;
-        clone.play().catch(() => {});
-        return true;
-      } catch {
-        return false;
+    if (cached) {
+      if (!isNaN(cached.duration) && cached.duration > 0) {
+        try {
+          const clone = cached.cloneNode() as HTMLAudioElement;
+          clone.volume = this.volume;
+          clone.play().catch(() => {});
+          return true;
+        } catch {
+          return false;
+        }
+      } else {
+        try {
+          cached.currentTime = 0;
+          cached.volume = this.volume;
+          cached.play().catch(() => {});
+          return true;
+        } catch {
+          return false;
+        }
       }
     }
     return false;
@@ -466,6 +497,7 @@ class SoundEffectsManager {
    */
   public reloadSoundCache(): void {
     this.audioFileCache.clear();
+    this.preloadTowerSounds();
   }
 
   /**
@@ -473,10 +505,12 @@ class SoundEffectsManager {
    */
   public isCustomAudio(towerId: string, soundType: 'shoot' | 'impact'): boolean {
     const norm = this.normalizeTowerId(towerId);
-    const mp3 = `/assets/sfx/towers/${norm}_${soundType}.mp3`;
     const wav = `/assets/sfx/towers/${norm}_${soundType}.wav`;
-    const a = this.audioFileCache.get(mp3) || this.audioFileCache.get(wav);
-    return !!(a && !isNaN(a.duration) && a.duration > 0);
+    const mp3 = `/assets/sfx/towers/${norm}_${soundType}.mp3`;
+    const a = this.audioFileCache.get(wav) || this.audioFileCache.get(mp3);
+    if (!a) return false;
+    if (a.error) return false;
+    return true;
   }
 
   /**

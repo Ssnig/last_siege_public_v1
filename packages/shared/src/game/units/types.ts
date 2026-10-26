@@ -30,6 +30,10 @@ export interface MobAbilityConfig {
 export interface MobType {
   id: string;
   name: string;
+  nickname?: string;
+  strongAgainst?: string[];
+  weakAgainst?: string[];
+  notes?: string;
   maxHp: number;
   /** Movement speed along the path, in px/s. */
   speed: number;

@@ -30,6 +30,8 @@ describe("combat.ts damage channels", () => {
     assert.strictEqual(physicalDamageTaken(12, 8), 4, "armor soaks a flat slice of every hit");
     assert.strictEqual(physicalDamageTaken(6, 8), 0, "armor heavier than the hit stops it dead");
     assert.strictEqual(physicalDamageTaken(0, 5), 0, "a zero-damage hit stays zero");
+    assert.strictEqual(physicalDamageTaken(8, 8, 0.5), 4, "50% pen allows hit to pierce equal armor");
+    assert.strictEqual(physicalDamageTaken(8, 8, 1.0), 8, "100% pen ignores armor completely");
   });
 
   it("mental strength decides how much extra mental damage a cracked mob takes", () => {
