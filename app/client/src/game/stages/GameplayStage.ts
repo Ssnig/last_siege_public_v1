@@ -88,7 +88,7 @@ export const MAX_CAMERA_ZOOM = 1.6;
  * @remarks Keeps a click on a tower (select) or a slot (build) from nudging
  * the camera, while a real drag still pans right away.
  */
-const CAMERA_DRAG_THRESHOLD = 6;
+const CAMERA_DRAG_THRESHOLD = 10;
 
 export interface GameplayStageOptions {
   room: Room;
@@ -233,20 +233,24 @@ export class GameplayStage {
   // Camera Drag, Pinch-to-Zoom & Momentum Properties
   private isDragging = false;
   private isPinching = false;
-  private initialPinchDistance = 0;
-  private initialZoom = 1;
-  private lastPointerX = 0;
-  private lastPointerY = 0;
-  private cameraVelocityX = 0;
-  private cameraVelocityY = 0;
-  /** Pointer position where the current drag started, for the move threshold. */
+  private dragActive = false;
+  private lastDragEndTime = 0;
   private dragOriginX = 0;
   private dragOriginY = 0;
-  /** `true` once the drag moved far enough to count as a camera pan. */
-  private dragActive = false;
+  private lastPointerX = 0;
+  private lastPointerY = 0;
+  private lastPointerTime = 0;
+  private cameraVelocityX = 0;
+  private cameraVelocityY = 0;
+
+  // Multi-touch Pinch Tracking
+  private lastPinchDistance = 0;
+  private lastPinchMidX = 0;
+  private lastPinchMidY = 0;
+
   private onCameraPointerDown?: (pointer: Phaser.Input.Pointer) => void;
   private onCameraPointerMove?: (pointer: Phaser.Input.Pointer) => void;
-  private onCameraPointerUp?: () => void;
+  private onCameraPointerUp?: (pointer: Phaser.Input.Pointer) => void;
   private onCameraWheel?: (pointer: any, gameObjects: any, deltaX: number, deltaY: number) => void;
 
   private unsubscribers: Array<() => void> = [];
@@ -441,8 +445,17 @@ export class GameplayStage {
           .circle(portal.x, portal.y - 20, 52, 0xffffff, 0)
           .setDepth(DEPTH.PORTAL_LAYER + 0.004)
           .setInteractive({ useHandCursor: true });
-        hit.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => {
-          this.room.send(MESSAGES.deploy, { portalId: portal.id });
+        let portalDownX = 0;
+        let portalDownY = 0;
+        hit.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+          portalDownX = pointer.x;
+          portalDownY = pointer.y;
+        });
+        hit.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+          const dist = Math.hypot(pointer.x - portalDownX, pointer.y - portalDownY);
+          if (dist < 12 && !this.wasRecentlyDragged()) {
+            this.room.send(MESSAGES.deploy, { portalId: portal.id });
+          }
         });
         this.root?.add(hit);
       }
@@ -562,7 +575,18 @@ export class GameplayStage {
           new Phaser.Geom.Rectangle(0, 0, zoneWidth, zoneHeight),
           Phaser.Geom.Rectangle.Contains,
         );
-      deselectZone.on("pointerdown", () => this.clearSelection());
+      let deselectDownX = 0;
+      let deselectDownY = 0;
+      deselectZone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        deselectDownX = pointer.x;
+        deselectDownY = pointer.y;
+      });
+      deselectZone.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+        const dist = Math.hypot(pointer.x - deselectDownX, pointer.y - deselectDownY);
+        if (dist < 12 && !this.wasRecentlyDragged()) {
+          this.clearSelection();
+        }
+      });
       this.root.add(deselectZone);
     }
 
@@ -661,19 +685,20 @@ export class GameplayStage {
           baseSprite?.clearTint();
           this.hideGhostTower();
         });
-        placeholder.on(
-          "pointerdown",
-          (
-            _pointer: Phaser.Input.Pointer,
-            _localX: number,
-            _localY: number,
-            event: Phaser.Types.Input.EventData,
-          ) => {
-            this.scene.registry.set("ui:overTowerSlot", true);
-            event?.stopPropagation();
+        let slotDownX = 0;
+        let slotDownY = 0;
+        placeholder.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+          slotDownX = pointer.x;
+          slotDownY = pointer.y;
+          this.scene.registry.set("ui:overTowerSlot", true);
+        });
+        placeholder.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+          this.scene.registry.set("ui:overTowerSlot", false);
+          const dist = Math.hypot(pointer.x - slotDownX, pointer.y - slotDownY);
+          if (dist < 12 && !this.wasRecentlyDragged()) {
             this.handleSlotClick(slot);
-          },
-        );
+          }
+        });
       } else {
         placeholder.on("pointerover", () => {
           this.scene.registry.set("ui:overTowerSlot", true);
@@ -681,13 +706,6 @@ export class GameplayStage {
         placeholder.on("pointerout", () => {
           this.scene.registry.set("ui:overTowerSlot", false);
         });
-        placeholder.on(
-          "pointerdown",
-          (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
-            this.scene.registry.set("ui:overTowerSlot", true);
-            event?.stopPropagation();
-          },
-        );
       }
 
       this.root?.add(placeholder);
@@ -1664,19 +1682,19 @@ export class GameplayStage {
     const levelBadge = this.createTowerLevelBadge(slot, tower.level);
 
     sprite.setInteractive({ useHandCursor: true });
-    sprite.on(
-      "pointerdown",
-      (
-        _pointer: Phaser.Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
-        event?.stopPropagation();
+    let towerDownX = 0;
+    let towerDownY = 0;
+    sprite.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      towerDownX = pointer.x;
+      towerDownY = pointer.y;
+    });
+    sprite.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+      const dist = Math.hypot(pointer.x - towerDownX, pointer.y - towerDownY);
+      if (dist < 12 && !this.wasRecentlyDragged()) {
         const record = this.towers.get(slot.slotIndex);
         if (record) this.selectTower(slot, record);
-      },
-    );
+      }
+    });
 
     this.towers.set(slot.slotIndex, { id, tower, sprite, levelBadge });
     this.towerLastCooldown.set(slot.slotIndex, tower.cooldown);
@@ -2818,162 +2836,270 @@ export class GameplayStage {
   }
 
   /**
-   * Clamps camera scroll position so visible bounds remain within the 1280x720 map.
+   * Clamps camera scroll position so visible bounds remain within the map.
+   * If visible world exceeds map bounds (e.g. at low zoom), centers the map.
    */
   private clampCameraScroll(): void {
     const cam = this.scene.cameras.main;
-    const halfW = (cam.width / 2) / cam.zoom;
-    const halfH = (cam.height / 2) / cam.zoom;
+    const visibleW = cam.width / cam.zoom;
+    const visibleH = cam.height / cam.zoom;
+    const mapW = this.map.width || 1280;
+    const mapH = this.map.height || 720;
 
-    const minX = Math.min(0, halfW - cam.width / 2);
-    const maxX = Math.max(0, 1280 - halfW - cam.width / 2);
-    const minY = Math.min(0, halfH - cam.height / 2);
-    const maxY = Math.max(0, 720 - halfH - cam.height / 2);
-
-    if (minX <= maxX) {
-      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, minX, maxX);
+    if (visibleW >= mapW) {
+      cam.scrollX = (mapW - cam.width) / 2;
     } else {
-      cam.scrollX = 0;
+      const minScrollX = visibleW / 2 - cam.width / 2;
+      const maxScrollX = (mapW - visibleW / 2) - cam.width / 2;
+      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, minScrollX, maxScrollX);
     }
 
-    if (minY <= maxY) {
-      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, minY, maxY);
+    if (visibleH >= mapH) {
+      cam.scrollY = (mapH - cam.height) / 2;
     } else {
-      cam.scrollY = 0;
+      const minScrollY = visibleH / 2 - cam.height / 2;
+      const maxScrollY = (mapH - visibleH / 2) - cam.height / 2;
+      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, minScrollY, maxScrollY);
     }
   }
 
   /**
-   * Initializes drag & pan camera controls with pinch-to-zoom, boundary clamping, and momentum friction.
-   *
-   * @remarks The pan is driven by the primary mouse button (or a finger): press
-   * and drag to move the camera, and the map follows the pointer. A short
-   * movement threshold separates a tap from a drag, so clicking a tower still
-   * selects it instead of nudging the camera.
+   * Returns all pointers currently touching the canvas.
+   */
+  private getActivePointers(): Phaser.Input.Pointer[] {
+    const input = this.scene.input;
+    const active: Phaser.Input.Pointer[] = [];
+    if (input.pointer1?.isDown) active.push(input.pointer1);
+    if (input.pointer2?.isDown) active.push(input.pointer2);
+    if (input.pointer3?.isDown) active.push(input.pointer3);
+    if (input.mousePointer?.isDown && !active.includes(input.mousePointer)) {
+      active.push(input.mousePointer);
+    }
+    return active;
+  }
+
+  /**
+   * Returns true if the camera was dragged or pinched recently (within 150ms),
+   * preventing child game objects from misinterpreting a drag release as a tap.
+   */
+  public wasRecentlyDragged(): boolean {
+    return this.dragActive || (performance.now() - this.lastDragEndTime < 150);
+  }
+
+  /**
+   * Initializes drag & pan camera controls with focal pinch-to-zoom,
+   * smooth dual-pan, boundary clamping, and momentum friction.
    */
   private setupCameraControls(): void {
     const cam = this.scene.cameras.main;
-    this.scene.input.addPointer(2);
+    // Support up to 4 simultaneous touch pointers
+    this.scene.input.addPointer(3);
 
     this.onCameraPointerDown = (pointer: Phaser.Input.Pointer) => {
-      const p1 = this.scene.input.pointer1;
-      const p2 = this.scene.input.pointer2;
-
-      // Two fingers down: initiate pinch-to-zoom gesture
-      if (p1.isDown && p2.isDown) {
-        this.isPinching = true;
-        this.isDragging = false;
-        this.dragActive = false;
-        this.initialPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-        this.initialZoom = cam.zoom;
-        this.cameraVelocityX = 0;
-        this.cameraVelocityY = 0;
-        return;
-      }
-
-      // Only the primary button pans the camera.
-      if (!pointer.primaryDown) return;
-
-      this.isDragging = true;
-      this.dragActive = false;
-      this.dragOriginX = pointer.x;
-      this.dragOriginY = pointer.y;
-      this.lastPointerX = pointer.x;
-      this.lastPointerY = pointer.y;
+      // Touching the canvas immediately halts any ongoing momentum glide
       this.cameraVelocityX = 0;
       this.cameraVelocityY = 0;
-    };
 
-    this.onCameraPointerMove = (pointer: Phaser.Input.Pointer) => {
-      const p1 = this.scene.input.pointer1;
-      const p2 = this.scene.input.pointer2;
+      const active = this.getActivePointers();
 
-      // Handle two-finger pinch-to-zoom
-      if (p1.isDown && p2.isDown) {
-        if (!this.isPinching) {
-          // The pinch can start without a pointerdown event (a finger landing on
-          // a tower cancels it), so seed the gesture here instead.
-          this.isPinching = true;
-          this.isDragging = false;
-          this.dragActive = false;
-          this.initialPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-          this.initialZoom = cam.zoom;
-          this.cameraVelocityX = 0;
-          this.cameraVelocityY = 0;
-        }
-        const currentDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-        if (this.initialPinchDistance > 10) {
-          const factor = currentDist / this.initialPinchDistance;
-          const targetZoom = Phaser.Math.Clamp(this.initialZoom * factor, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
-          cam.setZoom(targetZoom);
-          this.clampCameraScroll();
-        }
-        return;
-      }
-
-      // A drag can start on a tower or a slot too: those objects cancel the
-      // scene's pointerdown event, so the press is picked up from the pointer's
-      // own state here.
-      if (!this.isDragging) {
-        if (!pointer.isDown || !pointer.primaryDown) return;
+      if (active.length >= 2) {
+        // Multi-touch: seed pinch-to-zoom and dual-pan gesture
+        this.isPinching = true;
+        this.isDragging = false;
+        this.dragActive = true;
+        const p1 = active[0];
+        const p2 = active[1];
+        this.lastPinchDistance = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        this.lastPinchMidX = (p1.x + p2.x) / 2;
+        this.lastPinchMidY = (p1.y + p2.y) / 2;
+      } else {
+        // Single-finger touch or mouse click
+        this.isPinching = false;
         this.isDragging = true;
         this.dragActive = false;
         this.dragOriginX = pointer.x;
         this.dragOriginY = pointer.y;
         this.lastPointerX = pointer.x;
         this.lastPointerY = pointer.y;
-        this.cameraVelocityX = 0;
-        this.cameraVelocityY = 0;
+        this.lastPointerTime = performance.now();
       }
+    };
 
-      if (this.isPinching || !pointer.isDown) return;
+    this.onCameraPointerMove = (_pointer: Phaser.Input.Pointer) => {
+      const active = this.getActivePointers();
 
-      // A tap must stay a tap: the camera only starts panning once the pointer
-      // has travelled past the threshold.
-      if (!this.dragActive) {
-        const travelX = pointer.x - this.dragOriginX;
-        const travelY = pointer.y - this.dragOriginY;
-        if (Math.hypot(travelX, travelY) < CAMERA_DRAG_THRESHOLD) {
-          this.lastPointerX = pointer.x;
-          this.lastPointerY = pointer.y;
+      // ─── 1. Two-finger pinch-to-zoom & dual-pan ───
+      if (active.length >= 2) {
+        const p1 = active[0];
+        const p2 = active[1];
+        const currentDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        const currentMidX = (p1.x + p2.x) / 2;
+        const currentMidY = (p1.y + p2.y) / 2;
+
+        if (!this.isPinching) {
+          this.isPinching = true;
+          this.isDragging = false;
+          this.dragActive = true;
+          this.lastPinchDistance = currentDist;
+          this.lastPinchMidX = currentMidX;
+          this.lastPinchMidY = currentMidY;
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
           return;
         }
-        this.dragActive = true;
-        this.lastPointerX = pointer.x;
-        this.lastPointerY = pointer.y;
+
+        // Two-finger pan: camera follows the movement of the fingers' centroid
+        const midDx = currentMidX - this.lastPinchMidX;
+        const midDy = currentMidY - this.lastPinchMidY;
+        cam.scrollX -= midDx / cam.zoom;
+        cam.scrollY -= midDy / cam.zoom;
+
+        // Focal pinch zoom: zooms around the midpoint between the fingers
+        if (this.lastPinchDistance > 10 && currentDist > 10) {
+          const zoomRatio = currentDist / this.lastPinchDistance;
+          const targetZoom = Phaser.Math.Clamp(cam.zoom * zoomRatio, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
+          if (Math.abs(targetZoom - cam.zoom) > 0.0001) {
+            const worldBefore = cam.getWorldPoint(currentMidX, currentMidY);
+            cam.setZoom(targetZoom);
+            const worldAfter = cam.getWorldPoint(currentMidX, currentMidY);
+            cam.scrollX += (worldBefore.x - worldAfter.x);
+            cam.scrollY += (worldBefore.y - worldAfter.y);
+          }
+          this.lastPinchDistance = currentDist;
+        }
+
+        this.lastPinchMidX = currentMidX;
+        this.lastPinchMidY = currentMidY;
+        this.clampCameraScroll();
         return;
       }
 
-      const dx = pointer.x - this.lastPointerX;
-      const dy = pointer.y - this.lastPointerY;
+      // ─── 2. Single-finger pan ───
+      if (active.length === 1) {
+        const activePointer = active[0];
 
-      cam.scrollX -= dx / cam.zoom;
-      cam.scrollY -= dy / cam.zoom;
-      this.clampCameraScroll();
+        // Transition from 2 fingers to 1 finger: seamless handoff without velocity jump
+        if (this.isPinching) {
+          this.isPinching = false;
+          this.isDragging = true;
+          this.dragActive = true;
+          this.lastPointerX = activePointer.x;
+          this.lastPointerY = activePointer.y;
+          this.lastPointerTime = performance.now();
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
+          return;
+        }
 
-      this.cameraVelocityX = -dx / cam.zoom;
-      this.cameraVelocityY = -dy / cam.zoom;
-      this.lastPointerX = pointer.x;
-      this.lastPointerY = pointer.y;
+        if (!this.isDragging) {
+          this.isDragging = true;
+          this.dragActive = false;
+          this.dragOriginX = activePointer.x;
+          this.dragOriginY = activePointer.y;
+          this.lastPointerX = activePointer.x;
+          this.lastPointerY = activePointer.y;
+          this.lastPointerTime = performance.now();
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
+          return;
+        }
+
+        // Tap threshold: only start panning once movement exceeds threshold
+        if (!this.dragActive) {
+          const travel = Math.hypot(activePointer.x - this.dragOriginX, activePointer.y - this.dragOriginY);
+          if (travel < CAMERA_DRAG_THRESHOLD) {
+            this.lastPointerX = activePointer.x;
+            this.lastPointerY = activePointer.y;
+            this.lastPointerTime = performance.now();
+            return;
+          }
+          this.dragActive = true;
+          this.lastPointerX = activePointer.x;
+          this.lastPointerY = activePointer.y;
+          this.lastPointerTime = performance.now();
+          return;
+        }
+
+        // Active camera drag
+        const dx = activePointer.x - this.lastPointerX;
+        const dy = activePointer.y - this.lastPointerY;
+        const now = performance.now();
+
+        cam.scrollX -= dx / cam.zoom;
+        cam.scrollY -= dy / cam.zoom;
+        this.clampCameraScroll();
+
+        // Smoothed velocity using exponential moving average
+        const instantVx = -dx / cam.zoom;
+        const instantVy = -dy / cam.zoom;
+        this.cameraVelocityX = this.cameraVelocityX * 0.3 + instantVx * 0.7;
+        this.cameraVelocityY = this.cameraVelocityY * 0.3 + instantVy * 0.7;
+
+        this.lastPointerX = activePointer.x;
+        this.lastPointerY = activePointer.y;
+        this.lastPointerTime = now;
+      }
     };
 
     this.onCameraPointerUp = () => {
-      const p1 = this.scene.input.pointer1;
-      const p2 = this.scene.input.pointer2;
+      const active = this.getActivePointers();
 
-      if (!p1.isDown || !p2.isDown) {
-        this.isPinching = false;
-        this.initialPinchDistance = 0;
+      if (this.isPinching) {
+        if (active.length < 2) {
+          this.isPinching = false;
+          this.lastPinchDistance = 0;
+          if (active.length === 1) {
+            // 1 finger still touching: seamless transition to drag
+            this.isDragging = true;
+            this.dragActive = true;
+            this.lastPointerX = active[0].x;
+            this.lastPointerY = active[0].y;
+            this.lastPointerTime = performance.now();
+            this.cameraVelocityX = 0;
+            this.cameraVelocityY = 0;
+            return;
+          }
+        }
       }
 
-      this.isDragging = false;
-      this.dragActive = false;
+      if (active.length === 0) {
+        if (this.dragActive) {
+          this.lastDragEndTime = performance.now();
+          // If the finger was held still before lifting (>90ms), suppress momentum
+          if (performance.now() - this.lastPointerTime > 90) {
+            this.cameraVelocityX = 0;
+            this.cameraVelocityY = 0;
+          } else {
+            // Clamp maximum flick speed
+            const maxFlick = 28;
+            this.cameraVelocityX = Phaser.Math.Clamp(this.cameraVelocityX, -maxFlick, maxFlick);
+            this.cameraVelocityY = Phaser.Math.Clamp(this.cameraVelocityY, -maxFlick, maxFlick);
+          }
+        } else {
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
+        }
+
+        this.isDragging = false;
+        this.isPinching = false;
+        // Keep dragActive briefly true so concurrent pointerup handlers on game objects know a drag occurred
+        setTimeout(() => {
+          this.dragActive = false;
+        }, 50);
+      }
     };
 
-    this.onCameraWheel = (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
-      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
-      cam.setZoom(newZoom);
-      this.clampCameraScroll();
+    this.onCameraWheel = (pointer: Phaser.Input.Pointer, _gameObjects: any, _deltaX: number, deltaY: number) => {
+      const zoomFactor = deltaY > 0 ? 0.92 : 1.08;
+      const targetZoom = Phaser.Math.Clamp(cam.zoom * zoomFactor, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
+      if (Math.abs(targetZoom - cam.zoom) > 0.0001) {
+        const worldBefore = cam.getWorldPoint(pointer.x, pointer.y);
+        cam.setZoom(targetZoom);
+        const worldAfter = cam.getWorldPoint(pointer.x, pointer.y);
+        cam.scrollX += (worldBefore.x - worldAfter.x);
+        cam.scrollY += (worldBefore.y - worldAfter.y);
+        this.clampCameraScroll();
+      }
     };
 
     this.scene.input.on("pointerdown", this.onCameraPointerDown);
@@ -2983,14 +3109,13 @@ export class GameplayStage {
   }
 
   /**
-   * Per-frame update for camera glide physics (friction: 0.1 decay).
+   * Per-frame update for camera glide physics with framerate-independent friction decay.
    */
-  update(_time: number, _delta: number): void {
-    // The pointer can be released without a pointerup event reaching the scene
-    // (a tower cancels it), so the drag is also closed from the pointer state.
-    if (this.isDragging && !this.scene.input.pointer1.isDown) {
+  update(_time: number, delta: number): void {
+    const active = this.getActivePointers();
+    if (this.isDragging && active.length === 0) {
       this.isDragging = false;
-      this.dragActive = false;
+      this.isPinching = false;
     }
 
     if (!this.isDragging && !this.isPinching && (Math.abs(this.cameraVelocityX) > 0.05 || Math.abs(this.cameraVelocityY) > 0.05)) {
@@ -2998,8 +3123,14 @@ export class GameplayStage {
       cam.scrollX += this.cameraVelocityX;
       cam.scrollY += this.cameraVelocityY;
       this.clampCameraScroll();
-      this.cameraVelocityX *= 0.9; // friction 0.1 decay factor
-      this.cameraVelocityY *= 0.9;
+
+      // Framerate-independent exponential decay (0.92 at 60fps)
+      const friction = Math.pow(0.92, (delta || 16.667) / 16.667);
+      this.cameraVelocityX *= friction;
+      this.cameraVelocityY *= friction;
+
+      if (Math.abs(this.cameraVelocityX) <= 0.05) this.cameraVelocityX = 0;
+      if (Math.abs(this.cameraVelocityY) <= 0.05) this.cameraVelocityY = 0;
     }
   }
 

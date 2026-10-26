@@ -511,6 +511,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     };
 
     const game = new Phaser.Game(config);
+    if (game.canvas) {
+      game.canvas.style.touchAction = 'none';
+    }
     game.registry.set('room', room);
     const effectiveRole = playerInfo.myRole || room.state?.players?.get(room.sessionId)?.role;
     game.registry.set('assignedRole', effectiveRole);
@@ -618,7 +621,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-black/60 via-transparent to-black/60 z-0" />
 
       {/* Phaser Canvas Container */}
-      <div ref={gameRef} id="phaser-game" className="relative z-10 w-full h-full flex items-center justify-center overflow-hidden" />
+      <div ref={gameRef} id="phaser-game" className="relative z-10 w-full h-full flex items-center justify-center overflow-hidden touch-none select-none" />
 
       {/* Pre-draft map reveal (covers the idle canvas while the map is shown) */}
       {matchStarted && phase === 'mapReveal' && (
