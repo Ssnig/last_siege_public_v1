@@ -4,6 +4,7 @@ import { useSmoothCountdown } from './useSmoothCountdown';
 import { DamageTypeBadge } from './DamageTypeBadge';
 import { damageTypeOfTower } from '../../game/damageTypes';
 import { soundEffects } from '../../audio/soundEffects';
+import { TutorialQuickGuideModal } from '../tutorial/TutorialQuickGuideModal';
 
 interface GameHUDProps {
   gold: number;
@@ -77,6 +78,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   maxCastleHp = MATCH_RULES.coreHp,
   incomeRate,
   suddenDeath = false,
+  onToggleUI,
 }) => {
   // Smooth countdown driven by the server's phaseEndsAt (see hook docs).
   const secondsRemaining = useSmoothCountdown(phaseEndsAt, phase !== 'gameover');
@@ -92,7 +94,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       isFirstRender.current = false;
       return;
     }
-    setToastMessage(isUIHidden ? 'UI Hidden (Tap 👁 to show)' : 'UI Visible');
+    setToastMessage(isUIHidden ? 'UI Hidden (Double-tap anywhere to show)' : 'UI Restored');
     const timer = setTimeout(() => {
       setToastMessage(null);
     }, 1500);
@@ -139,6 +141,23 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const timeFormatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
   // Towers in tray: strictly top 6 slots (or deck if provided)
+  const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
+  const [showCoachTip, setShowCoachTip] = useState<boolean>(true);
+
+  const coachTip = React.useMemo(() => {
+    if (phase === 'building') {
+      return role === 'defender'
+        ? 'Click stone pads along corners to place towers before the countdown ends!'
+        : 'Defender is setting up fortifications. Review your deck on the deploy bar!';
+    }
+    if (phase === 'combat') {
+      return role === 'attacker'
+        ? 'Queue troops in your deploy buffer and click a portal to launch your siege squad!'
+        : 'Slay invading troops to collect gold bounties and upgrade your towers mid-battle!';
+    }
+    return null;
+  }, [phase, role]);
+
   const availableTowers = (deck && deck.length > 0 ? deck : DEFAULT_DEFENDER_TOWERS).slice(0, 6);
 
   return (
@@ -150,6 +169,17 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         </div>
       )}
 
+      {/* Fallback button when UI is hidden so user is never stuck */}
+      {isUIHidden && (
+        <button
+          onClick={onToggleUI}
+          className="pointer-events-auto fixed top-3 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full bg-slate-900/90 border border-amber-500/70 text-amber-300 text-xs font-bold shadow-2xl hover:bg-slate-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer animate-fadeIn"
+          title="Restore HUD"
+        >
+          <span>👁️</span> Show UI
+        </button>
+      )}
+
       {/* Main Game HUD Container with smooth 0.3s ease transition */}
       <aside
         aria-label="Game HUD"
@@ -159,7 +189,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       >
         {/* Top Header Row: Gold (Left), Centered Wave/Timer, Settings + Castle HP (Right) */}
         {/* Constrained to max-w-[min(100vw,calc(100dvh*16/9))] so HUD frames the 16:9 arena on ultrawide viewports */}
-        <div className="w-full max-w-[min(100vw,calc(100dvh*16/9))] mx-auto flex items-start justify-between px-[max(0.625rem,env(safe-area-inset-left,0.625rem))] pr-[max(0.625rem,env(safe-area-inset-right,0.625rem))] sm:px-4 md:px-6 pt-2 pointer-events-none">
+        <div className="w-full flex items-start justify-between px-[max(0.75rem,env(safe-area-inset-left,0.75rem))] pr-[max(0.75rem,env(safe-area-inset-right,0.75rem))] sm:px-4 md:px-6 pt-2 pointer-events-none">
           
           {/* Top-Left: Gold display */}
           <div className="flex items-center gap-1.5 md:gap-2">
@@ -216,19 +246,32 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             </span>
           </div>
 
-          {/* Top-Right: Settings Medallion + Dynamic Castle HP Indicator */}
+          {/* Top-Right: Settings Medallion + Quick Guide Button + Dynamic Castle HP Indicator */}
           <div className="pointer-events-auto flex flex-col items-end gap-1">
-            <button
-              onClick={() => { soundEffects.playModal(); onOpenMenu(); }}
-              aria-label="Open Game Settings"
-              className="w-7 h-7 md:w-9 md:h-9 rounded-full active:scale-95 hover:scale-105 transition shadow-lg drop-shadow cursor-pointer flex items-center justify-center p-0 border-0 bg-transparent"
-            >
-              <img
-                src="/assets/ui/hud/hud_settings_btn.png"
-                alt="Settings"
-                className="w-full h-full object-contain"
-              />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  soundEffects.playModal();
+                  setIsGuideOpen(true);
+                }}
+                title="Tactical Battle Guide"
+                className="w-7 h-7 md:w-9 md:h-9 rounded-full bg-slate-900/90 border border-amber-500/60 hover:border-amber-300 text-amber-300 text-xs md:text-sm font-black flex items-center justify-center transition shadow-md active:scale-95 cursor-pointer hover:scale-105"
+              >
+                ❓
+              </button>
+
+              <button
+                onClick={() => { soundEffects.playModal(); onOpenMenu(); }}
+                aria-label="Open Game Settings"
+                className="w-7 h-7 md:w-9 md:h-9 rounded-full active:scale-95 hover:scale-105 transition shadow-lg drop-shadow cursor-pointer flex items-center justify-center p-0 border-0 bg-transparent"
+              >
+                <img
+                  src="/assets/ui/hud/hud_settings_btn.png"
+                  alt="Settings"
+                  className="w-full h-full object-contain"
+                />
+              </button>
+            </div>
 
             {/* Compact Base Castle HP Badge with Smooth Dynamic Health Color Shift */}
             {(() => {
@@ -333,6 +376,23 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           </div>
         )}
 
+        {/* Contextual Battle Coach Tip Banner */}
+        {coachTip && showCoachTip && (
+          <div className="pointer-events-auto fixed top-16 md:top-20 left-1/2 -translate-x-1/2 z-30 max-w-lg w-[90vw] px-3.5 py-1.5 rounded-full bg-slate-950/90 border border-amber-500/50 shadow-2xl text-[10px] md:text-xs text-amber-200 flex items-center justify-between gap-2 backdrop-blur-md animate-fadeIn">
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-amber-400 font-bold shrink-0">💡 Battle Coach:</span>
+              <span className="truncate">{coachTip}</span>
+            </div>
+            <button
+              onClick={() => setShowCoachTip(false)}
+              className="text-amber-400/70 hover:text-white text-xs px-1 cursor-pointer shrink-0"
+              title="Dismiss tip"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Bottom-Right: Start Battle Button for Defender during Building Phase */}
         {phase === 'building' && role === 'defender' && onStartBattle && (
           <button
@@ -345,6 +405,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           </button>
         )}
       </aside>
+
+      {/* In-Match Quick Guide Slideover Modal */}
+      <TutorialQuickGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        defaultTab={role === 'attacker' ? 'attacker' : 'defender'}
+      />
     </>
   );
 };
