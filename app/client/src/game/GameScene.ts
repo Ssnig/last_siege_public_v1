@@ -171,6 +171,10 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
     // Sein Pyaung projectile & hit VFX - 2 rows x 4 cols (688x768)
     this.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
+    // Mob death VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("vfx_mob_death_sheet", "/assets/vfx/mob_death.png", { frameWidth: 688, frameHeight: 768 });
+    // Base breach VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("vfx_base_breach_sheet", "/assets/vfx/base_breach.png", { frameWidth: 688, frameHeight: 768 });
   }
 
 

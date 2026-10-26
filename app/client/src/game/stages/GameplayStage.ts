@@ -136,6 +136,8 @@ type MobRecord = {
   wasSilenced?: boolean;
   /** Whether monkey's initial sprint burst has ended upon taking damage. */
   burstBroken?: boolean;
+  /** Last sampled progress along path (used to differentiate death vs base breach). */
+  lastProgress?: number;
 };
 
 /** A portal: its spin sprite plus the charge pips drawn above it. */
@@ -211,9 +213,12 @@ export class GameplayStage {
   private combatBanner?: Phaser.GameObjects.Container;
   private ambientNpcManager?: AmbientNPCManager;
 
+  private baseSprite?: Phaser.GameObjects.Sprite;
   private baseHpFill?: Phaser.GameObjects.Rectangle;
   private baseHpText?: Phaser.GameObjects.Text;
   private baseHpBarWidth = 120;
+  private lastCoreHp?: number;
+  private lastBreachVfxTime = 0;
 
   private selectedSlotIndex?: number;
   private rangeCircle?: Phaser.GameObjects.Arc;
@@ -728,6 +733,7 @@ export class GameplayStage {
         .setOrigin(originX, originY)
         .setDisplaySize(baseWidth, baseHeight)
         .setDepth(DEPTH.BASE_LAYER);
+      this.baseSprite = baseSprite;
       this.root.add(baseSprite);
 
       // Floating HP bar above base
@@ -1785,6 +1791,7 @@ export class GameplayStage {
         lastArmorCrush: initialCrush,
         wasSilenced: initialSilenced,
         burstBroken: false,
+        lastProgress: mob.progress ?? 0,
       };
       this.mobSprites.set(mob, record);
       this.mobsById.set(record.id, record);
@@ -1796,6 +1803,26 @@ export class GameplayStage {
     const onRemove = (value: unknown): void => {
       const record = this.mobSprites.get(value as Mob);
       if (!record) return;
+
+      const mob = value as Mob;
+      const progress = mob?.progress ?? record.lastProgress ?? 0;
+      const isBreach = progress >= 0.95;
+
+      if (isBreach) {
+        this.triggerBaseBreach();
+      } else {
+        const vfx = UnitAnimationManager.spawnMobDeathVfx(
+          this.scene,
+          record.sprite.x,
+          record.sprite.y,
+          record.typeId,
+        );
+        if (vfx) {
+          vfx.setDepth(DEPTH.PROJECTILES_LAYER + 0.5);
+          (this.actors ?? this.root)?.add(vfx);
+        }
+      }
+
       record.vfxSprites?.forEach((vfx) => vfx.destroy());
       record.vfxSprites?.clear();
       record.sprite.destroy();
@@ -2355,6 +2382,7 @@ export class GameplayStage {
     record.sprite.setDepth(actorDepth(point.y));
     record.x = point.x;
     record.y = point.y;
+    record.lastProgress = mob.progress;
 
     if (record.vfxSprites && record.vfxSprites.size > 0) {
       record.vfxSprites.forEach((vfx) => {
@@ -2828,6 +2856,62 @@ export class GameplayStage {
       ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xf59e0b : 0xef4444,
     );
     this.baseHpText?.setText(`BASE CASTLE: ${coreHp}/${max} HP`);
+
+    if (this.lastCoreHp !== undefined && coreHp < this.lastCoreHp) {
+      const lostHp = this.lastCoreHp - coreHp;
+      this.triggerBaseBreach(lostHp);
+    }
+    this.lastCoreHp = coreHp;
+  }
+
+  /**
+   * Triggers visual and camera impact feedback when the defender's base castle is breached.
+   */
+  private triggerBaseBreach(lostHp?: number): void {
+    if (!this.map.base) return;
+    const now = performance.now();
+    // Throttle multiple simultaneous breach animations within 180ms
+    if (now - this.lastBreachVfxTime < 180) return;
+    this.lastBreachVfxTime = now;
+
+    const baseX = this.map.base.x;
+    const baseY = this.map.base.y;
+
+    const vfx = UnitAnimationManager.spawnBaseBreachVfx(
+      this.scene,
+      baseX,
+      baseY,
+    );
+    if (vfx) {
+      vfx.setDepth(DEPTH.PROJECTILES_LAYER + 2);
+      (this.actors ?? this.root)?.add(vfx);
+    }
+
+    // Impact punch: camera shake and base castle flash
+    const shakeIntensity = lostHp
+      ? Math.min(0.015, 0.006 + lostHp * 0.001)
+      : 0.007;
+    this.scene.cameras.main.shake(160, shakeIntensity);
+    if (this.baseSprite) {
+      this.baseSprite.setTint(0xff5555);
+      this.scene.time.delayedCall(150, () => {
+        this.baseSprite?.clearTint();
+      });
+    }
+
+    if (lostHp && lostHp > 0) {
+      const container = this.actors ?? this.root;
+      if (container) {
+        FloatingCombatTextManager.spawnStatus(
+          this.scene,
+          container,
+          baseX,
+          baseY - 40,
+          "status_breach",
+          `-${lostHp} HP`,
+        );
+      }
+    }
   }
 
   /** Resolves a mob's `pathId` against the map's tracks. */

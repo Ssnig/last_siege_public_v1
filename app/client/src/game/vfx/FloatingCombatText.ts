@@ -11,7 +11,8 @@ export type StatusAlertVariant =
   | "status_drench"
   | "status_bleed"
   | "status_exhausted"
-  | "status_bounty";
+  | "status_bounty"
+  | "status_breach";
 
 interface TextStyleConfig {
   color: string;
@@ -143,6 +144,14 @@ const STYLES: Record<
     fontSize: "12px",
     fontStyle: "900",
     defaultText: "+BONUS GOLD",
+  },
+  status_breach: {
+    color: "#f87171",
+    stroke: "#450a0a",
+    strokeThickness: 4,
+    fontSize: "15px",
+    fontStyle: "900",
+    defaultText: "CORE BREACH!",
   },
 };
 
