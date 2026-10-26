@@ -552,15 +552,34 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   const [enemyPicks, setEnemyPicks] = useState<string[]>([]);
 
   // 16:9 Virtual viewport scale factor for all screen sizes to maintain uniform desktop-style layout
-  const [viewportScale, setViewportScale] = useState<number>(1);
+  const [viewportScale, setViewportScale] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1;
+    const availableWidth = Math.min(
+      window.innerWidth,
+      document.documentElement.clientWidth || window.innerWidth,
+    );
+    const availableHeight = Math.min(
+      window.innerHeight,
+      document.documentElement.clientHeight || window.innerHeight,
+    );
+    const scaleX = (availableWidth * 0.98) / 1260;
+    const scaleY = (availableHeight * 0.98) / 700;
+    return Math.max(0.15, Math.min(scaleX, scaleY));
+  });
 
   useEffect(() => {
     const updateScale = () => {
       // 1260x700 virtual canvas scale-to-fit
-      const availableWidth = window.innerWidth;
-      const availableHeight = window.innerHeight;
-      const scaleX = availableWidth / 1260;
-      const scaleY = availableHeight / 700;
+      const availableWidth = Math.min(
+        window.innerWidth,
+        document.documentElement.clientWidth || window.innerWidth,
+      );
+      const availableHeight = Math.min(
+        window.innerHeight,
+        document.documentElement.clientHeight || window.innerHeight,
+      );
+      const scaleX = (availableWidth * 0.98) / 1260;
+      const scaleY = (availableHeight * 0.98) / 700;
       const fit = Math.min(scaleX, scaleY);
       setViewportScale(Math.max(0.15, fit));
     };
@@ -1016,7 +1035,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
     >
       {/* 16:9 Scale-to-Fit Canvas Frame matching Desktop */}
       <div
-        className="relative shrink-0 origin-center transition-transform duration-75 flex flex-col gap-2 animate-scaleIn w-[1260px] h-[700px] justify-between rounded-xl p-3 overflow-hidden"
+        className="relative shrink-0 origin-center transition-transform duration-75 flex flex-col gap-2 w-[1260px] h-[700px] justify-between rounded-xl p-3 overflow-hidden"
         style={{
           transform: `scale(${viewportScale})`,
           border: '3px solid #d4af37',
@@ -1246,7 +1265,10 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   <span className="text-[10px] text-amber-400/70 italic">Scroll for more</span>
                 </div>
               )}
-              <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+              <div
+                className="flex-1 overflow-y-auto pr-1 min-h-0 overscroll-contain"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
                 <div className="grid grid-cols-5 gap-2">
                   {catalogList.map((item) => {
                     const isLocked = lockedPicks.includes(item.id);
