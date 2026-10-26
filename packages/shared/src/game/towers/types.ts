@@ -35,6 +35,11 @@ export interface TowerTier {
 export interface TowerType {
   id: string;
   name: string;
+  nickname?: string;
+  strongAgainst?: string[];
+  weakAgainst?: string[];
+  notes?: string;
+  armorPenetration?: number;
   tiers: TowerTier[];
   /**
    * Which damage channel this tower deals.

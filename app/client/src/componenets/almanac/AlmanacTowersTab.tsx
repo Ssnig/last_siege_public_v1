@@ -446,7 +446,7 @@ export const AlmanacTowersTab: React.FC = () => {
           </div>
 
           {/* Special Tower Modifiers / Effects */}
-          {(towerType.splashRadius || towerType.onHitEffect || towerType.attackMode) && (
+          {(towerType.splashRadius || towerType.onHitEffect || towerType.attackMode || towerType.armorPenetration) && (
             <div className="p-3 bg-amber-950/30 rounded-lg border border-amber-600/40 flex items-center gap-3">
               <div className="text-xs">
                 <span className="font-bold text-amber-300">Special Properties: </span>
@@ -464,6 +464,11 @@ export const AlmanacTowersTab: React.FC = () => {
                 {towerType.attackMode === 'aoe_pulse' && (
                   <span className="text-slate-200">
                     Emits a full 360-degree sonic shockwave that damages and cracks every foe in range simultaneously.{' '}
+                  </span>
+                )}
+                {towerType.armorPenetration && (
+                  <span className="text-slate-200">
+                    Armor Piercing: Ignores <strong>{Math.round(towerType.armorPenetration * 100)}%</strong> of target physical armor.{' '}
                   </span>
                 )}
               </div>

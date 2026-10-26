@@ -34,7 +34,14 @@
       "type": "slow",
       "magnitude": 0.25,
       "durationSec": 1.5
-    }
+    },
+    "strongAgainst": [
+      "armor",
+      "high hp"
+    ],
+    "weakAgainst": [
+      "fast units"
+    ]
   },
   "archer": {
     "id": "archer",
@@ -65,6 +72,12 @@
         "projectileSpeed": 460,
         "damageMax": 48
       }
+    ],
+    "strongAgainst": [
+      "flying"
+    ],
+    "weakAgainst": [
+      "armor"
     ]
   },
   "bomb": {
@@ -96,6 +109,13 @@
         "projectileSpeed": 320,
         "damageMax": 144
       }
+    ],
+    "strongAgainst": [
+      "groups"
+    ],
+    "weakAgainst": [
+      "high hp",
+      "flying"
     ]
   },
   "bell": {
@@ -128,6 +148,13 @@
         "projectileSpeed": 380,
         "damageMax": 72
       }
+    ],
+    "strongAgainst": [
+      "groups"
+    ],
+    "weakAgainst": [
+      "mental resist",
+      "high hp"
     ]
   },
   "spear": {
@@ -159,7 +186,17 @@
         "projectileSpeed": 400,
         "damageMax": 46
       }
-    ]
+    ],
+    "strongAgainst": [
+      "armor",
+      "flying"
+    ],
+    "weakAgainst": [
+      "fast",
+      "high hp",
+      "groups"
+    ],
+    "armorPenetration": 0.5
   },
   "gun": {
     "id": "gun",
@@ -190,6 +227,15 @@
         "projectileSpeed": 580,
         "damageMax": 186
       }
+    ],
+    "strongAgainst": [
+      "high hp",
+      "armor",
+      "flying"
+    ],
+    "weakAgainst": [
+      "fast",
+      "groups"
     ]
   },
   "water_cannon": {
@@ -221,6 +267,15 @@
         "projectileSpeed": 360,
         "damageMax": 18
       }
+    ],
+    "strongAgainst": [
+      "fast units",
+      "armor",
+      "groups"
+    ],
+    "weakAgainst": [
+      "mental resist",
+      "high hp"
     ]
   },
   "chinthe": {
@@ -252,6 +307,14 @@
         "projectileSpeed": 440,
         "damageMax": 178
       }
+    ],
+    "strongAgainst": [
+      "heavy armor",
+      "high hp"
+    ],
+    "weakAgainst": [
+      "fast swarms",
+      "mental resist"
     ]
   },
   "dragon": {
@@ -283,6 +346,15 @@
         "projectileSpeed": 420,
         "damageMax": 210
       }
+    ],
+    "strongAgainst": [
+      "groups",
+      "armor"
+    ],
+    "weakAgainst": [
+      "flying",
+      "high hp",
+      "mental resist"
     ]
   },
   "sein_pyaung": {
@@ -314,6 +386,15 @@
         "projectileSpeed": 640,
         "damageMax": 195
       }
+    ],
+    "strongAgainst": [
+      "high hp",
+      "single target",
+      "healers/buffers"
+    ],
+    "weakAgainst": [
+      "fast swarms",
+      "groups"
     ]
   }
 }

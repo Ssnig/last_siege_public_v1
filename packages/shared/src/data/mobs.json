@@ -8,7 +8,15 @@
     "leakDamage": 1,
     "cost": 8,
     "armor": 0,
-    "mentalStrength": 0.5
+    "mentalStrength": 0.5,
+    "strongAgainst": [
+      "single target"
+    ],
+    "weakAgainst": [
+      "aoe",
+      "physical",
+      "mental"
+    ]
   },
   "horse_rider": {
     "id": "horse_rider",
@@ -19,7 +27,15 @@
     "leakDamage": 1,
     "cost": 15,
     "armor": 2,
-    "mentalStrength": 0.5
+    "mentalStrength": 0.5,
+    "strongAgainst": [
+      "single target"
+    ],
+    "weakAgainst": [
+      "aoe",
+      "mental",
+      "physical"
+    ]
   },
   "sar_bal_gyi": {
     "id": "sar_bal_gyi",
@@ -30,7 +46,15 @@
     "leakDamage": 3,
     "cost": 40,
     "armor": 8,
-    "mentalStrength": 0
+    "mentalStrength": 0,
+    "strongAgainst": [
+      "physical",
+      "aoe"
+    ],
+    "weakAgainst": [
+      "mental",
+      "single target"
+    ]
   },
   "gya_pu": {
     "id": "gya_pu",
@@ -41,7 +65,15 @@
     "leakDamage": 2,
     "cost": 20,
     "armor": 0,
-    "mentalStrength": 1
+    "mentalStrength": 1,
+    "strongAgainst": [
+      "single target",
+      "mental"
+    ],
+    "weakAgainst": [
+      "aoe",
+      "physical"
+    ]
   },
   "a_ba": {
     "id": "a_ba",
@@ -52,7 +84,15 @@
     "leakDamage": 2,
     "cost": 30,
     "armor": 0,
-    "mentalStrength": 1
+    "mentalStrength": 1,
+    "strongAgainst": [
+      "single target",
+      "mental"
+    ],
+    "weakAgainst": [
+      "physical",
+      "aoe"
+    ]
   },
   "chon_toe": {
     "id": "chon_toe",
@@ -63,7 +103,14 @@
     "leakDamage": 4,
     "cost": 55,
     "armor": 4,
-    "mentalStrength": 0.25
+    "mentalStrength": 0.25,
+    "strongAgainst": [
+      "aoe"
+    ],
+    "weakAgainst": [
+      "mental",
+      "single target"
+    ]
   },
   "elephant_rider": {
     "id": "elephant_rider",
@@ -74,7 +121,15 @@
     "leakDamage": 10,
     "cost": 200,
     "armor": 10,
-    "mentalStrength": 0
+    "mentalStrength": 0,
+    "strongAgainst": [
+      "aoe",
+      "physical"
+    ],
+    "weakAgainst": [
+      "single target",
+      "mental"
+    ]
   },
   "say_sayar": {
     "id": "say_sayar",
@@ -93,7 +148,15 @@
       "triggerHpThreshold": 0.5,
       "healAmount": 80,
       "castDurationSec": 0.5
-    }
+    },
+    "strongAgainst": [
+      "single target",
+      "mental"
+    ],
+    "weakAgainst": [
+      "aoe",
+      "physical"
+    ]
   },
   "shield_guy": {
     "id": "shield_guy",
@@ -105,7 +168,15 @@
     "cost": 40,
     "armor": 6,
     "mentalStrength": 0,
-    "taunt": true
+    "taunt": true,
+    "strongAgainst": [
+      "physical",
+      "aoe"
+    ],
+    "weakAgainst": [
+      "single target",
+      "mental"
+    ]
   },
   "doe_pat": {
     "id": "doe_pat",
@@ -125,7 +196,13 @@
       "speedBoost": 0.4,
       "paceSlowFactor": 0.6,
       "castDurationSec": 0
-    }
+    },
+    "strongAgainst": [],
+    "weakAgainst": [
+      "aoe",
+      "physical"
+    ],
+    "notes": "buffer unit"
   },
   "bandit": {
     "id": "bandit",
@@ -136,7 +213,12 @@
     "leakDamage": 2,
     "cost": 22,
     "armor": 1,
-    "mentalStrength": 0.5
+    "mentalStrength": 0.5,
+    "strongAgainst": [],
+    "weakAgainst": [
+      "aoe",
+      "mental"
+    ]
   },
   "belu": {
     "id": "belu",
@@ -147,7 +229,15 @@
     "leakDamage": 5,
     "cost": 85,
     "armor": 7,
-    "mentalStrength": 0.8
+    "mentalStrength": 0.8,
+    "strongAgainst": [
+      "physical",
+      "aoe"
+    ],
+    "weakAgainst": [
+      "mental",
+      "single target"
+    ]
   },
   "brute": {
     "id": "brute",
@@ -158,7 +248,14 @@
     "leakDamage": 3,
     "cost": 50,
     "armor": 5,
-    "mentalStrength": 0.25
+    "mentalStrength": 0.25,
+    "strongAgainst": [
+      "aoe"
+    ],
+    "weakAgainst": [
+      "single target",
+      "mental"
+    ]
   },
   "general": {
     "id": "general",
@@ -169,7 +266,14 @@
     "leakDamage": 3,
     "cost": 60,
     "armor": 6,
-    "mentalStrength": 0.9
+    "mentalStrength": 0.9,
+    "strongAgainst": [
+      "physical",
+      "aoe"
+    ],
+    "weakAgainst": [
+      "single target"
+    ]
   },
   "sone_ma": {
     "id": "sone_ma",
@@ -180,6 +284,14 @@
     "leakDamage": 2,
     "cost": 45,
     "armor": 0,
-    "mentalStrength": 1.0
+    "mentalStrength": 1.0,
+    "strongAgainst": [
+      "mental",
+      "single target"
+    ],
+    "weakAgainst": [
+      "physical",
+      "aoe"
+    ]
   }
 }

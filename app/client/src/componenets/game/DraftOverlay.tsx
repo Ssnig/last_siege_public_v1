@@ -26,6 +26,7 @@ interface DraftOverlayProps {
 
 interface TacticalData {
   title: string;
+  nickname?: string;
   isEnemy?: boolean;
   stat1Label: string;
   stat1Value: string | number;
@@ -34,6 +35,9 @@ interface TacticalData {
   stat3Label: string;
   stat3Value: string | number;
   weakness: string;
+  strongAgainst?: string[];
+  weakAgainst?: string[];
+  notes?: string;
   stacks: string;
   iconSrc?: string;
   /** Extra stat pairs shown under the tactical row (damage type, armor, ...). */
@@ -602,8 +606,24 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
             ? 'Slow'
             : 'Medium';
 
+      const strongAgainst = (tower as any)?.strongAgainst ?? [];
+      const weakAgainst = (tower as any)?.weakAgainst ?? (custom.weakness ? [custom.weakness] : []);
+      const traits: { label: string; value: string }[] = [
+        {
+          label: 'Damage',
+          value: damageTypeOfTower(id) === 'mental' ? 'Mental' : 'Physical',
+        },
+      ];
+      if ((tower as any)?.armorPenetration) {
+        traits.push({
+          label: 'Armor Pen',
+          value: `${Math.round((tower as any).armorPenetration * 100)}%`,
+        });
+      }
+
       return {
         title: custom.title || tower?.name?.toUpperCase() || id.toUpperCase(),
+        nickname: (tower as any)?.nickname,
         isEnemy,
         stat1Label: '⚔ ATK',
         stat1Value: tier0?.damage ?? 15,
@@ -611,15 +631,13 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         stat2Value: tier0?.range ?? 120,
         stat3Label: 'SPD',
         stat3Value: spd,
-        weakness: custom.weakness || 'High Mobility',
+        weakness: weakAgainst.length > 0 ? weakAgainst.join(', ') : custom.weakness || 'High Mobility',
+        strongAgainst,
+        weakAgainst,
+        notes: (tower as any)?.notes,
         stacks: custom.stacks || 'Max 6',
         iconSrc: custom.iconSrc || getTowerDesign(id)?.iconPath,
-        traits: [
-          {
-            label: 'Damage',
-            value: damageTypeOfTower(id) === 'mental' ? 'Mental' : 'Physical',
-          },
-        ],
+        traits,
       };
     } else {
       const mob = (MOB_TYPES[id] as MobType) || catalogList[0];
@@ -633,8 +651,12 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
               ? 'Slow'
               : 'Normal';
 
+      const strongAgainst = (mob as any)?.strongAgainst ?? [];
+      const weakAgainst = (mob as any)?.weakAgainst ?? (custom.weakness ? [custom.weakness] : []);
+
       return {
         title: custom.title || mob?.name?.toUpperCase() || id.toUpperCase(),
+        nickname: (mob as any)?.nickname,
         isEnemy,
         stat1Label: '❤️ HP',
         stat1Value: mob?.maxHp ?? 100,
@@ -642,7 +664,10 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         stat2Value: `${mob?.cost ?? 10}g`,
         stat3Label: '⚡ SPD',
         stat3Value: spd,
-        weakness: custom.weakness || 'Concentrated Fire',
+        weakness: weakAgainst.length > 0 ? weakAgainst.join(', ') : custom.weakness || 'Concentrated Fire',
+        strongAgainst,
+        weakAgainst,
+        notes: (mob as any)?.notes,
         stacks: custom.stacks || 'Max 20',
         iconSrc: custom.iconSrc,
         traits: [
@@ -945,10 +970,15 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
               >
                 <div className="flex items-center justify-between gap-1 truncate">
                   <div
-                    className="text-base sm:text-lg font-black text-[#fff5d6] truncate tracking-wide"
+                    className="text-base sm:text-lg font-black text-[#fff5d6] truncate tracking-wide flex items-center gap-1.5"
                     style={{ textShadow: '2px 2px 0px #000' }}
                   >
-                    {inspectorData.title}
+                    <span>{inspectorData.title}</span>
+                    {inspectorData.nickname && (
+                      <span className="text-xs font-serif italic text-amber-300 font-normal">
+                        "{inspectorData.nickname}"
+                      </span>
+                    )}
                   </div>
                   {inspectorData.isEnemy ? (
                     <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-950 border border-red-500 text-red-300">
@@ -979,12 +1009,37 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   </span>
                 </div>
 
-                {/* Tactical Info Row */}
-                <div className="text-[11px] sm:text-xs text-[#e2d5be] mt-1 truncate">
-                  <span className="text-amber-300 font-semibold">Weakness:</span> {inspectorData.weakness}
-                  <span className="mx-1.5 text-amber-500/70">•</span>
-                  <span className="text-amber-300 font-semibold">Stacks:</span> {inspectorData.stacks}
+                {/* Tactical Info Row with Dynamic Badges */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] sm:text-[11px] mt-1">
+                  {inspectorData.strongAgainst && inspectorData.strongAgainst.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-emerald-400 font-bold uppercase text-[9px] tracking-wider">Strong vs:</span>
+                      {inspectorData.strongAgainst.map((item) => (
+                        <span key={item} className="px-1.5 py-0.2 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-medium capitalize text-[9px]">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {inspectorData.weakAgainst && inspectorData.weakAgainst.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-rose-400 font-bold uppercase text-[9px] tracking-wider">Weak vs:</span>
+                      {inspectorData.weakAgainst.map((item) => (
+                        <span key={item} className="px-1.5 py-0.2 rounded bg-rose-950/80 border border-rose-500/50 text-rose-300 font-medium capitalize text-[9px]">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-[#e2d5be] text-[10px] ml-auto">
+                    <span className="text-amber-300/80 font-semibold">Limit:</span> {inspectorData.stacks}
+                  </div>
                 </div>
+                {inspectorData.notes && (
+                  <div className="text-[9px] sm:text-[10px] text-amber-300/90 italic mt-0.5 truncate">
+                    💡 {inspectorData.notes}
+                  </div>
+                )}
 
                 {/* Combat traits (damage channel, armor, mental strength) */}
                 {inspectorData.traits && inspectorData.traits.length > 0 && (
