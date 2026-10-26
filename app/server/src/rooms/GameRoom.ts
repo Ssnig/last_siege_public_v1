@@ -3054,11 +3054,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       (type?.armor ?? 0) + (adaptive ? physStacks * adaptive.armorPerStack : 0);
     const baseEffectiveArmor = Math.max(0, rawArmor - armorCrush);
 
-    // Cannon armor pierce ignores a fraction of effective armor
-    const effectiveArmor =
-      special?.armorPierceRatio !== undefined && special.armorPierceRatio > 0
-        ? Math.max(0, baseEffectiveArmor * (1 - special.armorPierceRatio))
-        : baseEffectiveArmor;
+    // Tower armor pierce/penetration ignores a fraction of effective armor
+    const towerDef = sourceTowerTypeId ? TOWER_TYPES[sourceTowerTypeId] : undefined;
+    const armorPen = special?.armorPierceRatio ?? towerDef?.armorPenetration ?? 0;
 
     // Water Cannon drench status amplifies incoming mental damage
     const drenchMag =
@@ -3067,7 +3065,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const applied =
       damageType === DAMAGE_TYPES.mental
         ? mentalDamageTaken(damage, this.debuffMagnitude(mob)) * (1 + drenchMag)
-        : physicalDamageTaken(damage, effectiveArmor);
+        : physicalDamageTaken(damage, baseEffectiveArmor, armorPen);
 
     const roundedDamage = Math.round(applied);
     mob.hp = Math.max(0, mob.hp - roundedDamage);

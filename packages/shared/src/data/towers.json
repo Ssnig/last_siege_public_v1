@@ -38,6 +38,18 @@
           "armorPierceRatio": 0.75
         }
       }
+    ],
+    "onHitEffect": {
+      "type": "slow",
+      "magnitude": 0.25,
+      "durationSec": 1.5
+    },
+    "strongAgainst": [
+      "armor",
+      "high hp"
+    ],
+    "weakAgainst": [
+      "fast units"
     ]
   },
   "archer": {
@@ -78,6 +90,12 @@
           "windupMaxBonus": 0.80
         }
       }
+    ],
+    "strongAgainst": [
+      "flying"
+    ],
+    "weakAgainst": [
+      "armor"
     ]
   },
   "bomb": {
@@ -119,6 +137,13 @@
           "knockbackPx": 35
         }
       }
+    ],
+    "strongAgainst": [
+      "groups"
+    ],
+    "weakAgainst": [
+      "high hp",
+      "flying"
     ]
   },
   "bell": {
@@ -160,6 +185,13 @@
           "pulseSlow": 0.35
         }
       }
+    ],
+    "strongAgainst": [
+      "groups"
+    ],
+    "weakAgainst": [
+      "mental resist",
+      "high hp"
     ]
   },
   "spear": {
@@ -200,7 +232,17 @@
           "bleedTotalDamage": 20
         }
       }
-    ]
+    ],
+    "strongAgainst": [
+      "armor",
+      "flying"
+    ],
+    "weakAgainst": [
+      "fast",
+      "high hp",
+      "groups"
+    ],
+    "armorPenetration": 0.5
   },
   "gun": {
     "id": "gun",
@@ -243,6 +285,15 @@
           "bonusGoldOnKill": 3
         }
       }
+    ],
+    "strongAgainst": [
+      "high hp",
+      "armor",
+      "flying"
+    ],
+    "weakAgainst": [
+      "fast",
+      "groups"
     ]
   },
   "water_cannon": {
@@ -286,6 +337,15 @@
           "drenchVulnerability": 0.35
         }
       }
+    ],
+    "strongAgainst": [
+      "fast units",
+      "armor",
+      "groups"
+    ],
+    "weakAgainst": [
+      "mental resist",
+      "high hp"
     ]
   },
   "chinthe": {
@@ -329,6 +389,14 @@
           "silenceSec": 2.5
         }
       }
+    ],
+    "strongAgainst": [
+      "heavy armor",
+      "high hp"
+    ],
+    "weakAgainst": [
+      "fast swarms",
+      "mental resist"
     ]
   },
   "dragon": {
@@ -372,6 +440,15 @@
           "deathExplosionRadius": 75
         }
       }
+    ],
+    "strongAgainst": [
+      "groups",
+      "armor"
+    ],
+    "weakAgainst": [
+      "flying",
+      "high hp",
+      "mental resist"
     ]
   },
   "sein_pyaung": {
@@ -412,6 +489,15 @@
           "armorStripPermanent": 3
         }
       }
+    ],
+    "strongAgainst": [
+      "high hp",
+      "single target",
+      "healers/buffers"
+    ],
+    "weakAgainst": [
+      "fast swarms",
+      "groups"
     ]
   }
 }

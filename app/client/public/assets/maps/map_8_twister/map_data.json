@@ -6,5 +6,15 @@
   "description": "Custom tactical layout with precision waypoints and strategic tower pads.",
   "pathHalfWidth": 26,
   "lanes": 7,
-  "holderScale": 1
+  "holderScale": 1,
+  "props": [
+    {
+      "id": "prop_1792990221212_b19e",
+      "typeId": "tree_banyan",
+      "x": 633,
+      "y": 704,
+      "scale": 1,
+      "flipX": false
+    }
+  ]
 }

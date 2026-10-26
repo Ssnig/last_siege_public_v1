@@ -16,8 +16,8 @@ export const BGMRouteSync: React.FC = () => {
     const prevPath = prevPathRef.current;
     prevPathRef.current = currentPath;
 
-    // 1. Map Editor exemption: fade out and stop music completely
-    if (currentPath === '/editor') {
+    // 1. Map Editor & Sound Editor exemption: fade out and stop music completely
+    if (currentPath === '/editor' || currentPath === '/sounds' || currentPath === '/dev/sounds') {
       bgmManager.stop(350).catch(() => {});
       return;
     }
@@ -31,7 +31,7 @@ export const BGMRouteSync: React.FC = () => {
     if (prevPath === null) {
       // Initial page mount
       bgmManager.playTrack('lobby', 800).catch(() => {});
-    } else if (prevPath === '/editor' || prevPath.startsWith('/game/')) {
+    } else if (prevPath === '/editor' || prevPath === '/sounds' || prevPath === '/dev/sounds' || prevPath.startsWith('/game/')) {
       // Returning from editor or game match back to menu/lobby
       bgmManager.playTrack('lobby', 700).catch(() => {});
     } else if (prevPath !== currentPath) {

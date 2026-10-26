@@ -317,9 +317,16 @@ export const AlmanacUnitsTab: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-xl font-black text-amber-200 font-['Almendra',serif] tracking-wide">
-                  {mob.name}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-xl font-black text-amber-200 font-['Almendra',serif] tracking-wide">
+                    {mob.name}
+                  </h3>
+                  {mob.nickname && (
+                    <span className="text-xs font-serif italic text-amber-400 font-normal">
+                      "{mob.nickname}"
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/40 bg-amber-950/40 text-amber-300">
                   Cost: {mob.cost} Gold
                 </span>

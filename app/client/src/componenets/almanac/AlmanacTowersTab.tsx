@@ -446,9 +446,9 @@ export const AlmanacTowersTab: React.FC = () => {
           </div>
 
           {/* Special Tower Modifiers / Tier Scaling Effects */}
-          {(currentTier.special || towerType.splashRadius || towerType.onHitEffect || towerType.attackMode) && (
+          {(currentTier.special || towerType.splashRadius || towerType.onHitEffect || towerType.attackMode || towerType.armorPenetration) && (
             <div className="p-3 bg-amber-950/40 rounded-lg border border-amber-600/50 flex flex-col gap-1.5 shadow-inner">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-600/60 font-mono">
                   Tier {selectedTierIndex + 1} Special Effect
                 </span>
@@ -460,6 +460,16 @@ export const AlmanacTowersTab: React.FC = () => {
                 {towerType.splashRadius && (
                   <span className="text-[10px] text-orange-300 font-bold bg-orange-950/60 px-2 py-0.5 rounded border border-orange-600/60">
                     AoE Splash ({towerType.splashRadius}px)
+                  </span>
+                )}
+                {towerType.armorPenetration && (
+                  <span className="text-[10px] text-yellow-300 font-bold bg-yellow-950/60 px-2 py-0.5 rounded border border-yellow-600/60">
+                    Armor Piercing ({Math.round(towerType.armorPenetration * 100)}%)
+                  </span>
+                )}
+                {towerType.onHitEffect?.type === 'slow' && (
+                  <span className="text-[10px] text-blue-300 font-bold bg-blue-950/60 px-2 py-0.5 rounded border border-blue-600/60">
+                    Slow ({Math.round(towerType.onHitEffect.magnitude * 100)}%, {towerType.onHitEffect.durationSec}s)
                   </span>
                 )}
               </div>
@@ -512,6 +522,11 @@ export const AlmanacTowersTab: React.FC = () => {
                 {currentTier.special?.armorStripPermanent !== undefined && (
                   <span>
                     <strong className="text-amber-300">Armor Crushing:</strong> Heavy kinetic shells permanently strip <strong>{currentTier.special.armorStripPermanent}</strong> physical armor from the target per hit.
+                  </span>
+                )}
+                {towerType.armorPenetration && (
+                  <span className="text-slate-200">
+                    Armor Piercing: Ignores <strong>{Math.round(towerType.armorPenetration * 100)}%</strong> of target physical armor.{' '}
                   </span>
                 )}
               </div>

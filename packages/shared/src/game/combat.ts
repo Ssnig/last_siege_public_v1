@@ -123,8 +123,13 @@ export function mobMentalStrength(typeId: string): number {
  * hit, whatever the hit's size. An un-armored mob (`armor` 0) takes the full
  * amount, and a hit fully absorbed by armor deals nothing.
  */
-export function physicalDamageTaken(damage: number, armor: number): number {
-  return Math.max(0, damage - Math.max(0, armor));
+export function physicalDamageTaken(
+  damage: number,
+  armor: number,
+  armorPenetrationRatio: number = 0,
+): number {
+  const effectiveArmor = Math.max(0, armor * (1 - Math.min(1, Math.max(0, armorPenetrationRatio))));
+  return Math.max(0, damage - effectiveArmor);
 }
 
 /**

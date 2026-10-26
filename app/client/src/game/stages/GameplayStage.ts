@@ -9,6 +9,7 @@ import {
   mapPath,
   mapPathIds,
   mapPortals,
+  portalShouldFlipX,
   type MapDefinition,
   type Mob,
   type MobAbilityPayload,
@@ -42,6 +43,7 @@ import {
 import { UnitAnimationManager } from "../animation/UnitAnimationManager";
 import { TowerAnimationManager } from "../animation/TowerAnimationManager";
 import { AmbientNPCManager } from "../npc/AmbientNPCManager";
+import { soundEffects } from "../../audio/soundEffects";
 
 /** Render order for the gameplay layers. */
 export const DEPTH = {
@@ -388,11 +390,13 @@ export class GameplayStage {
     // that share a start (a fork) collapse into one portal; tracks with
     // different starts get one each.
     for (const portal of mapPortals(this.map)) {
+      const flipX = portalShouldFlipX(this.map, portal);
       const sprite = this.scene.add
         .sprite(portal.x, portal.y, "spawn_2")
         .setOrigin(0.5, 0.72)
         .setDisplaySize(130, 130)
         .setDepth(DEPTH.PORTAL_LAYER + portal.y * 0.001)
+        .setFlipX(flipX)
         .play("portal_spin");
       this.root?.add(sprite);
 
@@ -1829,6 +1833,10 @@ export class GameplayStage {
 
         const towerRecord = this.towers.get(payload.slotIndex);
         if (towerRecord && getTowerDesign(payload.typeId).id === "bell") {
+          soundEffects.playTowerShoot("bell");
+          if (payload.targets && payload.targets.length > 0) {
+            soundEffects.playTowerImpact("bell");
+          }
           const sprite = towerRecord.sprite as Phaser.GameObjects.Sprite;
           if (this.scene.anims.exists("bell_attack")) {
             sprite.setTexture("tower_bell_sheet");
@@ -2305,6 +2313,7 @@ export class GameplayStage {
     const onAdd = (value: unknown): void => {
       const projectile = value as Projectile;
       const design = getTowerDesign(projectile.typeId);
+      soundEffects.playTowerShoot(design.id);
       const textureKey = this.scene.textures.exists(design.projectileKey)
         ? design.projectileKey
         : "arrow_proj";
@@ -2436,6 +2445,7 @@ export class GameplayStage {
       const sprite = this.projectileSprites.get(projectile);
       if (!sprite) return;
       const design = getTowerDesign(projectile.typeId);
+      soundEffects.playTowerImpact(design.id);
       if (design.id === "archer") {
         if (!this.scene.textures.exists("archer_vfx_sheet")) {
           this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });

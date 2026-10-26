@@ -216,6 +216,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
               </div>
 
+              {/* Link to Sound Studio */}
+              <div className="flex justify-between items-center bg-slate-950/30 px-3.5 py-2.5 rounded-xl border border-slate-800/80">
+                <div className="text-xs text-slate-400">
+                  Audition tower firing sounds, test combos, or replace with custom audio
+                </div>
+                <a
+                  href="/sounds"
+                  className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+                >
+                  <span>🎧</span>
+                  <span>Sound Studio</span>
+                </a>
+              </div>
+
               {/* Fullscreen Option */}
               <div className="pt-2 border-t border-slate-800/80">
                 <div className="flex items-center justify-between">

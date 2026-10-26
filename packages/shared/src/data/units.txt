@@ -1,0 +1,235 @@
+================================================================================
+                           TD GAME - UNITS CATALOG
+================================================================================
+# Instructions:
+# Edit the fields below as needed.
+# - nickname: Custom short name or callsign for this unit
+# - strong_against: Towers or unit types this unit counters (comma-separated)
+# - weak_against: Towers or unit types that counter this unit (comma-separated)
+# - notes: Any design, lore, or tactical notes
+================================================================================
+
+[monkey]
+id = monkey
+name = Monkey
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 45
+speed = 130
+armor = 0
+mental_strength = 0.5
+cost = 8
+bounty = 6
+leak_damage = 1
+notes = 
+
+[horse_rider]
+id = horse_rider
+name = Konbaung Cavalry
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 120
+speed = 110
+armor = 2
+mental_strength = 0.5
+cost = 15
+bounty = 8
+leak_damage = 1
+notes = 
+
+[sar_bal_gyi]
+id = sar_bal_gyi
+name = Palace Royal Guard
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 420
+speed = 45
+armor = 8
+mental_strength = 0
+cost = 40
+bounty = 25
+leak_damage = 3
+notes = 
+
+[gya_pu]
+id = gya_pu
+name = Winged Nat
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 200
+speed = 90
+armor = 0
+mental_strength = 1
+cost = 20
+bounty = 12
+leak_damage = 2
+notes = 
+
+[a_ba]
+id = a_ba
+name = Nat Spirit Medium
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 320
+speed = 70
+armor = 0
+mental_strength = 1
+cost = 30
+bounty = 22
+leak_damage = 2
+notes = 
+
+[chon_toe]
+id = chon_toe
+name = Bush Sneak
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 750
+speed = 35
+armor = 4
+mental_strength = 0.25
+cost = 55
+bounty = 50
+leak_damage = 4
+notes = 
+
+[elephant_rider]
+id = elephant_rider
+name = War Elephant
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 1300
+speed = 30
+armor = 10
+mental_strength = 0
+cost = 200
+bounty = 150
+leak_damage = 10
+notes = 
+
+[say_sayar]
+id = say_sayar
+name = Say Sayar
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 220
+speed = 30
+armor = 0
+mental_strength = 1
+cost = 35
+bounty = 25
+leak_damage = 2
+notes = 
+
+[shield_guy]
+id = shield_guy
+name = Shield Bearer
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 320
+speed = 40
+armor = 6
+mental_strength = 0
+cost = 40
+bounty = 25
+leak_damage = 3
+notes = 
+
+[doe_pat]
+id = doe_pat
+name = Doe Pat
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 200
+speed = 30
+armor = 0
+mental_strength = 0.75
+cost = 35
+bounty = 22
+leak_damage = 2
+notes = 
+
+[bandit]
+id = bandit
+name = Bandit Raider
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 180
+speed = 100
+armor = 1
+mental_strength = 0.5
+cost = 22
+bounty = 14
+leak_damage = 2
+notes = 
+
+[belu]
+id = belu
+name = Belu Ogre
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 950
+speed = 35
+armor = 7
+mental_strength = 0.8
+cost = 85
+bounty = 65
+leak_damage = 5
+notes = 
+
+[brute]
+id = brute
+name = Heavy Brute
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 560
+speed = 48
+armor = 5
+mental_strength = 0.25
+cost = 50
+bounty = 35
+leak_damage = 3
+notes = 
+
+[general]
+id = general
+name = Royal Bo General
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 480
+speed = 55
+armor = 6
+mental_strength = 0.9
+cost = 60
+bounty = 45
+leak_damage = 3
+notes = 
+
+[sone_ma]
+id = sone_ma
+name = Sone Ma Sorceress
+nickname = 
+strong_against = 
+weak_against = 
+max_hp = 260
+speed = 65
+armor = 0
+mental_strength = 1.0
+cost = 45
+bounty = 30
+leak_damage = 2
+notes = 
