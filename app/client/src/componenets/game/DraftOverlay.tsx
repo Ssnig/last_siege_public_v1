@@ -551,14 +551,8 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   const [opponentName, setOpponentName] = useState<string>('Opponent');
   const [enemyPicks, setEnemyPicks] = useState<string[]>([]);
 
-  // 16:9 Virtual viewport scale factor for larger screens. Phones get a
-  // natural-width layout instead, otherwise the whole draft shrinks into an
-  // unreadable postage stamp.
+  // 16:9 Virtual viewport scale factor for all screen sizes to maintain uniform desktop-style layout
   const [viewportScale, setViewportScale] = useState<number>(1);
-  const [isCompact, setIsCompact] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.innerWidth < 1024;
-  });
 
   useEffect(() => {
     const updateScale = () => {
@@ -569,7 +563,6 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
       const scaleY = availableHeight / 700;
       const fit = Math.min(scaleX, scaleY);
       setViewportScale(Math.max(0.15, fit));
-      setIsCompact(availableWidth < 1024);
     };
 
     updateScale();
@@ -827,7 +820,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         title: custom.title || tower?.name?.toUpperCase() || id.toUpperCase(),
         nickname: (tower as any)?.nickname,
         isEnemy,
-        stat1Label: '⚔ ATK',
+        stat1Label: 'ATK',
         stat1Value: tier0?.damage ?? 15,
         stat2Label: 'RNG',
         stat2Value: tier0?.range ?? 120,
@@ -861,11 +854,11 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         title: custom.title || mob?.name?.toUpperCase() || id.toUpperCase(),
         nickname: (mob as any)?.nickname,
         isEnemy,
-        stat1Label: '❤️ HP',
+        stat1Label: 'HP',
         stat1Value: mob?.maxHp ?? 100,
-        stat2Label: '💰 Cost',
+        stat2Label: 'Cost',
         stat2Value: `${mob?.cost ?? 10}g`,
-        stat3Label: '⚡ SPD',
+        stat3Label: 'SPD',
         stat3Value: spd,
         weakness: weakAgainst.length > 0 ? weakAgainst.join(', ') : custom.weakness || 'Concentrated Fire',
         strongAgainst,
@@ -962,7 +955,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         <CornerFlourish position="tr" />
         <CornerFlourish position="bl" />
         <CornerFlourish position="br" />
-        <span className="flex items-center gap-2">⏳ WAITING FOR ASSET LOADING...</span>
+        <span className="flex items-center gap-2">WAITING FOR ASSET LOADING...</span>
       </button>
     ) : (
       <button
@@ -976,7 +969,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         <CornerFlourish position="bl" />
         <CornerFlourish position="br" />
         <span className="flex items-center gap-2">
-          ⚔️ PREPARE FOR BATTLE ({effectiveFinalSeconds}s)
+          PREPARE FOR BATTLE ({effectiveFinalSeconds}s)
         </span>
       </button>
     )
@@ -1001,7 +994,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
       {isRoundReady ? (
         <span className="flex items-center gap-2">
-          ROUND {currentRound} READY <span className="text-emerald-300">✓</span> (Waiting...)
+          ROUND {currentRound} READY (Waiting...)
         </span>
       ) : roundPicks.length === 2 ? (
         <span>CONFIRM ROUND {currentRound} ({effectiveRoundSeconds}s)</span>
@@ -1015,30 +1008,19 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-40 w-full h-[100dvh] flex select-none text-[#fff5d6] animate-fadeIn ${
-        isCompact
-          ? 'items-start justify-center overflow-y-auto overscroll-contain'
-          : 'items-center justify-center overflow-hidden'
-      }`}
+      className="fixed inset-0 z-40 w-full h-[100dvh] flex select-none text-[#fff5d6] animate-fadeIn items-center justify-center overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at center, #1c1117 0%, #140d13 70%, #0a060a 100%)',
         fontFamily: "'Cinzel', 'MedievalSharp', serif",
       }}
     >
-      {/* On phones the frame flows naturally and scrolls; larger screens keep
-          the 16:9 scale-to-fit presentation. */}
+      {/* 16:9 Scale-to-Fit Canvas Frame matching Desktop */}
       <div
-        className={`relative shrink-0 origin-center transition-transform duration-75 flex flex-col gap-2 animate-scaleIn ${
-          isCompact
-            ? 'w-full max-w-3xl mx-auto min-h-[100dvh] justify-start p-2 pb-[calc(6rem+env(safe-area-inset-bottom))] overflow-visible'
-            : 'w-[1260px] h-[700px] justify-between rounded-xl p-3 overflow-hidden'
-        }`}
+        className="relative shrink-0 origin-center transition-transform duration-75 flex flex-col gap-2 animate-scaleIn w-[1260px] h-[700px] justify-between rounded-xl p-3 overflow-hidden"
         style={{
-          transform: isCompact ? undefined : `scale(${viewportScale})`,
-          border: isCompact ? '1px solid rgba(212,175,55,0.35)' : '3px solid #d4af37',
-          boxShadow: isCompact
-            ? 'inset 0 0 40px rgba(0,0,0,0.7)'
-            : '0 0 0 2px #420b0e, 0 0 30px rgba(0,0,0,0.9), inset 0 0 40px rgba(0,0,0,0.7)',
+          transform: `scale(${viewportScale})`,
+          border: '3px solid #d4af37',
+          boxShadow: '0 0 0 2px #420b0e, 0 0 30px rgba(0,0,0,0.9), inset 0 0 40px rgba(0,0,0,0.7)',
           background: 'linear-gradient(180deg, #180f15 0%, #11090f 100%)',
           WebkitTextSizeAdjust: '100%',
         }}
@@ -1051,23 +1033,17 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         {/* Error Notification Toast if any */}
         {errorMsg && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-900 border-2 border-amber-400 rounded-lg text-sm text-yellow-200 font-bold shadow-2xl animate-bounce">
-            ⚠️ {errorMsg}
+            [!] {errorMsg}
           </div>
         )}
 
-        {/* Desktop: two-column 7/5 grid. Phones: stacked, scrollable sections. */}
-        <div
-          className={`flex-1 w-full min-h-0 ${
-            isCompact ? 'flex flex-col gap-2' : 'grid grid-cols-12 gap-3 overflow-hidden'
-          }`}
-        >
+        {/* Desktop two-column 7/5 grid */}
+        <div className="flex-1 w-full min-h-0 grid grid-cols-12 gap-3 overflow-hidden">
           {/* ===================== LEFT COLUMN (~60%: 7 cols) ===================== */}
-          <div className={`flex flex-col gap-2 min-h-0 ${isCompact ? 'w-full' : 'col-span-7'}`}>
+          <div className="flex flex-col gap-2 min-h-0 col-span-7">
             {/* Top Header Banner with Dynamic Round Timer */}
             <div
-              className={`relative flex items-center justify-between gap-1.5 py-1.5 px-2 sm:px-4 rounded-lg text-center ${
-                isCompact ? 'flex-wrap' : ''
-              }`}
+              className="relative flex items-center justify-between gap-1.5 py-1.5 px-4 rounded-lg text-center"
               style={{
                 background: isFinalCountdown
                   ? isWaitingForAssets
@@ -1087,19 +1063,18 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   <>
                     <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-amber-200">
                       <span className="px-2.5 py-0.5 rounded bg-black/50 border border-amber-400">
-                        DRAFT COMPLETE ✓
+                        DRAFT COMPLETE
                       </span>
                     </div>
 
                     <span
-                      className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
+                      className="text-base sm:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
                       style={{ textShadow: '2px 2px 0px #000' }}
                     >
-                      ⏳ WAITING FOR OPPONENT TO LOAD ASSETS...
+                      WAITING FOR OPPONENT TO LOAD ASSETS...
                     </span>
 
                     <div className="flex items-center gap-1 px-3 py-0.5 rounded-full font-black text-xs sm:text-sm border bg-amber-950/90 border-amber-400 text-amber-300">
-                      <span>⏱</span>
                       <span>SYNC</span>
                     </div>
                   </>
@@ -1107,19 +1082,18 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   <>
                     <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-emerald-200">
                       <span className="px-2.5 py-0.5 rounded bg-black/50 border border-emerald-400">
-                        DRAFT COMPLETE ✓
+                        DRAFT COMPLETE
                       </span>
                     </div>
 
                     <span
-                      className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
+                      className="text-base sm:text-lg font-black tracking-widest text-[#fef08a] animate-pulse"
                       style={{ textShadow: '2px 2px 0px #000' }}
                     >
-                      ⚔️ BATTLE COMMENCES IN {effectiveFinalSeconds}s ⚔️
+                      BATTLE COMMENCES IN {effectiveFinalSeconds}s
                     </span>
 
                     <div className="flex items-center gap-1 px-3 py-0.5 rounded-full font-black text-xs sm:text-sm border bg-emerald-950/90 border-emerald-400 text-emerald-300">
-                      <span>⏱</span>
                       <span>{effectiveFinalSeconds}s</span>
                     </div>
                   </>
@@ -1130,11 +1104,11 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                     <span className="px-2 py-0.5 rounded bg-black/40 border border-amber-500/50">
                       ROUND {currentRound}/3
                     </span>
-                    <span className="text-amber-200/80 hidden sm:inline">(Pick 2)</span>
+                    <span className="text-amber-200/80">(Pick 2)</span>
                   </div>
 
                   <span
-                    className="text-sm sm:text-base md:text-lg font-black tracking-widest text-[#fff5d6]"
+                    className="text-base sm:text-lg font-black tracking-widest text-[#fff5d6]"
                     style={{ textShadow: '2px 2px 0px #000' }}
                   >
                     {effectiveRole === 'defender' ? 'CHOOSE YOUR TOWERS' : 'CHOOSE YOUR UNITS'}
@@ -1148,7 +1122,6 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                         : 'bg-black/60 border-amber-400 text-amber-300'
                     }`}
                   >
-                    <span>⏱</span>
                     <span>{effectiveRoundSeconds}s</span>
                   </div>
                 </>
@@ -1157,7 +1130,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
             {/* Middle Panel — Details Inspector (Inspects Own or Enemy Selections) */}
             <div
-              className="relative rounded-lg p-2 sm:p-2.5 flex items-center gap-3 sm:gap-4 shrink-0"
+              className="relative rounded-lg p-2 flex items-center gap-3 shrink-0"
               style={{
                 background: inspectorData.isEnemy
                   ? 'linear-gradient(135deg, #3d0c11 0%, #200508 100%)'
@@ -1171,7 +1144,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
               {/* Left side: Square portrait frame */}
               <div
-                className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 shrink-0 rounded-lg flex items-center justify-center p-1.5 overflow-hidden"
+                className="relative w-20 h-20 shrink-0 rounded-lg flex items-center justify-center p-1.5 overflow-hidden"
                 style={{
                   background: '#e6d2b5',
                   border: inspectorData.isEnemy ? '3px solid #ef4444' : '3px solid #d4af37',
@@ -1183,7 +1156,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
 
               {/* Right side: Crimson info box with gold trim */}
               <div
-                className="flex-1 min-w-0 rounded-lg p-2 sm:p-2.5 flex flex-col justify-center"
+                className="flex-1 min-w-0 rounded-lg p-2 flex flex-col justify-center"
                 style={{
                   background: 'linear-gradient(90deg, #420b0e 0%, #5e1116 100%)',
                   border: inspectorData.isEnemy ? '1.5px solid #ef4444' : '1.5px solid #d4af37',
@@ -1192,15 +1165,10 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
               >
                 <div className="flex items-center justify-between gap-1 truncate">
                   <div
-                    className="text-base sm:text-lg font-black text-[#fff5d6] truncate tracking-wide flex items-center gap-1.5"
+                    className="text-base font-black text-[#fff5d6] truncate tracking-wide flex items-center gap-1.5"
                     style={{ textShadow: '2px 2px 0px #000' }}
                   >
                     <span>{inspectorData.title}</span>
-                    {inspectorData.nickname && (
-                      <span className="text-xs font-serif italic text-amber-300 font-normal">
-                        "{inspectorData.nickname}"
-                      </span>
-                    )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {inspectorData.effectTags?.map((tag) => (
@@ -1228,7 +1196,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                 <div className="w-full h-0.5 my-1 bg-gradient-to-r from-[#fce38a] via-[#d4af37] to-transparent" />
 
                 {/* Stats Row */}
-                <div className="text-xs sm:text-sm font-bold text-[#fef08a] flex flex-wrap items-center gap-x-2 gap-y-0.5 tracking-tight">
+                <div className="text-xs sm:text-sm font-bold text-[#fef08a] flex flex-wrap items-center gap-x-3 gap-y-0.5 tracking-tight">
                   <span>
                     {inspectorData.stat1Label}: <span className="text-white">{inspectorData.stat1Value}</span>
                   </span>
@@ -1240,75 +1208,32 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                   <span>
                     {inspectorData.stat3Label}: <span className="text-white">{inspectorData.stat3Value}</span>
                   </span>
-                </div>
-
-                {/* Tactical Info Row with Dynamic Badges */}
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] sm:text-[11px] mt-1">
-                  {inspectorData.strongAgainst && inspectorData.strongAgainst.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="text-emerald-400 font-bold uppercase text-[9px] tracking-wider">Strong vs:</span>
-                      {inspectorData.strongAgainst.map((item) => (
-                        <span key={item} className="px-1.5 py-0.2 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-medium capitalize text-[9px]">
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {inspectorData.weakAgainst && inspectorData.weakAgainst.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="text-rose-400 font-bold uppercase text-[9px] tracking-wider">Weak vs:</span>
-                      {inspectorData.weakAgainst.map((item) => (
-                        <span key={item} className="px-1.5 py-0.2 rounded bg-rose-950/80 border border-rose-500/50 text-rose-300 font-medium capitalize text-[9px]">
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="text-[#e2d5be] text-[10px] ml-auto">
-                    <span className="text-amber-300/80 font-semibold">Limit:</span> {inspectorData.stacks}
-                  </div>
-                </div>
-                {inspectorData.notes && (
-                  <div className="text-[9px] sm:text-[10px] text-amber-300/90 italic mt-0.5 truncate">
-                    💡 {inspectorData.notes}
-                  </div>
-                )}
-
-                {/* Combat traits (damage channel, armor, mental strength) & Effect Tags */}
-                <div className="text-[11px] sm:text-xs text-[#e2d5be] mt-0.5 truncate flex items-center flex-wrap gap-x-2">
                   {inspectorData.traits && inspectorData.traits.length > 0 && (
-                    <div className="flex items-center flex-wrap gap-x-2">
+                    <>
+                      <span className="text-amber-500/70">|</span>
                       {inspectorData.traits.map((trait, index) => (
                         <span key={trait.label}>
-                          {index > 0 && <span className="mx-1.5 text-amber-500/70">•</span>}
-                          <span className="text-amber-300 font-semibold">{trait.label}:</span> {trait.value}
+                          {index > 0 && <span className="mx-1 text-amber-500/70">•</span>}
+                          <span className="text-amber-300 font-semibold">{trait.label}:</span>{' '}
+                          <span className="text-white">{trait.value}</span>
                         </span>
                       ))}
-                    </div>
-                  )}
-                  {inspectorData.effectTags && inspectorData.effectTags.length > 0 && (
-                    <div className="flex items-center gap-1 ml-auto">
-                      <span className="text-[10px] text-amber-400/80 font-bold uppercase tracking-wider">Tag:</span>
-                      {inspectorData.effectTags.map((tag) => (
-                        <span
-                          key={tag.label}
-                          className={`px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider border shadow-sm ${tag.style}`}
-                          title={tag.description}
-                        >
-                          {tag.label}
-                        </span>
-                      ))}
-                    </div>
+                    </>
                   )}
                 </div>
+
+                {/* Notes/Ability line if available */}
+                {inspectorData.notes && (
+                  <div className="text-[10px] text-amber-300/90 italic mt-0.5 truncate">
+                    {inspectorData.notes}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Bottom Panel — Selection Pool Cards (Scrollable for 15+ Units) */}
             <div
-              className={`relative flex-1 rounded-lg p-2 flex flex-col min-h-0 overflow-hidden ${
-                isCompact ? 'min-h-[160px]' : 'min-h-[220px]'
-              }`}
+              className="relative flex-1 rounded-lg p-2 flex flex-col min-h-0 overflow-hidden min-h-[220px]"
               style={{
                 background: 'rgba(26, 12, 17, 0.9)',
                 border: '2px solid #8a661b',
@@ -1316,19 +1241,13 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
               }}
             >
               {catalogList.length > 10 && (
-                <div className="flex items-center justify-between pb-1 px-1 text-[10px] sm:text-xs text-amber-300/80 font-mono shrink-0">
+                <div className="flex items-center justify-between pb-1 px-1 text-xs text-amber-300/80 font-mono shrink-0">
                   <span>Available Roster ({catalogList.length} units)</span>
-                  <span className="text-[9px] sm:text-[10px] text-amber-400/70 italic">Scroll for more ↓</span>
+                  <span className="text-[10px] text-amber-400/70 italic">Scroll for more</span>
                 </div>
               )}
               <div className="flex-1 overflow-y-auto pr-1 min-h-0">
-                <div
-                  className={`grid gap-1.5 sm:gap-2 ${
-                    isCompact
-                      ? 'grid-cols-3 min-[520px]:grid-cols-5'
-                      : 'grid-cols-5'
-                  }`}
-                >
+                <div className="grid grid-cols-5 gap-2">
                   {catalogList.map((item) => {
                     const isLocked = lockedPicks.includes(item.id);
                     const isRoundPick = roundPicks.includes(item.id);
@@ -1338,7 +1257,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                       <div
                         key={item.id}
                         onClick={() => toggleSelect(item.id)}
-                        className={`group relative rounded-md flex flex-col justify-between p-1 select-none overflow-hidden transition-all duration-150 transform min-h-[104px] sm:min-h-[114px] ${
+                        className={`group relative rounded-md flex flex-col justify-between p-1 select-none overflow-hidden transition-all duration-150 transform min-h-[110px] ${
                           isLocked
                             ? 'opacity-85 cursor-default'
                             : 'cursor-pointer hover:-translate-y-0.5 active:translate-y-0'
@@ -1361,25 +1280,12 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                             : '0 2px 6px rgba(0,0,0,0.6)',
                         }}
                       >
-                        {/* Top-Right Info "i" Badge */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInspectedTarget({ id: item.id, isEnemy: false });
-                          }}
-                          className="absolute top-0.5 right-0.5 z-10 w-4 h-4 rounded-full bg-[#1c1117] border border-[#d4af37] text-[10px] font-black text-[#fef08a] flex items-center justify-center hover:bg-[#ffe066] hover:text-black transition"
-                          title="View details"
-                        >
-                          i
-                        </button>
-
                         {/* Top-left badge: Damage type for towers, effect tag for mobs */}
                         {renderUnitTagBadge(item.id)}
 
                         {/* Center Sprite on Parchment Frame */}
                         <div
-                          className="w-full flex-1 min-h-[50px] rounded flex items-center justify-center p-1 overflow-hidden"
+                          className="w-full flex-1 min-h-[54px] rounded flex items-center justify-center p-1 overflow-hidden"
                           style={{
                             background: '#e6d2b5',
                             border: '1px solid #c59b27',
@@ -1392,13 +1298,13 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                         {/* Bottom Nameplate & Status */}
                         <div className="mt-1 flex flex-col items-center justify-center leading-none text-center">
                           <span
-                            className="text-[10px] sm:text-[11px] font-bold text-[#fff5d6] truncate w-full"
+                            className="text-[11px] font-bold text-[#fff5d6] truncate w-full"
                             style={{ textShadow: '1px 1px 0px #000' }}
                           >
                             {item.name}
                           </span>
                           <span
-                            className={`text-[8px] sm:text-[9px] font-black uppercase mt-0.5 tracking-wider ${
+                            className={`text-[9px] font-black uppercase mt-0.5 tracking-wider ${
                               isLocked
                                 ? 'text-amber-300'
                                 : isRoundPick
@@ -1406,7 +1312,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                                   : 'text-amber-500/80'
                             }`}
                           >
-                            {isLocked ? 'LOCKED IN ✓' : isRoundPick ? 'SELECTED' : 'AVAILABLE'}
+                            {isLocked ? 'LOCKED IN' : isRoundPick ? 'SELECTED' : 'AVAILABLE'}
                           </span>
                         </div>
                       </div>
@@ -1418,13 +1324,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
           </div>
 
           {/* ===================== RIGHT COLUMN (~40%: 5 cols) ===================== */}
-          <div
-            className={`gap-2 min-h-0 ${
-              isCompact
-                ? 'grid w-full grid-cols-1 min-[640px]:grid-cols-2'
-                : 'flex flex-col justify-between col-span-5'
-            }`}
-          >
+          <div className="flex flex-col justify-between col-span-5 min-h-0 gap-2">
             {/* Top-Right Panel — ENEMY SELECTIONS (Click to Inspect Enemy Unit) */}
             <div
               className="relative rounded-lg p-2 sm:p-2.5 flex flex-col"
@@ -1470,7 +1370,6 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                         }}
                         title="Click to inspect enemy stats in Details Inspector"
                       >
-                        {/* Top-left badge: Damage type for towers, effect tag for mobs */}
                         {renderUnitTagBadge(enemyItem.id)}
                         <div
                           className="w-full flex-1 rounded flex items-center justify-center p-0.5 overflow-hidden"
@@ -1567,7 +1466,6 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                         }}
                         title={isCommitted ? 'Locked in' : 'Click to remove'}
                       >
-                        {/* Top-left badge: Damage type for towers, effect tag for mobs */}
                         {renderUnitTagBadge(item.id)}
                         <div
                           className="w-full flex-1 rounded flex items-center justify-center p-0.5 overflow-hidden"
@@ -1579,7 +1477,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
                           <span className="text-[10px] font-bold text-[#fff5d6] truncate">
                             {item.name}
                           </span>
-                          {isCommitted && <span className="text-[8px] text-amber-300">✓</span>}
+                          {isCommitted && <span className="text-[8px] text-amber-300">LOCKED</span>}
                         </div>
                       </div>
                     );
@@ -1598,18 +1496,11 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
               </div>
             </div>
 
-            {/* Bottom-Right — CONFIRM BUTTON FOR CURRENT ROUND (desktop) */}
-            {!isCompact && <div className="pt-1">{confirmButton}</div>}
+            {/* Bottom-Right — CONFIRM BUTTON FOR CURRENT ROUND */}
+            <div className="pt-1">{confirmButton}</div>
           </div>
         </div>
       </div>
-
-      {/* Phones keep the confirm action pinned to the bottom of the viewport. */}
-      {isCompact && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-amber-900/60 bg-[#11090f]/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-          <div className="mx-auto max-w-3xl">{confirmButton}</div>
-        </div>
-      )}
     </div>
   );
 };
