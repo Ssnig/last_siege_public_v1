@@ -1630,7 +1630,7 @@ export class GameplayStage {
         sprite = this.scene.add
           .sprite(slot.x, slot.y, sheetKey, 0)
           .setOrigin(design.origin.x, design.origin.y)
-          .setScale((design.id === "dragon" ? 0.125 : 0.15) * holderScale)
+          .setScale((design.id === "dragon" ? 0.15 : 0.18) * holderScale)
           .setDisplaySize(design.displaySize.width * holderScale, design.displaySize.height * holderScale)
           .setDepth(actorDepth(slot.y));
         if (this.scene.anims.exists(idleKey)) {

@@ -77,19 +77,19 @@ export class TowerHolder {
     this.onHoverCallback = options.onHover;
     this.holderScale = options.holderScale ?? 1.0;
 
-    // 1. Foundation Dais: High-fidelity Burmese lotus stone dais (52x40px)
+    // 1. Foundation Dais: High-fidelity Burmese lotus stone dais (68x52px)
     if (this.scene.textures.exists("tower_placeholder_1")) {
       this.daisSprite = this.scene.add
         .image(this.x, this.y, "tower_placeholder_1")
-        .setDisplaySize(52 * this.holderScale, 40 * this.holderScale)
+        .setDisplaySize(68 * this.holderScale, 52 * this.holderScale)
         .setDepth(DEPTH.SLOTS_LAYER)
         .setName(`tower-holder-dais-${this.slotIndex}`);
       this.parentContainer?.add(this.daisSprite);
     }
 
-    // 2. Interactive Hitbox: radius 24 circle
+    // 2. Interactive Hitbox: radius 28 circle
     this.hitbox = this.scene.add
-      .circle(this.x, this.y, 24 * this.holderScale, 0x000000, 0.001)
+      .circle(this.x, this.y, 28 * this.holderScale, 0x000000, 0.001)
       .setDepth(DEPTH.SLOTS_LAYER + 0.01)
       .setName(`tower-holder-hitbox-${this.slotIndex}`);
     this.hitbox.setData("slotIndex", this.slotIndex);
