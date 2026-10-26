@@ -58,8 +58,12 @@ export const MESSAGES = {
   mobAbility: "mob_ability",
   /** Server → client (broadcast): a non-projectile AoE tower (e.g. Bell Tower) pulsed. */
   towerAttack: "tower_attack",
-  /** Server → client (broadcast): a mob detonated / exploded on death (e.g. Dragon Tower cataclysmic detonation). */
+  /** Server -> client (broadcast): a mob detonated / exploded on death (e.g. Dragon Tower cataclysmic detonation). */
   mobDeathExplosion: "mob_death_explosion",
+  /** Server -> client (broadcast): Gun tower extra bounty proc on kill. */
+  gunBountyProc: "gun_bounty_proc",
+  /** Server -> client (broadcast): damage dealt to a mob. */
+  combatDamage: "combat_damage",
   /** Client → server: this client has finished loading game assets. */
   clientAssetsLoaded: "client_assets_loaded",
   /** Server → client (broadcast): asset loading status update while waiting. */
@@ -182,6 +186,10 @@ export interface AttackerPortalStatus {
   chargeSec: number;
   /** Tracks leaving this portal; more than one means a fork worth choosing. */
   paths: AttackerPortalPath[];
+  /** `true` if this portal is currently locked pending progressive unlock schedule. */
+  locked?: boolean;
+  /** Seconds until this portal unlocks; `0` if already unlocked. */
+  unlocksInSec?: number;
 }
 
 /**
@@ -287,6 +295,26 @@ export interface MobAbilityPayload {
   abilityType: "heal_aura" | "speed_aura" | "self_heal";
   /** Server mob ids of all allied mobs affected by this ability cast. */
   targetIds: string[];
+  /** Amount healed for heal_aura or self_heal casts. */
+  healAmount?: number;
+  /** Specific amount healed per target mob, reflecting heal exhaustion stacks. */
+  healedAmounts?: Record<string, number>;
+}
+
+/** Payload of the `combat_damage` broadcast message. */
+export interface CombatDamagePayload {
+  /** Server mob id that took damage. */
+  mobId: string;
+  /** Actual damage applied to the mob. */
+  damage: number;
+  /** Damage type channel. */
+  damageType: "physical" | "mental";
+  /** World x position of the target mob. */
+  x: number;
+  /** World y position of the target mob. */
+  y: number;
+  /** True if the attack was heavy / critical. */
+  isCrit?: boolean;
 }
 
 /** Payload of the `tower_attack` broadcast message for AoE pulse towers. */
@@ -313,4 +341,16 @@ export interface MobDeathExplosionPayload {
   radius: number;
   /** Archetype id of the tower that caused the detonation (e.g. "dragon"). */
   sourceTowerTypeId: string;
+}
+
+/** Payload of the `gun_bounty_proc` broadcast message. */
+export interface GunBountyProcPayload {
+  /** Server mob id of the killed mob. */
+  mobId: string;
+  /** World x position of the killed mob. */
+  x: number;
+  /** World y position of the killed mob. */
+  y: number;
+  /** Extra bonus gold awarded on kill. */
+  bonusGold: number;
 }

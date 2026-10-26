@@ -102,9 +102,9 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 't05_proj', url: '/assets/towers/05_spear_tower/projectile_vfx.png', type: 'image', category: 'tower', label: 'Spear Projectile' },
   { id: 't05_icon', url: '/assets/towers/05_spear_tower/icon.jpg', type: 'image', category: 'tower', label: 'Spear Icon' },
 
-  { id: 't06_tower', url: '/assets/towers/06_gun_tower/tower.png', type: 'image', category: 'tower', label: 'Gun Tower' },
-  { id: 't06_proj', url: '/assets/towers/06_gun_tower/projectile.png', type: 'image', category: 'tower', label: 'Gunshot' },
-  { id: 't06_icon', url: '/assets/towers/06_gun_tower/icon.png', type: 'image', category: 'tower', label: 'Gun Tower Icon' },
+  { id: 't06_tower', url: '/assets/towers/06_gun_tower/sheet.png', type: 'image', category: 'tower', label: 'Gun Tower' },
+  { id: 't06_proj', url: '/assets/towers/06_gun_tower/shooting_vfx.png', type: 'image', category: 'tower', label: 'Gunshot' },
+  { id: 't06_icon', url: '/assets/towers/06_gun_tower/icon.jpg', type: 'image', category: 'tower', label: 'Gun Tower Icon' },
 
   { id: 't07_tower', url: '/assets/towers/07_water_cannon/tower.png', type: 'image', category: 'tower', label: 'Water Cannon Base' },
   { id: 't07_gun', url: '/assets/towers/07_water_cannon/water_gun.png', type: 'image', category: 'tower', label: 'Water Cannon Gun' },

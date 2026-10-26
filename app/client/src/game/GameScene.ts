@@ -134,6 +134,11 @@ export class GameScene extends Phaser.Scene {
       // Load tower icon for UI cards
       if ((design as any).iconPath) {
         this.load.image(`tower-${design.id}`, (design as any).iconPath);
+        if (design.aliases) {
+          for (const alias of design.aliases) {
+            this.load.image(`tower-${alias}`, (design as any).iconPath);
+          }
+        }
       }
     }
     this.load.image("spawn_1", "/assets/sprites/spawn1.png");
@@ -156,6 +161,8 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Spear projectile & hit VFX - 2 rows x 4 cols (688x768)
     this.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    // Gun tower projectile, hit & skill bounty proc VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Water cannon projectile/splash
     this.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
     // Chinthe attack (whole 8 frames is projectile animation)
@@ -164,6 +171,10 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
     // Sein Pyaung projectile & hit VFX - 2 rows x 4 cols (688x768)
     this.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
+    // Mob death VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("vfx_mob_death_sheet", "/assets/vfx/mob_death.png", { frameWidth: 688, frameHeight: 768 });
+    // Base breach VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("vfx_base_breach_sheet", "/assets/vfx/base_breach.png", { frameWidth: 688, frameHeight: 768 });
   }
 
 
@@ -197,6 +208,18 @@ export class GameScene extends Phaser.Scene {
       }
       if (!this.anims.exists("spear_splash_anim")) {
         this.anims.create({ key: "spear_splash_anim", frames: this.anims.generateFrameNumbers("spear_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
+    // Gun tower projectile (top row 0..3), hit VFX (frame 4), bounty proc VFX (frames 5..7)
+    if (this.textures.exists("gun_vfx_sheet")) {
+      if (!this.anims.exists("gun_proj_anim")) {
+        this.anims.create({ key: "gun_proj_anim", frames: this.anims.generateFrameNumbers("gun_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("gun_hit_anim")) {
+        this.anims.create({ key: "gun_hit_anim", frames: this.anims.generateFrameNumbers("gun_vfx_sheet", { start: 4, end: 4 }), frameRate: 10, repeat: 0 });
+      }
+      if (!this.anims.exists("gun_bounty_proc_anim")) {
+        this.anims.create({ key: "gun_bounty_proc_anim", frames: this.anims.generateFrameNumbers("gun_vfx_sheet", { start: 5, end: 7 }), frameRate: 10, repeat: 0 });
       }
     }
     // Create water splash anims

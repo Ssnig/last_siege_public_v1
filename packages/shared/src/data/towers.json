@@ -154,35 +154,35 @@
     "tiers": [
       {
         "cost": 95,
-        "damage": 12,
+        "damage": 4,
         "range": 135,
         "fireRate": 0.45,
         "projectileSpeed": 320,
-        "damageMax": 18,
+        "damageMax": 6,
         "special": {
           "pulseSlow": 0.15
         }
       },
       {
         "cost": 165,
-        "damage": 24,
+        "damage": 8,
         "range": 150,
         "fireRate": 0.5,
         "projectileSpeed": 350,
-        "damageMax": 36,
+        "damageMax": 12,
         "special": {
-          "pulseSlow": 0.25
+          "pulseSlow": 0.30
         }
       },
       {
         "cost": 280,
-        "damage": 48,
+        "damage": 16,
         "range": 170,
         "fireRate": 0.55,
         "projectileSpeed": 380,
-        "damageMax": 72,
+        "damageMax": 24,
         "special": {
-          "pulseSlow": 0.35
+          "pulseSlow": 0.40
         }
       }
     ],
@@ -200,34 +200,34 @@
     "damageType": "physical",
     "tiers": [
       {
-        "cost": 45,
-        "damage": 8,
+        "cost": 35,
+        "damage": 11,
         "range": 125,
         "fireRate": 1,
         "projectileSpeed": 350,
-        "damageMax": 12,
+        "damageMax": 15,
         "special": {
           "bleedTotalDamage": 5
         }
       },
       {
-        "cost": 85,
-        "damage": 16,
+        "cost": 65,
+        "damage": 20,
         "range": 140,
         "fireRate": 1.1,
         "projectileSpeed": 375,
-        "damageMax": 24,
+        "damageMax": 28,
         "special": {
           "bleedTotalDamage": 12
         }
       },
       {
-        "cost": 150,
-        "damage": 30,
+        "cost": 120,
+        "damage": 36,
         "range": 160,
         "fireRate": 1.2,
         "projectileSpeed": 400,
-        "damageMax": 46,
+        "damageMax": 52,
         "special": {
           "bleedTotalDamage": 20
         }

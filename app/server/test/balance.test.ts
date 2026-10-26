@@ -104,22 +104,27 @@ describe("balance.ts shape guards", () => {
     );
   });
 
-  it("deploy rules define sane caps, charges and staggering", () => {
+  it("deploy rules define sane caps, charges, initial charges and unlock schedule", () => {
     assert.ok(DEFAULT_DEPLOY_RULES.maxBufferUnits > 0, "the queue must hold at least one unit");
     assert.ok(DEFAULT_DEPLOY_RULES.portalMaxCharges > 0, "portals need at least one charge");
+    assert.ok(DEFAULT_DEPLOY_RULES.portalInitialCharges > 0, "portals need at least one initial charge");
+    assert.ok(
+      DEFAULT_DEPLOY_RULES.portalInitialCharges <= DEFAULT_DEPLOY_RULES.portalMaxCharges,
+      "initial charges cannot exceed max charges",
+    );
     assert.ok(DEFAULT_DEPLOY_RULES.portalChargeSec > 0, "charges must take time to regen");
     assert.ok(DEFAULT_DEPLOY_RULES.staggerSec > 0, "deployed units must leave apart");
+    assert.ok(
+      Array.isArray(DEFAULT_DEPLOY_RULES.portalUnlockScheduleSec) &&
+        DEFAULT_DEPLOY_RULES.portalUnlockScheduleSec.length > 0,
+      "portal unlock schedule must be a non-empty array",
+    );
   });
 
-  it("economy rules gate the attacker's unit income on a progress threshold", () => {
+  it("economy rules define a positive attacker income gain rate on deploy", () => {
     assert.ok(
-      DEFAULT_ECONOMY.attackerUnitIncomeRate > 0,
-      "deep units must pay the attacker something",
-    );
-    assert.ok(
-      DEFAULT_ECONOMY.attackerUnitIncomeThreshold > 0
-        && DEFAULT_ECONOMY.attackerUnitIncomeThreshold < 1,
-      "the deep threshold must sit between spawn and the core",
+      DEFAULT_ECONOMY.attackerIncomeGainRate > 0,
+      "deployed units must permanently increase attacker income",
     );
   });
 

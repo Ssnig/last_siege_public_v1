@@ -1,19 +1,22 @@
 {
   "economy": {
-    "defenderStartingGold": 337,
+    "defenderStartingGold": 360,
     "attackerStartingGold": 200,
-    "attackerBaseIncome": 2.5,
+    "attackerBaseIncome": 5.0,
     "defenderBaseIncome": 5.0,
-    "attackerUnitIncomeRate": 0.015,
+    "attackerIncomeGainRate": 0.01,
+    "attackerUnitIncomeRate": 0.0,
     "attackerUnitIncomeThreshold": 0.5,
     "leakPityRate": 0.21,
     "siegeEndIncomeMultiplier": 2,
     "siegeEndIncomeWindowSec": 60
   },
   "deploy": {
-    "maxBufferUnits": 6,
+    "maxBufferUnits": 8,
     "portalMaxCharges": 3,
+    "portalInitialCharges": 1,
     "portalChargeSec": 25,
+    "portalUnlockScheduleSec": [0, 50, 100],
     "staggerSec": 0.3
   },
   "deck": {
@@ -25,7 +28,7 @@
     "mentalBreakSlowFactor": 0.8
   },
   "match": {
-    "coreHp": 45,
+    "coreHp": 30,
     "mapRevealDurationSec": 5,
     "draftDurationSec": -1,
     "buildingDurationSec": 45,

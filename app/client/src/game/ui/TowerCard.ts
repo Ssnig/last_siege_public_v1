@@ -1,6 +1,6 @@
 
 import Phaser from "phaser";
-import type { TowerType } from "@root/shared";
+import { getTowerDesign, type TowerType } from "@root/shared";
 import { UI_TEXTURE_KEY } from "./uiAtlas";
 import { createDamageBadge } from "./damageBadge";
 
@@ -115,7 +115,10 @@ export class TowerCard {
     const portraitX = width / 2;
     const portraitY = Math.max(12, height * 0.1) + portraitHeight / 2;
 
-    const textureKey = `tower-${tower.id}`;
+    const design = getTowerDesign(tower.id);
+    const textureKey = scene.textures.exists(`tower-${tower.id}`)
+      ? `tower-${tower.id}`
+      : `tower-${design.id}`;
 
     if (scene.textures.exists(textureKey)) {
       const sprite = scene.add

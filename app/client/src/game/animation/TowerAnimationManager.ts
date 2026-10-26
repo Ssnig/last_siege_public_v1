@@ -66,6 +66,21 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     frameRate: 8,
     scale: 0.15,
   },
+  gun: {
+    id: "gun",
+    sheetKey: "tower_gun_sheet",
+    sheetPath: "/assets/towers/06_gun_tower/sheet.png",
+    frameWidth: 688,
+    frameHeight: 768,
+    cols: 4,
+    rows: 2,
+    idleSE: [0, 1, 2, 3],
+    fireSE: [4, 5, 6, 7],
+    idleNE: [0, 1, 2, 3],
+    fireNE: [4, 5, 6, 7],
+    frameRate: 8,
+    scale: 0.15,
+  },
   water_cannon: {
     id: "water_cannon",
     sheetKey: "tower_water_cannon_sheet",
@@ -147,6 +162,10 @@ export const BELL_ATTACK_VFX_SHEET_KEY = "vfx_bell_attack_sheet";
 export const BELL_ATTACK_VFX_ANIM_KEY = "vfx_bell_attack";
 export const DRAGON_EXPLOSION_VFX_SHEET_KEY = "vfx_dragon_explosion_sheet";
 export const DRAGON_EXPLOSION_VFX_ANIM_KEY = "vfx_dragon_explosion";
+export const GUN_VFX_SHEET_KEY = "gun_vfx_sheet";
+export const GUN_PROJ_ANIM_KEY = "gun_proj_anim";
+export const GUN_HIT_ANIM_KEY = "gun_hit_anim";
+export const GUN_BOUNTY_PROC_ANIM_KEY = "gun_bounty_proc_anim";
 
 export class TowerAnimationManager {
   static preload(scene: Phaser.Scene): void {
@@ -212,11 +231,27 @@ export class TowerAnimationManager {
         },
       );
     }
+
+    if (!scene.textures.exists(GUN_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        GUN_VFX_SHEET_KEY,
+        "/assets/towers/06_gun_tower/shooting_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
   }
 
   static createAnimations(scene: Phaser.Scene): void {
     for (const manifest of Object.values(TOWER_ANIM_MANIFESTS)) {
-      if (manifest.id === "archer" || manifest.id === "bomb" || manifest.id === "spear") {
+      if (
+        manifest.id === "archer" ||
+        manifest.id === "bomb" ||
+        manifest.id === "spear" ||
+        manifest.id === "gun"
+      ) {
         if (scene.textures.exists(manifest.sheetKey)) {
           const idleKey = `${manifest.id}_idle`;
           const fireKey = `${manifest.id}_fire`;
@@ -356,6 +391,42 @@ export class TowerAnimationManager {
         });
       }
     }
+
+    if (scene.textures.exists(GUN_VFX_SHEET_KEY)) {
+      if (!scene.anims.exists(GUN_PROJ_ANIM_KEY)) {
+        scene.anims.create({
+          key: GUN_PROJ_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(GUN_VFX_SHEET_KEY, {
+            start: 0,
+            end: 3,
+          }),
+          frameRate: 12,
+          repeat: -1,
+        });
+      }
+      if (!scene.anims.exists(GUN_HIT_ANIM_KEY)) {
+        scene.anims.create({
+          key: GUN_HIT_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(GUN_VFX_SHEET_KEY, {
+            start: 4,
+            end: 4,
+          }),
+          frameRate: 10,
+          repeat: 0,
+        });
+      }
+      if (!scene.anims.exists(GUN_BOUNTY_PROC_ANIM_KEY)) {
+        scene.anims.create({
+          key: GUN_BOUNTY_PROC_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(GUN_VFX_SHEET_KEY, {
+            start: 5,
+            end: 7,
+          }),
+          frameRate: 10,
+          repeat: 0,
+        });
+      }
+    }
   }
 
   /**
@@ -410,6 +481,67 @@ export class TowerAnimationManager {
     vfx.play(DRAGON_EXPLOSION_VFX_ANIM_KEY);
     vfx.once(`animationcomplete-${DRAGON_EXPLOSION_VFX_ANIM_KEY}`, () => {
       vfx.destroy();
+    });
+
+    return vfx;
+  }
+
+  /**
+   * Spawns a one-shot Gun Tower hit flash VFX sprite on a struck mob at `(x, y)`.
+   * Displays the hit frame (frame 4) and destroys itself.
+   */
+  static spawnGunHitVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (!scene.textures.exists(GUN_VFX_SHEET_KEY)) {
+      return undefined;
+    }
+
+    const hit = scene.add
+      .sprite(x, y, GUN_VFX_SHEET_KEY, 4)
+      .setOrigin(0.5, 0.5)
+      .setScale(0.08);
+
+    if (scene.anims.exists(GUN_HIT_ANIM_KEY)) {
+      hit.play(GUN_HIT_ANIM_KEY);
+    }
+
+    scene.time.delayedCall(120, () => {
+      if (hit.active) hit.destroy();
+    });
+
+    return hit;
+  }
+
+  /**
+   * Spawns a one-shot Gun Tower extra bounty proc skill VFX sprite on a mob killed by Gun Tower.
+   * Plays frames 5..7 and destroys itself.
+   */
+  static spawnGunBountyProcVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (!scene.textures.exists(GUN_VFX_SHEET_KEY)) {
+      return undefined;
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, GUN_VFX_SHEET_KEY, 5)
+      .setOrigin(0.5, 0.7)
+      .setScale(0.12);
+
+    if (scene.anims.exists(GUN_BOUNTY_PROC_ANIM_KEY)) {
+      vfx.play(GUN_BOUNTY_PROC_ANIM_KEY);
+      vfx.once(`animationcomplete-${GUN_BOUNTY_PROC_ANIM_KEY}`, () => {
+        if (vfx.active) vfx.destroy();
+      });
+    }
+
+    scene.time.delayedCall(600, () => {
+      if (vfx.active) vfx.destroy();
     });
 
     return vfx;

@@ -8,6 +8,7 @@ import {
   type RoomState,
   type YouEconomyPayload,
   type AttackerBufferPayload,
+  Mob,
   MESSAGES,
   MOB_TYPES,
   ALL_MOB_IDS,
@@ -811,14 +812,10 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    for (let i = 0; i < 6; i++) {
+      attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    }
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
-    attacker.send(MESSAGES.deploy, { portalId: "portal-1" });
 
     await waitFor(() => room.state.mobs.size === 6, 6000);
     assert.strictEqual(room.state.coreHp, MATCH_RULES.coreHp, "core starts full");
@@ -969,7 +966,7 @@ describe("testing your Colyseus app", () => {
     attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     const full = await queued;
     const portal = full.portals.find((p) => p.id === "portal-0")!;
-    assert.strictEqual(portal.charges, DEFAULT_DEPLOY_RULES.portalMaxCharges);
+    assert.strictEqual(portal.charges, DEFAULT_DEPLOY_RULES.portalInitialCharges);
 
     const spent = waitForBuffer(
       attacker,
@@ -984,7 +981,7 @@ describe("testing your Colyseus app", () => {
     );
   });
 
-  it("adds the deep-unit bonus to the attacker's passive income past halfway", async () => {
+  it("adds permanent income to the attacker on deploying units", async () => {
     const room = await colyseus.createRoom<RoomState>("game_room", {
       roleChoice: "attacker",
       mapId: "konbaung",
@@ -997,44 +994,36 @@ describe("testing your Colyseus app", () => {
     defender.send(MESSAGES.startCombat);
     await waitForPhase(room, "combat");
 
+    const internals = room as unknown as {
+      economies: Map<string, number>;
+      incomeRates: Map<string, number>;
+      effectiveIncomeRate: (sessionId: string, role: string) => number;
+      accrueIncome: (dt: number) => void;
+    };
+
+    const initialRate = internals.effectiveIncomeRate(attacker.sessionId, "attacker");
+    assert.strictEqual(initialRate, DEFAULT_ECONOMY.attackerBaseIncome);
+
     attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
     attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
 
-    // `economies`/`deepIncomeRate` are private, but the harness holds the room.
-    const internals = room as unknown as {
-      economies: Map<string, number>;
-      deepIncomeRate: () => number;
-      effectiveIncomeRate: (sessionId: string, role: string) => number;
-      accrueIncome: (dt: number) => void;
-    };
-    const mob = [...room.state.mobs.values()][0];
-    mob.speed = 0;
+    const expectedBoost =
+      (MOB_TYPES["monkey"]?.cost ?? 0) * DEFAULT_ECONOMY.attackerIncomeGainRate;
+    assert.ok(expectedBoost > 0, "the fixture unit has a cost and a positive income gain rate");
 
-    // Below the threshold the unit offers no bonus.
-    mob.progress = 0.4;
-    assert.strictEqual(internals.deepIncomeRate(), 0, "no bonus before halfway");
-
-    // Past halfway it becomes a bonus on top of the normal passive income.
-    mob.progress = 0.6;
-    const bonus = internals.deepIncomeRate();
-    const unitBonus =
-      (MOB_TYPES["monkey"]?.cost ?? 0) * DEFAULT_ECONOMY.attackerUnitIncomeRate;
-    assert.ok(unitBonus > 0, "the fixture unit has a cost and a positive rate");
-    assert.ok(Math.abs(bonus - unitBonus) < 1e-9, "bonus scales with the unit's cost");
-
+    const updatedRate = internals.effectiveIncomeRate(attacker.sessionId, "attacker");
     assert.ok(
-      internals.effectiveIncomeRate(attacker.sessionId, "attacker")
-        >= DEFAULT_ECONOMY.attackerBaseIncome + bonus - 1e-9,
-      "the reported passive rate includes the deep bonus",
+      Math.abs(updatedRate - (DEFAULT_ECONOMY.attackerBaseIncome + expectedBoost)) < 1e-9,
+      "the reported passive rate includes the permanent deploy boost",
     );
 
     const before = internals.economies.get(attacker.sessionId) ?? 0;
     internals.accrueIncome(1);
     const after = internals.economies.get(attacker.sessionId) ?? 0;
     assert.ok(
-      after - before >= (DEFAULT_ECONOMY.attackerBaseIncome + bonus) * 0.99,
-      "a tick credits base income plus the deep bonus",
+      after - before >= (DEFAULT_ECONOMY.attackerBaseIncome + expectedBoost) * 0.99,
+      "a tick credits base income plus the permanent deploy boost",
     );
   });
 
@@ -1294,6 +1283,14 @@ describe("testing your Colyseus app", () => {
       "the merge map exposes one portal per distinct spawn",
     );
 
+    // Verify portal-2 is locked at match start (unlocks at 100s).
+    const portal2 = buffer.portals.find((p) => p.id === "portal-2");
+    assert.ok(portal2?.locked, "portal-2 starts locked at combat start");
+    assert.strictEqual(portal2?.unlocksInSec, 100, "portal-2 unlocks at 100s");
+
+    // Advance matchTime to 100s to unlock portal-2
+    (room as any).matchTime = 100;
+
     // portal-2 sits on the `lower` spawn, so the deploy walks that track.
     attacker.send(MESSAGES.deploy, { portalId: "portal-2" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
@@ -1451,7 +1448,7 @@ describe("testing your Colyseus app", () => {
     await waitForPhase(room, "building");
 
     // The bell tower is a mental tower, so the palace guard's armor (8) does
-    // not blunt its 12-18 shot, keeping the health loss inside that band.
+    // not blunt its shot, keeping the health loss inside its damage band.
     const slots = MAPS[room.state.mapId].slots;
     defender.send(MESSAGES.placeTower, { typeId: "bell", slotIndex: slots[0].slotIndex });
     await waitFor(() => room.state.towers.size === 1);
@@ -1471,9 +1468,12 @@ describe("testing your Colyseus app", () => {
     const mob = [...room.state.mobs.values()].find((m) => m.hp < m.maxHp);
     assert.ok(mob, "the mob took a hit");
     const loss = mob.maxHp - mob.hp;
+    const bellT1 = TOWER_TYPES["bell"]!.tiers[0];
+    const minDmg = bellT1.damage;
+    const maxDmg = bellT1.damageMax ?? bellT1.damage;
     assert.ok(
-      loss >= 12 && loss <= 18,
-      `a mental hit ignores armor, so the loss stays in the bell's 12-18 band (was ${loss})`,
+      loss >= minDmg && loss <= maxDmg,
+      `a mental hit ignores armor, so the loss stays in the bell's ${minDmg}-${maxDmg} band (was ${loss})`,
     );
 
     const debuff = mob.effects.get("debuff");
@@ -1824,14 +1824,186 @@ describe("testing your Colyseus app", () => {
     const mob = [...room.state.mobs.values()][0];
     mob.hp = 1; // Prime low HP so the gun tower shot kills instantly
 
-    // Monkey bounty is 6. Gun Tower Lv1 bonus gold on kill is +1, totaling at least 7 gold.
+    const bounty = MOB_TYPES["monkey"]?.bounty ?? 3;
     const initialDefenderGold = (room as any).economies.get(defender.sessionId) ?? 0;
     await waitFor(() => {
       const currentGold = (room as any).economies.get(defender.sessionId) ?? 0;
-      return currentGold >= initialDefenderGold + 6 + 1;
+      return currentGold >= initialDefenderGold + bounty + 1;
     }, 15000);
 
     const finalGold = (room as any).economies.get(defender.sessionId) ?? 0;
-    assert.ok(finalGold >= initialDefenderGold + 6 + 1, "gun tower kill awarded base bounty 6 + bonus gold 1");
+    assert.ok(finalGold >= initialDefenderGold + bounty + 1, "gun tower kill awarded base bounty + bonus gold 1");
+  });
+
+  it("rejects deploy through locked portal-1 at match start and unlocks at 50s", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    const rejected = attacker.waitForMessage(MESSAGES.deployRejected);
+    attacker.send(MESSAGES.deploy, { portalId: "portal-1" });
+    const refusal = await rejected;
+    assert.match(refusal.reason, /locked/i, "deploy through portal-1 is rejected at combat start");
+
+    // Advance matchTime to 50s
+    (room as any).matchTime = 50;
+
+    // Now deploying through portal-1 succeeds
+    attacker.send(MESSAGES.deploy, { portalId: "portal-1" });
+    await waitFor(() => room.state.mobs.size > 0, 3000);
+    assert.strictEqual(room.state.mobs.size, 1, "unit deployed through unlocked portal-1");
+  });
+
+  it("say_sayar heal aura applies diminishing returns stacks (90%, 70%, 40%, 20%, 0%)", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+
+    const target = new Mob({
+      ownerId: "attacker",
+      typeId: "elephant_rider",
+      batchId: 1,
+      hp: 300,
+      maxHp: 1300,
+      speed: 30,
+    });
+    const caster = new Mob({
+      ownerId: "attacker",
+      typeId: "say_sayar",
+      batchId: 1,
+      hp: 220,
+      maxHp: 220,
+      speed: 30,
+    });
+
+    room.state.mobs.set("target-1", target);
+    room.state.mobs.set("caster-1", caster);
+
+    const positions = new Map<string, { x: number; y: number }>([
+      ["target-1", { x: 100, y: 100 }],
+      ["caster-1", { x: 105, y: 100 }],
+    ]);
+
+    // Heal 1: 0 stacks -> 100% healing (80 HP). Stacks become 1.
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 380, "first heal restores full 80 HP");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      1,
+      "target gains 1 heal exhaustion stack",
+    );
+
+    // Heal 2: 1 stack -> 90% healing (72 HP). Stacks become 2.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 380 + 72, "second heal restores 90% (72 HP)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      2,
+      "target reaches 2 heal exhaustion stacks",
+    );
+
+    // Heal 3: 2 stacks -> 70% healing (56 HP). Stacks become 3.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 452 + 56, "third heal restores 70% (56 HP)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      3,
+      "target reaches 3 heal exhaustion stacks",
+    );
+
+    // Heal 4: 3 stacks -> 40% healing (32 HP). Stacks become 4.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 508 + 32, "fourth heal restores 40% (32 HP)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      4,
+      "target reaches 4 heal exhaustion stacks",
+    );
+
+    // Heal 5: 4 stacks -> 20% healing (16 HP). Stacks become 5.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 540 + 16, "fifth heal restores 20% (16 HP)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      5,
+      "target reaches 5 heal exhaustion stacks (cap)",
+    );
+
+    // Heal 6: 5 stacks -> 0% healing (0 HP). Stacks stay at 5.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 556, "sixth heal restores 0 HP (immune/exhausted)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      5,
+      "stacks remain capped at 5",
+    );
+  });
+
+  it("doe_pat speed boost does not stack from multiple casters", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+
+    const caster1 = new Mob({ ownerId: "attacker", typeId: "doe_pat", batchId: 1, hp: 200, maxHp: 200, speed: 30 });
+    const caster2 = new Mob({ ownerId: "attacker", typeId: "doe_pat", batchId: 1, hp: 200, maxHp: 200, speed: 30 });
+    const ally = new Mob({ ownerId: "attacker", typeId: "monkey", batchId: 1, hp: 100, maxHp: 100, speed: 130 });
+
+    room.state.mobs.set("caster-1", caster1);
+    room.state.mobs.set("caster-2", caster2);
+    room.state.mobs.set("ally-1", ally);
+
+    const positions = new Map<string, { x: number; y: number }>([
+      ["caster-1", { x: 100, y: 100 }],
+      ["caster-2", { x: 102, y: 100 }],
+      ["ally-1", { x: 105, y: 100 }],
+    ]);
+
+    (room as any).simulateMobAbilities(0.1, positions);
+
+    // Ally has haste from Doe Pat 1 and Doe Pat 2
+    const haste = ally.effects.get(EFFECT_TYPES.haste);
+    assert.ok(haste, "ally received haste effect");
+    assert.strictEqual(haste.magnitude, 0.40, "haste magnitude is 0.40, not stacked additively to 0.80");
+
+    const effectiveSpeedVal = (room as any).mobSpeed(ally, "ally-1");
+    assert.strictEqual(effectiveSpeedVal, 130 * 1.40, "effective speed reflects single +40% boost");
+  });
+
+  it("multiple bell towers apply non-stacking slow and respect 40% speed floor", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+
+    const mob = new Mob({ ownerId: "attacker", typeId: "monkey", batchId: 1, hp: 100, maxHp: 100, speed: 130 });
+    room.state.mobs.set("mob-1", mob);
+
+    // Apply pulse slow from 3 separate Tier 3 Bell Towers (0.40 each)
+    (room as any).applyMobEffect(mob, EFFECT_TYPES.slow, 0.40, 1.5, "bell-1");
+    (room as any).applyMobEffect(mob, EFFECT_TYPES.slow, 0.40, 1.5, "bell-2");
+    (room as any).applyMobEffect(mob, EFFECT_TYPES.slow, 0.40, 1.5, "bell-3");
+
+    const slow = mob.effects.get(EFFECT_TYPES.slow);
+    assert.ok(slow, "mob has slow effect");
+    assert.strictEqual(slow.magnitude, 0.40, "slow magnitude does not stack additively to 1.20");
+
+    const speed = (room as any).mobSpeed(mob, "mob-1");
+    assert.strictEqual(speed, 130 * (1 - 0.40), "mob moves at 60% base speed under 3 bell towers, never stun locked");
   });
 });

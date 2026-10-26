@@ -14,6 +14,8 @@ import {
   type Mob,
   type MobAbilityPayload,
   type MobDeathExplosionPayload,
+  type GunBountyProcPayload,
+  type CombatDamagePayload,
   type Projectile,
   type Tower,
   type TowerAttackPayload,
@@ -44,6 +46,7 @@ import { UnitAnimationManager } from "../animation/UnitAnimationManager";
 import { TowerAnimationManager } from "../animation/TowerAnimationManager";
 import { AmbientNPCManager } from "../npc/AmbientNPCManager";
 import { soundEffects } from "../../audio/soundEffects";
+import { FloatingCombatTextManager } from "../vfx/FloatingCombatText";
 
 /** Render order for the gameplay layers. */
 export const DEPTH = {
@@ -85,7 +88,7 @@ export const MAX_CAMERA_ZOOM = 1.6;
  * @remarks Keeps a click on a tower (select) or a slot (build) from nudging
  * the camera, while a real drag still pans right away.
  */
-const CAMERA_DRAG_THRESHOLD = 6;
+const CAMERA_DRAG_THRESHOLD = 10;
 
 export interface GameplayStageOptions {
   room: Room;
@@ -127,6 +130,14 @@ type MobRecord = {
   lastArmorStacks?: number;
   /** Last known mental strength stacks (for Belu adaptive defense VFX). */
   lastMentalStacks?: number;
+  /** Last known armor crush magnitude (for Sein Pyaung armor strip alert). */
+  lastArmorCrush?: number;
+  /** Whether the mob is currently silenced (for Chinthe silence alert). */
+  wasSilenced?: boolean;
+  /** Whether monkey's initial sprint burst has ended upon taking damage. */
+  burstBroken?: boolean;
+  /** Last sampled progress along path (used to differentiate death vs base breach). */
+  lastProgress?: number;
 };
 
 /** A portal: its spin sprite plus the charge pips drawn above it. */
@@ -202,9 +213,15 @@ export class GameplayStage {
   private combatBanner?: Phaser.GameObjects.Container;
   private ambientNpcManager?: AmbientNPCManager;
 
+  private baseSprite?: Phaser.GameObjects.Sprite;
   private baseHpFill?: Phaser.GameObjects.Rectangle;
   private baseHpText?: Phaser.GameObjects.Text;
   private baseHpBarWidth = 120;
+  private lastCoreHp?: number;
+  private lastBreachVfxTime = 0;
+  /** Caches the visual center coordinates of mob sprites for projectile targeting and hit VFX. */
+  private recentMobCenters: Map<string, { x: number; y: number; time: number }> = new Map();
+  private lastMobCentersPrune = 0;
 
   private selectedSlotIndex?: number;
   private rangeCircle?: Phaser.GameObjects.Arc;
@@ -224,20 +241,24 @@ export class GameplayStage {
   // Camera Drag, Pinch-to-Zoom & Momentum Properties
   private isDragging = false;
   private isPinching = false;
-  private initialPinchDistance = 0;
-  private initialZoom = 1;
-  private lastPointerX = 0;
-  private lastPointerY = 0;
-  private cameraVelocityX = 0;
-  private cameraVelocityY = 0;
-  /** Pointer position where the current drag started, for the move threshold. */
+  private dragActive = false;
+  private lastDragEndTime = 0;
   private dragOriginX = 0;
   private dragOriginY = 0;
-  /** `true` once the drag moved far enough to count as a camera pan. */
-  private dragActive = false;
+  private lastPointerX = 0;
+  private lastPointerY = 0;
+  private lastPointerTime = 0;
+  private cameraVelocityX = 0;
+  private cameraVelocityY = 0;
+
+  // Multi-touch Pinch Tracking
+  private lastPinchDistance = 0;
+  private lastPinchMidX = 0;
+  private lastPinchMidY = 0;
+
   private onCameraPointerDown?: (pointer: Phaser.Input.Pointer) => void;
   private onCameraPointerMove?: (pointer: Phaser.Input.Pointer) => void;
-  private onCameraPointerUp?: () => void;
+  private onCameraPointerUp?: (pointer: Phaser.Input.Pointer) => void;
   private onCameraWheel?: (pointer: any, gameObjects: any, deltaX: number, deltaY: number) => void;
 
   private unsubscribers: Array<() => void> = [];
@@ -249,6 +270,16 @@ export class GameplayStage {
     this.updateMobs();
     this.updateProjectiles();
     this.updateTowerFacing();
+
+    const now = performance.now();
+    if (now - this.lastMobCentersPrune > 5000) {
+      this.lastMobCentersPrune = now;
+      for (const [id, entry] of this.recentMobCenters) {
+        if (now - entry.time > 4000) {
+          this.recentMobCenters.delete(id);
+        }
+      }
+    }
 
     // Mobs move every frame, so the y-sort has to run with them: this is what
     // applies `actorDepth`, since Phaser ignores `depth` on Container children.
@@ -432,8 +463,17 @@ export class GameplayStage {
           .circle(portal.x, portal.y - 20, 52, 0xffffff, 0)
           .setDepth(DEPTH.PORTAL_LAYER + 0.004)
           .setInteractive({ useHandCursor: true });
-        hit.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => {
-          this.room.send(MESSAGES.deploy, { portalId: portal.id });
+        let portalDownX = 0;
+        let portalDownY = 0;
+        hit.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+          portalDownX = pointer.x;
+          portalDownY = pointer.y;
+        });
+        hit.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+          const dist = Math.hypot(pointer.x - portalDownX, pointer.y - portalDownY);
+          if (dist < 12 && !this.wasRecentlyDragged()) {
+            this.room.send(MESSAGES.deploy, { portalId: portal.id });
+          }
         });
         this.root?.add(hit);
       }
@@ -466,11 +506,13 @@ export class GameplayStage {
     for (const [portalId, record] of this.portals) {
       const status = statusById.get(portalId);
       // The defender never receives the buffer, so their portals stay unlit.
-      const charges = status?.charges ?? 0;
+      const isLocked = !!status?.locked;
+      const charges = isLocked ? 0 : (status?.charges ?? 0);
 
-      record.glow.setVisible(charges > 0);
+      record.sprite.setAlpha(isLocked ? 0.4 : 1);
+      record.glow.setVisible(!isLocked && charges > 0);
       record.pips.forEach((pip, index) => {
-        pip.setVisible(!!status);
+        pip.setVisible(!!status && !isLocked);
         pip.setFillStyle(index < charges ? 0x22d3ee : 0x64748b, index < charges ? 0.95 : 0.4);
       });
     }
@@ -493,6 +535,7 @@ export class GameplayStage {
     let bestDistance = Infinity;
 
     for (const [id, record] of this.portals) {
+      if (this.attackerBuffer?.portals.some((p) => p.id === id && p.locked)) continue;
       const distance = Phaser.Math.Distance.Between(x, y, record.sprite.x, record.sprite.y - 20);
       if (distance <= HIT_RADIUS && distance < bestDistance) {
         bestDistance = distance;
@@ -550,7 +593,18 @@ export class GameplayStage {
           new Phaser.Geom.Rectangle(0, 0, zoneWidth, zoneHeight),
           Phaser.Geom.Rectangle.Contains,
         );
-      deselectZone.on("pointerdown", () => this.clearSelection());
+      let deselectDownX = 0;
+      let deselectDownY = 0;
+      deselectZone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        deselectDownX = pointer.x;
+        deselectDownY = pointer.y;
+      });
+      deselectZone.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+        const dist = Math.hypot(pointer.x - deselectDownX, pointer.y - deselectDownY);
+        if (dist < 12 && !this.wasRecentlyDragged()) {
+          this.clearSelection();
+        }
+      });
       this.root.add(deselectZone);
     }
 
@@ -649,19 +703,20 @@ export class GameplayStage {
           baseSprite?.clearTint();
           this.hideGhostTower();
         });
-        placeholder.on(
-          "pointerdown",
-          (
-            _pointer: Phaser.Input.Pointer,
-            _localX: number,
-            _localY: number,
-            event: Phaser.Types.Input.EventData,
-          ) => {
-            this.scene.registry.set("ui:overTowerSlot", true);
-            event?.stopPropagation();
+        let slotDownX = 0;
+        let slotDownY = 0;
+        placeholder.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+          slotDownX = pointer.x;
+          slotDownY = pointer.y;
+          this.scene.registry.set("ui:overTowerSlot", true);
+        });
+        placeholder.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+          this.scene.registry.set("ui:overTowerSlot", false);
+          const dist = Math.hypot(pointer.x - slotDownX, pointer.y - slotDownY);
+          if (dist < 12 && !this.wasRecentlyDragged()) {
             this.handleSlotClick(slot);
-          },
-        );
+          }
+        });
       } else {
         placeholder.on("pointerover", () => {
           this.scene.registry.set("ui:overTowerSlot", true);
@@ -669,13 +724,6 @@ export class GameplayStage {
         placeholder.on("pointerout", () => {
           this.scene.registry.set("ui:overTowerSlot", false);
         });
-        placeholder.on(
-          "pointerdown",
-          (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
-            this.scene.registry.set("ui:overTowerSlot", true);
-            event?.stopPropagation();
-          },
-        );
       }
 
       this.root?.add(placeholder);
@@ -698,6 +746,7 @@ export class GameplayStage {
         .setOrigin(originX, originY)
         .setDisplaySize(baseWidth, baseHeight)
         .setDepth(DEPTH.BASE_LAYER);
+      this.baseSprite = baseSprite;
       this.root.add(baseSprite);
 
       // Floating HP bar above base
@@ -1579,6 +1628,7 @@ export class GameplayStage {
       design.id === "archer" ||
       design.id === "bomb" ||
       design.id === "spear" ||
+      design.id === "gun" ||
       design.id === "water_cannon" ||
       design.id === "chinthe" ||
       design.id === "dragon" ||
@@ -1592,15 +1642,17 @@ export class GameplayStage {
             ? "tower_bomb_sheet"
             : design.id === "spear"
               ? "tower_spear_sheet"
-              : design.id === "water_cannon"
-                ? "tower_water_cannon_sheet"
-                : design.id === "chinthe"
-                  ? "tower_chinthe_sheet"
-                  : design.id === "dragon"
-                    ? "tower_dragon_sheet"
-                    : design.id === "sein_pyaung"
-                      ? "tower_sein_pyaung_sheet"
-                      : "tower_bell_sheet";
+              : design.id === "gun"
+                ? "tower_gun_sheet"
+                : design.id === "water_cannon"
+                  ? "tower_water_cannon_sheet"
+                  : design.id === "chinthe"
+                    ? "tower_chinthe_sheet"
+                    : design.id === "dragon"
+                      ? "tower_dragon_sheet"
+                      : design.id === "sein_pyaung"
+                        ? "tower_sein_pyaung_sheet"
+                        : "tower_bell_sheet";
       const idleKey =
         design.id === "archer"
           ? "archer_idle"
@@ -1608,21 +1660,23 @@ export class GameplayStage {
             ? "bomb_idle"
             : design.id === "spear"
               ? "spear_idle"
-              : design.id === "water_cannon"
-                ? "water_cannon_idle_ne"
-                : design.id === "chinthe"
-                  ? "chinthe_idle_ne"
-                  : design.id === "dragon"
-                    ? "dragon_idle_ne"
-                    : design.id === "sein_pyaung"
-                      ? "sein_pyaung_idle_ne"
-                      : "bell_idle";
+              : design.id === "gun"
+                ? "gun_idle"
+                : design.id === "water_cannon"
+                  ? "water_cannon_idle_ne"
+                  : design.id === "chinthe"
+                    ? "chinthe_idle_ne"
+                    : design.id === "dragon"
+                      ? "dragon_idle_ne"
+                      : design.id === "sein_pyaung"
+                        ? "sein_pyaung_idle_ne"
+                        : "bell_idle";
       const holderScale = this.map.holderScale ?? 1.0;
       if (this.scene.textures.exists(sheetKey)) {
         sprite = this.scene.add
           .sprite(slot.x, slot.y, sheetKey, 0)
           .setOrigin(design.origin.x, design.origin.y)
-          .setScale((design.id === "dragon" ? 0.125 : 0.15) * holderScale)
+          .setScale((design.id === "dragon" ? 0.15 : 0.18) * holderScale)
           .setDisplaySize(design.displaySize.width * holderScale, design.displaySize.height * holderScale)
           .setDepth(actorDepth(slot.y));
         if (this.scene.anims.exists(idleKey)) {
@@ -1647,19 +1701,19 @@ export class GameplayStage {
     const levelBadge = this.createTowerLevelBadge(slot, tower.level);
 
     sprite.setInteractive({ useHandCursor: true });
-    sprite.on(
-      "pointerdown",
-      (
-        _pointer: Phaser.Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
-        event?.stopPropagation();
+    let towerDownX = 0;
+    let towerDownY = 0;
+    sprite.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      towerDownX = pointer.x;
+      towerDownY = pointer.y;
+    });
+    sprite.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+      const dist = Math.hypot(pointer.x - towerDownX, pointer.y - towerDownY);
+      if (dist < 12 && !this.wasRecentlyDragged()) {
         const record = this.towers.get(slot.slotIndex);
         if (record) this.selectTower(slot, record);
-      },
-    );
+      }
+    });
 
     this.towers.set(slot.slotIndex, { id, tower, sprite, levelBadge });
     this.towerLastCooldown.set(slot.slotIndex, tower.cooldown);
@@ -1733,6 +1787,9 @@ export class GameplayStage {
         mob.effects?.get(EFFECT_TYPES.armor_stack)?.magnitude ?? 0;
       const initialMental =
         mob.effects?.get(EFFECT_TYPES.mental_stack)?.magnitude ?? 0;
+      const initialCrush =
+        mob.effects?.get(EFFECT_TYPES.armor_crush)?.magnitude ?? 0;
+      const initialSilenced = mob.effects?.has(EFFECT_TYPES.silence) ?? false;
 
       const record: MobRecord = {
         id: String(key),
@@ -1744,6 +1801,10 @@ export class GameplayStage {
         hpFill,
         lastArmorStacks: initialArmor,
         lastMentalStacks: initialMental,
+        lastArmorCrush: initialCrush,
+        wasSilenced: initialSilenced,
+        burstBroken: false,
+        lastProgress: mob.progress ?? 0,
       };
       this.mobSprites.set(mob, record);
       this.mobsById.set(record.id, record);
@@ -1755,6 +1816,26 @@ export class GameplayStage {
     const onRemove = (value: unknown): void => {
       const record = this.mobSprites.get(value as Mob);
       if (!record) return;
+
+      const mob = value as Mob;
+      const progress = mob?.progress ?? record.lastProgress ?? 0;
+      const isBreach = progress >= 0.95;
+
+      if (isBreach) {
+        this.triggerBaseBreach();
+      } else {
+        const vfx = UnitAnimationManager.spawnMobDeathVfx(
+          this.scene,
+          record.sprite.x,
+          record.sprite.y,
+          record.typeId,
+        );
+        if (vfx) {
+          vfx.setDepth(DEPTH.PROJECTILES_LAYER + 0.5);
+          (this.actors ?? this.root)?.add(vfx);
+        }
+      }
+
       record.vfxSprites?.forEach((vfx) => vfx.destroy());
       record.vfxSprites?.clear();
       record.sprite.destroy();
@@ -1790,6 +1871,45 @@ export class GameplayStage {
           for (const targetId of payload.targetIds) {
             const target = this.mobsById.get(targetId);
             if (!target) continue;
+
+            const container = this.actors ?? this.root;
+            if (
+              container &&
+              (payload.abilityType === "heal_aura" ||
+                payload.abilityType === "self_heal")
+            ) {
+              const amount =
+                payload.healedAmounts?.[targetId] ??
+                payload.healAmount ??
+                (payload.abilityType === "heal_aura" ? 80 : 46);
+              if (amount > 0) {
+                FloatingCombatTextManager.spawnHeal(
+                  this.scene,
+                  container,
+                  target.sprite.x,
+                  target.sprite.y,
+                  amount,
+                );
+              } else {
+                FloatingCombatTextManager.spawnStatus(
+                  this.scene,
+                  container,
+                  target.sprite.x,
+                  target.sprite.y,
+                  "status_exhausted",
+                  "EXHAUSTED",
+                );
+              }
+            } else if (container && payload.abilityType === "speed_aura") {
+              FloatingCombatTextManager.spawnStatus(
+                this.scene,
+                container,
+                target.sprite.x,
+                target.sprite.y,
+                "status_speed_burst",
+                "SPEED BOOST!",
+              );
+            }
 
             const vfx =
               payload.abilityType === "heal_aura"
@@ -1902,6 +2022,65 @@ export class GameplayStage {
       },
     );
     this.unsubscribers.push(offDeathExplosion);
+
+    const offGunBountyProc = this.room.onMessage(
+      MESSAGES.gunBountyProc,
+      (payload: GunBountyProcPayload) => {
+        if (this.destroyed) return;
+
+        const center = this.getMobSpriteCenter(payload.mobId);
+        const target = this.mobsById.get(payload.mobId);
+        const x = center ? center.x : (target ? target.x : payload.x);
+        const y = center ? center.y : (target ? target.y : payload.y);
+
+        const vfx = TowerAnimationManager.spawnGunBountyProcVfx(
+          this.scene,
+          x,
+          y,
+        );
+        if (vfx) {
+          vfx.setDepth(actorDepth(y) + 0.0006);
+          (this.actors ?? this.root)?.add(vfx);
+        }
+
+        const container = this.actors ?? this.root;
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            x,
+            y - 12,
+            "status_bounty",
+            `+${payload.bonusGold} GOLD`,
+          );
+        }
+      },
+    );
+    this.unsubscribers.push(offGunBountyProc);
+
+    const offCombatDamage = this.room.onMessage(
+      MESSAGES.combatDamage,
+      (payload: CombatDamagePayload) => {
+        if (this.destroyed) return;
+
+        const target = this.mobsById.get(payload.mobId);
+        const x = target ? target.sprite.x : payload.x;
+        const y = target ? target.sprite.y : payload.y;
+        const container = this.actors ?? this.root;
+        if (container) {
+          FloatingCombatTextManager.spawnDamage(
+            this.scene,
+            container,
+            x,
+            y,
+            payload.damage,
+            payload.damageType,
+            payload.isCrit,
+          );
+        }
+      },
+    );
+    this.unsubscribers.push(offCombatDamage);
   }
 
   /** Per-frame pass repositioning every tracked mob sprite and its health bar. */
@@ -1927,6 +2106,18 @@ export class GameplayStage {
     vfx.setDepth(record.sprite.depth + 0.0001);
     (this.actors ?? this.root)?.add(vfx);
     record.stunVfx = vfx;
+
+    const container = this.actors ?? this.root;
+    if (container) {
+      FloatingCombatTextManager.spawnStatus(
+        this.scene,
+        container,
+        record.sprite.x,
+        record.sprite.y - 45,
+        "status_stun",
+        "STUNNED!",
+      );
+    }
 
     vfx.once(Phaser.GameObjects.Events.DESTROY, () => {
       if (record.stunVfx === vfx) {
@@ -1968,7 +2159,12 @@ export class GameplayStage {
         }
       }
       const design = getTowerDesign(record.tower.typeId);
-      if (design.id === "archer" || design.id === "bomb" || design.id === "spear") {
+      if (
+        design.id === "archer" ||
+        design.id === "bomb" ||
+        design.id === "spear" ||
+        design.id === "gun"
+      ) {
         const sprite = record.sprite as Phaser.GameObjects.Sprite;
         const targetId = record.tower.targetId;
         let slotIndex = -1;
@@ -2200,6 +2396,17 @@ export class GameplayStage {
     record.sprite.setDepth(actorDepth(point.y));
     record.x = point.x;
     record.y = point.y;
+    record.lastProgress = mob.progress;
+
+    // Cache the mob sprite visual center for projectile homing and hit VFX
+    const originY = record.sprite.originY ?? 0.8;
+    const displayH = record.sprite.displayHeight || 64;
+    const centerY = point.y - (originY - 0.5) * displayH;
+    this.recentMobCenters.set(record.id, {
+      x: point.x,
+      y: centerY,
+      time: performance.now(),
+    });
 
     if (record.vfxSprites && record.vfxSprites.size > 0) {
       record.vfxSprites.forEach((vfx) => {
@@ -2213,7 +2420,9 @@ export class GameplayStage {
     // Status tint: a slowed mob reads cold blue, a cracked one violet.
     record.sprite.setTint(this.mobEffectTint(mob));
 
-    // Adaptive defense stack VFX for Belu Ogre
+    const container = this.actors ?? this.root;
+
+    // Adaptive defense stack VFX and status alert for Belu Ogre
     if (record.typeId === "belu") {
       const currentArmor =
         mob.effects?.get(EFFECT_TYPES.armor_stack)?.magnitude ?? 0;
@@ -2221,6 +2430,16 @@ export class GameplayStage {
         mob.effects?.get(EFFECT_TYPES.mental_stack)?.magnitude ?? 0;
 
       if (currentArmor > (record.lastArmorStacks ?? 0)) {
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            point.x,
+            point.y - 28,
+            "status_armor_stack",
+            `+ARMOR (${currentArmor})`,
+          );
+        }
         const vfx = UnitAnimationManager.spawnBeluArmorVfx(
           this.scene,
           point.x,
@@ -2240,6 +2459,16 @@ export class GameplayStage {
       }
 
       if (currentMental > (record.lastMentalStacks ?? 0)) {
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            point.x,
+            point.y - 28,
+            "status_mental_stack",
+            `+RESOLVE (${currentMental})`,
+          );
+        }
         const vfx = UnitAnimationManager.spawnBeluMentalVfx(
           this.scene,
           point.x,
@@ -2260,6 +2489,56 @@ export class GameplayStage {
 
       record.lastArmorStacks = currentArmor;
       record.lastMentalStacks = currentMental;
+    }
+
+    // Sein Pyaung Armor Crush alert
+    const currentCrush =
+      mob.effects?.get(EFFECT_TYPES.armor_crush)?.magnitude ?? 0;
+    if (currentCrush > (record.lastArmorCrush ?? 0)) {
+      if (container) {
+        FloatingCombatTextManager.spawnStatus(
+          this.scene,
+          container,
+          point.x,
+          point.y - 28,
+          "status_armor_crush",
+          "ARMOR CRUSH!",
+        );
+      }
+    }
+    record.lastArmorCrush = currentCrush;
+
+    // Chinthe Guardian Silence alert
+    const isSilenced = mob.effects?.has(EFFECT_TYPES.silence) ?? false;
+    if (isSilenced && !record.wasSilenced) {
+      if (container) {
+        FloatingCombatTextManager.spawnStatus(
+          this.scene,
+          container,
+          point.x,
+          point.y - 28,
+          "status_silence",
+          "SILENCED!",
+        );
+      }
+    }
+    record.wasSilenced = isSilenced;
+
+    // Monkey Burst of Speed drop alert upon taking first damage
+    if (record.typeId === "monkey") {
+      if (!record.burstBroken && mob.speed <= 50) {
+        record.burstBroken = true;
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            point.x,
+            point.y - 28,
+            "status_speed_broken",
+            "BURST BROKEN",
+          );
+        }
+      }
     }
 
     // Face the direction of travel (art is a side-view sprite, so flip, not rotate).
@@ -2417,6 +2696,20 @@ export class GameplayStage {
         } else {
           sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
         }
+      } else if (design.id === "gun") {
+        if (!this.scene.textures.exists("gun_vfx_sheet")) {
+          this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("gun_vfx_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "gun_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.06).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("gun_proj_anim")) {
+            this.scene.anims.create({ key: "gun_proj_anim", frames: this.scene.anims.generateFrameNumbers("gun_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+          }
+          sprite.play("gun_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
       } else {
         sprite = this.scene.add
           .sprite(projectile.x, projectile.y, textureKey)
@@ -2429,8 +2722,13 @@ export class GameplayStage {
         ? this.mobsById.get(projectile.targetId)
         : undefined;
       if (initialTarget) {
-        const idx = initialTarget.x - projectile.x;
-        const idy = initialTarget.y - projectile.y;
+        const center = !this.isAoETower(projectile.typeId)
+          ? this.getMobSpriteCenter(projectile.targetId)
+          : undefined;
+        const targetX = center ? center.x : initialTarget.x;
+        const targetY = center ? center.y : initialTarget.y;
+        const idx = targetX - projectile.x;
+        const idy = targetY - projectile.y;
         if (idx * idx + idy * idy > 0.01) {
           sprite.setRotation(Math.atan2(idy, idx));
         }
@@ -2446,13 +2744,20 @@ export class GameplayStage {
       if (!sprite) return;
       const design = getTowerDesign(projectile.typeId);
       soundEffects.playTowerImpact(design.id);
+
+      const isAoE = this.isAoETower(projectile.typeId);
+      const mobCenter = !isAoE ? this.getMobSpriteCenter(projectile.targetId) : undefined;
+      const hitX = mobCenter ? mobCenter.x : sprite.x;
+      const hitY = mobCenter ? mobCenter.y : sprite.y;
+      sprite.setPosition(hitX, hitY);
+
       if (design.id === "archer") {
         if (!this.scene.textures.exists("archer_vfx_sheet")) {
           this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("archer_vfx_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "archer_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "archer_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("archer_splash_anim")) {
             this.scene.anims.create({ key: "archer_splash_anim", frames: this.scene.anims.generateFrameNumbers("archer_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2466,7 +2771,7 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("bomb_vfx_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "bomb_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "bomb_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("bomb_splash_anim")) {
             this.scene.anims.create({ key: "bomb_splash_anim", frames: this.scene.anims.generateFrameNumbers("bomb_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2480,7 +2785,7 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("spear_vfx_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "spear_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "spear_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("spear_splash_anim")) {
             this.scene.anims.create({ key: "spear_splash_anim", frames: this.scene.anims.generateFrameNumbers("spear_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2494,7 +2799,7 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("water_splash_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "water_splash_sheet").setOrigin(0.5, 0.5).setScale(0.06).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "water_splash_sheet").setOrigin(0.5, 0.5).setScale(0.06).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("water_splash_anim")) {
             this.scene.anims.create({ key: "water_splash_anim", frames: this.scene.anims.generateFrameNumbers("water_splash_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2508,7 +2813,7 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("dragon_attack_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "dragon_attack_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "dragon_attack_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("dragon_splash_anim")) {
             this.scene.anims.create({ key: "dragon_splash_anim", frames: this.scene.anims.generateFrameNumbers("dragon_attack_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
@@ -2522,13 +2827,22 @@ export class GameplayStage {
           this.scene.load.start();
         }
         if (this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
-          const splash = this.scene.add.sprite(sprite.x, sprite.y, "sein_pyaung_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          const splash = this.scene.add.sprite(hitX, hitY, "sein_pyaung_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
           if (!this.scene.anims.exists("sein_pyaung_splash_anim")) {
-            this.scene.anims.create({ key: "sein_pyaung_splash_anim", frames: this.scene.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+            this.scene.anims.create({ key: "sein_pyaung_splash_anim", frames: this.scene.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 0, end: 3 }), frameRate: 15, repeat: 0 });
           }
           splash.play("sein_pyaung_splash_anim");
           splash.once("animationcomplete", () => splash.destroy());
           (this.root ?? this.actors)?.add(splash);
+        }
+      } else if (design.id === "gun") {
+        if (!this.scene.textures.exists("gun_vfx_sheet")) {
+          this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        const hit = TowerAnimationManager.spawnGunHitVfx(this.scene, hitX, hitY);
+        if (hit) {
+          (this.root ?? this.actors)?.add(hit);
         }
       }
       // chinthe: whole 8 frames is projectile animation as specified
@@ -2546,10 +2860,25 @@ export class GameplayStage {
     if (this.destroyed || this.projectileSprites.size === 0) return;
 
     this.projectileSprites.forEach((sprite, projectile) => {
-      const dx = projectile.x - sprite.x;
-      const dy = projectile.y - sprite.y;
+      let destX = projectile.x;
+      let destY = projectile.y;
+
+      const isAoE = this.isAoETower(projectile.typeId);
+      if (!isAoE && projectile.targetId) {
+        const center = this.getMobSpriteCenter(projectile.targetId);
+        if (center) {
+          const dist = Math.hypot(center.x - sprite.x, center.y - sprite.y);
+          if (dist < 45) {
+            destX = center.x;
+            destY = center.y;
+          }
+        }
+      }
+
+      const dx = destX - sprite.x;
+      const dy = destY - sprite.y;
       if (dx * dx + dy * dy > 0.01) sprite.setRotation(Math.atan2(dy, dx));
-      sprite.setPosition(projectile.x, projectile.y);
+      sprite.setPosition(destX, destY);
     });
   }
 
@@ -2578,6 +2907,62 @@ export class GameplayStage {
       ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xf59e0b : 0xef4444,
     );
     this.baseHpText?.setText(`BASE CASTLE: ${coreHp}/${max} HP`);
+
+    if (this.lastCoreHp !== undefined && coreHp < this.lastCoreHp) {
+      const lostHp = this.lastCoreHp - coreHp;
+      this.triggerBaseBreach(lostHp);
+    }
+    this.lastCoreHp = coreHp;
+  }
+
+  /**
+   * Triggers visual and camera impact feedback when the defender's base castle is breached.
+   */
+  private triggerBaseBreach(lostHp?: number): void {
+    if (!this.map.base) return;
+    const now = performance.now();
+    // Throttle multiple simultaneous breach animations within 180ms
+    if (now - this.lastBreachVfxTime < 180) return;
+    this.lastBreachVfxTime = now;
+
+    const baseX = this.map.base.x;
+    const baseY = this.map.base.y;
+
+    const vfx = UnitAnimationManager.spawnBaseBreachVfx(
+      this.scene,
+      baseX,
+      baseY,
+    );
+    if (vfx) {
+      vfx.setDepth(DEPTH.PROJECTILES_LAYER + 2);
+      (this.actors ?? this.root)?.add(vfx);
+    }
+
+    // Impact punch: camera shake and base castle flash
+    const shakeIntensity = lostHp
+      ? Math.min(0.015, 0.006 + lostHp * 0.001)
+      : 0.007;
+    this.scene.cameras.main.shake(160, shakeIntensity);
+    if (this.baseSprite) {
+      this.baseSprite.setTint(0xff5555);
+      this.scene.time.delayedCall(150, () => {
+        this.baseSprite?.clearTint();
+      });
+    }
+
+    if (lostHp && lostHp > 0) {
+      const container = this.actors ?? this.root;
+      if (container) {
+        FloatingCombatTextManager.spawnStatus(
+          this.scene,
+          container,
+          baseX,
+          baseY - 40,
+          "status_breach",
+          `-${lostHp} HP`,
+        );
+      }
+    }
   }
 
   /** Resolves a mob's `pathId` against the map's tracks. */
@@ -2586,181 +2971,326 @@ export class GameplayStage {
   }
 
   /**
-   * Clamps camera scroll position so visible bounds remain within the 1280x720 map.
+   * Resolves the visual center coordinates of a mob sprite.
+   * If the mob was recently destroyed, checks the recent mob centers cache.
+   */
+  private getMobSpriteCenter(mobId?: string): { x: number; y: number } | undefined {
+    if (!mobId) return undefined;
+    const record = this.mobsById.get(mobId);
+    if (record?.sprite?.active) {
+      const originY = record.sprite.originY ?? 0.8;
+      const displayH = record.sprite.displayHeight || 64;
+      return { x: record.sprite.x, y: record.sprite.y - (originY - 0.5) * displayH };
+    }
+    const cached = this.recentMobCenters.get(mobId);
+    if (cached) return { x: cached.x, y: cached.y };
+    return undefined;
+  }
+
+  /**
+   * Returns true if the tower deals area-of-effect or ground splash damage rather than direct mob targeting.
+   */
+  private isAoETower(towerId: string): boolean {
+    if (
+      towerId === "bomb" ||
+      towerId === "sein_pyaung" ||
+      towerId === "cannon" ||
+      towerId === "water_cannon" ||
+      towerId === "bell"
+    ) {
+      return true;
+    }
+    const type = TOWER_TYPES[towerId];
+    return (type?.splashRadius ?? 0) > 0 || type?.attackMode === "aoe_pulse";
+  }
+
+  /**
+   * Clamps camera scroll position so visible bounds remain within the map.
+   * If visible world exceeds map bounds (e.g. at low zoom), centers the map.
    */
   private clampCameraScroll(): void {
     const cam = this.scene.cameras.main;
-    const halfW = (cam.width / 2) / cam.zoom;
-    const halfH = (cam.height / 2) / cam.zoom;
+    const visibleW = cam.width / cam.zoom;
+    const visibleH = cam.height / cam.zoom;
+    const mapW = this.map.width || 1280;
+    const mapH = this.map.height || 720;
 
-    const minX = Math.min(0, halfW - cam.width / 2);
-    const maxX = Math.max(0, 1280 - halfW - cam.width / 2);
-    const minY = Math.min(0, halfH - cam.height / 2);
-    const maxY = Math.max(0, 720 - halfH - cam.height / 2);
-
-    if (minX <= maxX) {
-      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, minX, maxX);
+    if (visibleW >= mapW) {
+      cam.scrollX = (mapW - cam.width) / 2;
     } else {
-      cam.scrollX = 0;
+      const minScrollX = visibleW / 2 - cam.width / 2;
+      const maxScrollX = (mapW - visibleW / 2) - cam.width / 2;
+      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, minScrollX, maxScrollX);
     }
 
-    if (minY <= maxY) {
-      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, minY, maxY);
+    if (visibleH >= mapH) {
+      cam.scrollY = (mapH - cam.height) / 2;
     } else {
-      cam.scrollY = 0;
+      const minScrollY = visibleH / 2 - cam.height / 2;
+      const maxScrollY = (mapH - visibleH / 2) - cam.height / 2;
+      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, minScrollY, maxScrollY);
     }
   }
 
   /**
-   * Initializes drag & pan camera controls with pinch-to-zoom, boundary clamping, and momentum friction.
-   *
-   * @remarks The pan is driven by the primary mouse button (or a finger): press
-   * and drag to move the camera, and the map follows the pointer. A short
-   * movement threshold separates a tap from a drag, so clicking a tower still
-   * selects it instead of nudging the camera.
+   * Returns all pointers currently touching the canvas.
+   */
+  private getActivePointers(): Phaser.Input.Pointer[] {
+    const input = this.scene.input;
+    const active: Phaser.Input.Pointer[] = [];
+    if (input.pointer1?.isDown) active.push(input.pointer1);
+    if (input.pointer2?.isDown) active.push(input.pointer2);
+    if (input.pointer3?.isDown) active.push(input.pointer3);
+    if (input.mousePointer?.isDown && !active.includes(input.mousePointer)) {
+      active.push(input.mousePointer);
+    }
+    return active;
+  }
+
+  /**
+   * Returns true if the camera was dragged or pinched recently (within 150ms),
+   * preventing child game objects from misinterpreting a drag release as a tap.
+   */
+  public wasRecentlyDragged(): boolean {
+    return this.dragActive || (performance.now() - this.lastDragEndTime < 150);
+  }
+
+  /**
+   * Initializes drag & pan camera controls with focal pinch-to-zoom,
+   * smooth dual-pan, boundary clamping, and momentum friction.
    */
   private setupCameraControls(): void {
     const cam = this.scene.cameras.main;
-    this.scene.input.addPointer(2);
+    // Support up to 4 simultaneous touch pointers
+    this.scene.input.addPointer(3);
 
     let lastTapTime = 0;
     let lastTapX = 0;
     let lastTapY = 0;
 
     this.onCameraPointerDown = (pointer: Phaser.Input.Pointer) => {
-      const p1 = this.scene.input.pointer1;
-      const p2 = this.scene.input.pointer2;
-
-      // Two fingers down: initiate pinch-to-zoom gesture
-      if (p1.isDown && p2.isDown) {
-        this.isPinching = true;
-        this.isDragging = false;
-        this.dragActive = false;
-        this.initialPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-        this.initialZoom = cam.zoom;
-        this.cameraVelocityX = 0;
-        this.cameraVelocityY = 0;
-        return;
-      }
-
-      // Only the primary button pans the camera.
-      if (!pointer.primaryDown) return;
-
-      // Double-tap battlefield check (ignoring taps on tower slots)
-      if (!this.scene.registry.get("ui:overTowerSlot")) {
-        const now = Date.now();
-        const dt = now - lastTapTime;
-        const dist = Math.hypot(pointer.x - lastTapX, pointer.y - lastTapY);
-        if (dt > 40 && dt < 350 && dist < 30) {
-          this.scene.game?.events.emit("toggle-ui");
-          lastTapTime = 0;
-        } else {
-          lastTapTime = now;
-          lastTapX = pointer.x;
-          lastTapY = pointer.y;
-        }
-      }
-
-      this.isDragging = true;
-      this.dragActive = false;
-      this.dragOriginX = pointer.x;
-      this.dragOriginY = pointer.y;
-      this.lastPointerX = pointer.x;
-      this.lastPointerY = pointer.y;
+      // Touching the canvas immediately halts any ongoing momentum glide
       this.cameraVelocityX = 0;
       this.cameraVelocityY = 0;
-    };
 
-    this.onCameraPointerMove = (pointer: Phaser.Input.Pointer) => {
-      const p1 = this.scene.input.pointer1;
-      const p2 = this.scene.input.pointer2;
+      const active = this.getActivePointers();
 
-      // Handle two-finger pinch-to-zoom
-      if (p1.isDown && p2.isDown) {
-        if (!this.isPinching) {
-          // The pinch can start without a pointerdown event (a finger landing on
-          // a tower cancels it), so seed the gesture here instead.
-          this.isPinching = true;
-          this.isDragging = false;
-          this.dragActive = false;
-          this.initialPinchDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-          this.initialZoom = cam.zoom;
-          this.cameraVelocityX = 0;
-          this.cameraVelocityY = 0;
+      if (active.length >= 2) {
+        // Multi-touch: seed pinch-to-zoom and dual-pan gesture
+        this.isPinching = true;
+        this.isDragging = false;
+        this.dragActive = true;
+        const p1 = active[0];
+        const p2 = active[1];
+        this.lastPinchDistance = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        this.lastPinchMidX = (p1.x + p2.x) / 2;
+        this.lastPinchMidY = (p1.y + p2.y) / 2;
+      } else {
+        // Only the primary button pans the camera.
+        if (!pointer.primaryDown) return;
+
+        // Double-tap battlefield check (ignoring taps on tower slots)
+        if (!this.scene.registry.get("ui:overTowerSlot")) {
+          const now = Date.now();
+          const dt = now - lastTapTime;
+          const dist = Math.hypot(pointer.x - lastTapX, pointer.y - lastTapY);
+          if (dt > 40 && dt < 350 && dist < 30) {
+            this.scene.game?.events.emit("toggle-ui");
+            lastTapTime = 0;
+          } else {
+            lastTapTime = now;
+            lastTapX = pointer.x;
+            lastTapY = pointer.y;
+          }
         }
-        const currentDist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-        if (this.initialPinchDistance > 10) {
-          const factor = currentDist / this.initialPinchDistance;
-          const targetZoom = Phaser.Math.Clamp(this.initialZoom * factor, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
-          cam.setZoom(targetZoom);
-          this.clampCameraScroll();
-        }
-        return;
-      }
 
-      // A drag can start on a tower or a slot too: those objects cancel the
-      // scene's pointerdown event, so the press is picked up from the pointer's
-      // own state here.
-      if (!this.isDragging) {
-        if (!pointer.isDown || !pointer.primaryDown) return;
+        // Single-finger touch or mouse click
+        this.isPinching = false;
         this.isDragging = true;
         this.dragActive = false;
         this.dragOriginX = pointer.x;
         this.dragOriginY = pointer.y;
         this.lastPointerX = pointer.x;
         this.lastPointerY = pointer.y;
-        this.cameraVelocityX = 0;
-        this.cameraVelocityY = 0;
+        this.lastPointerTime = performance.now();
       }
+    };
 
-      if (this.isPinching || !pointer.isDown) return;
+    this.onCameraPointerMove = (_pointer: Phaser.Input.Pointer) => {
+      const active = this.getActivePointers();
 
-      // A tap must stay a tap: the camera only starts panning once the pointer
-      // has travelled past the threshold.
-      if (!this.dragActive) {
-        const travelX = pointer.x - this.dragOriginX;
-        const travelY = pointer.y - this.dragOriginY;
-        if (Math.hypot(travelX, travelY) < CAMERA_DRAG_THRESHOLD) {
-          this.lastPointerX = pointer.x;
-          this.lastPointerY = pointer.y;
+      // ─── 1. Two-finger pinch-to-zoom & dual-pan ───
+      if (active.length >= 2) {
+        const p1 = active[0];
+        const p2 = active[1];
+        const currentDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        const currentMidX = (p1.x + p2.x) / 2;
+        const currentMidY = (p1.y + p2.y) / 2;
+
+        if (!this.isPinching) {
+          this.isPinching = true;
+          this.isDragging = false;
+          this.dragActive = true;
+          this.lastPinchDistance = currentDist;
+          this.lastPinchMidX = currentMidX;
+          this.lastPinchMidY = currentMidY;
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
           return;
         }
-        this.dragActive = true;
-        this.lastPointerX = pointer.x;
-        this.lastPointerY = pointer.y;
+
+        // Two-finger pan: camera follows the movement of the fingers' centroid
+        const midDx = currentMidX - this.lastPinchMidX;
+        const midDy = currentMidY - this.lastPinchMidY;
+        cam.scrollX -= midDx / cam.zoom;
+        cam.scrollY -= midDy / cam.zoom;
+
+        // Focal pinch zoom: zooms around the midpoint between the fingers
+        if (this.lastPinchDistance > 10 && currentDist > 10) {
+          const zoomRatio = currentDist / this.lastPinchDistance;
+          const targetZoom = Phaser.Math.Clamp(cam.zoom * zoomRatio, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
+          if (Math.abs(targetZoom - cam.zoom) > 0.0001) {
+            const worldBefore = cam.getWorldPoint(currentMidX, currentMidY);
+            cam.setZoom(targetZoom);
+            const worldAfter = cam.getWorldPoint(currentMidX, currentMidY);
+            cam.scrollX += (worldBefore.x - worldAfter.x);
+            cam.scrollY += (worldBefore.y - worldAfter.y);
+          }
+          this.lastPinchDistance = currentDist;
+        }
+
+        this.lastPinchMidX = currentMidX;
+        this.lastPinchMidY = currentMidY;
+        this.clampCameraScroll();
         return;
       }
 
-      const dx = pointer.x - this.lastPointerX;
-      const dy = pointer.y - this.lastPointerY;
+      // ─── 2. Single-finger pan ───
+      if (active.length === 1) {
+        const activePointer = active[0];
 
-      cam.scrollX -= dx / cam.zoom;
-      cam.scrollY -= dy / cam.zoom;
-      this.clampCameraScroll();
+        // Transition from 2 fingers to 1 finger: seamless handoff without velocity jump
+        if (this.isPinching) {
+          this.isPinching = false;
+          this.isDragging = true;
+          this.dragActive = true;
+          this.lastPointerX = activePointer.x;
+          this.lastPointerY = activePointer.y;
+          this.lastPointerTime = performance.now();
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
+          return;
+        }
 
-      this.cameraVelocityX = -dx / cam.zoom;
-      this.cameraVelocityY = -dy / cam.zoom;
-      this.lastPointerX = pointer.x;
-      this.lastPointerY = pointer.y;
+        if (!this.isDragging) {
+          this.isDragging = true;
+          this.dragActive = false;
+          this.dragOriginX = activePointer.x;
+          this.dragOriginY = activePointer.y;
+          this.lastPointerX = activePointer.x;
+          this.lastPointerY = activePointer.y;
+          this.lastPointerTime = performance.now();
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
+          return;
+        }
+
+        // Tap threshold: only start panning once movement exceeds threshold
+        if (!this.dragActive) {
+          const travel = Math.hypot(activePointer.x - this.dragOriginX, activePointer.y - this.dragOriginY);
+          if (travel < CAMERA_DRAG_THRESHOLD) {
+            this.lastPointerX = activePointer.x;
+            this.lastPointerY = activePointer.y;
+            this.lastPointerTime = performance.now();
+            return;
+          }
+          this.dragActive = true;
+          this.lastPointerX = activePointer.x;
+          this.lastPointerY = activePointer.y;
+          this.lastPointerTime = performance.now();
+          return;
+        }
+
+        // Active camera drag
+        const dx = activePointer.x - this.lastPointerX;
+        const dy = activePointer.y - this.lastPointerY;
+        const now = performance.now();
+
+        cam.scrollX -= dx / cam.zoom;
+        cam.scrollY -= dy / cam.zoom;
+        this.clampCameraScroll();
+
+        // Smoothed velocity using exponential moving average
+        const instantVx = -dx / cam.zoom;
+        const instantVy = -dy / cam.zoom;
+        this.cameraVelocityX = this.cameraVelocityX * 0.3 + instantVx * 0.7;
+        this.cameraVelocityY = this.cameraVelocityY * 0.3 + instantVy * 0.7;
+
+        this.lastPointerX = activePointer.x;
+        this.lastPointerY = activePointer.y;
+        this.lastPointerTime = now;
+      }
     };
 
     this.onCameraPointerUp = () => {
-      const p1 = this.scene.input.pointer1;
-      const p2 = this.scene.input.pointer2;
+      const active = this.getActivePointers();
 
-      if (!p1.isDown || !p2.isDown) {
-        this.isPinching = false;
-        this.initialPinchDistance = 0;
+      if (this.isPinching) {
+        if (active.length < 2) {
+          this.isPinching = false;
+          this.lastPinchDistance = 0;
+          if (active.length === 1) {
+            // 1 finger still touching: seamless transition to drag
+            this.isDragging = true;
+            this.dragActive = true;
+            this.lastPointerX = active[0].x;
+            this.lastPointerY = active[0].y;
+            this.lastPointerTime = performance.now();
+            this.cameraVelocityX = 0;
+            this.cameraVelocityY = 0;
+            return;
+          }
+        }
       }
 
-      this.isDragging = false;
-      this.dragActive = false;
+      if (active.length === 0) {
+        if (this.dragActive) {
+          this.lastDragEndTime = performance.now();
+          // If the finger was held still before lifting (>90ms), suppress momentum
+          if (performance.now() - this.lastPointerTime > 90) {
+            this.cameraVelocityX = 0;
+            this.cameraVelocityY = 0;
+          } else {
+            // Clamp maximum flick speed
+            const maxFlick = 28;
+            this.cameraVelocityX = Phaser.Math.Clamp(this.cameraVelocityX, -maxFlick, maxFlick);
+            this.cameraVelocityY = Phaser.Math.Clamp(this.cameraVelocityY, -maxFlick, maxFlick);
+          }
+        } else {
+          this.cameraVelocityX = 0;
+          this.cameraVelocityY = 0;
+        }
+
+        this.isDragging = false;
+        this.isPinching = false;
+        // Keep dragActive briefly true so concurrent pointerup handlers on game objects know a drag occurred
+        setTimeout(() => {
+          this.dragActive = false;
+        }, 50);
+      }
     };
 
-    this.onCameraWheel = (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
-      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
-      cam.setZoom(newZoom);
-      this.clampCameraScroll();
+    this.onCameraWheel = (pointer: Phaser.Input.Pointer, _gameObjects: any, _deltaX: number, deltaY: number) => {
+      const zoomFactor = deltaY > 0 ? 0.92 : 1.08;
+      const targetZoom = Phaser.Math.Clamp(cam.zoom * zoomFactor, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
+      if (Math.abs(targetZoom - cam.zoom) > 0.0001) {
+        const worldBefore = cam.getWorldPoint(pointer.x, pointer.y);
+        cam.setZoom(targetZoom);
+        const worldAfter = cam.getWorldPoint(pointer.x, pointer.y);
+        cam.scrollX += (worldBefore.x - worldAfter.x);
+        cam.scrollY += (worldBefore.y - worldAfter.y);
+        this.clampCameraScroll();
+      }
     };
 
     this.scene.input.on("pointerdown", this.onCameraPointerDown);
@@ -2770,14 +3300,13 @@ export class GameplayStage {
   }
 
   /**
-   * Per-frame update for camera glide physics (friction: 0.1 decay).
+   * Per-frame update for camera glide physics with framerate-independent friction decay.
    */
-  update(_time: number, _delta: number): void {
-    // The pointer can be released without a pointerup event reaching the scene
-    // (a tower cancels it), so the drag is also closed from the pointer state.
-    if (this.isDragging && !this.scene.input.pointer1.isDown) {
+  update(_time: number, delta: number): void {
+    const active = this.getActivePointers();
+    if (this.isDragging && active.length === 0) {
       this.isDragging = false;
-      this.dragActive = false;
+      this.isPinching = false;
     }
 
     if (!this.isDragging && !this.isPinching && (Math.abs(this.cameraVelocityX) > 0.05 || Math.abs(this.cameraVelocityY) > 0.05)) {
@@ -2785,8 +3314,14 @@ export class GameplayStage {
       cam.scrollX += this.cameraVelocityX;
       cam.scrollY += this.cameraVelocityY;
       this.clampCameraScroll();
-      this.cameraVelocityX *= 0.9; // friction 0.1 decay factor
-      this.cameraVelocityY *= 0.9;
+
+      // Framerate-independent exponential decay (0.92 at 60fps)
+      const friction = Math.pow(0.92, (delta || 16.667) / 16.667);
+      this.cameraVelocityX *= friction;
+      this.cameraVelocityY *= friction;
+
+      if (Math.abs(this.cameraVelocityX) <= 0.05) this.cameraVelocityX = 0;
+      if (Math.abs(this.cameraVelocityY) <= 0.05) this.cameraVelocityY = 0;
     }
   }
 

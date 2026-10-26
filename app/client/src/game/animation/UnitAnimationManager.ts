@@ -276,6 +276,10 @@ export const BELU_MENTAL_VFX_ANIM_KEY = "vfx_belu_mental";
 export const SONE_MA_SKILL_VFX_SHEET_KEY = "vfx_sone_ma_skill_sheet";
 export const SONE_MA_TRIGGER_VFX_ANIM_KEY = "vfx_sone_ma_trigger";
 export const SONE_MA_STUN_VFX_ANIM_KEY = "vfx_sone_ma_stun_loop";
+export const MOB_DEATH_VFX_SHEET_KEY = "vfx_mob_death_sheet";
+export const MOB_DEATH_VFX_ANIM_KEY = "vfx_mob_death";
+export const BASE_BREACH_VFX_SHEET_KEY = "vfx_base_breach_sheet";
+export const BASE_BREACH_VFX_ANIM_KEY = "vfx_base_breach";
 
 /**
  * Manages loading, pinpointing, slicing, and animating unit spritesheets.
@@ -359,6 +363,30 @@ export class UnitAnimationManager {
       scene.load.spritesheet(
         SONE_MA_SKILL_VFX_SHEET_KEY,
         "/assets/units/SoneMa/skill_vfx.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
+    // Preload mob death VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(MOB_DEATH_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        MOB_DEATH_VFX_SHEET_KEY,
+        "/assets/vfx/mob_death.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
+    // Preload base breach VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(BASE_BREACH_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        BASE_BREACH_VFX_SHEET_KEY,
+        "/assets/vfx/base_breach.png",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -542,6 +570,42 @@ export class UnitAnimationManager {
           }),
           frameRate: 8,
           repeat: -1,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(MOB_DEATH_VFX_SHEET_KEY) &&
+      !scene.anims.exists(MOB_DEATH_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(MOB_DEATH_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: MOB_DEATH_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(MOB_DEATH_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(7, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 14,
+          repeat: 0,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(BASE_BREACH_VFX_SHEET_KEY) &&
+      !scene.anims.exists(BASE_BREACH_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(BASE_BREACH_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: BASE_BREACH_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(BASE_BREACH_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(6, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 14,
+          repeat: 0,
         });
       }
     }
@@ -795,5 +859,99 @@ export class UnitAnimationManager {
     }
 
     return sprite;
+  }
+
+  /**
+   * Spawns a one-shot mob death VFX sprite at (x, y) that destroys itself when finished.
+   */
+  static spawnMobDeathVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    typeId?: string,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (!scene.textures.exists(MOB_DEATH_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        MOB_DEATH_VFX_SHEET_KEY,
+        "/assets/vfx/mob_death.png",
+        { frameWidth: 688, frameHeight: 768 },
+      );
+      scene.load.start();
+    }
+    if (!scene.textures.exists(MOB_DEATH_VFX_SHEET_KEY)) return undefined;
+
+    if (!scene.anims.exists(MOB_DEATH_VFX_ANIM_KEY)) {
+      scene.anims.create({
+        key: MOB_DEATH_VFX_ANIM_KEY,
+        frames: scene.anims.generateFrameNumbers(MOB_DEATH_VFX_SHEET_KEY, {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 14,
+        repeat: 0,
+      });
+    }
+
+    const isHeavy =
+      typeId === "elephant_rider" ||
+      typeId === "belu" ||
+      typeId === "brute" ||
+      typeId === "general";
+    const scale = isHeavy ? 0.16 : 0.12;
+
+    const vfx = scene.add
+      .sprite(x, y, MOB_DEATH_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.72)
+      .setScale(scale);
+
+    vfx.play(MOB_DEATH_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${MOB_DEATH_VFX_ANIM_KEY}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
+  }
+
+  /**
+   * Spawns a one-shot base breach impact VFX sprite on the citadel base at (x, y).
+   */
+  static spawnBaseBreachVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (!scene.textures.exists(BASE_BREACH_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        BASE_BREACH_VFX_SHEET_KEY,
+        "/assets/vfx/base_breach.png",
+        { frameWidth: 688, frameHeight: 768 },
+      );
+      scene.load.start();
+    }
+    if (!scene.textures.exists(BASE_BREACH_VFX_SHEET_KEY)) return undefined;
+
+    if (!scene.anims.exists(BASE_BREACH_VFX_ANIM_KEY)) {
+      scene.anims.create({
+        key: BASE_BREACH_VFX_ANIM_KEY,
+        frames: scene.anims.generateFrameNumbers(BASE_BREACH_VFX_SHEET_KEY, {
+          start: 0,
+          end: 6,
+        }),
+        frameRate: 14,
+        repeat: 0,
+      });
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, BASE_BREACH_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.55)
+      .setScale(0.14);
+
+    vfx.play(BASE_BREACH_VFX_ANIM_KEY);
+    vfx.once(`animationcomplete-${BASE_BREACH_VFX_ANIM_KEY}`, () => {
+      vfx.destroy();
+    });
+
+    return vfx;
   }
 }

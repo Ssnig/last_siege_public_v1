@@ -28,12 +28,16 @@ export interface EconomyConfig {
   /** Passive base gold per second the defender accrues during combat. */
   defenderBaseIncome: number;
   /**
-   * Gold per second each deployed unit pays the attacker while it is still on
-   * the field, scaled by that unit's gold cost.
+   * Fraction of deployed unit gold cost added permanently to attacker income rate.
    */
-  attackerUnitIncomeRate: number;
-  /** Path progress (0..1) a unit must pass before it starts paying income. */
-  attackerUnitIncomeThreshold: number;
+  attackerIncomeGainRate: number;
+  /**
+   * Gold per second each deployed unit pays the attacker while it is still on
+   * the field, scaled by that unit's gold cost (deprecated).
+   */
+  attackerUnitIncomeRate?: number;
+  /** Path progress (0..1) a unit must pass before it starts paying income (deprecated). */
+  attackerUnitIncomeThreshold?: number;
   /** Fraction of mob bounty refunded to defender when a mob leaks into the core. */
   leakPityRate: number;
   /**
@@ -52,10 +56,14 @@ export interface EconomyConfig {
 export interface DeployRules {
   /** Maximum units the deploy buffer can hold at once. */
   maxBufferUnits: number;
-  /** Charges a portal starts combat with and can regen back up to. */
+  /** Charges a portal can regen back up to. */
   portalMaxCharges: number;
+  /** Initial charges a portal has when unlocked. */
+  portalInitialCharges: number;
   /** Seconds to regen one portal charge. */
   portalChargeSec: number;
+  /** Seconds elapsed into combat before each portal index unlocks ([0, 50, 100]). */
+  portalUnlockScheduleSec: number[];
   /** Seconds between consecutive units streaming out of a portal on deploy. */
   staggerSec: number;
 }
