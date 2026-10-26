@@ -1815,15 +1815,27 @@ export class GameplayStage {
                 payload.abilityType === "self_heal")
             ) {
               const amount =
+                payload.healedAmounts?.[targetId] ??
                 payload.healAmount ??
                 (payload.abilityType === "heal_aura" ? 80 : 46);
-              FloatingCombatTextManager.spawnHeal(
-                this.scene,
-                container,
-                target.sprite.x,
-                target.sprite.y,
-                amount,
-              );
+              if (amount > 0) {
+                FloatingCombatTextManager.spawnHeal(
+                  this.scene,
+                  container,
+                  target.sprite.x,
+                  target.sprite.y,
+                  amount,
+                );
+              } else {
+                FloatingCombatTextManager.spawnStatus(
+                  this.scene,
+                  container,
+                  target.sprite.x,
+                  target.sprite.y,
+                  "status_exhausted",
+                  "EXHAUSTED",
+                );
+              }
             } else if (container && payload.abilityType === "speed_aura") {
               FloatingCombatTextManager.spawnStatus(
                 this.scene,

@@ -9,7 +9,8 @@ export type StatusAlertVariant =
   | "status_speed_burst"
   | "status_speed_broken"
   | "status_drench"
-  | "status_bleed";
+  | "status_bleed"
+  | "status_exhausted";
 
 interface TextStyleConfig {
   color: string;
@@ -125,6 +126,14 @@ const STYLES: Record<
     fontSize: "11px",
     fontStyle: "bold",
     defaultText: "BLEED!",
+  },
+  status_exhausted: {
+    color: "#f87171",
+    stroke: "#450a0a",
+    strokeThickness: 3,
+    fontSize: "11px",
+    fontStyle: "bold",
+    defaultText: "EXHAUSTED",
   },
 };
 

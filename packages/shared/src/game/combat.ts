@@ -59,6 +59,8 @@ export const EFFECT_TYPES = {
   silence: "silence",
   /** Physical armor stripped from heavy mortar shells (e.g. Sein Pyaung). Magnitude is flat armor stripped. */
   armor_crush: "armor_crush",
+  /** Heal exhaustion stacks from repeated healing (e.g. Say Sayar). Magnitude is stack count (1..5). Reduces incoming healing. */
+  heal_exhaustion: "heal_exhaustion",
 } as const;
 
 /** A status effect type on a mob. */
@@ -77,6 +79,7 @@ export const EFFECT_DURATION_SEC: Record<EffectType, number> = {
   drench: 2.5,
   silence: 2.0,
   armor_crush: 9999,
+  heal_exhaustion: 9999,
 };
 
 /**
@@ -173,8 +176,33 @@ export function combineEffectMagnitude(current: number, incoming: number): numbe
   return Math.max(current, incoming);
 }
 
-/** Hard minimum speed floor as a fraction of base speed to prevent perma-freeze (35%). */
-export const MIN_SPEED_FRACTION = 0.35;
+/** Hard minimum speed floor as a fraction of base speed to prevent perma-freeze (40%). */
+export const MIN_SPEED_FRACTION = 0.40;
+
+/**
+ * Calculates the incoming heal multiplier based on heal exhaustion stacks.
+ *
+ * @param stacks - Number of previous heal stacks on the target (0..5+).
+ * @returns Multiplier for incoming heal amount (1.0 down to 0.0).
+ *
+ * @remarks
+ * Anti-heal-spam diminishing returns:
+ * - 0 stacks: 100% healing (1.0)
+ * - 1 stack:  90% healing (0.9)
+ * - 2 stacks: 70% healing (0.7)
+ * - 3 stacks: 40% healing (0.4)
+ * - 4 stacks: 20% healing (0.2)
+ * - 5+ stacks: 0% healing (0.0)
+ */
+export function healMultiplierForStacks(stacks: number): number {
+  const s = Math.max(0, Math.floor(stacks));
+  if (s <= 0) return 1.0;
+  if (s === 1) return 0.9;
+  if (s === 2) return 0.7;
+  if (s === 3) return 0.4;
+  if (s === 4) return 0.2;
+  return 0.0;
+}
 
 /**
  * A mob's current speed, after every active slow and haste is applied.
@@ -185,7 +213,7 @@ export const MIN_SPEED_FRACTION = 0.35;
  * @returns The effective speed, never below MIN_SPEED_FRACTION * baseSpeed.
  *
  * @remarks The strongest slow and strongest haste each win rather than stacking
- * additively with weaker copies of themselves. A hard floor of 35% base speed
+ * additively with weaker copies of themselves. A hard floor of 40% base speed
  * prevents perma-freezing creeps.
  */
 export function effectiveSpeed(

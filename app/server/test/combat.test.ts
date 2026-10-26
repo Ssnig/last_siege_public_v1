@@ -10,6 +10,7 @@ import {
   effectiveSpeed,
   combineEffectMagnitude,
   MIN_SPEED_FRACTION,
+  healMultiplierForStacks,
   mobArmor,
   mobMentalStrength,
   DEFAULT_COMBAT_RULES,
@@ -51,17 +52,40 @@ describe("combat.ts damage channels", () => {
     assert.strictEqual(effectiveSpeed(100, []), 100, "no slow means the base speed");
     assert.strictEqual(effectiveSpeed(100, [0.2]), 80, "a 20% slow keeps 80% of the speed");
     assert.strictEqual(effectiveSpeed(100, [0.2, 0.5]), 50, "the heaviest slow wins");
+    // Placing 3 Tier 3 Bells (0.40 pulseSlow each) never stacks to 1.20 (0 speed / stun lock)
+    assert.strictEqual(
+      effectiveSpeed(100, [0.4, 0.4, 0.4]),
+      60,
+      "3 tier 3 bell towers slow by 40% without stacking additively into a stun lock",
+    );
     assert.strictEqual(
       effectiveSpeed(100, [1.5]),
       100 * MIN_SPEED_FRACTION,
-      "a slow beyond 100% clamps to the 35% speed floor",
+      "a slow beyond 100% clamps to the 40% speed floor",
     );
+    assert.strictEqual(MIN_SPEED_FRACTION, 0.40, "minimum speed floor is 40%");
   });
 
   it("haste boosts effective speed and the strongest haste wins", () => {
     assert.strictEqual(effectiveSpeed(100, [], [0.4]), 140, "a 40% haste boosts 100 to 140");
     assert.strictEqual(effectiveSpeed(100, [], [0.2, 0.4]), 140, "the strongest haste wins");
+    // Multiple Doe Pats casting speed aura (+0.40 haste) never stack into super-speed
+    assert.strictEqual(
+      effectiveSpeed(100, [], [0.4, 0.4, 0.4]),
+      140,
+      "multiple doe_pat speed boosts do not stack additively",
+    );
     assert.strictEqual(effectiveSpeed(100, [0.5], [0.4]), 70, "slow and haste combine multiplicatively");
+  });
+
+  it("reduces incoming healing according to heal exhaustion stacks", () => {
+    assert.strictEqual(healMultiplierForStacks(0), 1.0, "0 stacks = 100% healing");
+    assert.strictEqual(healMultiplierForStacks(1), 0.9, "1 stack = 90% healing (10% reduction)");
+    assert.strictEqual(healMultiplierForStacks(2), 0.7, "2 stacks = 70% healing (30% reduction)");
+    assert.strictEqual(healMultiplierForStacks(3), 0.4, "3 stacks = 40% healing (60% reduction)");
+    assert.strictEqual(healMultiplierForStacks(4), 0.2, "4 stacks = 20% healing (80% reduction)");
+    assert.strictEqual(healMultiplierForStacks(5), 0.0, "5 stacks = 0% healing (100% reduction)");
+    assert.strictEqual(healMultiplierForStacks(8), 0.0, "8 stacks = 0% healing");
   });
 
   it("a stronger effect never gets diluted by a weaker one", () => {

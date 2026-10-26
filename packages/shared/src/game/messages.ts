@@ -295,6 +295,8 @@ export interface MobAbilityPayload {
   targetIds: string[];
   /** Amount healed for heal_aura or self_heal casts. */
   healAmount?: number;
+  /** Specific amount healed per target mob, reflecting heal exhaustion stacks. */
+  healedAmounts?: Record<string, number>;
 }
 
 /** Payload of the `combat_damage` broadcast message. */

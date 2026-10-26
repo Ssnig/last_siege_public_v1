@@ -8,6 +8,7 @@ import {
   type RoomState,
   type YouEconomyPayload,
   type AttackerBufferPayload,
+  Mob,
   MESSAGES,
   MOB_TYPES,
   ALL_MOB_IDS,
@@ -1860,5 +1861,149 @@ describe("testing your Colyseus app", () => {
     attacker.send(MESSAGES.deploy, { portalId: "portal-1" });
     await waitFor(() => room.state.mobs.size > 0, 3000);
     assert.strictEqual(room.state.mobs.size, 1, "unit deployed through unlocked portal-1");
+  });
+
+  it("say_sayar heal aura applies diminishing returns stacks (90%, 70%, 40%, 20%, 0%)", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+
+    const target = new Mob({
+      ownerId: "attacker",
+      typeId: "elephant_rider",
+      batchId: 1,
+      hp: 300,
+      maxHp: 1300,
+      speed: 30,
+    });
+    const caster = new Mob({
+      ownerId: "attacker",
+      typeId: "say_sayar",
+      batchId: 1,
+      hp: 220,
+      maxHp: 220,
+      speed: 30,
+    });
+
+    room.state.mobs.set("target-1", target);
+    room.state.mobs.set("caster-1", caster);
+
+    const positions = new Map<string, { x: number; y: number }>([
+      ["target-1", { x: 100, y: 100 }],
+      ["caster-1", { x: 105, y: 100 }],
+    ]);
+
+    // Heal 1: 0 stacks -> 100% healing (80 HP). Stacks become 1.
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 380, "first heal restores full 80 HP");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      1,
+      "target gains 1 heal exhaustion stack",
+    );
+
+    // Heal 2: 1 stack -> 90% healing (72 HP). Stacks become 2.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 380 + 72, "second heal restores 90% (72 HP)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      2,
+      "target reaches 2 heal exhaustion stacks",
+    );
+
+    // Heal 3: 2 stacks -> 70% healing (56 HP). Stacks become 3.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 452 + 56, "third heal restores 70% (56 HP)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      3,
+      "target reaches 3 heal exhaustion stacks",
+    );
+
+    // Heal 4: 3 stacks -> 40% healing (32 HP). Stacks become 4.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 508 + 32, "fourth heal restores 40% (32 HP)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      4,
+      "target reaches 4 heal exhaustion stacks",
+    );
+
+    // Heal 5: 4 stacks -> 20% healing (16 HP). Stacks become 5.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 540 + 16, "fifth heal restores 20% (16 HP)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      5,
+      "target reaches 5 heal exhaustion stacks (cap)",
+    );
+
+    // Heal 6: 5 stacks -> 0% healing (0 HP). Stacks stay at 5.
+    (room as any).mobAbilityCooldowns.delete("caster-1");
+    (room as any).simulateMobAbilities(0.1, positions);
+    assert.strictEqual(target.hp, 556, "sixth heal restores 0 HP (immune/exhausted)");
+    assert.strictEqual(
+      target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude,
+      5,
+      "stacks remain capped at 5",
+    );
+  });
+
+  it("doe_pat speed boost does not stack from multiple casters", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+
+    const caster1 = new Mob({ ownerId: "attacker", typeId: "doe_pat", batchId: 1, hp: 200, maxHp: 200, speed: 30 });
+    const caster2 = new Mob({ ownerId: "attacker", typeId: "doe_pat", batchId: 1, hp: 200, maxHp: 200, speed: 30 });
+    const ally = new Mob({ ownerId: "attacker", typeId: "monkey", batchId: 1, hp: 100, maxHp: 100, speed: 130 });
+
+    room.state.mobs.set("caster-1", caster1);
+    room.state.mobs.set("caster-2", caster2);
+    room.state.mobs.set("ally-1", ally);
+
+    const positions = new Map<string, { x: number; y: number }>([
+      ["caster-1", { x: 100, y: 100 }],
+      ["caster-2", { x: 102, y: 100 }],
+      ["ally-1", { x: 105, y: 100 }],
+    ]);
+
+    (room as any).simulateMobAbilities(0.1, positions);
+
+    // Ally has haste from Doe Pat 1 and Doe Pat 2
+    const haste = ally.effects.get(EFFECT_TYPES.haste);
+    assert.ok(haste, "ally received haste effect");
+    assert.strictEqual(haste.magnitude, 0.40, "haste magnitude is 0.40, not stacked additively to 0.80");
+
+    const effectiveSpeedVal = (room as any).mobSpeed(ally, "ally-1");
+    assert.strictEqual(effectiveSpeedVal, 130 * 1.40, "effective speed reflects single +40% boost");
+  });
+
+  it("multiple bell towers apply non-stacking slow and respect 40% speed floor", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+
+    const mob = new Mob({ ownerId: "attacker", typeId: "monkey", batchId: 1, hp: 100, maxHp: 100, speed: 130 });
+    room.state.mobs.set("mob-1", mob);
+
+    // Apply pulse slow from 3 separate Tier 3 Bell Towers (0.40 each)
+    (room as any).applyMobEffect(mob, EFFECT_TYPES.slow, 0.40, 1.5, "bell-1");
+    (room as any).applyMobEffect(mob, EFFECT_TYPES.slow, 0.40, 1.5, "bell-2");
+    (room as any).applyMobEffect(mob, EFFECT_TYPES.slow, 0.40, 1.5, "bell-3");
+
+    const slow = mob.effects.get(EFFECT_TYPES.slow);
+    assert.ok(slow, "mob has slow effect");
+    assert.strictEqual(slow.magnitude, 0.40, "slow magnitude does not stack additively to 1.20");
+
+    const speed = (room as any).mobSpeed(mob, "mob-1");
+    assert.strictEqual(speed, 130 * (1 - 0.40), "mob moves at 60% base speed under 3 bell towers, never stun locked");
   });
 });

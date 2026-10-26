@@ -161,7 +161,8 @@
     "weakAgainst": [
       "aoe",
       "physical"
-    ]
+    ],
+    "notes": "buffer unit. Heals allies under 50% HP. Repeated heals on the same mob suffer diminishing returns (90%, 70%, 40%, 20%, 0%)."
   },
   "shield_guy": {
     "id": "shield_guy",
@@ -207,7 +208,7 @@
       "aoe",
       "physical"
     ],
-    "notes": "buffer unit"
+    "notes": "buffer unit. Non-stacking speed aura (+40% haste)."
   },
   "bandit": {
     "id": "bandit",

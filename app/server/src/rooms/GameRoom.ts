@@ -39,6 +39,7 @@ import {
   TOWER_EFFECT_TYPES,
   combineEffectMagnitude,
   effectiveSpeed,
+  healMultiplierForStacks,
   mentalDamageTaken,
   mentalDebuffMagnitude,
   physicalDamageTaken,
@@ -2742,9 +2743,38 @@ export class GameRoom extends Room<{ state: RoomState }> {
         }
 
         const healedIds: string[] = [];
+        const healedAmounts: Record<string, number> = {};
+
         for (const [targetId, target] of damagedInRadius) {
-          target.hp = Math.min(target.maxHp, target.hp + healAmount);
+          const currentStacks =
+            target.effects.get(EFFECT_TYPES.heal_exhaustion)?.magnitude ?? 0;
+          const multiplier = healMultiplierForStacks(currentStacks);
+          const effectiveHeal = Math.round(healAmount * multiplier);
+
+          if (effectiveHeal > 0) {
+            target.hp = Math.min(target.maxHp, target.hp + effectiveHeal);
+          }
           healedIds.push(targetId);
+          healedAmounts[targetId] = effectiveHeal;
+
+          // Increment heal exhaustion stack (up to 5 max)
+          const nextStacks = Math.min(5, currentStacks + 1);
+          const existingEffect = target.effects.get(EFFECT_TYPES.heal_exhaustion);
+          if (existingEffect) {
+            existingEffect.magnitude = nextStacks;
+            existingEffect.remaining = EFFECT_DURATION_SEC.heal_exhaustion;
+            existingEffect.sourceId = casterId;
+          } else {
+            target.effects.set(
+              EFFECT_TYPES.heal_exhaustion,
+              new MobEffect({
+                type: EFFECT_TYPES.heal_exhaustion,
+                magnitude: nextStacks,
+                remaining: EFFECT_DURATION_SEC.heal_exhaustion,
+                sourceId: casterId,
+              }),
+            );
+          }
         }
 
         this.mobAbilityCooldowns.set(casterId, ability.cooldownSec);
@@ -2759,6 +2789,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
           abilityType: "heal_aura",
           targetIds: healedIds,
           healAmount,
+          healedAmounts,
         };
         this.broadcast(MESSAGES.mobAbility, payload);
       } else if (ability.type === "speed_aura") {
