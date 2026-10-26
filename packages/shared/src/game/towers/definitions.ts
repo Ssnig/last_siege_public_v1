@@ -57,6 +57,10 @@ export const CORE_TOWER_TYPES: Record<string, TowerType> = {
         range: 210,
         fireRate: 1.0, // 1 shot per 1.0s
         projectileSpeed: 520,
+        special: {
+          prioritizeSupport: true,
+          bonusGoldOnKill: 1,
+        },
       },
       {
         cost: 225,
@@ -65,6 +69,10 @@ export const CORE_TOWER_TYPES: Record<string, TowerType> = {
         range: 240,
         fireRate: 1.1,
         projectileSpeed: 550,
+        special: {
+          prioritizeSupport: true,
+          bonusGoldOnKill: 2,
+        },
       },
       {
         cost: 385,
@@ -73,6 +81,10 @@ export const CORE_TOWER_TYPES: Record<string, TowerType> = {
         range: 275,
         fireRate: 1.2,
         projectileSpeed: 580,
+        special: {
+          prioritizeSupport: true,
+          bonusGoldOnKill: 3,
+        },
       },
     ],
   },
@@ -372,11 +384,11 @@ export const TOWER_DESIGNS: Record<string, TowerDesignConfig> = {
     shortName: "Gun",
     aliases: ["sniper"],
     textureKey: "tower_gun",
-    texturePath: "/assets/towers/06_gun_tower/tower.png",
+    texturePath: "/assets/towers/06_gun_tower/sheet.png",
     projectileKey: "proj_gun",
-    projectilePath: "/assets/towers/06_gun_tower/projectile.png",
-    iconPath: "/assets/towers/06_gun_tower/icon.png",
-    displaySize: { width: 78, height: 88 },
+    projectilePath: "/assets/towers/06_gun_tower/shooting_vfx.png",
+    iconPath: "/assets/towers/06_gun_tower/icon.jpg",
+    displaySize: { width: 82, height: 88 },
     origin: { x: 0.5, y: 0.82 },
     tactical: {
       title: "ROYAL GUN TOWER",

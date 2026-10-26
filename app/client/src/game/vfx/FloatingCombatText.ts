@@ -10,7 +10,8 @@ export type StatusAlertVariant =
   | "status_speed_broken"
   | "status_drench"
   | "status_bleed"
-  | "status_exhausted";
+  | "status_exhausted"
+  | "status_bounty";
 
 interface TextStyleConfig {
   color: string;
@@ -134,6 +135,14 @@ const STYLES: Record<
     fontSize: "11px",
     fontStyle: "bold",
     defaultText: "EXHAUSTED",
+  },
+  status_bounty: {
+    color: "#fef08a",
+    stroke: "#78350f",
+    strokeThickness: 3.5,
+    fontSize: "12px",
+    fontStyle: "900",
+    defaultText: "+BONUS GOLD",
   },
 };
 

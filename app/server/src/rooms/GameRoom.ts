@@ -3432,6 +3432,28 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     // Bounty: Base bounty + bonus gold on kill if Gun Tower
     const bonusGold = special?.bonusGoldOnKill ?? 0;
+    if (
+      bonusGold > 0 &&
+      (sourceTowerTypeId === "gun" || sourceTowerTypeId === "sniper")
+    ) {
+      const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+      const path = this.pathFor(map, mob.pathId);
+      if (path && path.length >= 2) {
+        const halfWidth = map.pathHalfWidth ?? 0;
+        const deathPos = samplePathWithLateral(
+          path,
+          mob.progress,
+          mob.seed,
+          halfWidth,
+        );
+        this.broadcast(MESSAGES.gunBountyProc, {
+          mobId,
+          x: deathPos.x,
+          y: deathPos.y,
+          bonusGold,
+        });
+      }
+    }
     this.awardBounty(ownerId, mob.bounty + bonusGold);
   }
 

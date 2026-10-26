@@ -58,9 +58,11 @@ export const MESSAGES = {
   mobAbility: "mob_ability",
   /** Server → client (broadcast): a non-projectile AoE tower (e.g. Bell Tower) pulsed. */
   towerAttack: "tower_attack",
-  /** Server → client (broadcast): a mob detonated / exploded on death (e.g. Dragon Tower cataclysmic detonation). */
+  /** Server -> client (broadcast): a mob detonated / exploded on death (e.g. Dragon Tower cataclysmic detonation). */
   mobDeathExplosion: "mob_death_explosion",
-  /** Server → client (broadcast): damage dealt to a mob. */
+  /** Server -> client (broadcast): Gun tower extra bounty proc on kill. */
+  gunBountyProc: "gun_bounty_proc",
+  /** Server -> client (broadcast): damage dealt to a mob. */
   combatDamage: "combat_damage",
   /** Client → server: this client has finished loading game assets. */
   clientAssetsLoaded: "client_assets_loaded",
@@ -339,4 +341,16 @@ export interface MobDeathExplosionPayload {
   radius: number;
   /** Archetype id of the tower that caused the detonation (e.g. "dragon"). */
   sourceTowerTypeId: string;
+}
+
+/** Payload of the `gun_bounty_proc` broadcast message. */
+export interface GunBountyProcPayload {
+  /** Server mob id of the killed mob. */
+  mobId: string;
+  /** World x position of the killed mob. */
+  x: number;
+  /** World y position of the killed mob. */
+  y: number;
+  /** Extra bonus gold awarded on kill. */
+  bonusGold: number;
 }

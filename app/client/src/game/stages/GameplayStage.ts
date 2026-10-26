@@ -14,6 +14,7 @@ import {
   type Mob,
   type MobAbilityPayload,
   type MobDeathExplosionPayload,
+  type GunBountyProcPayload,
   type CombatDamagePayload,
   type Projectile,
   type Tower,
@@ -1590,6 +1591,7 @@ export class GameplayStage {
       design.id === "archer" ||
       design.id === "bomb" ||
       design.id === "spear" ||
+      design.id === "gun" ||
       design.id === "water_cannon" ||
       design.id === "chinthe" ||
       design.id === "dragon" ||
@@ -1603,15 +1605,17 @@ export class GameplayStage {
             ? "tower_bomb_sheet"
             : design.id === "spear"
               ? "tower_spear_sheet"
-              : design.id === "water_cannon"
-                ? "tower_water_cannon_sheet"
-                : design.id === "chinthe"
-                  ? "tower_chinthe_sheet"
-                  : design.id === "dragon"
-                    ? "tower_dragon_sheet"
-                    : design.id === "sein_pyaung"
-                      ? "tower_sein_pyaung_sheet"
-                      : "tower_bell_sheet";
+              : design.id === "gun"
+                ? "tower_gun_sheet"
+                : design.id === "water_cannon"
+                  ? "tower_water_cannon_sheet"
+                  : design.id === "chinthe"
+                    ? "tower_chinthe_sheet"
+                    : design.id === "dragon"
+                      ? "tower_dragon_sheet"
+                      : design.id === "sein_pyaung"
+                        ? "tower_sein_pyaung_sheet"
+                        : "tower_bell_sheet";
       const idleKey =
         design.id === "archer"
           ? "archer_idle"
@@ -1619,15 +1623,17 @@ export class GameplayStage {
             ? "bomb_idle"
             : design.id === "spear"
               ? "spear_idle"
-              : design.id === "water_cannon"
-                ? "water_cannon_idle_ne"
-                : design.id === "chinthe"
-                  ? "chinthe_idle_ne"
-                  : design.id === "dragon"
-                    ? "dragon_idle_ne"
-                    : design.id === "sein_pyaung"
-                      ? "sein_pyaung_idle_ne"
-                      : "bell_idle";
+              : design.id === "gun"
+                ? "gun_idle"
+                : design.id === "water_cannon"
+                  ? "water_cannon_idle_ne"
+                  : design.id === "chinthe"
+                    ? "chinthe_idle_ne"
+                    : design.id === "dragon"
+                      ? "dragon_idle_ne"
+                      : design.id === "sein_pyaung"
+                        ? "sein_pyaung_idle_ne"
+                        : "bell_idle";
       const holderScale = this.map.holderScale ?? 1.0;
       if (this.scene.textures.exists(sheetKey)) {
         sprite = this.scene.add
@@ -1959,6 +1965,40 @@ export class GameplayStage {
     );
     this.unsubscribers.push(offDeathExplosion);
 
+    const offGunBountyProc = this.room.onMessage(
+      MESSAGES.gunBountyProc,
+      (payload: GunBountyProcPayload) => {
+        if (this.destroyed) return;
+
+        const target = this.mobsById.get(payload.mobId);
+        const x = target ? target.x : payload.x;
+        const y = target ? target.y : payload.y;
+
+        const vfx = TowerAnimationManager.spawnGunBountyProcVfx(
+          this.scene,
+          x,
+          y,
+        );
+        if (vfx) {
+          vfx.setDepth(actorDepth(y) + 0.0006);
+          (this.actors ?? this.root)?.add(vfx);
+        }
+
+        const container = this.actors ?? this.root;
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            x,
+            y - 12,
+            "status_bounty",
+            `+${payload.bonusGold} GOLD`,
+          );
+        }
+      },
+    );
+    this.unsubscribers.push(offGunBountyProc);
+
     const offCombatDamage = this.room.onMessage(
       MESSAGES.combatDamage,
       (payload: CombatDamagePayload) => {
@@ -2060,7 +2100,12 @@ export class GameplayStage {
         }
       }
       const design = getTowerDesign(record.tower.typeId);
-      if (design.id === "archer" || design.id === "bomb" || design.id === "spear") {
+      if (
+        design.id === "archer" ||
+        design.id === "bomb" ||
+        design.id === "spear" ||
+        design.id === "gun"
+      ) {
         const sprite = record.sprite as Phaser.GameObjects.Sprite;
         const targetId = record.tower.targetId;
         let slotIndex = -1;
@@ -2581,6 +2626,20 @@ export class GameplayStage {
         } else {
           sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
         }
+      } else if (design.id === "gun") {
+        if (!this.scene.textures.exists("gun_vfx_sheet")) {
+          this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("gun_vfx_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "gun_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.06).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("gun_proj_anim")) {
+            this.scene.anims.create({ key: "gun_proj_anim", frames: this.scene.anims.generateFrameNumbers("gun_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+          }
+          sprite.play("gun_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
       } else {
         sprite = this.scene.add
           .sprite(projectile.x, projectile.y, textureKey)
@@ -2693,6 +2752,15 @@ export class GameplayStage {
           splash.play("sein_pyaung_splash_anim");
           splash.once("animationcomplete", () => splash.destroy());
           (this.root ?? this.actors)?.add(splash);
+        }
+      } else if (design.id === "gun") {
+        if (!this.scene.textures.exists("gun_vfx_sheet")) {
+          this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        const hit = TowerAnimationManager.spawnGunHitVfx(this.scene, sprite.x, sprite.y);
+        if (hit) {
+          (this.root ?? this.actors)?.add(hit);
         }
       }
       // chinthe: whole 8 frames is projectile animation as specified
