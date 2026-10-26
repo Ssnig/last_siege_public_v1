@@ -28,7 +28,13 @@ const TowerSpriteCanvas: React.FC<{ towerId: string; design: TowerDesignConfig }
 
     let active = true;
 
-    if (towerId === 'sein_pyaung') {
+    if (
+      towerId === 'archer' ||
+      towerId === 'bomb' ||
+      towerId === 'spear' ||
+      towerId === 'sein_pyaung' ||
+      towerId === 'bell'
+    ) {
       const img = new Image();
       img.src = design.texturePath;
       img.onload = () => {
@@ -36,18 +42,7 @@ const TowerSpriteCanvas: React.FC<{ towerId: string; design: TowerDesignConfig }
         canvas.width = 688;
         canvas.height = 768;
         ctx.clearRect(0, 0, 688, 768);
-        // Draw frame 0 (SE idle) from the 4x2 spritesheet (each frame is 688x768)
-        ctx.drawImage(img, 0, 0, 688, 768, 0, 0, 688, 768);
-      };
-    } else if (towerId === 'bell') {
-      const img = new Image();
-      img.src = design.texturePath;
-      img.onload = () => {
-        if (!active) return;
-        canvas.width = 688;
-        canvas.height = 768;
-        ctx.clearRect(0, 0, 688, 768);
-        // Draw frame 0 from the 4x2 spritesheet
+        // Draw frame 0 from the 4x2 spritesheet (each frame is 688x768)
         ctx.drawImage(img, 0, 0, 688, 768, 0, 0, 688, 768);
       };
     } else if (towerId === 'water_cannon') {

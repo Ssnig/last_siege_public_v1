@@ -6,6 +6,7 @@ import {
   TOWER_TYPES,
   ACTIVE_TOWER_IDS,
   CORE_UNIT_IDS,
+  getTowerDesign,
   type DraftRoundUpdatePayload,
   type MobType,
   type TowerType,
@@ -44,79 +45,79 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     title: 'ARCHER TOWER',
     weakness: 'Armored Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/01_archer_tower/tower.png',
+    iconSrc: '/assets/towers/01_archer_tower/icon.jpg',
   },
   basic: {
     title: 'ARCHER TOWER',
     weakness: 'Armored Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/01_archer_tower/tower.png',
+    iconSrc: '/assets/towers/01_archer_tower/icon.jpg',
   },
   cannon: {
     title: 'CANNON',
     weakness: 'Quick Units',
     stacks: 'Max 5',
-    iconSrc: '/assets/towers/02_cannon/tower.png',
+    iconSrc: '/assets/towers/02_cannon/icon.png',
   },
   bomb: {
     title: 'BOMB THROWING TOWER',
     weakness: 'Single Fast Targets',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/03_bomb_throwing_tower/tower.png',
+    iconSrc: '/assets/towers/03_bomb_throwing_tower/icon.jpg',
   },
   bell: {
     title: 'BELL TOWER',
     weakness: 'Long-Range Snipers',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/04_bell_tower/tower.png',
+    iconSrc: '/assets/towers/04_bell_tower/icon.jpg',
   },
   spear: {
     title: 'SPEAR TOWER',
     weakness: 'Heavy Cavalry',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/05_spear_tower/tower.png',
+    iconSrc: '/assets/towers/05_spear_tower/icon.jpg',
   },
   pitchfork: {
     title: 'SPEAR TOWER',
     weakness: 'Heavy Cavalry',
     stacks: 'Max 8',
-    iconSrc: '/assets/towers/05_spear_tower/tower.png',
+    iconSrc: '/assets/towers/05_spear_tower/icon.jpg',
   },
   gun: {
     title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/06_gun_tower/tower.png',
+    iconSrc: '/assets/towers/06_gun_tower/icon.png',
   },
   sniper: {
     title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/06_gun_tower/tower.png',
+    iconSrc: '/assets/towers/06_gun_tower/icon.png',
   },
   water_cannon: {
     title: 'WATER CANNON',
     weakness: 'Fast Units',
     stacks: 'Max 6',
-    iconSrc: '/assets/towers/07_water_cannon/tower.png',
+    iconSrc: '/assets/towers/07_water_cannon/icon.jpg',
   },
   chinthe: {
     title: 'CHINTHE GUARDIAN',
     weakness: 'Armored Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/08_chinthe_statue/tower.png',
+    iconSrc: '/assets/towers/08_chinthe_statue/icon.jpg',
   },
   dragon: {
     title: 'DRAGON TOWER',
     weakness: 'Resistant Hordes',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/09_dragon_tower/tower.png',
+    iconSrc: '/assets/towers/09_dragon_tower/icon.jpg',
   },
   sein_pyaung: {
     title: 'SEIN PYAUNG',
     weakness: 'Heavy Armor & Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/10_sein_pyaung/tower.png',
+    iconSrc: '/assets/towers/10_sein_pyaung/icon.jpg',
   },
   arcanist: {
     title: 'ROYAL ARCANIST',
@@ -211,7 +212,7 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     title: 'BELU OGRE',
     weakness: 'Mental Attacks & Artillery',
     stacks: 'Max 4',
-    iconSrc: '/assets/units/Belu/face.png',
+    iconSrc: '/assets/units/Belu/face.jpg',
   },
   brute: {
     title: 'HEAVY BRUTE',
@@ -223,13 +224,13 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     title: 'ROYAL BO GENERAL',
     weakness: 'Concentrated Single-Target Burst',
     stacks: 'Max 6',
-    iconSrc: '/assets/units/General/face.png',
+    iconSrc: '/assets/units/General/face.jpg',
   },
   sone_ma: {
     title: 'SONE MA SORCERESS',
     weakness: 'Physical Snipers & Swarms',
     stacks: 'Max 8',
-    iconSrc: '/assets/units/SoneMa/face.png',
+    iconSrc: '/assets/units/SoneMa/face.jpg',
   },
 };
 
@@ -612,7 +613,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
         stat3Value: spd,
         weakness: custom.weakness || 'High Mobility',
         stacks: custom.stacks || 'Max 6',
-        iconSrc: custom.iconSrc,
+        iconSrc: custom.iconSrc || getTowerDesign(id)?.iconPath,
         traits: [
           {
             label: 'Damage',
@@ -662,7 +663,7 @@ export const DraftOverlay: React.FC<DraftOverlayProps> = ({
   const renderItemVisual = (id: string, isTargetEnemy: boolean = false, isBig: boolean = false) => {
     const isTargetTower = isTargetEnemy ? effectiveRole === 'attacker' : effectiveRole === 'defender';
     const custom = isTargetTower ? TACTICAL_TOWERS[id] : TACTICAL_MOBS[id];
-    const iconSrc = custom?.iconSrc;
+    const iconSrc = custom?.iconSrc || (isTargetTower ? getTowerDesign(id)?.iconPath : undefined);
 
     if (iconSrc) {
       return (

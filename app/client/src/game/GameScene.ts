@@ -150,6 +150,12 @@ export class GameScene extends Phaser.Scene {
     // Preload unit spritesheets and face icons
     UnitAnimationManager.preload(this);
     TowerAnimationManager.preload(this);
+    // Archer projectile & hit VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    // Bomb projectile & hit VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    // Spear projectile & hit VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Water cannon projectile/splash
     this.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
     // Chinthe attack (whole 8 frames is projectile animation)
@@ -166,6 +172,33 @@ export class GameScene extends Phaser.Scene {
     registerUIBgFrames(this);
     UnitAnimationManager.createAnimations(this);
     TowerAnimationManager.createAnimations(this);
+    // Archer projectile (top row 0..3) and hit VFX (bottom row 4..7)
+    if (this.textures.exists("archer_vfx_sheet")) {
+      if (!this.anims.exists("archer_proj_anim")) {
+        this.anims.create({ key: "archer_proj_anim", frames: this.anims.generateFrameNumbers("archer_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("archer_splash_anim")) {
+        this.anims.create({ key: "archer_splash_anim", frames: this.anims.generateFrameNumbers("archer_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
+    // Bomb projectile (top row 0..3) and hit VFX (bottom row 4..7)
+    if (this.textures.exists("bomb_vfx_sheet")) {
+      if (!this.anims.exists("bomb_proj_anim")) {
+        this.anims.create({ key: "bomb_proj_anim", frames: this.anims.generateFrameNumbers("bomb_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("bomb_splash_anim")) {
+        this.anims.create({ key: "bomb_splash_anim", frames: this.anims.generateFrameNumbers("bomb_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
+    // Spear projectile (top row 0..3) and hit VFX (bottom row 4..7)
+    if (this.textures.exists("spear_vfx_sheet")) {
+      if (!this.anims.exists("spear_proj_anim")) {
+        this.anims.create({ key: "spear_proj_anim", frames: this.anims.generateFrameNumbers("spear_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("spear_splash_anim")) {
+        this.anims.create({ key: "spear_splash_anim", frames: this.anims.generateFrameNumbers("spear_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
     // Create water splash anims
     if (this.textures.exists("water_splash_sheet")) {
       if (!this.anims.exists("water_proj_anim")) {

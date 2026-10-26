@@ -987,9 +987,11 @@ export class GameplayStage {
 
     const design = getTowerDesign(typeId);
     const scale = this.map.holderScale ?? 1.0;
+    const sheetKey = `tower_${design.id}_sheet`;
+    const ghostTexKey = this.scene.textures.exists(sheetKey) ? sheetKey : design.textureKey;
 
     this.ghostTower = this.scene.add
-      .sprite(slot.x, slot.y, design.textureKey)
+      .sprite(slot.x, slot.y, ghostTexKey)
       .setOrigin(design.origin.x, design.origin.y)
       .setDisplaySize(design.displaySize.width * scale, design.displaySize.height * scale)
       .setAlpha(0.5)
@@ -1509,6 +1511,9 @@ export class GameplayStage {
 
     let sprite: Phaser.GameObjects.Sprite;
     if (
+      design.id === "archer" ||
+      design.id === "bomb" ||
+      design.id === "spear" ||
       design.id === "water_cannon" ||
       design.id === "chinthe" ||
       design.id === "dragon" ||
@@ -1516,35 +1521,47 @@ export class GameplayStage {
       design.id === "sein_pyaung"
     ) {
       const sheetKey =
-        design.id === "water_cannon"
-          ? "tower_water_cannon_sheet"
-          : design.id === "chinthe"
-            ? "tower_chinthe_sheet"
-            : design.id === "dragon"
-              ? "tower_dragon_sheet"
-              : design.id === "sein_pyaung"
-                ? "tower_sein_pyaung_sheet"
-                : "tower_bell_sheet";
+        design.id === "archer"
+          ? "tower_archer_sheet"
+          : design.id === "bomb"
+            ? "tower_bomb_sheet"
+            : design.id === "spear"
+              ? "tower_spear_sheet"
+              : design.id === "water_cannon"
+                ? "tower_water_cannon_sheet"
+                : design.id === "chinthe"
+                  ? "tower_chinthe_sheet"
+                  : design.id === "dragon"
+                    ? "tower_dragon_sheet"
+                    : design.id === "sein_pyaung"
+                      ? "tower_sein_pyaung_sheet"
+                      : "tower_bell_sheet";
       const idleKey =
-        design.id === "water_cannon"
-          ? "water_cannon_idle_ne"
-          : design.id === "chinthe"
-            ? "chinthe_idle_ne"
-            : design.id === "dragon"
-              ? "dragon_idle_ne"
-              : design.id === "sein_pyaung"
-                ? "sein_pyaung_idle_ne"
-                : "bell_idle";
+        design.id === "archer"
+          ? "archer_idle"
+          : design.id === "bomb"
+            ? "bomb_idle"
+            : design.id === "spear"
+              ? "spear_idle"
+              : design.id === "water_cannon"
+                ? "water_cannon_idle_ne"
+                : design.id === "chinthe"
+                  ? "chinthe_idle_ne"
+                  : design.id === "dragon"
+                    ? "dragon_idle_ne"
+                    : design.id === "sein_pyaung"
+                      ? "sein_pyaung_idle_ne"
+                      : "bell_idle";
       const holderScale = this.map.holderScale ?? 1.0;
       if (this.scene.textures.exists(sheetKey)) {
         sprite = this.scene.add
-          .sprite(slot.x, slot.y, sheetKey)
+          .sprite(slot.x, slot.y, sheetKey, 0)
           .setOrigin(design.origin.x, design.origin.y)
           .setScale((design.id === "dragon" ? 0.1 : 0.12) * holderScale)
           .setDisplaySize(design.displaySize.width * holderScale, design.displaySize.height * holderScale)
           .setDepth(actorDepth(slot.y));
         if (this.scene.anims.exists(idleKey)) {
-          sprite.play(idleKey);
+          sprite.play(idleKey, true);
         }
       } else {
         sprite = this.scene.add
@@ -1796,6 +1813,49 @@ export class GameplayStage {
 
     for (const record of this.towers.values()) {
       const design = getTowerDesign(record.tower.typeId);
+      if (design.id === "archer" || design.id === "bomb" || design.id === "spear") {
+        const sprite = record.sprite as Phaser.GameObjects.Sprite;
+        const targetId = record.tower.targetId;
+        let slotIndex = -1;
+        for (const [k, v] of this.towers) {
+          if (v === record) {
+            slotIndex = k;
+            break;
+          }
+        }
+        const lastCd = this.towerLastCooldown.get(slotIndex) ?? record.tower.cooldown;
+        const justFired = !!(targetId && record.tower.cooldown > lastCd + 0.05);
+        this.towerLastCooldown.set(slotIndex, record.tower.cooldown);
+
+        if (targetId) {
+          const target = this.mobsById.get(targetId);
+          if (target) {
+            const dx = target.x - sprite.x;
+            if (Math.abs(dx) > 0.5) sprite.setFlipX(dx < 0);
+          }
+        }
+
+        const fireKey = `${design.id}_fire`;
+        const idleKey = `${design.id}_idle`;
+
+        if (justFired && this.scene.anims.exists(fireKey)) {
+          sprite.play(fireKey);
+          sprite.once(`animationcomplete-${fireKey}`, () => {
+            if (sprite.active && this.scene.anims.exists(idleKey)) {
+              sprite.play(idleKey, true);
+            }
+          });
+        } else {
+          const cur = sprite.anims?.currentAnim?.key || "";
+          if (
+            !(cur === fireKey && sprite.anims?.isPlaying) &&
+            this.scene.anims.exists(idleKey)
+          ) {
+            sprite.play(idleKey, true);
+          }
+        }
+        continue;
+      }
       if (design.id === "bell") {
         const sprite = record.sprite as Phaser.GameObjects.Sprite;
         const cur = sprite.anims?.currentAnim?.key || "";
@@ -1810,7 +1870,7 @@ export class GameplayStage {
         }
         continue;
       }
-      if (design.id === "cannon" || design.id === "bomb") {
+      if (design.id === "cannon") {
         const targetId = record.tower.targetId;
         if (!targetId) continue;
         const target = this.mobsById.get(targetId);
@@ -1832,7 +1892,7 @@ export class GameplayStage {
           if (v === record) { slotIndex = k; break; }
         }
         const lastCd = this.towerLastCooldown.get(slotIndex) ?? record.tower.cooldown;
-        const justFired = !!(targetId && lastCd > record.tower.cooldown);
+        const justFired = !!(targetId && record.tower.cooldown > lastCd + 0.05);
         this.towerLastCooldown.set(slotIndex, record.tower.cooldown);
 
         const getSheets = () => {
@@ -2054,7 +2114,49 @@ export class GameplayStage {
         : "arrow_proj";
 
       let sprite: Phaser.GameObjects.Sprite;
-      if (design.id === "water_cannon") {
+      if (design.id === "archer") {
+        if (!this.scene.textures.exists("archer_vfx_sheet")) {
+          this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("archer_vfx_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "archer_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.05).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("archer_proj_anim")) {
+            this.scene.anims.create({ key: "archer_proj_anim", frames: this.scene.anims.generateFrameNumbers("archer_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+          }
+          sprite.play("archer_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
+      } else if (design.id === "bomb") {
+        if (!this.scene.textures.exists("bomb_vfx_sheet")) {
+          this.scene.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("bomb_vfx_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "bomb_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.05).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("bomb_proj_anim")) {
+            this.scene.anims.create({ key: "bomb_proj_anim", frames: this.scene.anims.generateFrameNumbers("bomb_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+          }
+          sprite.play("bomb_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
+      } else if (design.id === "spear") {
+        if (!this.scene.textures.exists("spear_vfx_sheet")) {
+          this.scene.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("spear_vfx_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "spear_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.05).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("spear_proj_anim")) {
+            this.scene.anims.create({ key: "spear_proj_anim", frames: this.scene.anims.generateFrameNumbers("spear_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+          }
+          sprite.play("spear_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
+      } else if (design.id === "water_cannon") {
         if (!this.scene.textures.exists("water_splash_sheet")) {
           this.scene.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
@@ -2138,7 +2240,49 @@ export class GameplayStage {
       const sprite = this.projectileSprites.get(projectile);
       if (!sprite) return;
       const design = getTowerDesign(projectile.typeId);
-      if (design.id === "water_cannon") {
+      if (design.id === "archer") {
+        if (!this.scene.textures.exists("archer_vfx_sheet")) {
+          this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("archer_vfx_sheet")) {
+          const splash = this.scene.add.sprite(sprite.x, sprite.y, "archer_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          if (!this.scene.anims.exists("archer_splash_anim")) {
+            this.scene.anims.create({ key: "archer_splash_anim", frames: this.scene.anims.generateFrameNumbers("archer_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+          }
+          splash.play("archer_splash_anim");
+          splash.once("animationcomplete", () => splash.destroy());
+          (this.root ?? this.actors)?.add(splash);
+        }
+      } else if (design.id === "bomb") {
+        if (!this.scene.textures.exists("bomb_vfx_sheet")) {
+          this.scene.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("bomb_vfx_sheet")) {
+          const splash = this.scene.add.sprite(sprite.x, sprite.y, "bomb_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.08).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          if (!this.scene.anims.exists("bomb_splash_anim")) {
+            this.scene.anims.create({ key: "bomb_splash_anim", frames: this.scene.anims.generateFrameNumbers("bomb_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+          }
+          splash.play("bomb_splash_anim");
+          splash.once("animationcomplete", () => splash.destroy());
+          (this.root ?? this.actors)?.add(splash);
+        }
+      } else if (design.id === "spear") {
+        if (!this.scene.textures.exists("spear_vfx_sheet")) {
+          this.scene.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("spear_vfx_sheet")) {
+          const splash = this.scene.add.sprite(sprite.x, sprite.y, "spear_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          if (!this.scene.anims.exists("spear_splash_anim")) {
+            this.scene.anims.create({ key: "spear_splash_anim", frames: this.scene.anims.generateFrameNumbers("spear_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+          }
+          splash.play("spear_splash_anim");
+          splash.once("animationcomplete", () => splash.destroy());
+          (this.root ?? this.actors)?.add(splash);
+        }
+      } else if (design.id === "water_cannon") {
         if (!this.scene.textures.exists("water_splash_sheet")) {
           this.scene.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();

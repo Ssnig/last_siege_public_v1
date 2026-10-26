@@ -130,7 +130,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     };
 
     const towerImg = new Image();
-    towerImg.src = "/assets/towers/01_archer_tower/tower.png";
+    towerImg.src = "/assets/towers/01_archer_tower/sheet.png";
     towerImg.onload = () => {
       archerTowerImgRef.current = towerImg;
       setIsArcherTowerLoaded(true);
@@ -345,10 +345,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       if (previewTowers && archerTowerImgRef.current && isArcherTowerLoaded) {
         ctx.save();
         ctx.globalAlpha = 0.88;
-        const tW = 58 * holderScale;
+        const tW = 54 * holderScale;
         const tH = 58 * holderScale;
         ctx.drawImage(
           archerTowerImgRef.current,
+          0,
+          0,
+          688,
+          768,
           s.x - tW / 2,
           s.y - tH * 0.82,
           tW,

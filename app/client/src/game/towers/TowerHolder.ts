@@ -144,13 +144,29 @@ export class TowerHolder {
     this.hideGhost();
 
     const design = getTowerDesign(tower.typeId);
+    const sheetKey = `tower_${design.id}_sheet`;
+    const texKey = this.scene.textures.exists(sheetKey) ? sheetKey : design.textureKey;
 
     // Tower sprite seated atop the foundation dais
     const sprite = this.scene.add
-      .sprite(this.x, this.y, design.textureKey)
+      .sprite(this.x, this.y, texKey, this.scene.textures.exists(sheetKey) ? 0 : undefined)
       .setOrigin(design.origin.x, design.origin.y)
       .setDisplaySize(design.displaySize.width * this.holderScale, design.displaySize.height * this.holderScale)
       .setDepth(actorDepth(this.y));
+
+    const idleKey =
+      design.id === "archer"
+        ? "archer_idle"
+        : design.id === "bomb"
+          ? "bomb_idle"
+          : design.id === "spear"
+            ? "spear_idle"
+            : design.id === "bell"
+              ? "bell_idle"
+              : `${design.id}_idle_ne`;
+    if (this.scene.anims.exists(idleKey)) {
+      sprite.play(idleKey, true);
+    }
 
     // Dynamic level badge placed cleanly right above tower roof
     const levelBadge = this.createTowerLevelBadge(tower.level, design);
@@ -219,10 +235,12 @@ export class TowerHolder {
   showGhost(typeId: string): void {
     if (this.mountedRecord) return;
     const design = getTowerDesign(typeId);
+    const sheetKey = `tower_${design.id}_sheet`;
+    const texKey = this.scene.textures.exists(sheetKey) ? sheetKey : design.textureKey;
 
     if (this.ghostSprite) {
       this.ghostSprite
-        .setTexture(design.textureKey)
+        .setTexture(texKey)
         .setOrigin(design.origin.x, design.origin.y)
         .setDisplaySize(design.displaySize.width * this.holderScale, design.displaySize.height * this.holderScale)
         .setPosition(this.x, this.y)
@@ -231,7 +249,7 @@ export class TowerHolder {
     }
 
     this.ghostSprite = this.scene.add
-      .sprite(this.x, this.y, design.textureKey)
+      .sprite(this.x, this.y, texKey)
       .setOrigin(design.origin.x, design.origin.y)
       .setDisplaySize(design.displaySize.width * this.holderScale, design.displaySize.height * this.holderScale)
       .setAlpha(0.55)

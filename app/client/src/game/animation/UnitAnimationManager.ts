@@ -214,7 +214,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     scale: 0.108,
     origin: { x: 0.5, y: 0.917 },
     spritesheetFile: "spritesheet.png",
-    faceFile: "face.png",
+    faceFile: "face.jpg",
     walkFrames: { start: 0, end: 3 },
   },
   brute: {
@@ -244,7 +244,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     scale: 0.061,
     origin: { x: 0.5, y: 0.917 },
     spritesheetFile: "spritesheet.png",
-    faceFile: "face.png",
+    faceFile: "face.jpg",
     walkFrames: { start: 0, end: 3 },
   },
   sone_ma: {
@@ -259,7 +259,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     scale: 0.051,
     origin: { x: 0.5, y: 0.917 },
     spritesheetFile: "spritesheet.png",
-    faceFile: "face.png",
+    faceFile: "face.jpg",
     walkFrames: { start: 0, end: 3 },
   },
 };

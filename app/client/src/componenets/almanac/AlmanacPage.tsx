@@ -18,7 +18,7 @@ interface TabItem {
 const TABS: TabItem[] = [
   { id: 'codex', label: 'War Codex', badge: 'Guide' },
   { id: 'towers', label: 'Towers', badge: '10' },
-  { id: 'units', label: 'Units', badge: '10' },
+  { id: 'units', label: 'Units', badge: '15' },
   { id: 'maps', label: 'Battlefields', badge: '9' },
 ];
 
