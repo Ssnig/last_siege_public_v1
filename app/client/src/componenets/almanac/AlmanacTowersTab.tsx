@@ -32,6 +32,7 @@ const TowerSpriteCanvas: React.FC<{ towerId: string; design: TowerDesignConfig }
       towerId === 'archer' ||
       towerId === 'bomb' ||
       towerId === 'spear' ||
+      towerId === 'gun' ||
       towerId === 'sein_pyaung' ||
       towerId === 'bell'
     ) {

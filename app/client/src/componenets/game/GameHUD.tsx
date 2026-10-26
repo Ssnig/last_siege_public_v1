@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MATCH_RULES, TOWER_TYPES } from '@root/shared';
+import { MATCH_RULES, TOWER_TYPES, getTowerDesign } from '@root/shared';
 import { useSmoothCountdown } from './useSmoothCountdown';
 import { DamageTypeBadge } from './DamageTypeBadge';
 import { damageTypeOfTower } from '../../game/damageTypes';
@@ -54,8 +54,8 @@ const TOWER_ICONS: Record<string, string> = {
   bell: '/assets/towers/04_bell_tower/icon.jpg',
   spear: '/assets/towers/05_spear_tower/icon.jpg',
   pitchfork: '/assets/towers/05_spear_tower/icon.jpg',
-  gun: '/assets/towers/06_gun_tower/icon.png',
-  sniper: '/assets/towers/06_gun_tower/icon.png',
+  gun: '/assets/towers/06_gun_tower/icon.jpg',
+  sniper: '/assets/towers/06_gun_tower/icon.jpg',
   water_cannon: '/assets/towers/07_water_cannon/icon.jpg',
   chinthe: '/assets/towers/08_chinthe_statue/icon.jpg',
   dragon: '/assets/towers/09_dragon_tower/icon.jpg',
@@ -272,7 +272,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 const cost = tower?.tiers[0]?.cost ?? 0;
                 const isSelected = selectedTowerType === towerId;
                 const canAfford = gold >= cost;
-                const iconSrc = TOWER_ICONS[towerId] || '/assets/ui/hud/slot_arrow.png';
+                const iconSrc = TOWER_ICONS[towerId] || getTowerDesign(towerId)?.iconPath || '/assets/ui/hud/slot_arrow.png';
                 const shortName = TOWER_SHORT_NAMES[towerId] || tower?.name?.slice(0, 3) || towerId.slice(0, 3);
 
                 return (

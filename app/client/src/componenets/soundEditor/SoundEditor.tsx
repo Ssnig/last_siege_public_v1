@@ -66,7 +66,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '1 shot / 1.0s (1.0/s)',
     cadenceSec: 1.0,
-    icon: '/assets/towers/06_gun_tower/icon.png',
+    icon: '/assets/towers/06_gun_tower/icon.jpg',
     description: 'Precision flintlock barricade firing rapid high-velocity lead shot.',
   },
   {

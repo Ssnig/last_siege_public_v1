@@ -99,13 +99,13 @@ const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
     title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/06_gun_tower/icon.png',
+    iconSrc: '/assets/towers/06_gun_tower/icon.jpg',
   },
   sniper: {
     title: 'GUN TOWER',
     weakness: 'Dense Swarms',
     stacks: 'Max 4',
-    iconSrc: '/assets/towers/06_gun_tower/icon.png',
+    iconSrc: '/assets/towers/06_gun_tower/icon.jpg',
   },
   water_cannon: {
     title: 'WATER CANNON',

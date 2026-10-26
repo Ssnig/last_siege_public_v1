@@ -134,6 +134,11 @@ export class GameScene extends Phaser.Scene {
       // Load tower icon for UI cards
       if ((design as any).iconPath) {
         this.load.image(`tower-${design.id}`, (design as any).iconPath);
+        if (design.aliases) {
+          for (const alias of design.aliases) {
+            this.load.image(`tower-${alias}`, (design as any).iconPath);
+          }
+        }
       }
     }
     this.load.image("spawn_1", "/assets/sprites/spawn1.png");
