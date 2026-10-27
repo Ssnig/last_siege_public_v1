@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { soundEffects } from '../audio/soundEffects';
-import { GoldDivider, RoyalPanel } from '../componenets/lobby/LobbyOrnaments';
+import { GoldDivider, RoyalPanel } from '../components/lobby/LobbyOrnaments';
 import { useAuth } from './AuthContext';
 import { GoogleSignInButton } from './GoogleSignInButton';
 
