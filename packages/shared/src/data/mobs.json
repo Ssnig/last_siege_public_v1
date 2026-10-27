@@ -41,11 +41,11 @@
   "sar_bal_gyi": {
     "id": "sar_bal_gyi",
     "name": "Palace Royal Guard",
-    "maxHp": 420,
+    "maxHp": 370,
     "speed": 45,
     "bounty": 16,
     "leakDamage": 3,
-    "cost": 40,
+    "cost": 48,
     "armor": 8,
     "mentalStrength": 0,
     "strongAgainst": [
@@ -66,7 +66,7 @@
     "leakDamage": 2,
     "cost": 20,
     "armor": 0,
-    "mentalStrength": 1,
+    "mentalStrength": 0.5,
     "strongAgainst": [
       "single target",
       "mental"
@@ -85,7 +85,7 @@
     "leakDamage": 2,
     "cost": 30,
     "armor": 0,
-    "mentalStrength": 1,
+    "mentalStrength": 0.5,
     "speedRamp": {
       "maxBonusFraction": 1,
       "rampDurationSec": 25
@@ -102,11 +102,11 @@
   "chon_toe": {
     "id": "chon_toe",
     "name": "Bush Sneak",
-    "maxHp": 750,
+    "maxHp": 660,
     "speed": 35,
     "bounty": 22,
     "leakDamage": 4,
-    "cost": 55,
+    "cost": 65,
     "armor": 4,
     "mentalStrength": 0.25,
     "strongAgainst": [
@@ -139,13 +139,13 @@
   "say_sayar": {
     "id": "say_sayar",
     "name": "Say Sayar",
-    "maxHp": 220,
+    "maxHp": 264,
     "speed": 30,
-    "bounty": 14,
+    "bounty": 20,
     "leakDamage": 2,
-    "cost": 35,
+    "cost": 50,
     "armor": 0,
-    "mentalStrength": 1,
+    "mentalStrength": 0,
     "ability": {
       "type": "heal_aura",
       "radius": 140,
@@ -167,11 +167,11 @@
   "shield_guy": {
     "id": "shield_guy",
     "name": "Shield Bearer",
-    "maxHp": 320,
+    "maxHp": 275,
     "speed": 40,
     "bounty": 16,
     "leakDamage": 3,
-    "cost": 40,
+    "cost": 48,
     "armor": 6,
     "mentalStrength": 0,
     "taunt": true,
@@ -187,13 +187,13 @@
   "doe_pat": {
     "id": "doe_pat",
     "name": "Doe Pat",
-    "maxHp": 200,
+    "maxHp": 240,
     "speed": 30,
-    "bounty": 14,
+    "bounty": 20,
     "leakDamage": 2,
-    "cost": 35,
+    "cost": 50,
     "armor": 0,
-    "mentalStrength": 0.75,
+    "mentalStrength": 0,
     "ability": {
       "type": "speed_aura",
       "radius": 140,
@@ -213,7 +213,7 @@
   "bandit": {
     "id": "bandit",
     "name": "Bandit Raider",
-    "maxHp": 180,
+    "maxHp": 210,
     "speed": 100,
     "bounty": 9,
     "leakDamage": 2,
@@ -229,11 +229,11 @@
   "belu": {
     "id": "belu",
     "name": "Belu Ogre",
-    "maxHp": 950,
+    "maxHp": 1000,
     "speed": 35,
     "bounty": 34,
     "leakDamage": 5,
-    "cost": 85,
+    "cost": 120,
     "armor": 0,
     "mentalStrength": 0,
     "adaptiveDefense": {
@@ -253,11 +253,11 @@
   "brute": {
     "id": "brute",
     "name": "Heavy Brute",
-    "maxHp": 460,
+    "maxHp": 540,
     "speed": 48,
     "bounty": 24,
     "leakDamage": 3,
-    "cost": 60,
+    "cost": 50,
     "armor": 4,
     "mentalStrength": 0.25,
     "ability": {
@@ -284,7 +284,7 @@
     "leakDamage": 3,
     "cost": 60,
     "armor": 6,
-    "mentalStrength": 0.9,
+    "mentalStrength": 0.5,
     "strongAgainst": [
       "physical",
       "aoe"
@@ -296,11 +296,11 @@
   "sone_ma": {
     "id": "sone_ma",
     "name": "Sone Ma Sorceress",
-    "maxHp": 260,
-    "speed": 65,
-    "bounty": 18,
+    "maxHp": 400,
+    "speed": 30,
+    "bounty": 35,
     "leakDamage": 2,
-    "cost": 45,
+    "cost": 100,
     "armor": 0,
     "mentalStrength": 1.0,
     "onDeathTowerStunSec": 5,

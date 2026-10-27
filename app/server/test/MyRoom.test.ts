@@ -1619,7 +1619,7 @@ describe("testing your Colyseus app", () => {
 
     const mob = [...room.state.mobs.values()][0];
     const bruteType = MOB_TYPES["brute"];
-    assert.strictEqual(mob.maxHp, 460, "brute has 460 maxHp");
+    assert.strictEqual(mob.maxHp, 540, "brute has 540 maxHp");
     assert.strictEqual(bruteType.armor, 4, "brute has 4 base armor in config");
     assert.strictEqual(bruteType.ability?.type, "self_heal", "brute has self_heal ability");
     assert.strictEqual(bruteType.ability?.healFraction, 0.1, "brute heals 10% maxHp");

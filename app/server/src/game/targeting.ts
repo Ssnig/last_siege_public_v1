@@ -72,15 +72,15 @@ export function selectTargets(
   if (inRange.length === 0) return [];
 
   inRange.sort((a, b) => {
-    const aTaunt = !!a.taunt;
-    const bTaunt = !!b.taunt;
-    if (aTaunt !== bTaunt) return aTaunt ? -1 : 1;
-
-    if (prioritizeSupport && !aTaunt) {
+    if (prioritizeSupport) {
       const aSupp = !!a.support;
       const bSupp = !!b.support;
       if (aSupp !== bSupp) return aSupp ? -1 : 1;
     }
+
+    const aTaunt = !!a.taunt;
+    const bTaunt = !!b.taunt;
+    if (aTaunt !== bTaunt) return aTaunt ? -1 : 1;
 
     return a.remaining - b.remaining;
   });

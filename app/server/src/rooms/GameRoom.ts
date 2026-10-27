@@ -3220,13 +3220,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (splash > 0) {
       // Artillery damage falloff: 100% within inner core (<= 40px),
       // scaling linearly down to 50% at the splash boundary.
+      // Sein Pyaung applies a flat 50% damage multiplier to all secondary targets.
       const innerCore = 40;
       for (const [mobId, pos] of positions) {
         if (mobId === projectile.targetId) continue;
         const dist = Math.hypot(pos.x - impact.x, pos.y - impact.y);
         if (dist <= splash) {
           let multiplier = 1.0;
-          if (dist > innerCore && splash > innerCore) {
+          if (projectile.typeId === "sein_pyaung") {
+            multiplier = 0.5;
+          } else if (dist > innerCore && splash > innerCore) {
             const fraction = (dist - innerCore) / (splash - innerCore);
             multiplier = 1.0 - fraction * 0.5;
           }
@@ -3494,11 +3497,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
   ): void {
     const type = MOB_TYPES[mob.typeId];
 
-    // Sone Ma On-Death Curse: stuns the tower that killed her for 5 seconds
+    // Sone Ma On-Death Curse: stuns the tower that killed her for 5 seconds.
+    // Suppressed if Sone Ma was silenced at death, or if killed by Chinthe Guardian.
+    const isSilenced = mob.effects.has(EFFECT_TYPES.silence);
+    const killedByChinthe = sourceTowerTypeId === "chinthe";
     if (
       type?.onDeathTowerStunSec &&
       type.onDeathTowerStunSec > 0 &&
-      sourceSlotIndex !== undefined
+      sourceSlotIndex !== undefined &&
+      !isSilenced &&
+      !killedByChinthe
     ) {
       const killerTower = [...this.state.towers.values()].find(
         (t) => t.slotIndex === sourceSlotIndex,

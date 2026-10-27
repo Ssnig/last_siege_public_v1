@@ -145,7 +145,7 @@ describe("selectTarget", () => {
     assert.strictEqual(result?.id, "normal-front");
   });
 
-  it("prioritizes taunt over support even when prioritizeSupport is true", () => {
+  it("prioritizes support over taunt when prioritizeSupport is true", () => {
     const result = selectTarget(
       [
         candidate("normal-front", 20, 0, 100),
@@ -156,7 +156,7 @@ describe("selectTarget", () => {
       140,
       true,
     );
-    assert.strictEqual(result?.id, "shield-guy");
+    assert.strictEqual(result?.id, "healer-support");
   });
 });
 

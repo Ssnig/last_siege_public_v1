@@ -120,7 +120,7 @@ describe("combat data", () => {
     assert.strictEqual(mobArmor("sar_bal_gyi"), 8, "the palace guard is heavily armored");
     assert.strictEqual(mobArmor("elephant_rider"), 10, "the war elephant is heavily armored");
     assert.strictEqual(mobMentalStrength("monkey"), 0.5, "a monkey has half resolve");
-    assert.strictEqual(mobMentalStrength("gya_pu"), 1, "a winged nat is unshaken");
+    assert.strictEqual(mobMentalStrength("gya_pu"), 0.5, "a winged nat has half resolve");
     assert.strictEqual(mobMentalStrength("sar_bal_gyi"), 0, "the palace guard breaks completely");
     const doePat = MOB_TYPES["doe_pat"];
     assert.ok(doePat?.ability, "doe_pat defines a support ability");
@@ -131,12 +131,9 @@ describe("combat data", () => {
     );
   });
 
-  it("gives the classic mobs half resolve and the spirits full resolve", () => {
-    for (const id of ["monkey", "horse_rider"]) {
+  it("gives the classic mobs and spirits half resolve", () => {
+    for (const id of ["monkey", "horse_rider", "gya_pu", "a_ba"]) {
       assert.strictEqual(mobMentalStrength(id), 0.5, `${id} should have half resolve`);
-    }
-    for (const id of ["gya_pu", "a_ba"]) {
-      assert.strictEqual(mobMentalStrength(id), 1, `${id} should be unshaken`);
     }
   });
 
@@ -225,5 +222,39 @@ describe("tower shooting speeds and crossbow salvo burst / stun", () => {
     const baseSpeed = 100;
     const slowed = effectiveSpeed(baseSpeed, [0.25]);
     assert.strictEqual(slowed, 75, "100 base speed with 0.25 slow factor leaves 75 speed (25% reduction)");
+  });
+
+  it("sein_pyaung has 35px splashRadius configured", () => {
+    assert.strictEqual(TOWER_TYPES.sein_pyaung.splashRadius, 35);
+  });
+
+  it("bomb tower has smoothed damage curve across tiers", () => {
+    const bomb = TOWER_TYPES.bomb;
+    assert.strictEqual(bomb.tiers[0].damage, 28);
+    assert.strictEqual(bomb.tiers[0].damageMax, 40);
+    assert.strictEqual(bomb.tiers[1].damage, 54);
+    assert.strictEqual(bomb.tiers[1].damageMax, 78);
+    assert.strictEqual(bomb.tiers[2].damage, 92);
+    assert.strictEqual(bomb.tiers[2].damageMax, 136);
+  });
+
+  it("bell and chinthe have reduced upgrade costs for accessible utility", () => {
+    const bell = TOWER_TYPES.bell;
+    assert.strictEqual(bell.tiers[1].cost, 120);
+    assert.strictEqual(bell.tiers[2].cost, 190);
+
+    const chinthe = TOWER_TYPES.chinthe;
+    assert.strictEqual(chinthe.tiers[1].cost, 160);
+    assert.strictEqual(chinthe.tiers[2].cost, 260);
+  });
+
+  it("crossbow has buffed base damage", () => {
+    const crossbow = TOWER_TYPES.crossbow;
+    assert.strictEqual(crossbow.tiers[0].damage, 15);
+    assert.strictEqual(crossbow.tiers[0].damageMax, 20);
+    assert.strictEqual(crossbow.tiers[1].damage, 24);
+    assert.strictEqual(crossbow.tiers[1].damageMax, 32);
+    assert.strictEqual(crossbow.tiers[2].damage, 38);
+    assert.strictEqual(crossbow.tiers[2].damageMax, 50);
   });
 });
