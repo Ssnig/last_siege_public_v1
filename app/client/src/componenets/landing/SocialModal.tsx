@@ -102,7 +102,7 @@ export const SocialModal: React.FC<SocialModalProps> = ({
               <span className="text-slate-400">Matchmaking Server</span>
               <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Online (Colyseus)
+                Online & Connected
               </span>
             </div>
             <div className="flex items-center justify-between text-xs">

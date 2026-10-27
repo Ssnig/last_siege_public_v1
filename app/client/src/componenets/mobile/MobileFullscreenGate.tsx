@@ -110,7 +110,7 @@ export const MobileFullscreenGate: React.FC = () => {
           className="text-2xl font-bold text-amber-100 tracking-wide mb-1"
           style={{ fontFamily: "'MedievalSharp', serif" }}
         >
-          Versus TD
+          Last Siege
         </h2>
 
         <p

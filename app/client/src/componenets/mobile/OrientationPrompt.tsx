@@ -79,7 +79,7 @@ export const OrientationPrompt: React.FC = () => {
           className="text-xs text-amber-100/70 mb-6 leading-relaxed"
           style={{ fontFamily: "'Almendra', serif" }}
         >
-          Versus TD is designed for 16:9 Landscape view. Please rotate your phone sideways for the best battlefield experience.
+          Last Siege is designed for 16:9 Landscape view. Please rotate your phone sideways for the best battlefield experience.
         </p>
 
         <div className="flex flex-col w-full gap-2.5">

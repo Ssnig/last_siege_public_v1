@@ -85,35 +85,20 @@ export const InitialLoadingScreen: React.FC = () => {
         <div className="relative w-24 h-24 mb-4 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-600/30 via-yellow-500/20 to-transparent animate-spin-slow" />
           <div className="absolute inset-2 rounded-full border-2 border-amber-400/40" />
-          <svg
-            className="w-12 h-12 text-amber-300 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)] animate-pulse"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 2L4 7v6c0 5.25 3.5 10.15 8 11.25 4.5-1.1 8-6 8-11.25V7l-8-5z" />
-            <path d="M12 22V12" />
-            <path d="M12 12l4-2.5" />
-            <path d="M12 12l-4-2.5" />
-          </svg>
+          <img
+            src="/assets/svg/logo.svg"
+            alt="Royal Crest Emblem"
+            className="w-16 h-16 object-contain drop-shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-pulse"
+          />
         </div>
 
         {/* Title & Subtitle */}
         <h1
-          className="text-3xl sm:text-4xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200"
+          className="text-3xl sm:text-4xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 mb-8"
           style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
         >
-          VERSUS TD
+          LAST SIEGE
         </h1>
-        <p
-          className="text-xs uppercase tracking-[0.3em] text-amber-400/70 mt-1 mb-8"
-          style={{ fontFamily: "'Almendra SC', 'Almendra', serif" }}
-        >
-          Konbaung Dynasty
-        </p>
 
         {/* Ornate Gold Progress Bar */}
         <div className="w-full relative mb-3">

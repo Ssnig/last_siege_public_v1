@@ -38,7 +38,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
                 Select Royal Battlefield
               </h2>
               <p className="text-xs text-amber-200/60">
-                Choose the strategic arena for your match (9 Canonical Maps)
+                Choose the strategic arena for your match
               </p>
             </div>
           </div>
@@ -80,14 +80,14 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-snug mt-0.5">
-                  Let fate decide — a map is drawn from the 9 royal battlefields the moment the match begins.
+                  Let fate decide — a map is drawn from the royal battlefields the moment the match begins.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 shrink-0 ml-2">
               <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
-                9 Maps Pool
+                Full Battlefield Pool
               </span>
               <div
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
