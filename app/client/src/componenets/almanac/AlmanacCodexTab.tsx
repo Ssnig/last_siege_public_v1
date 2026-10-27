@@ -34,7 +34,7 @@ export const AlmanacCodexTab: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed mb-3">
-              Combat in Versus TD is governed by two fundamentally distinct damage channels. Understanding when to deploy physical vs mental force is the cornerstone of victory:
+              Combat in Last Siege is governed by two fundamentally distinct damage channels. Understanding when to deploy physical vs mental force is the cornerstone of victory:
             </p>
 
             <div className="space-y-2.5">

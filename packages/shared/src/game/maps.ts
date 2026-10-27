@@ -882,7 +882,7 @@ export const BAGO_MAP: MapDefinition = {
  */
 export const DESERTED_MAP: MapDefinition = {
   id: "deserted",
-  name: "Map 7: Deserted (Sands)",
+  name: "Sri Ksetra (Ancient Sands)",
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
   lanes: 5,
   thumbnail: "/assets/maps/map_7_deserted/preview.png",
@@ -1157,7 +1157,7 @@ export const DESERTED_MAP: MapDefinition = {
 
 export const TWISTER_MAP: MapDefinition = {
   id: "twister",
-  name: "Map 8: Twister (Canyon)",
+  name: "Taungoo (Mountain Pass)",
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
   lanes: 7,
   thumbnail: "/assets/maps/map_8_twister/preview.png",
@@ -1403,7 +1403,7 @@ export const TWISTER_MAP: MapDefinition = {
 
 export const RIVER_MAP: MapDefinition = {
   id: "river",
-  name: "Map 9: River (Delta)",
+  name: "Ayeyarwady (River Delta)",
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
   lanes: 2,
   thumbnail: "/assets/maps/map_9_river/preview.png",

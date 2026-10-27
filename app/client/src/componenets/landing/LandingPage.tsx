@@ -205,31 +205,42 @@ export const LandingPage: React.FC = () => {
           </svg>
         </button>
 
-        {/* Center Interactive START Button */}
-        <div
-          className="absolute z-20 left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2 w-[23.5%] min-w-[170px] max-w-[340px] h-[9.5%] min-h-[50px] flex items-center justify-center cursor-pointer"
-          onMouseEnter={() => {
-            setIsButtonHovered(true);
-            soundEffects.playHover();
-          }}
-          onMouseLeave={() => setIsButtonHovered(false)}
-          onClick={handleStartClick}
-        >
-          {/* Subtle neon glow bloom behind the button on hover */}
-          <div
-            className={`absolute inset-0 rounded-full bg-cyan-400 blur-xl transition-all duration-300 ${
-              isButtonHovered ? 'opacity-75 scale-115' : 'opacity-20 scale-95 animate-pulse'
-            }`}
+        {/* Center Logo & START Button Stack matching logo_and start_btn_placement_design.png */}
+        <div className="absolute z-20 left-1/2 top-[7%] sm:top-[8%] md:top-[9%] -translate-x-1/2 flex flex-col items-center select-none pointer-events-none">
+          {/* Official 'Last Siege' Game Logo */}
+          <img
+            src="/assets/logo/landing_logo_tight.png"
+            alt="Last Siege"
+            className="w-[38vw] min-w-[270px] max-w-[490px] h-auto object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.65)]"
           />
 
-          {/* Clean Transparent Pixel-Art Play Button Overlay */}
-          <img
-            src="/assets/ui/play_button_clean.png"
-            alt="START GAME"
-            className={`relative w-full h-full object-contain transition-all duration-200 ease-out active:scale-95 ${
-              isButtonHovered ? 'scale-105 brightness-110 drop-shadow-[0_0_25px_rgba(34,211,238,0.95)]' : 'scale-100 drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]'
-            }`}
-          />
+          {/* Interactive Stone/Wood START Button */}
+          <div
+            className="relative -mt-2 sm:-mt-3 md:-mt-4 cursor-pointer group pointer-events-auto"
+            onClick={handleStartClick}
+            onMouseEnter={() => {
+              setIsButtonHovered(true);
+              soundEffects.playHover();
+            }}
+            onMouseLeave={() => setIsButtonHovered(false)}
+          >
+            {/* Amber bloom aura on hover */}
+            <div
+              className={`absolute inset-0 rounded-2xl bg-amber-400 blur-xl transition-all duration-300 ${
+                isButtonHovered ? 'opacity-65 scale-105' : 'opacity-0 scale-95'
+              }`}
+            />
+
+            <img
+              src="/assets/logo/start_btn_tight.png"
+              alt="START"
+              className={`relative w-[18vw] min-w-[140px] max-w-[225px] h-auto object-contain transition-all duration-200 ease-out active:scale-95 ${
+                isButtonHovered
+                  ? 'scale-105 brightness-110 drop-shadow-[0_0_22px_rgba(251,191,36,0.85)]'
+                  : 'scale-100 drop-shadow-[0_6px_14px_rgba(0,0,0,0.7)]'
+              }`}
+            />
+          </div>
         </div>
 
         {/* First-Time Warrior Name Dialog Modal */}

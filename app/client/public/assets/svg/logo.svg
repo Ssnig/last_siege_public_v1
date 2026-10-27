@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <!-- Outer Glow / Drop Shadow Filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.65" />
+    </filter>
+
+    <!-- Metallic Gold Gradients -->
+    <linearGradient id="goldRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="35%" stop-color="#eab308" />
+      <stop offset="70%" stop-color="#ca8a04" />
+      <stop offset="100%" stop-color="#854d0e" />
+    </linearGradient>
+
+    <radialGradient id="goldCenter" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="45%" stop-color="#eab308" />
+      <stop offset="85%" stop-color="#a16207" />
+      <stop offset="100%" stop-color="#713f12" />
+    </radialGradient>
+
+    <!-- Dark Granite Stone Medallion Gradient -->
+    <radialGradient id="stoneField" cx="45%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#4a4744" />
+      <stop offset="60%" stop-color="#383533" />
+      <stop offset="100%" stop-color="#242220" />
+    </radialGradient>
+
+    <!-- Tab Gold Gradient -->
+    <linearGradient id="tabGradY" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="30%" stop-color="#ca8a04" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+
+    <linearGradient id="tabGradX" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="30%" stop-color="#ca8a04" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <!-- 1. Outer Dark Stone Base Rim -->
+    <circle cx="64" cy="64" r="52" fill="url(#stoneField)" stroke="#1a1816" stroke-width="2.5" />
+    <circle cx="64" cy="64" r="50.5" fill="none" stroke="#57534e" stroke-width="0.75" opacity="0.6" />
+
+    <!-- 2. Concentric Stone Groove -->
+    <circle cx="64" cy="64" r="44.5" fill="none" stroke="#1f1d1b" stroke-width="1.5" />
+    <circle cx="64" cy="64" r="30" fill="none" stroke="#2b2826" stroke-width="1.2" />
+
+    <!-- 3. Eight Radial Spokes -->
+    <g stroke="#1e1b18" stroke-width="3" stroke-linecap="round">
+      <line x1="64" y1="20" x2="64" y2="108" />
+      <line x1="20" y1="64" x2="108" y2="64" />
+      <line x1="33" y1="33" x2="95" y2="95" />
+      <line x1="33" y1="95" x2="95" y2="33" />
+    </g>
+
+    <!-- 4. Concentric Gold Inlay Ring -->
+    <circle cx="64" cy="64" r="43.5" fill="none" stroke="url(#goldRim)" stroke-width="3" />
+    <circle cx="64" cy="64" r="42" fill="none" stroke="#78350f" stroke-width="0.8" />
+    <circle cx="64" cy="64" r="45" fill="none" stroke="#fef08a" stroke-width="0.6" opacity="0.8" />
+
+    <!-- 5. Four Cardinal Golden Tabs (North, South, East, West) -->
+    <!-- Top Tab (North) -->
+    <rect x="57.5" y="10" width="13" height="15" rx="1.5" fill="url(#tabGradY)" stroke="#5c2e0b" stroke-width="1" />
+    <rect x="61" y="14" width="6" height="6" fill="#fde047" stroke="#854d0e" stroke-width="0.8" />
+
+    <!-- Bottom Tab (South) -->
+    <rect x="57.5" y="103" width="13" height="15" rx="1.5" fill="url(#tabGradY)" stroke="#5c2e0b" stroke-width="1" />
+    <rect x="61" y="107.5" width="6" height="6" fill="#fde047" stroke="#854d0e" stroke-width="0.8" />
+
+    <!-- Left Tab (West) -->
+    <rect x="10" y="57.5" width="15" height="13" rx="1.5" fill="url(#tabGradX)" stroke="#5c2e0b" stroke-width="1" />
+    <rect x="14" y="61" width="6" height="6" fill="#fde047" stroke="#854d0e" stroke-width="0.8" />
+
+    <!-- Right Tab (East) -->
+    <rect x="103" y="57.5" width="15" height="13" rx="1.5" fill="url(#tabGradX)" stroke="#5c2e0b" stroke-width="1" />
+    <rect x="107.5" y="61" width="6" height="6" fill="#fde047" stroke="#854d0e" stroke-width="0.8" />
+
+    <!-- 6. Central Octagonal Medallion Chamber -->
+    <!-- Outer Octagon Gold Frame -->
+    <polygon points="58,49 70,49 79,58 79,70 70,79 58,79 49,70 49,58" fill="#1c1917" stroke="url(#goldRim)" stroke-width="2.8" stroke-linejoin="round" />
+    <polygon points="58.5,51 69.5,51 77,58.5 77,69.5 69.5,77 58.5,77 51,69.5 51,58.5" fill="#1c1917" stroke="#78350f" stroke-width="1" stroke-linejoin="round" />
+
+    <!-- 7. Central Royal Quad-Petaled Cross Pattée Emblem -->
+    <g fill="url(#goldCenter)" stroke="#854d0e" stroke-width="0.8">
+      <!-- Center Core Hub -->
+      <circle cx="64" cy="64" r="3.2" fill="#fef08a" stroke="#a16207" stroke-width="0.5" />
+
+      <!-- North Arm -->
+      <path d="M62 61 C61 58 55 54 55 53 L73 53 C73 54 67 58 66 61 Z" />
+      <!-- South Arm -->
+      <path d="M62 67 C61 70 55 74 55 75 L73 75 C73 74 67 70 66 67 Z" />
+      <!-- West Arm -->
+      <path d="M61 62 C58 61 54 55 53 55 L53 73 C54 73 58 67 61 66 Z" />
+      <!-- East Arm -->
+      <path d="M67 62 C70 61 74 55 75 55 L75 73 C74 73 70 67 67 66 Z" />
+    </g>
+  </g>
+</svg>

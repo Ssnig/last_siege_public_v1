@@ -2,6 +2,7 @@
 <html lang="en" style="background-color: #020617; width: 100%; height: 100%; overflow: hidden;">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/assets/svg/logo.svg">
     <link rel="apple-touch-icon" sizes="180x180" href="/metadata/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/metadata/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/metadata/favicon-16x16.png">
@@ -14,34 +15,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Almendra:ital,wght@0,400;0,700;1,400&family=Almendra+SC&family=Cinzel:wght@600;700;800;900&family=MedievalSharp&display=swap" rel="stylesheet">
-    <title>Versus TD</title>
+    <title>Last Siege</title>
     <script>
       // Catch any unexpected early mobile JS error and show in clear banner
       window.addEventListener('error', function(e) {
-        console.error('Mobile script error:', e);
-        var el = document.getElementById('debug-mobile-err');
-        if (!el) {
-          el = document.createElement('div');
-          el.id = 'debug-mobile-err';
-          el.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;z-index:999999;background:#b91c1c;color:#fff;padding:12px;border-radius:8px;font-size:12px;font-family:monospace;box-shadow:0 4px 16px rgba(0,0,0,0.8);word-break:break-all;';
-          document.body ? document.body.appendChild(el) : document.documentElement.appendChild(el);
-        }
-        el.textContent = 'Script Error: ' + (e.message || 'Load error') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '');
+        console.error('Script error:', e);
       });
       window.addEventListener('unhandledrejection', function(e) {
         console.error('Unhandled Promise Rejection:', e);
-        var msg = (e.reason && e.reason.message) || (typeof e.reason === 'string' ? e.reason : '');
-        if (msg.includes('AudioContext') || msg.includes('user gesture') || (e.reason && e.reason.name === 'NotAllowedError')) {
-          return;
-        }
-        var el = document.getElementById('debug-mobile-err');
-        if (!el) {
-          el = document.createElement('div');
-          el.id = 'debug-mobile-err';
-          el.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;z-index:999999;background:#b91c1c;color:#fff;padding:12px;border-radius:8px;font-size:12px;font-family:monospace;box-shadow:0 4px 16px rgba(0,0,0,0.8);word-break:break-all;';
-          document.body ? document.body.appendChild(el) : document.documentElement.appendChild(el);
-        }
-        el.textContent = 'Async Error: ' + (e.reason?.message || e.reason || 'Promise failed');
       });
     </script>
   </head>
