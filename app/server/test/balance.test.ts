@@ -71,10 +71,13 @@ describe("balance.ts shape guards", () => {
   });
 
   it("economy, deck and match rules are positive and present", () => {
-    const { defenderStartingGold, attackerStartingGold } = DEFAULT_ECONOMY;
-    for (const n of [defenderStartingGold, attackerStartingGold]) {
+    const { defenderStartingGold, attackerStartingGold, maxGold } = DEFAULT_ECONOMY;
+    for (const n of [defenderStartingGold, attackerStartingGold, maxGold]) {
       assert.ok(n > 0, `economy value must be > 0, got ${n}`);
     }
+    assert.strictEqual(maxGold, 750, "maxGold cap must be 750");
+    assert.ok(defenderStartingGold <= maxGold, "defender starting gold must not exceed maxGold");
+    assert.ok(attackerStartingGold <= maxGold, "attacker starting gold must not exceed maxGold");
     assert.ok(DEFAULT_DECK_RULES.deckSize > 0);
     // A -1 draft duration is the "no countdown" sentinel, so only reject > 0.
     assert.ok(

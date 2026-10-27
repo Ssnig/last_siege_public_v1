@@ -115,7 +115,7 @@ const UNIT_EXTRA_DATA: Record<string, UnitVisualAndLore> = {
     counteredBy: ['Cannon (slow counteracts speed)', 'Gun Tower (picks off drummer)'],
   },
   bandit: {
-    faceUrl: '/assets/units/Bandit/face.png',
+    faceUrl: '/assets/units/Bandit/face.jpg',
     sheetUrl: '/assets/units/Bandit/spritesheet.png',
     role: 'Swift Raider & Outlaw Vanguard',
     title: 'Bandit Raider',
@@ -135,7 +135,7 @@ const UNIT_EXTRA_DATA: Record<string, UnitVisualAndLore> = {
     counteredBy: ['Mixed Physical + Mental Defense', 'Sein Pyaung Mortar (high single-hit burst)'],
   },
   brute: {
-    faceUrl: '/assets/units/Brute/face.png',
+    faceUrl: '/assets/units/Brute/face.jpg',
     sheetUrl: '/assets/units/Brute/spritesheet.png',
     role: 'Self-Regenerating Shock Bruiser',
     title: 'Heavy Brute',

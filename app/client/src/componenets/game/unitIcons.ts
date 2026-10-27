@@ -16,9 +16,9 @@ export const MOB_ICONS: Record<string, string> = {
   say_sayar: '/assets/units/say_sayar/face.jpg',
   shield_guy: '/assets/units/shield_guy/face.jpg',
   doe_pat: '/assets/units/doe_pat/face.jpg',
-  bandit: '/assets/units/Bandit/face.png',
+  bandit: '/assets/units/Bandit/face.jpg',
   belu: '/assets/units/Belu/face.jpg',
-  brute: '/assets/units/Brute/face.png',
+  brute: '/assets/units/Brute/face.jpg',
   general: '/assets/units/General/face.jpg',
   sone_ma: '/assets/units/SoneMa/face.jpg',
 };

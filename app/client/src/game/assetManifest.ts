@@ -163,8 +163,10 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 'u_doe_pat_face', url: '/assets/units/doe_pat/face.jpg', type: 'image', category: 'unit', label: 'Doe Pat Icon' },
   { id: 'u_doe_pat_speed_vfx', url: '/assets/units/doe_pat/speed_boost_vfx.png', type: 'image', category: 'unit', label: 'Speed Boost VFX' },
 
+  { id: 'u_bandit_face', url: '/assets/units/Bandit/face.jpg', type: 'image', category: 'unit', label: 'Bandit Raider Icon' },
   { id: 'u_belu_face', url: '/assets/units/Belu/face.jpg', type: 'image', category: 'unit', label: 'Belu Ogre Icon' },
   { id: 'u_belu_skill_vfx', url: '/assets/units/Belu/skill_vfx.png', type: 'image', category: 'unit', label: 'Belu Skill VFX' },
+  { id: 'u_brute_face', url: '/assets/units/Brute/face.jpg', type: 'image', category: 'unit', label: 'Heavy Brute Icon' },
   { id: 'u_general_face', url: '/assets/units/General/face.jpg', type: 'image', category: 'unit', label: 'Royal Bo General Icon' },
   { id: 'u_sone_ma_face', url: '/assets/units/SoneMa/face.jpg', type: 'image', category: 'unit', label: 'Sone Ma Sorceress Icon' },
   { id: 'u_sone_ma_skill_vfx', url: '/assets/units/SoneMa/skill_vfx.png', type: 'image', category: 'unit', label: 'Sone Ma Skill VFX' },

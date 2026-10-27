@@ -11,6 +11,7 @@ import {
   KONBAUNG_MAP,
   MOB_TYPES,
   DEFAULT_DEPLOY_RULES,
+  DEFAULT_ECONOMY,
   type OpponentLeftPayload,
   type OpponentReconnectingPayload,
   type OpponentReconnectedPayload,
@@ -197,6 +198,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
   // Gameplay HUD state
   const [gold, setGold] = useState<number>(200);
+  const [maxGold, setMaxGold] = useState<number>(() => DEFAULT_ECONOMY.maxGold ?? 750);
   const [incomeRate, setIncomeRate] = useState<number>(5);
   const [castleHp, setCastleHp] = useState<number>(() => room.state?.coreHp ?? MATCH_RULES.coreHp);
   const [deck, setDeck] = useState<string[]>([]);
@@ -315,6 +317,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     const offEconomy = room.onMessage(MESSAGES.youEconomy, (data: YouEconomyPayload) => {
       console.log("GameContainer economy received:", data);
       setGold(data.gold);
+      if (data.maxGold !== undefined) {
+        setMaxGold(data.maxGold);
+      }
       if (data.incomeRate !== undefined) {
         setIncomeRate(data.incomeRate);
       }
@@ -326,6 +331,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     const offBuffer = room.onMessage(MESSAGES.attackerBuffer, (data: AttackerBufferPayload) => {
       setBuffer(data);
       setGold(data.gold);
+      if (data.maxGold !== undefined) {
+        setMaxGold(data.maxGold);
+      }
       setDeployError(null);
     });
 
@@ -673,6 +681,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       {matchStarted && (phase === 'building' || phase === 'combat') && (
         <GameHUD
           gold={gold}
+          maxGold={maxGold}
           incomeRate={incomeRate}
           castleHp={castleHp}
           maxCastleHp={maxCastleHp}

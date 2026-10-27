@@ -459,6 +459,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       gold: Math.floor(this.economies.get(client.sessionId) ?? 0),
       deck: deck ?? [],
       incomeRate,
+      maxGold: DEFAULT_ECONOMY.maxGold,
     };
     client.send(MESSAGES.youEconomy, economy);
   }
@@ -494,6 +495,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       ),
       portals: this.portalStatusFor(sessionId),
       canDeploy: this.canDeploy(sessionId),
+      maxGold: DEFAULT_ECONOMY.maxGold,
     };
 
     client.send(MESSAGES.attackerBuffer, payload);
@@ -996,7 +998,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.towerLastFireTime.delete(towerKey);
     this.economies.set(
       client.sessionId,
-      (this.economies.get(client.sessionId) ?? 0) + refund,
+      Math.min(
+        DEFAULT_ECONOMY.maxGold,
+        (this.economies.get(client.sessionId) ?? 0) + refund,
+      ),
     );
     this.sendEconomy(client);
 
@@ -1310,7 +1315,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.attackerBuffers.set(sessionId, []);
     this.economies.set(
       sessionId,
-      (this.economies.get(sessionId) ?? 0) + refund,
+      Math.min(
+        DEFAULT_ECONOMY.maxGold,
+        (this.economies.get(sessionId) ?? 0) + refund,
+      ),
     );
 
     this.sendEconomy(client);
@@ -2343,13 +2351,19 @@ export class GameRoom extends Room<{ state: RoomState }> {
         const rate = this.effectiveIncomeRate(sessionId, role);
         this.economies.set(
           sessionId,
-          (this.economies.get(sessionId) ?? 0) + rate * dt,
+          Math.min(
+            DEFAULT_ECONOMY.maxGold,
+            (this.economies.get(sessionId) ?? 0) + rate * dt,
+          ),
         );
       } else if (role === "defender") {
         const rate = this.effectiveIncomeRate(sessionId, role);
         this.economies.set(
           sessionId,
-          (this.economies.get(sessionId) ?? 0) + rate * dt,
+          Math.min(
+            DEFAULT_ECONOMY.maxGold,
+            (this.economies.get(sessionId) ?? 0) + rate * dt,
+          ),
         );
       }
     }
@@ -3669,7 +3683,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
   private awardBounty(sessionId: string, amount: number): void {
     if (!sessionId || amount <= 0) return;
 
-    this.economies.set(sessionId, (this.economies.get(sessionId) ?? 0) + amount);
+    this.economies.set(
+      sessionId,
+      Math.min(
+        DEFAULT_ECONOMY.maxGold,
+        (this.economies.get(sessionId) ?? 0) + amount,
+      ),
+    );
 
     const client = this.clients.find((c) => c.sessionId === sessionId);
     if (client) this.sendEconomy(client);

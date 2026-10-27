@@ -218,7 +218,7 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     title: 'BANDIT RAIDER',
     weakness: 'Heavy Armor & Rapid Fire',
     stacks: 'Max 12',
-    iconSrc: '/assets/units/Bandit/face.png',
+    iconSrc: '/assets/units/Bandit/face.jpg',
   },
   belu: {
     title: 'BELU OGRE',
@@ -230,7 +230,7 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     title: 'HEAVY BRUTE',
     weakness: 'Piercing Arrows & Kiting',
     stacks: 'Max 6',
-    iconSrc: '/assets/units/Brute/face.png',
+    iconSrc: '/assets/units/Brute/face.jpg',
   },
   general: {
     title: 'ROYAL BO GENERAL',

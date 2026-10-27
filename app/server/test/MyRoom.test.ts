@@ -1173,6 +1173,49 @@ describe("testing your Colyseus app", () => {
     );
   });
 
+  it("clamps player gold at maxGold (750) when earning passive income or bounties", async function () {
+    this.timeout(10000);
+
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    const gameRoom = room as any;
+    // Set both players close to the maxGold cap
+    gameRoom.economies.set(attacker.sessionId, DEFAULT_ECONOMY.maxGold - 5);
+    gameRoom.economies.set(defender.sessionId, DEFAULT_ECONOMY.maxGold - 5);
+
+    // Accrue income for 10 seconds (effective rate >= 5g/s -> would give 50g without cap)
+    gameRoom.accrueIncome(10);
+
+    assert.strictEqual(
+      gameRoom.economies.get(attacker.sessionId),
+      DEFAULT_ECONOMY.maxGold,
+      "attacker gold must be clamped at maxGold",
+    );
+    assert.strictEqual(
+      gameRoom.economies.get(defender.sessionId),
+      DEFAULT_ECONOMY.maxGold,
+      "defender gold must be clamped at maxGold",
+    );
+
+    // Also verify awardBounty clamps at maxGold
+    gameRoom.awardBounty(defender.sessionId, 100);
+    assert.strictEqual(
+      gameRoom.economies.get(defender.sessionId),
+      DEFAULT_ECONOMY.maxGold,
+      "defender bounty must clamp at maxGold",
+    );
+  });
+
   it("enters sudden death when the siege expires with troops on the field", async function () {
     this.timeout(30000);
 

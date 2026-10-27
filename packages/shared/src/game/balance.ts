@@ -21,6 +21,8 @@ import { MOB_TYPES, mobCost } from "./units/index.js";
 export interface EconomyConfig {
   defenderStartingGold: number;
   attackerStartingGold: number;
+  /** Maximum gold a player can hold; income and bounties clamp at this cap. */
+  maxGold: number;
   /**
    * Passive base gold per second the attacker accrues during combat.
    */
