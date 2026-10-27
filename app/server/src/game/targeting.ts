@@ -37,12 +37,61 @@ export interface TargetCandidate {
  * ordinary non-taunting mobs. Distance is a plain Euclidean check against the
  * tower's slot, so a tower can cover any track passing through its radius. Ties
  * fall to iteration order.
+/**
+ * Chooses up to `maxCount` tower targets in priority order:
+ * 1. Taunting mobs take highest priority.
+ * 2. If `prioritizeSupport` is enabled, support mobs take second priority.
+ * 3. Mobs nearest the base (smallest `remaining` px) are prioritized.
  *
  * @param candidates - Mobs with resolved world positions for the current tick.
  * @param tower - The tower's world position (its slot).
  * @param range - Targeting radius in px.
+ * @param maxCount - Maximum number of targets to return.
  * @param prioritizeSupport - Whether to prioritize support units (e.g. Gun Tower).
- * @returns The chosen candidate, or `undefined` when none are in range.
+ * @returns Array of target candidates in priority order (up to maxCount).
+ */
+export function selectTargets(
+  candidates: readonly TargetCandidate[],
+  tower: { x: number; y: number },
+  range: number,
+  maxCount = 1,
+  prioritizeSupport = false,
+): TargetCandidate[] {
+  if (maxCount <= 0) return [];
+  const rangeSq = range * range;
+  const inRange: TargetCandidate[] = [];
+
+  for (const candidate of candidates) {
+    const dx = candidate.x - tower.x;
+    const dy = candidate.y - tower.y;
+    if (dx * dx + dy * dy <= rangeSq) {
+      inRange.push(candidate);
+    }
+  }
+
+  if (inRange.length === 0) return [];
+
+  inRange.sort((a, b) => {
+    const aTaunt = !!a.taunt;
+    const bTaunt = !!b.taunt;
+    if (aTaunt !== bTaunt) return aTaunt ? -1 : 1;
+
+    if (prioritizeSupport && !aTaunt) {
+      const aSupp = !!a.support;
+      const bSupp = !!b.support;
+      if (aSupp !== bSupp) return aSupp ? -1 : 1;
+    }
+
+    return a.remaining - b.remaining;
+  });
+
+  return inRange.slice(0, maxCount);
+}
+
+/**
+ * Chooses a tower's next target: the in-range candidate nearest the base, with
+ * priority given to any in-range taunting unit (e.g. `shield_guy`) and optionally
+ * support casters (e.g. `say_sayar`, `doe_pat`) if `prioritizeSupport` is enabled.
  */
 export function selectTarget(
   candidates: readonly TargetCandidate[],
@@ -50,49 +99,5 @@ export function selectTarget(
   range: number,
   prioritizeSupport = false,
 ): TargetCandidate | undefined {
-  const rangeSq = range * range;
-
-  let best: TargetCandidate | undefined;
-
-  for (const candidate of candidates) {
-    const dx = candidate.x - tower.x;
-    const dy = candidate.y - tower.y;
-    if (dx * dx + dy * dy > rangeSq) continue;
-
-    const candidateTaunts = !!candidate.taunt;
-    const bestTaunts = !!best?.taunt;
-
-    if (!best) {
-      best = candidate;
-      continue;
-    }
-
-    if (candidateTaunts && !bestTaunts) {
-      best = candidate;
-      continue;
-    }
-    if (!candidateTaunts && bestTaunts) {
-      continue;
-    }
-
-    // Both taunt or neither taunt.
-    // If prioritizeSupport is active: support units have next priority.
-    if (prioritizeSupport && !candidateTaunts) {
-      const candidateSupport = !!candidate.support;
-      const bestSupport = !!best.support;
-      if (candidateSupport && !bestSupport) {
-        best = candidate;
-        continue;
-      }
-      if (!candidateSupport && bestSupport) {
-        continue;
-      }
-    }
-
-    if (candidate.remaining < best.remaining) {
-      best = candidate;
-    }
-  }
-
-  return best;
+  return selectTargets(candidates, tower, range, 1, prioritizeSupport)[0];
 }

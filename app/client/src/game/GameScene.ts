@@ -157,6 +157,8 @@ export class GameScene extends Phaser.Scene {
     TowerAnimationManager.preload(this);
     // Archer projectile & hit VFX - 2 rows x 4 cols (688x768)
     this.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    // Crossbow Fort projectile & hit VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Bomb projectile & hit VFX - 2 rows x 4 cols (688x768)
     this.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Spear projectile & hit VFX - 2 rows x 4 cols (688x768)

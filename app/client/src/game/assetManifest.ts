@@ -86,9 +86,9 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 't01_proj', url: '/assets/towers/01_archer_tower/projectile_vfx.png', type: 'image', category: 'tower', label: 'Archer Arrow' },
   { id: 't01_icon', url: '/assets/towers/01_archer_tower/icon.jpg', type: 'image', category: 'tower', label: 'Archer Icon' },
 
-  { id: 't02_tower', url: '/assets/towers/02_cannon/tower.png', type: 'image', category: 'tower', label: 'Cannon Tower' },
-  { id: 't02_proj', url: '/assets/towers/02_cannon/projectile.png', type: 'image', category: 'tower', label: 'Cannon Ball' },
-  { id: 't02_icon', url: '/assets/towers/02_cannon/icon.png', type: 'image', category: 'tower', label: 'Cannon Icon' },
+  { id: 't02_tower', url: '/assets/towers/02_crossbow_fort/sheet.png', type: 'image', category: 'tower', label: 'Crossbow Fort' },
+  { id: 't02_proj', url: '/assets/towers/02_crossbow_fort/projectile_vfx.png', type: 'image', category: 'tower', label: 'Crossbow Bolt' },
+  { id: 't02_icon', url: '/assets/towers/02_crossbow_fort/icon.jpg', type: 'image', category: 'tower', label: 'Crossbow Fort Icon' },
 
   { id: 't03_tower', url: '/assets/towers/03_bomb_throwing_tower/sheet.png', type: 'image', category: 'tower', label: 'Bomb Tower' },
   { id: 't03_proj', url: '/assets/towers/03_bomb_throwing_tower/projectile_vfx.png', type: 'image', category: 'tower', label: 'Bomb Projectile' },

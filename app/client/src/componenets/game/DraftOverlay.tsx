@@ -55,21 +55,27 @@ interface TacticalData {
 const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
   archer: {
     title: 'ARCHER TOWER',
-    weakness: 'Armored Swarms',
+    weakness: 'Heavy Armor',
     stacks: 'Max 8',
     iconSrc: '/assets/towers/01_archer_tower/icon.jpg',
   },
   basic: {
     title: 'ARCHER TOWER',
-    weakness: 'Armored Swarms',
+    weakness: 'Heavy Armor',
     stacks: 'Max 8',
     iconSrc: '/assets/towers/01_archer_tower/icon.jpg',
   },
-  cannon: {
-    title: 'CANNON',
-    weakness: 'Quick Units',
+  crossbow: {
+    title: 'CROSSBOW FORT',
+    weakness: 'Dense Swarms',
     stacks: 'Max 5',
-    iconSrc: '/assets/towers/02_cannon/icon.png',
+    iconSrc: '/assets/towers/02_crossbow_fort/icon.jpg',
+  },
+  cannon: {
+    title: 'CROSSBOW FORT',
+    weakness: 'Dense Swarms',
+    stacks: 'Max 5',
+    iconSrc: '/assets/towers/02_crossbow_fort/icon.jpg',
   },
   bomb: {
     title: 'BOMB THROWING TOWER',
@@ -394,7 +400,19 @@ export function getTowerEffectTags(towerOrId: any): EffectTag[] {
   if (!tower && !id) return [];
 
   const tags: EffectTag[] = [];
-  if (id === 'cannon' || id === 'bomb') {
+  if (id === 'archer' || id === 'basic') {
+    tags.push({
+      label: 'Multi-Shot',
+      style: 'bg-emerald-950/90 border-emerald-500/80 text-emerald-300',
+      description: 'Fires at multiple targets simultaneously (Lv1: 1, Lv2: 2, Lv3: 3)',
+    });
+  } else if (id === 'crossbow' || id === 'cannon') {
+    tags.push({
+      label: 'Salvo Stun',
+      style: 'bg-amber-950/90 border-amber-500/80 text-amber-300',
+      description: 'Rapid magazine burst; final connecting bolt deals bonus damage and stuns for 1s',
+    });
+  } else if (id === 'bomb') {
     tags.push({
       label: 'AoE',
       style: 'bg-orange-950/90 border-orange-500/80 text-orange-300',

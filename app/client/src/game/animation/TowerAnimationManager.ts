@@ -36,6 +36,36 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
     frameRate: 8,
     scale: 0.15,
   },
+  crossbow: {
+    id: "crossbow",
+    sheetKey: "tower_crossbow_sheet",
+    sheetPath: "/assets/towers/02_crossbow_fort/sheet.png",
+    frameWidth: 688,
+    frameHeight: 768,
+    cols: 4,
+    rows: 2,
+    idleSE: [0, 1, 2, 3],
+    fireSE: [4, 5, 6, 7],
+    idleNE: [0, 1, 2, 3],
+    fireNE: [4, 5, 6, 7],
+    frameRate: 10,
+    scale: 0.15,
+  },
+  cannon: {
+    id: "cannon",
+    sheetKey: "tower_crossbow_sheet",
+    sheetPath: "/assets/towers/02_crossbow_fort/sheet.png",
+    frameWidth: 688,
+    frameHeight: 768,
+    cols: 4,
+    rows: 2,
+    idleSE: [0, 1, 2, 3],
+    fireSE: [4, 5, 6, 7],
+    idleNE: [0, 1, 2, 3],
+    fireNE: [4, 5, 6, 7],
+    frameRate: 10,
+    scale: 0.15,
+  },
   bomb: {
     id: "bomb",
     sheetKey: "tower_bomb_sheet",
@@ -248,6 +278,8 @@ export class TowerAnimationManager {
     for (const manifest of Object.values(TOWER_ANIM_MANIFESTS)) {
       if (
         manifest.id === "archer" ||
+        manifest.id === "crossbow" ||
+        manifest.id === "cannon" ||
         manifest.id === "bomb" ||
         manifest.id === "spear" ||
         manifest.id === "gun"

@@ -1,54 +1,60 @@
 {
-  "cannon": {
-    "id": "cannon",
-    "name": "Cannon",
+  "crossbow": {
+    "id": "crossbow",
+    "name": "Crossbow Fort",
     "damageType": "physical",
-    "splashRadius": 75,
     "tiers": [
       {
-        "cost": 140,
-        "damage": 24,
-        "range": 110,
-        "fireRate": 0.333333,
-        "projectileSpeed": 300,
-        "damageMax": 36,
+        "cost": 130,
+        "damage": 12,
+        "damageMax": 16,
+        "range": 155,
+        "fireRate": 0.384615,
+        "projectileSpeed": 520,
         "special": {
+          "salvoCount": 4,
+          "salvoStaggerSec": 0.08,
+          "salvoFinisherBonus": 14,
+          "salvoFinisherStunSec": 1.0
+        }
+      },
+      {
+        "cost": 220,
+        "damage": 20,
+        "damageMax": 28,
+        "range": 170,
+        "fireRate": 0.416667,
+        "projectileSpeed": 560,
+        "special": {
+          "salvoCount": 5,
+          "salvoStaggerSec": 0.08,
+          "salvoFinisherBonus": 24,
+          "salvoFinisherStunSec": 1.0
+        }
+      },
+      {
+        "cost": 375,
+        "damage": 34,
+        "damageMax": 46,
+        "range": 185,
+        "fireRate": 0.454545,
+        "projectileSpeed": 600,
+        "special": {
+          "salvoCount": 6,
+          "salvoStaggerSec": 0.08,
+          "salvoFinisherBonus": 40,
+          "salvoFinisherStunSec": 1.0,
           "armorPierceRatio": 0.25
-        }
-      },
-      {
-        "cost": 230,
-        "damage": 48,
-        "range": 120,
-        "fireRate": 0.36,
-        "projectileSpeed": 320,
-        "damageMax": 72,
-        "special": {
-          "armorPierceRatio": 0.50
-        }
-      },
-      {
-        "cost": 390,
-        "damage": 96,
-        "range": 135,
-        "fireRate": 0.4,
-        "projectileSpeed": 340,
-        "damageMax": 144,
-        "special": {
-          "armorPierceRatio": 0.75
         }
       }
     ],
-    "onHitEffect": {
-      "type": "slow",
-      "magnitude": 0.25,
-      "durationSec": 1.5
-    },
     "strongAgainst": [
-      "armor",
-      "high hp"
+      "high hp",
+      "bosses",
+      "armor"
     ],
     "weakAgainst": [
+      "swarms",
       "fast units"
     ]
   },
@@ -60,42 +66,44 @@
       {
         "cost": 55,
         "damage": 10,
+        "damageMax": 14,
         "range": 140,
         "fireRate": 2,
         "projectileSpeed": 400,
-        "damageMax": 14,
         "special": {
-          "windupMaxBonus": 0.40
+          "multiTargets": 1
         }
       },
       {
         "cost": 105,
         "damage": 18,
+        "damageMax": 26,
         "range": 160,
         "fireRate": 2.15,
         "projectileSpeed": 430,
-        "damageMax": 26,
         "special": {
-          "windupMaxBonus": 0.60
+          "multiTargets": 2
         }
       },
       {
         "cost": 185,
         "damage": 32,
+        "damageMax": 48,
         "range": 185,
         "fireRate": 2.3,
         "projectileSpeed": 460,
-        "damageMax": 48,
         "special": {
-          "windupMaxBonus": 0.80
+          "multiTargets": 3
         }
       }
     ],
     "strongAgainst": [
-      "flying"
+      "flying",
+      "swarms"
     ],
     "weakAgainst": [
-      "armor"
+      "armor",
+      "high hp"
     ]
   },
   "bomb": {

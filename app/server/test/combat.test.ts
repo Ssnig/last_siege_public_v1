@@ -156,7 +156,7 @@ describe("combat data", () => {
       );
     }
 
-    for (const id of ["cannon", "archer", "bomb", "spear", "gun", "sein_pyaung"]) {
+    for (const id of ["crossbow", "cannon", "archer", "bomb", "spear", "gun", "sein_pyaung"]) {
       assert.strictEqual(
         TOWER_TYPES[id].damageType,
         DAMAGE_TYPES.physical,
@@ -175,8 +175,8 @@ describe("combat data", () => {
   });
 });
 
-describe("tower shooting speeds and cannon on-hit slow effect", () => {
-  it("archer, gun, bomb, spear, and cannon match the specified attack rates", () => {
+describe("tower shooting speeds and crossbow salvo burst / stun", () => {
+  it("archer, gun, bomb, spear, and crossbow match the specified attack rates", () => {
     // Archer: 1 per 0.5s -> 2.0 shots/sec
     assert.strictEqual(TOWER_TYPES.archer.tiers[0].fireRate, 2.0);
     assert.strictEqual(getTowerCooldown("archer", 1), 0.5);
@@ -193,16 +193,32 @@ describe("tower shooting speeds and cannon on-hit slow effect", () => {
     assert.strictEqual(TOWER_TYPES.spear.tiers[0].fireRate, 1.0);
     assert.strictEqual(getTowerCooldown("spear", 1), 1.0);
 
-    // Cannon: 1 per 3.0s -> 0.333333 shots/sec
-    assert.ok(Math.abs(TOWER_TYPES.cannon.tiers[0].fireRate - (1 / 3)) < 0.001);
-    assert.ok(Math.abs(getTowerCooldown("cannon", 1) - 3.0) < 0.01);
+    // Crossbow Fort: ~0.384615 shots/sec (2.6s reload cycle)
+    assert.ok(Math.abs(TOWER_TYPES.crossbow.tiers[0].fireRate - 0.384615) < 0.001);
+    assert.ok(Math.abs(getTowerCooldown("crossbow", 1) - 2.6) < 0.01);
   });
 
-  it("cannon has armor pierce scaling special effect", () => {
-    const cannon = TOWER_TYPES.cannon;
-    assert.strictEqual(cannon.tiers[0].special?.armorPierceRatio, 0.25);
-    assert.strictEqual(cannon.tiers[1].special?.armorPierceRatio, 0.50);
-    assert.strictEqual(cannon.tiers[2].special?.armorPierceRatio, 0.75);
+  it("crossbow has salvo magazine and finisher stun scaling special effect", () => {
+    const crossbow = TOWER_TYPES.crossbow;
+    assert.strictEqual(crossbow.tiers[0].special?.salvoCount, 4);
+    assert.strictEqual(crossbow.tiers[0].special?.salvoFinisherBonus, 14);
+    assert.strictEqual(crossbow.tiers[0].special?.salvoFinisherStunSec, 1.0);
+
+    assert.strictEqual(crossbow.tiers[1].special?.salvoCount, 5);
+    assert.strictEqual(crossbow.tiers[1].special?.salvoFinisherBonus, 24);
+    assert.strictEqual(crossbow.tiers[1].special?.salvoFinisherStunSec, 1.0);
+
+    assert.strictEqual(crossbow.tiers[2].special?.salvoCount, 6);
+    assert.strictEqual(crossbow.tiers[2].special?.salvoFinisherBonus, 40);
+    assert.strictEqual(crossbow.tiers[2].special?.salvoFinisherStunSec, 1.0);
+    assert.strictEqual(crossbow.tiers[2].special?.armorPierceRatio, 0.25);
+  });
+
+  it("archer has multi-shot volley scaling special effect", () => {
+    const archer = TOWER_TYPES.archer;
+    assert.strictEqual(archer.tiers[0].special?.multiTargets, 1);
+    assert.strictEqual(archer.tiers[1].special?.multiTargets, 2);
+    assert.strictEqual(archer.tiers[2].special?.multiTargets, 3);
   });
 
   it("effectiveSpeed reduces speed by 25% when hit by 25% slow", () => {

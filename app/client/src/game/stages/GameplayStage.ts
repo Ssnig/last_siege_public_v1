@@ -134,6 +134,8 @@ type MobRecord = {
   lastArmorCrush?: number;
   /** Whether the mob is currently silenced (for Chinthe silence alert). */
   wasSilenced?: boolean;
+  /** Whether the mob is currently stunned (for Crossbow Fort stun alert). */
+  wasStunned?: boolean;
   /** Whether monkey's initial sprint burst has ended upon taking damage. */
   burstBroken?: boolean;
   /** Last sampled progress along path (used to differentiate death vs base breach). */
@@ -1626,6 +1628,8 @@ export class GameplayStage {
     let sprite: Phaser.GameObjects.Sprite;
     if (
       design.id === "archer" ||
+      design.id === "crossbow" ||
+      design.id === "cannon" ||
       design.id === "bomb" ||
       design.id === "spear" ||
       design.id === "gun" ||
@@ -1638,7 +1642,9 @@ export class GameplayStage {
       const sheetKey =
         design.id === "archer"
           ? "tower_archer_sheet"
-          : design.id === "bomb"
+          : design.id === "crossbow" || design.id === "cannon"
+            ? "tower_crossbow_sheet"
+            : design.id === "bomb"
             ? "tower_bomb_sheet"
             : design.id === "spear"
               ? "tower_spear_sheet"
@@ -1656,7 +1662,9 @@ export class GameplayStage {
       const idleKey =
         design.id === "archer"
           ? "archer_idle"
-          : design.id === "bomb"
+          : design.id === "crossbow" || design.id === "cannon"
+            ? "crossbow_idle"
+            : design.id === "bomb"
             ? "bomb_idle"
             : design.id === "spear"
               ? "spear_idle"
@@ -1803,6 +1811,7 @@ export class GameplayStage {
         lastMentalStacks: initialMental,
         lastArmorCrush: initialCrush,
         wasSilenced: initialSilenced,
+        wasStunned: mob.effects?.has(EFFECT_TYPES.stun) ?? false,
         burstBroken: false,
         lastProgress: mob.progress ?? 0,
       };
@@ -2161,6 +2170,8 @@ export class GameplayStage {
       const design = getTowerDesign(record.tower.typeId);
       if (
         design.id === "archer" ||
+        design.id === "crossbow" ||
+        design.id === "cannon" ||
         design.id === "bomb" ||
         design.id === "spear" ||
         design.id === "gun"
@@ -2219,15 +2230,6 @@ export class GameplayStage {
             sprite.play("bell_idle");
           }
         }
-        continue;
-      }
-      if (design.id === "cannon") {
-        const targetId = record.tower.targetId;
-        if (!targetId) continue;
-        const target = this.mobsById.get(targetId);
-        if (!target) continue;
-        const dx = target.x - record.sprite.x;
-        if (Math.abs(dx) > 0.5) record.sprite.setFlipX(dx < 0);
         continue;
       }
       if (
@@ -2377,6 +2379,7 @@ export class GameplayStage {
    * mental damage reads violet, and an untouched mob keeps its natural colors.
    */
   private mobEffectTint(mob: Mob): number {
+    if (mob.effects.has(EFFECT_TYPES.stun)) return 0xfef08a;
     if (mob.effects.has(EFFECT_TYPES.slow)) return 0x93c5fd;
     if (mob.effects.has(EFFECT_TYPES.debuff)) return 0xd8b4fe;
     return 0xffffff;
@@ -2524,6 +2527,22 @@ export class GameplayStage {
     }
     record.wasSilenced = isSilenced;
 
+    // Crossbow Fort Stun alert
+    const isStunned = mob.effects?.has(EFFECT_TYPES.stun) ?? false;
+    if (isStunned && !record.wasStunned) {
+      if (container) {
+        FloatingCombatTextManager.spawnStatus(
+          this.scene,
+          container,
+          point.x,
+          point.y - 28,
+          "status_stun",
+          "STUNNED!",
+        );
+      }
+    }
+    record.wasStunned = isStunned;
+
     // Monkey Burst of Speed drop alert upon taking first damage
     if (record.typeId === "monkey") {
       if (!record.burstBroken && mob.speed <= 50) {
@@ -2609,6 +2628,20 @@ export class GameplayStage {
             this.scene.anims.create({ key: "archer_proj_anim", frames: this.scene.anims.generateFrameNumbers("archer_vfx_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
           }
           sprite.play("archer_proj_anim");
+        } else {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
+        }
+      } else if (design.id === "crossbow" || design.id === "cannon") {
+        if (!this.scene.textures.exists("crossbow_vfx_sheet")) {
+          this.scene.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("crossbow_vfx_sheet")) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, "crossbow_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.05).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists("crossbow_proj_anim")) {
+            this.scene.anims.create({ key: "crossbow_proj_anim", frames: this.scene.anims.generateFrameNumbers("crossbow_vfx_sheet", { start: 0, end: 3 }), frameRate: 16, repeat: -1 });
+          }
+          sprite.play("crossbow_proj_anim");
         } else {
           sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
         }
@@ -2762,6 +2795,20 @@ export class GameplayStage {
             this.scene.anims.create({ key: "archer_splash_anim", frames: this.scene.anims.generateFrameNumbers("archer_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
           }
           splash.play("archer_splash_anim");
+          splash.once("animationcomplete", () => splash.destroy());
+          (this.root ?? this.actors)?.add(splash);
+        }
+      } else if (design.id === "crossbow" || design.id === "cannon") {
+        if (!this.scene.textures.exists("crossbow_vfx_sheet")) {
+          this.scene.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists("crossbow_vfx_sheet")) {
+          const splash = this.scene.add.sprite(hitX, hitY, "crossbow_vfx_sheet").setOrigin(0.5, 0.5).setScale(0.07).setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          if (!this.scene.anims.exists("crossbow_splash_anim")) {
+            this.scene.anims.create({ key: "crossbow_splash_anim", frames: this.scene.anims.generateFrameNumbers("crossbow_vfx_sheet", { start: 4, end: 7 }), frameRate: 16, repeat: 0 });
+          }
+          splash.play("crossbow_splash_anim");
           splash.once("animationcomplete", () => splash.destroy());
           (this.root ?? this.actors)?.add(splash);
         }
@@ -2994,7 +3041,6 @@ export class GameplayStage {
     if (
       towerId === "bomb" ||
       towerId === "sein_pyaung" ||
-      towerId === "cannon" ||
       towerId === "water_cannon" ||
       towerId === "bell"
     ) {

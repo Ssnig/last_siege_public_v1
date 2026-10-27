@@ -435,13 +435,14 @@ class SoundEffectsManager {
     const lower = (id || '').toLowerCase().trim();
     if (lower === 'basic') return 'archer';
     if (lower === 'pitchfork') return 'spear';
+    if (lower === 'cannon' || lower === 'bertha') return 'crossbow';
     return lower;
   }
 
   public preloadTowerSounds(): void {
     if (typeof window === 'undefined') return;
     const towerIds = [
-      'archer', 'cannon', 'bomb', 'bell', 'spear',
+      'archer', 'crossbow', 'cannon', 'bomb', 'bell', 'spear',
       'gun', 'water_cannon', 'chinthe', 'dragon', 'sein_pyaung'
     ];
     for (const id of towerIds) {
@@ -537,7 +538,8 @@ class SoundEffectsManager {
 
       switch (norm) {
         case 'archer': this.synthArcherShoot(ctx, now, vol, pitch); break;
-        case 'cannon': this.synthCannonShoot(ctx, now, vol, pitch); break;
+        case 'crossbow': this.synthCrossbowShoot(ctx, now, vol, pitch); break;
+        case 'cannon': this.synthCrossbowShoot(ctx, now, vol, pitch); break;
         case 'bomb': this.synthBombShoot(ctx, now, vol, pitch); break;
         case 'bell': this.synthBellShoot(ctx, now, vol, pitch); break;
         case 'spear': this.synthSpearShoot(ctx, now, vol, pitch); break;
@@ -572,7 +574,8 @@ class SoundEffectsManager {
 
       switch (norm) {
         case 'archer': this.synthArcherImpact(ctx, now, vol, pitch); break;
-        case 'cannon': this.synthCannonImpact(ctx, now, vol, pitch); break;
+        case 'crossbow': this.synthCrossbowImpact(ctx, now, vol, pitch); break;
+        case 'cannon': this.synthCrossbowImpact(ctx, now, vol, pitch); break;
         case 'bomb': this.synthBombImpact(ctx, now, vol, pitch); break;
         case 'bell': this.synthBellImpact(ctx, now, vol, pitch); break;
         case 'spear': this.synthSpearImpact(ctx, now, vol, pitch); break;
@@ -608,8 +611,9 @@ class SoundEffectsManager {
         case 'archer':
           this.synthArcherShoot(ctx, now, vol, pitch);
           break;
+        case 'crossbow':
         case 'cannon':
-          this.synthCannonShoot(ctx, now, vol, pitch);
+          this.synthCrossbowShoot(ctx, now, vol, pitch);
           break;
         case 'bomb':
           this.synthBombShoot(ctx, now, vol, pitch);
@@ -669,8 +673,9 @@ class SoundEffectsManager {
         case 'archer':
           this.synthArcherImpact(ctx, now, vol, pitch);
           break;
+        case 'crossbow':
         case 'cannon':
-          this.synthCannonImpact(ctx, now, vol, pitch);
+          this.synthCrossbowImpact(ctx, now, vol, pitch);
           break;
         case 'bomb':
           this.synthBombImpact(ctx, now, vol, pitch);
@@ -738,75 +743,56 @@ class SoundEffectsManager {
     osc.stop(time + 0.07);
   }
 
-  // --- 2. CANNON TOWER ---
-  private synthCannonShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
-    // 1. Heavy low punch
+  // --- 2. CROSSBOW FORT ---
+  private synthCrossbowShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {
+    // 1. Sharp mechanical string twang / thwip
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(115 * pitch, time);
-    osc.frequency.exponentialRampToValueAtTime(32 * pitch, time + 0.38);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(740 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(220 * pitch, time + 0.05);
 
-    gain.gain.setValueAtTime(vol * 0.55, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.40);
+    gain.gain.setValueAtTime(vol * 0.28, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(time);
-    osc.stop(time + 0.40);
+    osc.stop(time + 0.06);
 
-    // 2. Gunpowder explosion blast noise
-    const noise = ctx.createBufferSource();
-    noise.buffer = this.getNoiseBuffer(ctx);
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(850, time);
-    filter.frequency.exponentialRampToValueAtTime(180, time + 0.25);
+    // 2. Snappy latch click
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(1400 * pitch, time);
+    osc2.frequency.exponentialRampToValueAtTime(400 * pitch, time + 0.02);
 
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(vol * 0.35, time);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
+    gain2.gain.setValueAtTime(vol * 0.12, time);
+    gain2.gain.exponentialRampToValueAtTime(0.001, time + 0.025);
 
-    noise.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
-    noise.start(time);
-    noise.stop(time + 0.28);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(time);
+    osc2.stop(time + 0.025);
   }
 
-  private synthCannonImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
-    // Ground shockwave thud
+  private synthCrossbowImpact(ctx: AudioContext, time: number, vol: number, pitch: number): void {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(90 * pitch, time);
-    osc.frequency.exponentialRampToValueAtTime(26 * pitch, time + 0.45);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(480 * pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(90 * pitch, time + 0.06);
 
-    gain.gain.setValueAtTime(vol * 0.5, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.48);
+    gain.gain.setValueAtTime(vol * 0.3, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(time);
-    osc.stop(time + 0.48);
-
-    // Earth crunch noise
-    const noise = ctx.createBufferSource();
-    noise.buffer = this.getNoiseBuffer(ctx);
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(340, time);
-
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(vol * 0.28, time);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
-
-    noise.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
-    noise.start(time);
-    noise.stop(time + 0.32);
+    osc.stop(time + 0.07);
   }
+
+
 
   // --- 3. BOMB THROWING TOWER ---
   private synthBombShoot(ctx: AudioContext, time: number, vol: number, pitch: number): void {

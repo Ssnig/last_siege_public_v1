@@ -282,7 +282,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span>🏰</span> Defender Role
                 </h4>
                 <p className="text-xs text-slate-300">
-                  Select powerful archer, cannon, bell, and siege defense towers. Place them strategically onto the stone tower pads before hitting START GAME to stop the incoming invaders.
+                  Select powerful archer, crossbow, bell, and siege defense towers. Place them strategically onto the stone tower pads before hitting START GAME to stop the incoming invaders.
                 </p>
               </div>
 

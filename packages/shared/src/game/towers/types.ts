@@ -11,9 +11,19 @@ export interface TowerOnHitEffect {
 
 /** Scaling special effect attributes for a tower tier (Levels 1 -> 2 -> 3). */
 export interface TowerTierSpecial {
-  /** Archer: Maximum bonus fire rate fraction reached through consecutive shots (e.g. 0.40 -> +40%). */
+  /** Archer: Maximum simultaneous targets engaged in multi-shot volley (e.g. 1 -> 2 -> 3). */
+  multiTargets?: number;
+  /** Crossbow: Number of rapid bolts released per salvo magazine. */
+  salvoCount?: number;
+  /** Crossbow: Seconds between consecutive bolts in a salvo burst. */
+  salvoStaggerSec?: number;
+  /** Crossbow: Flat bonus damage dealt by the final bolt if it connects. */
+  salvoFinisherBonus?: number;
+  /** Crossbow: Seconds the target is stunned if the final bolt connects. */
+  salvoFinisherStunSec?: number;
+  /** Archer (deprecated): Maximum bonus fire rate fraction reached through consecutive shots. */
   windupMaxBonus?: number;
-  /** Cannon: Fraction of target armor ignored by splash damage (0.25 = 25% armor ignore). */
+  /** Cannon / Crossbow: Fraction of target armor ignored (0.25 = 25% armor ignore). */
   armorPierceRatio?: number;
   /** Bomb / Chinthe: Distance in px the target is knocked back along the path on hit. */
   knockbackPx?: number;

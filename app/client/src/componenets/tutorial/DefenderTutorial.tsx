@@ -26,9 +26,9 @@ export const DefenderTutorial: React.FC = () => {
   const [quizSubmitted, setQuizSubmitted] = useState<boolean>(false);
 
   // Handlers for Module 1
-  const handlePlaceTower = (padId: string, towerType: 'archer' | 'cannon') => {
+  const handlePlaceTower = (padId: string, towerType: 'archer' | 'crossbow') => {
     soundEffects.playClick();
-    const cost = towerType === 'archer' ? 55 : 140;
+    const cost = towerType === 'archer' ? 55 : 130;
     if (goldM1 >= cost && !placedPads[padId]) {
       setPlacedPads((prev) => ({ ...prev, [padId]: towerType }));
       setGoldM1((prev) => prev - cost);
@@ -206,15 +206,15 @@ export const DefenderTutorial: React.FC = () => {
                                   className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-emerald-900 hover:bg-emerald-800 text-emerald-200 disabled:opacity-30 cursor-pointer"
                                   title="Build Archer (55g)"
                                 >
-                                  🏹 55g
+                                  Archer 55g
                                 </button>
                                 <button
-                                  onClick={() => handlePlaceTower(pad.id, 'cannon')}
-                                  disabled={goldM1 < 140}
+                                  onClick={() => handlePlaceTower(pad.id, 'crossbow')}
+                                  disabled={goldM1 < 130}
                                   className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-900 hover:bg-amber-800 text-amber-200 disabled:opacity-30 cursor-pointer"
-                                  title="Build Cannon (140g)"
+                                  title="Build Crossbow (130g)"
                                 >
-                                  💥 140g
+                                  Crossbow 130g
                                 </button>
                               </div>
                             </div>
@@ -228,9 +228,8 @@ export const DefenderTutorial: React.FC = () => {
               </div>
 
               <div className="p-2.5 rounded bg-amber-950/40 border border-amber-600/30 text-xs text-slate-300 flex items-center gap-2">
-                <span className="text-base">💡</span>
                 <span>
-                  <strong>Tactical Tip:</strong> Place an <strong>Archer Tower</strong> (high fire rate) along early bends to intercept fast runners, and place a <strong>Cannon</strong> (25% slow on-hit) at the main intersection to bunch packs together!
+                  <strong>Tactical Tip:</strong> Place an <strong>Archer Tower</strong> (multi-shot against swarms) along early bends, and place a <strong>Crossbow Fort</strong> (salvo burst + stun) at key choke points to lock down heavy enemies!
                 </span>
               </div>
             </div>
