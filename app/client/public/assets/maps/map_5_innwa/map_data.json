@@ -5,5 +5,7 @@
   "height": 720,
   "description": "Custom tactical layout with precision waypoints and strategic tower pads.",
   "pathHalfWidth": 26,
-  "lanes": 2
+  "lanes": 3,
+  "holderScale": 1,
+  "props": []
 }

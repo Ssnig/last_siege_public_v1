@@ -350,10 +350,12 @@ export class GameScene extends Phaser.Scene {
       }),
     );
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    const onTeardown = () => {
       this.cleanup();
       this.game?.events.emit("scene-shutdown");
-    });
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, onTeardown);
+    this.events.once(Phaser.Scenes.Events.DESTROY, onTeardown);
 
     /**
      * State can already be initialized when this scene starts.
