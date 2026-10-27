@@ -40,7 +40,7 @@
   },
   "sar_bal_gyi": {
     "id": "sar_bal_gyi",
-    "name": "Palace Royal Guard",
+    "name": "Sar Bal Gyi",
     "maxHp": 370,
     "speed": 45,
     "bounty": 16,
@@ -59,7 +59,7 @@
   },
   "gya_pu": {
     "id": "gya_pu",
-    "name": "Winged Nat",
+    "name": "Gya Pu",
     "maxHp": 200,
     "speed": 90,
     "bounty": 8,
@@ -78,7 +78,7 @@
   },
   "a_ba": {
     "id": "a_ba",
-    "name": "Nat Spirit Medium",
+    "name": "A Ba",
     "maxHp": 320,
     "speed": 45,
     "bounty": 12,
@@ -101,7 +101,7 @@
   },
   "chon_toe": {
     "id": "chon_toe",
-    "name": "Bush Sneak",
+    "name": "Chon Toe",
     "maxHp": 660,
     "speed": 35,
     "bounty": 22,
@@ -166,7 +166,7 @@
   },
   "shield_guy": {
     "id": "shield_guy",
-    "name": "Shield Bearer",
+    "name": "Shield Guy",
     "maxHp": 275,
     "speed": 40,
     "bounty": 16,
@@ -212,7 +212,7 @@
   },
   "bandit": {
     "id": "bandit",
-    "name": "Bandit Raider",
+    "name": "Bandit",
     "maxHp": 210,
     "speed": 100,
     "bounty": 9,
@@ -228,7 +228,7 @@
   },
   "belu": {
     "id": "belu",
-    "name": "Belu Ogre",
+    "name": "Belu",
     "maxHp": 1000,
     "speed": 35,
     "bounty": 34,
@@ -252,7 +252,7 @@
   },
   "brute": {
     "id": "brute",
-    "name": "Heavy Brute",
+    "name": "Brute",
     "maxHp": 540,
     "speed": 48,
     "bounty": 24,
@@ -277,7 +277,7 @@
   },
   "general": {
     "id": "general",
-    "name": "Royal Bo General",
+    "name": "Bo General",
     "maxHp": 480,
     "speed": 55,
     "bounty": 24,
@@ -295,7 +295,7 @@
   },
   "sone_ma": {
     "id": "sone_ma",
-    "name": "Sone Ma Sorceress",
+    "name": "Sone Ma",
     "maxHp": 400,
     "speed": 30,
     "bounty": 35,

@@ -41,52 +41,52 @@ notes =
 
 [sar_bal_gyi]
 id = sar_bal_gyi
-name = Palace Royal Guard
+name = Sar Bal Gyi
 nickname = 
 strong_against = 
 weak_against = 
-max_hp = 420
+max_hp = 370
 speed = 45
 armor = 8
 mental_strength = 0
-cost = 40
-bounty = 25
+cost = 48
+bounty = 16
 leak_damage = 3
 notes = 
 
 [gya_pu]
 id = gya_pu
-name = Winged Nat
+name = Gya Pu
 nickname = 
 strong_against = 
 weak_against = 
 max_hp = 200
 speed = 90
 armor = 0
-mental_strength = 1
+mental_strength = 0.5
 cost = 20
-bounty = 12
+bounty = 8
 leak_damage = 2
 notes = 
 
 [a_ba]
 id = a_ba
-name = Nat Spirit Medium
+name = A Ba
 nickname = 
 strong_against = 
 weak_against = 
 max_hp = 320
-speed = 70
+speed = 45
 armor = 0
-mental_strength = 1
+mental_strength = 0.5
 cost = 30
-bounty = 22
+bounty = 12
 leak_damage = 2
 notes = 
 
 [chon_toe]
 id = chon_toe
-name = Bush Sneak
+name = Chon Toe
 nickname = 
 strong_against = 
 weak_against = 
@@ -131,16 +131,16 @@ notes =
 
 [shield_guy]
 id = shield_guy
-name = Shield Bearer
+name = Shield Guy
 nickname = 
 strong_against = 
 weak_against = 
-max_hp = 320
+max_hp = 275
 speed = 40
 armor = 6
 mental_strength = 0
-cost = 40
-bounty = 25
+cost = 48
+bounty = 16
 leak_damage = 3
 notes = 
 
@@ -150,78 +150,78 @@ name = Doe Pat
 nickname = 
 strong_against = 
 weak_against = 
-max_hp = 200
+max_hp = 240
 speed = 30
 armor = 0
-mental_strength = 0.75
-cost = 35
-bounty = 22
+mental_strength = 0
+cost = 50
+bounty = 20
 leak_damage = 2
 notes = 
 
 [bandit]
 id = bandit
-name = Bandit Raider
+name = Bandit
 nickname = 
 strong_against = 
 weak_against = 
-max_hp = 180
+max_hp = 210
 speed = 100
 armor = 1
 mental_strength = 0.5
 cost = 22
-bounty = 14
+bounty = 9
 leak_damage = 2
 notes = 
 
 [belu]
 id = belu
-name = Belu Ogre
+name = Belu
 nickname = 
 strong_against = 
 weak_against = 
-max_hp = 950
+max_hp = 1000
 speed = 35
-armor = 7
-mental_strength = 0.8
-cost = 85
-bounty = 65
+armor = 0
+mental_strength = 0
+cost = 120
+bounty = 34
 leak_damage = 5
 notes = 
 
 [brute]
 id = brute
-name = Heavy Brute
+name = Brute
 nickname = 
 strong_against = 
 weak_against = 
-max_hp = 560
+max_hp = 540
 speed = 48
-armor = 5
+armor = 4
 mental_strength = 0.25
 cost = 50
-bounty = 35
+bounty = 24
 leak_damage = 3
 notes = 
 
 [general]
 id = general
-name = Royal Bo General
+name = Bo General
 nickname = 
 strong_against = 
 weak_against = 
 max_hp = 480
 speed = 55
 armor = 6
-mental_strength = 0.9
+mental_strength = 0.5
 cost = 60
-bounty = 45
+bounty = 24
 leak_damage = 3
 notes = 
 
 [sone_ma]
 id = sone_ma
-name = Sone Ma Sorceress
+name = Sone Ma
 nickname = 
 strong_against = 
 weak_against = 

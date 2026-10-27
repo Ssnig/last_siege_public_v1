@@ -134,17 +134,17 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 'u_horse_rider_sheet', url: '/assets/units/horse_rider/spritesheet.png', type: 'image', category: 'unit', label: 'Konbaung Cavalry' },
   { id: 'u_horse_rider_face', url: '/assets/units/horse_rider/face.jpg', type: 'image', category: 'unit', label: 'Cavalry Icon' },
 
-  { id: 'u_sar_bal_gyi_sheet', url: '/assets/units/sar_bal_gyi/spritesheet.png', type: 'image', category: 'unit', label: 'Royal Guard' },
-  { id: 'u_sar_bal_gyi_face', url: '/assets/units/sar_bal_gyi/face.jpg', type: 'image', category: 'unit', label: 'Royal Guard Icon' },
+  { id: 'u_sar_bal_gyi_sheet', url: '/assets/units/sar_bal_gyi/spritesheet.png', type: 'image', category: 'unit', label: 'Sar Bal Gyi' },
+  { id: 'u_sar_bal_gyi_face', url: '/assets/units/sar_bal_gyi/face.jpg', type: 'image', category: 'unit', label: 'Sar Bal Gyi Icon' },
 
-  { id: 'u_gya_pu_sheet', url: '/assets/units/gya_pu/spritesheet.png', type: 'image', category: 'unit', label: 'Winged Nat' },
-  { id: 'u_gya_pu_face', url: '/assets/units/gya_pu/face.jpg', type: 'image', category: 'unit', label: 'Winged Nat Icon' },
+  { id: 'u_gya_pu_sheet', url: '/assets/units/gya_pu/spritesheet.png', type: 'image', category: 'unit', label: 'Gya Pu' },
+  { id: 'u_gya_pu_face', url: '/assets/units/gya_pu/face.jpg', type: 'image', category: 'unit', label: 'Gya Pu Icon' },
 
-  { id: 'u_a_ba_sheet', url: '/assets/units/a_ba/spritesheet.png', type: 'image', category: 'unit', label: 'Spirit Medium' },
-  { id: 'u_a_ba_face', url: '/assets/units/a_ba/face.jpg', type: 'image', category: 'unit', label: 'Spirit Medium Icon' },
+  { id: 'u_a_ba_sheet', url: '/assets/units/a_ba/spritesheet.png', type: 'image', category: 'unit', label: 'A Ba' },
+  { id: 'u_a_ba_face', url: '/assets/units/a_ba/face.jpg', type: 'image', category: 'unit', label: 'A Ba Icon' },
 
-  { id: 'u_chon_toe_sheet', url: '/assets/units/chon_toe/spritesheet.png', type: 'image', category: 'unit', label: 'Bush Sneak' },
-  { id: 'u_chon_toe_face', url: '/assets/units/chon_toe/face.jpg', type: 'image', category: 'unit', label: 'Bush Sneak Icon' },
+  { id: 'u_chon_toe_sheet', url: '/assets/units/chon_toe/spritesheet.png', type: 'image', category: 'unit', label: 'Chon Toe' },
+  { id: 'u_chon_toe_face', url: '/assets/units/chon_toe/face.jpg', type: 'image', category: 'unit', label: 'Chon Toe Icon' },
 
   { id: 'u_elephant_rider_sheet', url: '/assets/units/elephant_rider/elephant_rider.png', type: 'image', category: 'unit', label: 'Elephant Rider' },
   { id: 'u_elephant_rider_face', url: '/assets/units/elephant_rider/face.jpg', type: 'image', category: 'unit', label: 'Elephant Rider Icon' },
@@ -152,23 +152,23 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 'u_monkey_sheet', url: '/assets/units/monkey/spritesheet.png', type: 'image', category: 'unit', label: 'Monkey Warrior' },
   { id: 'u_monkey_face', url: '/assets/units/monkey/face.jpg', type: 'image', category: 'unit', label: 'Monkey Warrior Icon' },
 
-  { id: 'u_say_sayar_sheet', url: '/assets/units/say_sayar/say_sayar.png', type: 'image', category: 'unit', label: 'Say Sayar Healer' },
+  { id: 'u_say_sayar_sheet', url: '/assets/units/say_sayar/say_sayar.png', type: 'image', category: 'unit', label: 'Say Sayar' },
   { id: 'u_say_sayar_face', url: '/assets/units/say_sayar/face.jpg', type: 'image', category: 'unit', label: 'Say Sayar Icon' },
   { id: 'u_say_sayar_heal_vfx', url: '/assets/units/say_sayar/heal_vfx.png', type: 'image', category: 'unit', label: 'Heal Aura VFX' },
 
-  { id: 'u_shield_guy_sheet', url: '/assets/units/shield_guy/shield_guy.png', type: 'image', category: 'unit', label: 'Shield Defender' },
-  { id: 'u_shield_guy_face', url: '/assets/units/shield_guy/face.jpg', type: 'image', category: 'unit', label: 'Shield Defender Icon' },
+  { id: 'u_shield_guy_sheet', url: '/assets/units/shield_guy/shield_guy.png', type: 'image', category: 'unit', label: 'Shield Guy' },
+  { id: 'u_shield_guy_face', url: '/assets/units/shield_guy/face.jpg', type: 'image', category: 'unit', label: 'Shield Guy Icon' },
 
-  { id: 'u_doe_pat_sheet', url: '/assets/units/doe_pat/sheet.png', type: 'image', category: 'unit', label: 'Doe Pat Drummer' },
+  { id: 'u_doe_pat_sheet', url: '/assets/units/doe_pat/sheet.png', type: 'image', category: 'unit', label: 'Doe Pat' },
   { id: 'u_doe_pat_face', url: '/assets/units/doe_pat/face.jpg', type: 'image', category: 'unit', label: 'Doe Pat Icon' },
   { id: 'u_doe_pat_speed_vfx', url: '/assets/units/doe_pat/speed_boost_vfx.png', type: 'image', category: 'unit', label: 'Speed Boost VFX' },
 
-  { id: 'u_bandit_face', url: '/assets/units/Bandit/face.jpg', type: 'image', category: 'unit', label: 'Bandit Raider Icon' },
-  { id: 'u_belu_face', url: '/assets/units/Belu/face.jpg', type: 'image', category: 'unit', label: 'Belu Ogre Icon' },
+  { id: 'u_bandit_face', url: '/assets/units/Bandit/face.jpg', type: 'image', category: 'unit', label: 'Bandit Icon' },
+  { id: 'u_belu_face', url: '/assets/units/Belu/face.jpg', type: 'image', category: 'unit', label: 'Belu Icon' },
   { id: 'u_belu_skill_vfx', url: '/assets/units/Belu/skill_vfx.png', type: 'image', category: 'unit', label: 'Belu Skill VFX' },
-  { id: 'u_brute_face', url: '/assets/units/Brute/face.jpg', type: 'image', category: 'unit', label: 'Heavy Brute Icon' },
-  { id: 'u_general_face', url: '/assets/units/General/face.jpg', type: 'image', category: 'unit', label: 'Royal Bo General Icon' },
-  { id: 'u_sone_ma_face', url: '/assets/units/SoneMa/face.jpg', type: 'image', category: 'unit', label: 'Sone Ma Sorceress Icon' },
+  { id: 'u_brute_face', url: '/assets/units/Brute/face.jpg', type: 'image', category: 'unit', label: 'Brute Icon' },
+  { id: 'u_general_face', url: '/assets/units/General/face.jpg', type: 'image', category: 'unit', label: 'Bo General Icon' },
+  { id: 'u_sone_ma_face', url: '/assets/units/SoneMa/face.jpg', type: 'image', category: 'unit', label: 'Sone Ma Icon' },
   { id: 'u_sone_ma_skill_vfx', url: '/assets/units/SoneMa/skill_vfx.png', type: 'image', category: 'unit', label: 'Sone Ma Skill VFX' },
   { id: 'u_brute_heal_vfx', url: '/assets/units/Brute/heal_vfx.png', type: 'image', category: 'unit', label: 'Brute Self-Heal VFX' },
 

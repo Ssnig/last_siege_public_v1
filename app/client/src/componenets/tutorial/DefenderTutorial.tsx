@@ -261,7 +261,7 @@ export const DefenderTutorial: React.FC = () => {
                     🛡️
                   </div>
                   <div>
-                    <h5 className="text-sm font-bold text-white">Palace Royal Guard (Sar Bal Gyi)</h5>
+                    <h5 className="text-sm font-bold text-white">Sar Bal Gyi</h5>
                     <div className="flex items-center gap-2 text-[10px] text-slate-300 font-mono mt-0.5">
                       <span className="px-1.5 py-0.2 rounded bg-slate-800 text-amber-300">Armor: 8 (Heavy)</span>
                       <span className="px-1.5 py-0.2 rounded bg-purple-950 text-purple-300">Mental Resolve: 0% (Vulnerable)</span>

@@ -23,8 +23,8 @@ const TOWER_EXTRA_INFO: Record<string, TowerLore> = {
     title: 'Imperial Bowmen Guard',
     role: 'Multi-Shot Volley Defense',
     description: 'Disciplined archers of the Konbaung Royal Court firing whistling arrows with split focus. Upgrades allow firing at multiple targets simultaneously to decimate swarms.',
-    bestAgainst: ['Monkey', 'Winged Nat', 'Doe Pat', 'Swarms'],
-    weakAgainst: ['Sar Bal Gyi (High Armor)', 'Bush Sneak'],
+    bestAgainst: ['Monkey', 'Gya Pu', 'Doe Pat', 'Swarms'],
+    weakAgainst: ['Sar Bal Gyi (High Armor)', 'Chon Toe'],
     tacticalTip: 'Upgrade to Level 2 and Level 3 to engage 2 and 3 simultaneous targets across dense lanes, blunting incoming swarms before they reach the citadel.',
   },
   crossbow: {
@@ -55,9 +55,9 @@ const TOWER_EXTRA_INFO: Record<string, TowerLore> = {
     title: 'Sacred Monastery Bell',
     role: 'Mental AoE Pulse & Armor Piercing',
     description: 'Consecrated Buddhist bell chiming with resonant sound waves. Completely ignores physical armor and cracks the resolve of all foes in range, amplifying all subsequent mental damage.',
-    bestAgainst: ['Sar Bal Gyi (Heavy Armor)', 'War Elephant', 'Shield Bearer'],
-    weakAgainst: ['Winged Nat (Mental Resolve)', 'Nat Medium (A-Ba)'],
-    tacticalTip: 'The ultimate hard-counter to armored behemoths that shrug off physical arrows. Upgrade early when facing Palace Royal Guards.',
+    bestAgainst: ['Sar Bal Gyi (Heavy Armor)', 'War Elephant', 'Shield Guy'],
+    weakAgainst: ['Gya Pu (Mental Resolve)', 'A Ba'],
+    tacticalTip: 'The ultimate hard-counter to armored behemoths that shrug off physical arrows. Upgrade early when facing Sar Bal Gyi.',
   },
   spear: {
     title: 'Vanguard Pikemen',

@@ -31,14 +31,14 @@ const MAP_TACTICAL_NOTES: Record<string, MapTacticalNote> = {
     lanesSummary: 'Serene marshland channels flanked by stilt villages and floating gardens.',
     chokePoint: 'The wooden bridge bottleneck entering the central temple island.',
     defenderAdvice: 'Water Cannon and Gun Towers dominate the long unobstructed water avenues.',
-    attackerAdvice: 'Winged Nats ignore water hazards and bypass ground congestion with ease.',
+    attackerAdvice: 'Gya Pu units ignore water hazards and bypass ground congestion with ease.',
   },
   mandalay: {
     title: 'Mandalay Royal Moat & Walls',
     lanesSummary: 'A grand fortified stronghold bordered by an expansive protective moat.',
     chokePoint: 'Fortress gatehouse threshold where attackers are compressed into single file.',
     defenderAdvice: 'Front-load heavy physical artillery at the moat crossing pads.',
-    attackerAdvice: 'Use Shield Bearer taunt to draw long-range sniper fire while cavalry charges the gate.',
+    attackerAdvice: 'Use Shield Guy taunt to draw long-range sniper fire while cavalry charges the gate.',
   },
   innwa: {
     title: 'Old Innwa Kingdom Canals',

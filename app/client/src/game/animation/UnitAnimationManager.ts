@@ -69,7 +69,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   sar_bal_gyi: {
     id: "sar_bal_gyi",
-    name: "Palace Royal Guard",
+    name: "Sar Bal Gyi",
     frames: 6,
     cols: 3,
     rows: 2,
@@ -81,7 +81,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   gya_pu: {
     id: "gya_pu",
-    name: "Winged Nat",
+    name: "Gya Pu",
     frames: 6,
     cols: 3,
     rows: 2,
@@ -93,7 +93,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   a_ba: {
     id: "a_ba",
-    name: "Nat Spirit Medium",
+    name: "A Ba",
     frames: 6,
     cols: 3,
     rows: 2,
@@ -105,7 +105,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   chon_toe: {
     id: "chon_toe",
-    name: "Bush Sneak",
+    name: "Chon Toe",
     frames: 6,
     cols: 3,
     rows: 2,
@@ -161,7 +161,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   shield_guy: {
     id: "shield_guy",
-    name: "Shield Bearer",
+    name: "Shield Guy",
     frames: 8,
     cols: 4,
     rows: 2,
@@ -189,7 +189,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   bandit: {
     id: "bandit",
-    name: "Bandit Raider",
+    name: "Bandit",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -204,7 +204,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   belu: {
     id: "belu",
-    name: "Belu Ogre",
+    name: "Belu",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -219,7 +219,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   brute: {
     id: "brute",
-    name: "Heavy Brute",
+    name: "Brute",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -234,7 +234,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   general: {
     id: "general",
-    name: "Royal Bo General",
+    name: "Bo General",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -249,7 +249,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   sone_ma: {
     id: "sone_ma",
-    name: "Sone Ma Sorceress",
+    name: "Sone Ma",
     frames: 4,
     cols: 4,
     rows: 1,
