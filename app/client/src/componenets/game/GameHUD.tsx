@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MATCH_RULES, TOWER_TYPES, getTowerDesign } from '@root/shared';
+import { MATCH_RULES, DEFAULT_ECONOMY, TOWER_TYPES, getTowerDesign } from '@root/shared';
 import { useSmoothCountdown } from './useSmoothCountdown';
 import { DamageTypeBadge } from './DamageTypeBadge';
 import { damageTypeOfTower } from '../../game/damageTypes';
@@ -8,6 +8,7 @@ import { TutorialQuickGuideModal } from '../tutorial/TutorialQuickGuideModal';
 
 interface GameHUDProps {
   gold: number;
+  maxGold?: number;
   deck: string[];
   selectedTowerType?: string;
   onSelectTower: (towerId: string) => void;
@@ -65,6 +66,7 @@ const TOWER_ICONS: Record<string, string> = {
 
 export const GameHUD: React.FC<GameHUDProps> = ({
   gold,
+  maxGold = DEFAULT_ECONOMY.maxGold ?? 750,
   deck,
   selectedTowerType = 'basic',
   onSelectTower,
@@ -193,25 +195,44 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           
           {/* Top-Left: Gold display */}
           <div className="flex items-center gap-1.5 md:gap-2">
-            <div
-              className="pointer-events-auto relative w-[112px] h-[34px] md:w-[156px] md:h-[44px] flex items-center justify-end pr-2 md:pr-3 shadow-lg drop-shadow transition-transform hover:scale-102"
-              style={{
-                backgroundImage: "url('/assets/ui/hud/hud_gold_badge_clean.png')",
-                backgroundSize: '100% 100%',
-                backgroundRepeat: 'no-repeat',
-              }}
-            >
-              <div className="flex flex-col items-end justify-center leading-none">
-                <span className="text-amber-200 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-[15px] tracking-wide font-['Almendra',serif]">
-                  GOLD: {gold}g
-                </span>
-                {incomeRate !== undefined && (
-                  <span className="text-emerald-300 font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] text-[10px] md:text-xs tracking-tight font-sans">
-                    +{incomeRate}g/s
-                  </span>
-                )}
-              </div>
-            </div>
+            {(() => {
+              const isCapped = gold >= maxGold;
+              return (
+                <div
+                  className={`pointer-events-auto relative w-[112px] h-[34px] md:w-[156px] md:h-[44px] flex items-center justify-end pr-2 md:pr-3 shadow-lg drop-shadow transition-transform hover:scale-102 ${
+                    isCapped ? 'ring-2 ring-amber-400 rounded-lg shadow-[0_0_12px_rgba(251,191,36,0.6)]' : ''
+                  }`}
+                  style={{
+                    backgroundImage: "url('/assets/ui/hud/hud_gold_badge_clean.png')",
+                    backgroundSize: '100% 100%',
+                    backgroundRepeat: 'no-repeat',
+                  }}
+                  title={isCapped ? `Gold Cap Reached (${maxGold}g)! Spend gold before incoming income is lost.` : undefined}
+                >
+                  <div className="flex flex-col items-end justify-center leading-none">
+                    <div className="flex items-center gap-1">
+                      <span className={`font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] text-xs md:text-[15px] tracking-wide font-['Almendra',serif] ${
+                        isCapped ? 'text-amber-300 animate-pulse' : 'text-amber-200'
+                      }`}>
+                        GOLD: {gold}g
+                      </span>
+                      {isCapped && (
+                        <span className="text-[8px] md:text-[9px] font-black uppercase px-1 py-0.2 bg-amber-500 text-slate-950 rounded font-mono shadow">
+                          MAX
+                        </span>
+                      )}
+                    </div>
+                    {incomeRate !== undefined && (
+                      <span className={`font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] text-[10px] md:text-xs tracking-tight font-sans ${
+                        isCapped ? 'text-amber-300/80 line-through' : 'text-emerald-300'
+                      }`}>
+                        +{incomeRate}g/s
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Top-Center: Pure Royal Countdown Timer Plaque (No Wave sign, Clean Countdown for Both Sides) */}

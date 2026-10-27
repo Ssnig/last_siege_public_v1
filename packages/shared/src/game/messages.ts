@@ -159,6 +159,8 @@ export interface YouEconomyPayload {
   deck: string[];
   /** Current passive gold earned per second. */
   incomeRate?: number;
+  /** Maximum gold a player can hold before income/bounties are capped. */
+  maxGold?: number;
 }
 
 /**
@@ -215,6 +217,8 @@ export interface AttackerBufferPayload {
   portals: AttackerPortalStatus[];
   /** `true` when the buffer could be deployed right now (combat, charges left). */
   canDeploy: boolean;
+  /** Maximum gold a player can hold before income/bounties are capped. */
+  maxGold?: number;
 }
 
 /** Payload of the `deploy_rejected` private message. */
