@@ -443,12 +443,12 @@ export const AttackerTutorial: React.FC = () => {
                   </p>
                 </div>
 
-                {/* 3. Swarm / Payload */}
+                {/* 3. Swarm / Infiltration */}
                 <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-2xl">🐒</span>
                     <div>
-                      <h6 className="text-xs font-bold text-white">3. Infiltration Payload</h6>
+                      <h6 className="text-xs font-bold text-white">3. Infiltration Strike Squad</h6>
                       <span className="text-[10px] text-emerald-300 font-mono">Monkeys / Cavalry</span>
                     </div>
                   </div>

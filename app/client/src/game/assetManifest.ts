@@ -206,14 +206,14 @@ export const EXTRA_MAPS: Record<string, AssetManifestEntry[]> = {
   ],
   deserted: [
     { id: 'map_deserted', url: '/assets/maps/map_7_deserted/map.jpg', type: 'image', category: 'map', label: 'Deserted Plains' },
-    { id: 'base_deserted', url: '/assets/maps/map_7_deserted/base.png', type: 'image', category: 'map', label: 'Deserted Citadel' },
+    { id: 'base_deserted', url: '/assets/maps/map_7_deserted/base.png', type: 'image', category: 'map', label: 'Sri Ksetra Citadel' },
   ],
   twister: [
-    { id: 'map_twister', url: '/assets/maps/map_8_twister/map.jpg', type: 'image', category: 'map', label: 'Twister Pass' },
-    { id: 'base_twister', url: '/assets/maps/map_8_twister/base.png', type: 'image', category: 'map', label: 'Twister Citadel' },
+    { id: 'map_twister', url: '/assets/maps/map_8_twister/map.jpg', type: 'image', category: 'map', label: 'Taungoo Pass' },
+    { id: 'base_twister', url: '/assets/maps/map_8_twister/base.png', type: 'image', category: 'map', label: 'Taungoo Citadel' },
   ],
   river: [
     { id: 'map_river', url: '/assets/maps/map_9_river/map.jpg', type: 'image', category: 'map', label: 'Ayeyarwady River' },
-    { id: 'base_river', url: '/assets/maps/map_9_river/base.png', type: 'image', category: 'map', label: 'River Citadel' },
+    { id: 'base_river', url: '/assets/maps/map_9_river/base.png', type: 'image', category: 'map', label: 'Ayeyarwady Citadel' },
   ],
 };

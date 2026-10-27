@@ -1,6 +1,6 @@
 {
-  "name": "Versus TD",
-  "short_name": "Versus TD",
+  "name": "Last Siege",
+  "short_name": "Last Siege",
   "start_url": "/",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone"],

@@ -439,11 +439,15 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
               boxShadow: '0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(254,240,138,0.15)',
             }}
           >
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              {/* Green status orb */}
-              <div className="relative w-3.5 h-3.5 shrink-0">
-                <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
-                <div className="absolute inset-0 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
+            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+              {/* Royal Emblem Logo & Status Indicator */}
+              <div className="relative w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center">
+                <img
+                  src="/assets/svg/logo.svg"
+                  alt="Royal Seal"
+                  className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-900 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
               </div>
               <div className="min-w-0">
                 <h2

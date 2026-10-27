@@ -55,14 +55,14 @@ const MAP_TACTICAL_NOTES: Record<string, MapTacticalNote> = {
     attackerAdvice: 'Deploy Gya Pu and A-Ba spirit mediums with high mental resolve to withstand bells.',
   },
   deserted: {
-    title: 'Deserted Sunken Ruins',
+    title: 'Sri Ksetra Sunken Ruins',
     lanesSummary: 'Arid canyon pass cutting through forgotten sandstone monoliths.',
     chokePoint: 'Deep gorge corridor with zero lateral room for attackers to disperse.',
     defenderAdvice: 'Perfect setup for Dragon and Bomb towers to scorch packed corridors.',
     attackerAdvice: 'Stagger unit spawns so splash damage doesn’t hit multiple squads simultaneously.',
   },
   twister: {
-    title: 'Twister Gorge',
+    title: 'Taungoo Mountain Gorge',
     lanesSummary: 'Violently winding switchback trails ascending treacherous mountain terraces.',
     chokePoint: 'Multiple tight hairpin turns where towers have overlapping lines of sight.',
     defenderAdvice: 'Central tower pads can shoot into 3 separate bends from a single position.',

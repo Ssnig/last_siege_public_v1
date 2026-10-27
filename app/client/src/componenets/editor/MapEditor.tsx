@@ -58,19 +58,19 @@ const MAP_PRESETS: MapPreset[] = [
   },
   {
     id: "deserted",
-    name: "Map 7: Deserted (Sands)",
+    name: "Sri Ksetra (Ancient Sands)",
     imageSrc: "/assets/maps/map_7_deserted/map.jpg",
     definition: MAPS["deserted"],
   },
   {
     id: "twister",
-    name: "Map 8: Twister (Canyon)",
+    name: "Taungoo (Mountain Pass)",
     imageSrc: "/assets/maps/map_8_twister/map.jpg",
     definition: MAPS["twister"],
   },
   {
     id: "river",
-    name: "Map 9: River (Delta)",
+    name: "Ayeyarwady (River Delta)",
     imageSrc: "/assets/maps/map_9_river/map.jpg",
     definition: MAPS["river"],
   },

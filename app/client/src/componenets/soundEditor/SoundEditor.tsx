@@ -1148,10 +1148,10 @@ export const SoundEditor: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { track: 'lobby' as BGMTrack, title: 'Lobby.mp3 (Menu & Lobby)', desc: 'Lush imperial orchestration for navigation and matchmaking.' },
-                { track: 'draft' as BGMTrack, title: 'DraftPhase.mp3 (Pre-Draft & Drafting)', desc: 'Tense tactical anticipation track for card selection.' },
-                { track: 'in_game' as BGMTrack, title: 'InGameMusic.mp3 (Building & Combat)', desc: 'High-energy siege combat battle soundtrack.' },
-                { track: 'soundtrack_1' as BGMTrack, title: 'Soundtrack1.mp3 (Auxiliary Soundtrack)', desc: 'Secondary historical battle arrangement.' },
+                { track: 'lobby' as BGMTrack, title: 'Imperial Citadel Theme (Menu & Lobby)', desc: 'Lush imperial orchestration for navigation and matchmaking.' },
+                { track: 'draft' as BGMTrack, title: 'War Council Theme (Pre-Draft & Drafting)', desc: 'Tense tactical anticipation track for card selection.' },
+                { track: 'in_game' as BGMTrack, title: 'Siege Battle Theme (Building & Combat)', desc: 'High-energy siege combat battle soundtrack.' },
+                { track: 'soundtrack_1' as BGMTrack, title: 'Royal Legion Theme (Auxiliary Soundtrack)', desc: 'Secondary historical battle arrangement.' },
               ].map((item) => (
                 <div key={item.track} className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
