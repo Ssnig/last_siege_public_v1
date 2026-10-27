@@ -51,6 +51,8 @@ export interface MapDefinition {
   lanes?: number;
   /** Preview image path shown in the map selector and reveal. */
   thumbnail?: string;
+  /** When true, map is temporarily hidden from map selection and matchmaking. */
+  hidden?: boolean;
   path: Vec2[];
   paths?: Record<string, Vec2[]>;
   pathLabels?: Record<string, string>;
@@ -543,6 +545,7 @@ export const BAGAN_MAP: MapDefinition = {
 export const INLE_MAP: MapDefinition = {
   id: "inle",
   name: "Inle (Floating Lake)",
+  hidden: true,
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
   lanes: 1,
   thumbnail: "/assets/maps/map_3_inle/preview.png",
@@ -636,6 +639,7 @@ export const MANDALAY_MAP: MapDefinition = {
   lanes: 3,
   thumbnail: "/assets/maps/map_4_mandalay/preview.png",
   pathHalfWidth: 26,
+  holderScale: 0.8,
   path: [],
   portals: [
     { x: 468, y: 38 },
@@ -695,6 +699,9 @@ export const MANDALAY_MAP: MapDefinition = {
     { slotIndex: 11, x: 522, y: 412 },
     { slotIndex: 12, x: 698, y: 511 },
   ],
+  props: [
+
+  ],
   checkpoints: [1, 3],
   base: { x: 230, y: 356 },
   baseDisplaySize: { width: 231, height: 210 },
@@ -704,9 +711,10 @@ export const INNWA_MAP: MapDefinition = {
   id: "innwa",
   name: "Innwa (Golden Kingdom)",
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
-  lanes: 2,
+  lanes: 3,
   thumbnail: "/assets/maps/map_5_innwa/preview.png",
   pathHalfWidth: 26,
+  holderScale: 1,
   path: [],
   portals: [
     { x: 191, y: 160 },
@@ -786,7 +794,7 @@ export const INNWA_MAP: MapDefinition = {
   },
   slots: [
     { slotIndex: 0, x: 248, y: 500 },
-    { slotIndex: 1, x: 360, y: 180 },
+    { slotIndex: 1, x: 411, y: 162 },
     { slotIndex: 2, x: 379, y: 494 },
     { slotIndex: 3, x: 568, y: 298 },
     { slotIndex: 4, x: 163, y: 363 },
@@ -800,6 +808,10 @@ export const INNWA_MAP: MapDefinition = {
     { slotIndex: 12, x: 966, y: 302 },
     { slotIndex: 13, x: 984, y: 114 },
     { slotIndex: 14, x: 728, y: 136 },
+    { slotIndex: 15, x: 303, y: 203 },
+  ],
+  props: [
+
   ],
   checkpoints: [1, 3],
   base: { x: 634, y: 591 },
@@ -887,7 +899,7 @@ export const DESERTED_MAP: MapDefinition = {
   lanes: 5,
   thumbnail: "/assets/maps/map_7_deserted/preview.png",
   pathHalfWidth: 26,
-  holderScale: 1,
+  holderScale: 0.8,
   path: [],
   portals: [
     { x: 20, y: 696 },
@@ -1150,6 +1162,9 @@ export const DESERTED_MAP: MapDefinition = {
     { slotIndex: 42, x: 1127, y: 41 },
     { slotIndex: 43, x: 806, y: 579 },
   ],
+  props: [
+
+  ],
   checkpoints: [1, 3],
   base: { x: 645, y: 632 },
   baseDisplaySize: { width: 180, height: 120 },
@@ -1162,7 +1177,7 @@ export const TWISTER_MAP: MapDefinition = {
   lanes: 7,
   thumbnail: "/assets/maps/map_8_twister/preview.png",
   pathHalfWidth: 26,
-  holderScale: 1,
+  holderScale: 0.8,
   path: [],
   portals: [
     { x: 71, y: 34 },
@@ -1408,7 +1423,7 @@ export const RIVER_MAP: MapDefinition = {
   lanes: 2,
   thumbnail: "/assets/maps/map_9_river/preview.png",
   pathHalfWidth: 26,
-  holderScale: 1,
+  holderScale: 0.8,
   path: [],
   portals: [
     { x: 118, y: 64 },
@@ -1670,7 +1685,6 @@ export const FORK_MAP: MapDefinition = {
 export const CANONICAL_MAPS: readonly MapDefinition[] = [
   KONBAUNG_MAP,
   BAGAN_MAP,
-  INLE_MAP,
   MANDALAY_MAP,
   INNWA_MAP,
   BAGO_MAP,

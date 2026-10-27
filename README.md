@@ -314,7 +314,7 @@ TD_Game/
 ├── app/
 │   ├── client/                  # Frontend Web Application
 │   │   ├── src/
-│   │   │   ├── componenets/     # React UI: Lobby, Draft, HUD, Editor, Modals
+│   │   │   ├── components/     # React UI: Lobby, Draft, HUD, Editor, Modals
 │   │   │   ├── game/            # Phaser 3 Game Scenes, Stages, and Actors
 │   │   │   ├── audio/           # BGM Manager & Sound Effects Subsystem
 │   │   │   └── network/         # Colyseus Client Room Connection Handlers

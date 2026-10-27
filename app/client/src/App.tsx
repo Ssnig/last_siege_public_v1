@@ -1,22 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { Room } from '@colyseus/sdk';
-import { Lobby } from './componenets/Lobby';
-import { GameRoute } from './componenets/GameRoute';
+import { Lobby } from './components/Lobby';
+import { GameRoute } from './components/GameRoute';
 import { GameRoomContext, type GameRoomContextValue } from './network/roomContext';
 import { client } from './network/client';
 import { clearActiveMatch, saveActiveMatch } from './network/activeRoom';
 
-import { LandingPage } from './componenets/landing/LandingPage';
-import { OrientationPrompt } from './componenets/mobile/OrientationPrompt';
-import { MobileFullscreenGate } from './componenets/mobile/MobileFullscreenGate';
-import { InitialLoadingScreen } from './componenets/common/InitialLoadingScreen';
-import { MapEditor } from './componenets/editor/MapEditor';
-import { SoundEditor } from './componenets/soundEditor/SoundEditor';
-import { EffectsOverlay } from './componenets/common/EffectsOverlay';
-import { BGMRouteSync } from './componenets/audio/BGMRouteSync';
-import { AlmanacPage } from './componenets/almanac/AlmanacPage';
-import { TutorialPage } from './componenets/tutorial/TutorialPage';
+import { LandingPage } from './components/landing/LandingPage';
+import { OrientationPrompt } from './components/mobile/OrientationPrompt';
+import { MobileFullscreenGate } from './components/mobile/MobileFullscreenGate';
+import { InitialLoadingScreen } from './components/common/InitialLoadingScreen';
+import { MapEditor } from './components/editor/MapEditor';
+import { SoundEditor } from './components/soundEditor/SoundEditor';
+import { EffectsOverlay } from './components/common/EffectsOverlay';
+import { BGMRouteSync } from './components/audio/BGMRouteSync';
+import { AlmanacPage } from './components/almanac/AlmanacPage';
+import { TutorialPage } from './components/tutorial/TutorialPage';
 
 /**
  * Root shell: route-based. `/` hosts the game welcome/landing page,

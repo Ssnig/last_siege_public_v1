@@ -1,4 +1,4 @@
-// app/client/src/componenets/game/GameOverOverlay.tsx
+// app/client/src/components/game/GameOverOverlay.tsx
 import React, { useEffect, useState } from 'react';
 import { Room } from '@colyseus/sdk';
 import { MESSAGES, getRankForElo, type RematchUpdatePayload, type RatingUpdateInfo } from '@root/shared';
