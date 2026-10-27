@@ -140,6 +140,8 @@ type MobRecord = {
   burstBroken?: boolean;
   /** Last sampled progress along path (used to differentiate death vs base breach). */
   lastProgress?: number;
+  /** Active stun VFX sprite riding over this mob. */
+  stunVfx?: Phaser.GameObjects.Sprite;
 };
 
 /** A portal: its spin sprite plus the charge pips drawn above it. */
@@ -1811,7 +1813,7 @@ export class GameplayStage {
         lastMentalStacks: initialMental,
         lastArmorCrush: initialCrush,
         wasSilenced: initialSilenced,
-        wasStunned: mob.effects?.has(EFFECT_TYPES.stun) ?? false,
+        wasStunned: false,
         burstBroken: false,
         lastProgress: mob.progress ?? 0,
       };
@@ -1845,6 +1847,8 @@ export class GameplayStage {
         }
       }
 
+      record.stunVfx?.destroy();
+      record.stunVfx = undefined;
       record.vfxSprites?.forEach((vfx) => vfx.destroy());
       record.vfxSprites?.clear();
       record.sprite.destroy();
@@ -2133,6 +2137,49 @@ export class GameplayStage {
         record.stunVfx = undefined;
       }
     });
+  }
+
+  /**
+   * Spawns Crossbow Fort stun VFX on a newly stunned mob.
+   */
+  private playMobStunVfx(
+    record: MobRecord,
+    x: number,
+    y: number,
+  ): void {
+    if (record.stunVfx) {
+      record.stunVfx.destroy();
+      record.stunVfx = undefined;
+    }
+
+    const vfx = UnitAnimationManager.spawnCrossbowStunVfx(this.scene, x, y);
+    if (!vfx) return;
+
+    vfx.setDepth(record.sprite.depth + 0.0001);
+    (this.actors ?? this.root)?.add(vfx);
+    record.stunVfx = vfx;
+
+    if (!record.vfxSprites) {
+      record.vfxSprites = new Set();
+    }
+    record.vfxSprites.add(vfx);
+
+    vfx.once(Phaser.GameObjects.Events.DESTROY, () => {
+      record.vfxSprites?.delete(vfx);
+      if (record.stunVfx === vfx) {
+        record.stunVfx = undefined;
+      }
+    });
+  }
+
+  /**
+   * Clears stun VFX from a mob when the stun expires.
+   */
+  private clearMobStunVfx(record: MobRecord): void {
+    if (record.stunVfx) {
+      record.stunVfx.destroy();
+      record.stunVfx = undefined;
+    }
   }
 
   /**
@@ -2527,21 +2574,35 @@ export class GameplayStage {
     }
     record.wasSilenced = isSilenced;
 
-    // Crossbow Fort Stun alert
+    // Crossbow Fort Stun alert and VFX
     const isStunned = mob.effects?.has(EFFECT_TYPES.stun) ?? false;
-    if (isStunned && !record.wasStunned) {
-      if (container) {
-        FloatingCombatTextManager.spawnStatus(
-          this.scene,
-          container,
-          point.x,
-          point.y - 28,
-          "status_stun",
-          "STUNNED!",
-        );
+    if (isStunned) {
+      if (record.sprite.anims?.isPlaying) {
+        record.sprite.anims.pause();
+      }
+      if (!record.wasStunned) {
+        record.wasStunned = true;
+        if (container) {
+          FloatingCombatTextManager.spawnStatus(
+            this.scene,
+            container,
+            point.x,
+            point.y - 28,
+            "status_stun",
+            "STUNNED!",
+          );
+        }
+        this.playMobStunVfx(record, point.x, point.y);
+      }
+    } else {
+      if (record.wasStunned) {
+        record.wasStunned = false;
+        if (record.sprite.anims?.isPaused) {
+          record.sprite.anims.resume();
+        }
+        this.clearMobStunVfx(record);
       }
     }
-    record.wasStunned = isStunned;
 
     // Monkey Burst of Speed drop alert upon taking first damage
     if (record.typeId === "monkey") {
@@ -3451,6 +3512,16 @@ export class GameplayStage {
       record.levelBadge?.destroy();
     }
     this.towers.clear();
+
+    for (const record of this.mobSprites.values()) {
+      record.stunVfx?.destroy();
+      record.vfxSprites?.forEach((vfx) => vfx.destroy());
+      record.sprite.destroy();
+      record.hpBg.destroy();
+      record.hpFill.destroy();
+    }
+    this.mobSprites.clear();
+    this.mobsById.clear();
     this.deckCards.clear();
   }
 }

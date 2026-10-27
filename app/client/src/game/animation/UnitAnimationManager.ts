@@ -280,6 +280,8 @@ export const MOB_DEATH_VFX_SHEET_KEY = "vfx_mob_death_sheet";
 export const MOB_DEATH_VFX_ANIM_KEY = "vfx_mob_death";
 export const BASE_BREACH_VFX_SHEET_KEY = "vfx_base_breach_sheet";
 export const BASE_BREACH_VFX_ANIM_KEY = "vfx_base_breach";
+export const CROSSBOW_STUN_VFX_SHEET_KEY = "vfx_crossbow_stun_sheet";
+export const CROSSBOW_STUN_VFX_ANIM_KEY = "vfx_crossbow_stun";
 
 /**
  * Manages loading, pinpointing, slicing, and animating unit spritesheets.
@@ -387,6 +389,18 @@ export class UnitAnimationManager {
       scene.load.spritesheet(
         BASE_BREACH_VFX_SHEET_KEY,
         "/assets/vfx/base_breach.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
+    // Preload Crossbow Fort stun VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        CROSSBOW_STUN_VFX_SHEET_KEY,
+        "/assets/towers/02_crossbow_fort/stun_vfx.png",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -606,6 +620,24 @@ export class UnitAnimationManager {
           }),
           frameRate: 14,
           repeat: 0,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY) &&
+      !scene.anims.exists(CROSSBOW_STUN_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(CROSSBOW_STUN_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: CROSSBOW_STUN_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(CROSSBOW_STUN_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(6, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 12,
+          repeat: -1,
         });
       }
     }
@@ -952,6 +984,45 @@ export class UnitAnimationManager {
       vfx.destroy();
     });
 
+    return vfx;
+  }
+
+  /**
+   * Spawns a looping stun VFX sprite on a mob at `(x, y)` from Crossbow Fort's stun effect.
+   */
+  static spawnCrossbowStunVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (!scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        CROSSBOW_STUN_VFX_SHEET_KEY,
+        "/assets/towers/02_crossbow_fort/stun_vfx.png",
+        { frameWidth: 688, frameHeight: 768 },
+      );
+      scene.load.start();
+    }
+    if (!scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY)) return undefined;
+
+    if (!scene.anims.exists(CROSSBOW_STUN_VFX_ANIM_KEY)) {
+      scene.anims.create({
+        key: CROSSBOW_STUN_VFX_ANIM_KEY,
+        frames: scene.anims.generateFrameNumbers(CROSSBOW_STUN_VFX_SHEET_KEY, {
+          start: 0,
+          end: 6,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, CROSSBOW_STUN_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.85)
+      .setScale(0.12);
+
+    vfx.play(CROSSBOW_STUN_VFX_ANIM_KEY);
     return vfx;
   }
 }

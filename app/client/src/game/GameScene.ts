@@ -159,6 +159,8 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Crossbow Fort projectile & hit VFX - 2 rows x 4 cols (688x768)
     this.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    // Crossbow Fort stun VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("vfx_crossbow_stun_sheet", "/assets/towers/02_crossbow_fort/stun_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Bomb projectile & hit VFX - 2 rows x 4 cols (688x768)
     this.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Spear projectile & hit VFX - 2 rows x 4 cols (688x768)
@@ -256,6 +258,17 @@ export class GameScene extends Phaser.Scene {
       }
       if (!this.anims.exists("sein_pyaung_splash_anim")) {
         this.anims.create({ key: "sein_pyaung_splash_anim", frames: this.anims.generateFrameNumbers("sein_pyaung_vfx_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
+    // Crossbow projectile & stun anims
+    if (this.textures.exists("crossbow_vfx_sheet")) {
+      if (!this.anims.exists("crossbow_splash_anim")) {
+        this.anims.create({ key: "crossbow_splash_anim", frames: this.anims.generateFrameNumbers("crossbow_vfx_sheet", { start: 4, end: 7 }), frameRate: 16, repeat: 0 });
+      }
+    }
+    if (this.textures.exists("vfx_crossbow_stun_sheet")) {
+      if (!this.anims.exists("vfx_crossbow_stun")) {
+        this.anims.create({ key: "vfx_crossbow_stun", frames: this.anims.generateFrameNumbers("vfx_crossbow_stun_sheet", { start: 0, end: 6 }), frameRate: 12, repeat: -1 });
       }
     }
 
