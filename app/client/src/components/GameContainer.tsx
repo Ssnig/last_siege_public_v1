@@ -533,7 +533,25 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
     return () => {
       game.events.off('toggle-ui', onToggleUI);
-      game.destroy(true);
+      try {
+        const canvas = game.canvas;
+        if (canvas) {
+          const gl = (canvas.getContext('webgl2') || canvas.getContext('webgl') || (canvas as any).getContext('experimental-webgl')) as WebGLRenderingContext | null;
+          if (gl && typeof gl.getExtension === 'function') {
+            gl.getExtension('WEBGL_lose_context')?.loseContext();
+          }
+        }
+      } catch {
+        // Silently ignore context loss errors on teardown
+      }
+      try {
+        game.destroy(true, false);
+      } catch (err) {
+        console.warn('Error during Phaser destruction:', err);
+      }
+      if (gameRef.current) {
+        gameRef.current.innerHTML = '';
+      }
       gameInstanceRef.current = null;
     };
   }, [room, matchStarted]);

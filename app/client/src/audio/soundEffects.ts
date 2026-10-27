@@ -11,6 +11,33 @@ class SoundEffectsManager {
   private ctx: AudioContext | null = null;
   private volume: number = 0.7;
   private isMuted: boolean = false;
+  private activeClones: Set<HTMLAudioElement> = new Set();
+  private readonly MAX_ACTIVE_CLONES = 20;
+
+  private playClonedAudio(audio: HTMLAudioElement): boolean {
+    if (this.activeClones.size >= this.MAX_ACTIVE_CLONES) {
+      return false;
+    }
+    try {
+      const clone = audio.cloneNode(true) as HTMLAudioElement;
+      clone.volume = this.volume;
+      this.activeClones.add(clone);
+      const cleanup = () => {
+        this.activeClones.delete(clone);
+        clone.removeEventListener('ended', cleanup);
+        clone.removeEventListener('error', cleanup);
+        clone.src = '';
+      };
+      clone.addEventListener('ended', cleanup, { once: true });
+      clone.addEventListener('error', cleanup, { once: true });
+      clone.play().catch(() => {
+        cleanup();
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -469,14 +496,7 @@ class SoundEffectsManager {
     }
     if (cached) {
       if (!isNaN(cached.duration) && cached.duration > 0) {
-        try {
-          const clone = cached.cloneNode() as HTMLAudioElement;
-          clone.volume = this.volume;
-          clone.play().catch(() => {});
-          return true;
-        } catch {
-          return false;
-        }
+        return this.playClonedAudio(cached);
       } else {
         try {
           cached.currentTime = 0;
@@ -1193,14 +1213,7 @@ class SoundEffectsManager {
     }
     if (cached && !cached.error) {
       if (!cached.paused && cached.currentTime > 0) {
-        try {
-          const clone = cached.cloneNode(true) as HTMLAudioElement;
-          clone.volume = this.volume;
-          clone.play().catch(() => {});
-          return true;
-        } catch {
-          return false;
-        }
+        return this.playClonedAudio(cached);
       } else {
         try {
           cached.currentTime = 0;
