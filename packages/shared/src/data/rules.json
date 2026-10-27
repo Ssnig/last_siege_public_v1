@@ -1,11 +1,11 @@
 {
   "economy": {
-    "defenderStartingGold": 360,
+    "defenderStartingGold": 400,
     "attackerStartingGold": 200,
     "maxGold": 750,
     "attackerBaseIncome": 5.0,
     "defenderBaseIncome": 5.0,
-    "attackerIncomeGainRate": 0.01,
+    "attackerIncomeGainRate": 0.007,
     "attackerUnitIncomeRate": 0.0,
     "attackerUnitIncomeThreshold": 0.5,
     "leakPityRate": 0.21,

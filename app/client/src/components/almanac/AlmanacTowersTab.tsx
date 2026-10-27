@@ -21,19 +21,27 @@ interface TowerLore {
 const TOWER_EXTRA_INFO: Record<string, TowerLore> = {
   archer: {
     title: 'Imperial Bowmen Guard',
-    role: 'Rapid Single-Target Physical',
-    description: 'Disciplined archers of the Konbaung Royal Court firing whistling arrows with rapid cadence. Reliable frontline defense against swift scouts and unarmored raiders.',
-    bestAgainst: ['Monkey', 'Winged Nat', 'Doe Pat'],
-    weakAgainst: ['Sar Bal Gyi (High Armor)', 'Bush Sneak'],
-    tacticalTip: 'Place along early paths to intercept fast runners. Pairs well with Cannon slow effects to maximize arrow volleys.',
+    role: 'Multi-Shot Volley Defense',
+    description: 'Disciplined archers of the Konbaung Royal Court firing whistling arrows with split focus. Upgrades allow firing at multiple targets simultaneously to decimate swarms.',
+    bestAgainst: ['Monkey', 'Gya Pu', 'Doe Pat', 'Swarms'],
+    weakAgainst: ['Sar Bal Gyi (High Armor)', 'Chon Toe'],
+    tacticalTip: 'Upgrade to Level 2 and Level 3 to engage 2 and 3 simultaneous targets across dense lanes, blunting incoming swarms before they reach the citadel.',
+  },
+  crossbow: {
+    title: 'Imperial Crossbow Fort',
+    role: 'Magazine Salvo Burst & Finisher Stun',
+    description: 'A fortified garrison equipped with multi-string mechanical crossbows. Unleashes rapid-fire salvos from preloaded magazines; landing all bolts deals bonus finisher damage and stuns the target for 1 second.',
+    bestAgainst: ['High HP Bosses', 'Elephant Rider', 'Sar Bal Gyi'],
+    weakAgainst: ['Dense Swarms (Overkill Penalty)', 'Fast Single Runners'],
+    tacticalTip: 'Focuses high-health priority units with concentrated bursts. If the target dies early in a burst, remaining bolts hit empty ground, making it vulnerable against swarms without splash support.',
   },
   cannon: {
-    title: 'Royal Iron Cannon',
-    role: 'Area Splash & Concussive Slow',
-    description: 'Cast bronze ordnance firing heavy shrapnel. Blasts a cluster of attackers and applies a 25% movement slow for 1.5s, bunching incoming ranks.',
-    bestAgainst: ['Monkey Swarms', 'Dense Pack Formations'],
-    weakAgainst: ['Spread Units', 'Fast Cavalry'],
-    tacticalTip: 'Essential on bends and intersections. The slow effect keeps units inside the blast radius of other high-damage towers.',
+    title: 'Imperial Crossbow Fort',
+    role: 'Magazine Salvo Burst & Finisher Stun',
+    description: 'A fortified garrison equipped with multi-string mechanical crossbows. Unleashes rapid-fire salvos from preloaded magazines; landing all bolts deals bonus finisher damage and stuns the target for 1 second.',
+    bestAgainst: ['High HP Bosses', 'Elephant Rider', 'Sar Bal Gyi'],
+    weakAgainst: ['Dense Swarms (Overkill Penalty)', 'Fast Single Runners'],
+    tacticalTip: 'Focuses high-health priority units with concentrated bursts. If the target dies early in a burst, remaining bolts hit empty ground, making it vulnerable against swarms without splash support.',
   },
   bomb: {
     title: 'Pyrotechnic Catapult',
@@ -47,9 +55,9 @@ const TOWER_EXTRA_INFO: Record<string, TowerLore> = {
     title: 'Sacred Monastery Bell',
     role: 'Mental AoE Pulse & Armor Piercing',
     description: 'Consecrated Buddhist bell chiming with resonant sound waves. Completely ignores physical armor and cracks the resolve of all foes in range, amplifying all subsequent mental damage.',
-    bestAgainst: ['Sar Bal Gyi (Heavy Armor)', 'War Elephant', 'Shield Bearer'],
-    weakAgainst: ['Winged Nat (Mental Resolve)', 'Nat Medium (A-Ba)'],
-    tacticalTip: 'The ultimate hard-counter to armored behemoths that shrug off physical arrows. Upgrade early when facing Palace Royal Guards.',
+    bestAgainst: ['Sar Bal Gyi (Heavy Armor)', 'War Elephant', 'Shield Guy'],
+    weakAgainst: ['Gya Pu (Mental Resolve)', 'A Ba'],
+    tacticalTip: 'The ultimate hard-counter to armored behemoths that shrug off physical arrows. Upgrade early when facing Sar Bal Gyi.',
   },
   spear: {
     title: 'Vanguard Pikemen',
@@ -389,6 +397,16 @@ export const AlmanacTowersTab: React.FC = () => {
             </div>
 
             <div className="text-xs text-slate-200 leading-relaxed">
+              {currentTier.special?.multiTargets !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Multi-Shot Volley:</strong> Concurrently targets and fires arrows at up to <strong>{currentTier.special.multiTargets}</strong> enemies simultaneously, shredding oncoming swarms.
+                </p>
+              )}
+              {currentTier.special?.salvoCount !== undefined && (
+                <p>
+                  <strong className="text-amber-300">Magazine Salvo Burst:</strong> Rapidly discharges <strong>{currentTier.special.salvoCount} bolts</strong> in rapid sequence before reloading. Connecting the final bolt deals <strong>+{currentTier.special.salvoFinisherBonus ?? 0} finisher bonus damage</strong> and <strong>stuns the target for {currentTier.special.salvoFinisherStunSec ?? 1.0}s</strong>.
+                </p>
+              )}
               {currentTier.special?.windupMaxBonus !== undefined && (
                 <p>
                   <strong className="text-amber-300">Ramping Windup:</strong> Consecutive shots build +10% fire rate stacks up to <strong>+{Math.round(currentTier.special.windupMaxBonus * 100)}%</strong> max attack speed. Decays to 0 if idle for more than 2.0s.

@@ -28,7 +28,7 @@ interface GameHUDProps {
 
 const DEFAULT_DEFENDER_TOWERS = [
   'archer',
-  'cannon',
+  'crossbow',
   'bomb',
   'bell',
   'spear',
@@ -38,7 +38,8 @@ const DEFAULT_DEFENDER_TOWERS = [
 const TOWER_SHORT_NAMES: Record<string, string> = {
   archer: 'Arc',
   basic: 'Arc',
-  cannon: 'Can',
+  crossbow: 'Xbw',
+  cannon: 'Xbw',
   bomb: 'Bmb',
   bell: 'Bel',
   spear: 'Spr',
@@ -51,7 +52,8 @@ const TOWER_SHORT_NAMES: Record<string, string> = {
 const TOWER_ICONS: Record<string, string> = {
   archer: '/assets/towers/01_archer_tower/icon.jpg',
   basic: '/assets/towers/01_archer_tower/icon.jpg',
-  cannon: '/assets/towers/02_cannon/icon.png',
+  crossbow: '/assets/towers/02_crossbow_fort/icon.jpg',
+  cannon: '/assets/towers/02_crossbow_fort/icon.jpg',
   bomb: '/assets/towers/03_bomb_throwing_tower/icon.jpg',
   bell: '/assets/towers/04_bell_tower/icon.jpg',
   spear: '/assets/towers/05_spear_tower/icon.jpg',

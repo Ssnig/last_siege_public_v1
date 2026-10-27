@@ -114,9 +114,10 @@ export function getTowerMuzzleOffset(
       return above
         ? { x: signX * 41, y: -67 }
         : { x: signX * 44, y: -38 };
+    case "crossbow":
     case "cannon":
     case "bomb":
-      return { x: signX * 22, y: -38 };
+      return { x: signX * 24, y: -45 };
     default:
       return { x: 0, y: -43 };
   }

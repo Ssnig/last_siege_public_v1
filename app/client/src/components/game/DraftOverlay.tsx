@@ -55,21 +55,27 @@ interface TacticalData {
 const TACTICAL_TOWERS: Record<string, Partial<TacticalData>> = {
   archer: {
     title: 'ARCHER TOWER',
-    weakness: 'Armored Swarms',
+    weakness: 'Heavy Armor',
     stacks: 'Max 8',
     iconSrc: '/assets/towers/01_archer_tower/icon.jpg',
   },
   basic: {
     title: 'ARCHER TOWER',
-    weakness: 'Armored Swarms',
+    weakness: 'Heavy Armor',
     stacks: 'Max 8',
     iconSrc: '/assets/towers/01_archer_tower/icon.jpg',
   },
-  cannon: {
-    title: 'CANNON',
-    weakness: 'Quick Units',
+  crossbow: {
+    title: 'CROSSBOW FORT',
+    weakness: 'Dense Swarms',
     stacks: 'Max 5',
-    iconSrc: '/assets/towers/02_cannon/icon.png',
+    iconSrc: '/assets/towers/02_crossbow_fort/icon.jpg',
+  },
+  cannon: {
+    title: 'CROSSBOW FORT',
+    weakness: 'Dense Swarms',
+    stacks: 'Max 5',
+    iconSrc: '/assets/towers/02_crossbow_fort/icon.jpg',
   },
   bomb: {
     title: 'BOMB THROWING TOWER',
@@ -161,25 +167,25 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     iconSrc: '/assets/units/horse_rider/face.png',
   },
   sar_bal_gyi: {
-    title: 'PALACE ROYAL GUARD',
+    title: 'SAR BAL GYI',
     weakness: 'Armor Piercing Bolts',
     stacks: 'Max 10',
     iconSrc: '/assets/units/sar_bal_gyi/face.png',
   },
   gya_pu: {
-    title: 'WINGED NAT SPIRIT',
+    title: 'GYA PU',
     weakness: 'Snipers & Anti-Air',
     stacks: 'Max 12',
     iconSrc: '/assets/units/gya_pu/face.png',
   },
   a_ba: {
-    title: 'SPIRIT MEDIUM (A-BA)',
+    title: 'A BA',
     weakness: 'Concentrated Burst',
     stacks: 'Max 10',
     iconSrc: '/assets/units/a_ba/face.png',
   },
   chon_toe: {
-    title: 'BUSH SNEAK (CHON-TOE)',
+    title: 'CHON TOE',
     weakness: 'Poison & Sticky Tar',
     stacks: 'Max 6',
     iconSrc: '/assets/units/chon_toe/face.png',
@@ -203,43 +209,43 @@ const TACTICAL_MOBS: Record<string, Partial<TacticalData>> = {
     iconSrc: '/assets/units/say_sayar/face.jpg',
   },
   shield_guy: {
-    title: 'SHIELD BEARER',
+    title: 'SHIELD GUY',
     weakness: 'Mental Attacks & Artillery',
     stacks: 'Max 8',
     iconSrc: '/assets/units/shield_guy/face.jpg',
   },
   doe_pat: {
-    title: 'DOE PAT DRUMMER',
+    title: 'DOE PAT',
     weakness: 'Long-Range Snipers',
     stacks: 'Max 8',
     iconSrc: '/assets/units/doe_pat/face.jpg',
   },
   bandit: {
-    title: 'BANDIT RAIDER',
+    title: 'BANDIT',
     weakness: 'Heavy Armor & Rapid Fire',
     stacks: 'Max 12',
     iconSrc: '/assets/units/Bandit/face.jpg',
   },
   belu: {
-    title: 'BELU OGRE',
+    title: 'BELU',
     weakness: 'Mental Attacks & Artillery',
     stacks: 'Max 4',
     iconSrc: '/assets/units/Belu/face.jpg',
   },
   brute: {
-    title: 'HEAVY BRUTE',
+    title: 'BRUTE',
     weakness: 'Piercing Arrows & Kiting',
     stacks: 'Max 6',
     iconSrc: '/assets/units/Brute/face.jpg',
   },
   general: {
-    title: 'ROYAL BO GENERAL',
+    title: 'BO GENERAL',
     weakness: 'Concentrated Single-Target Burst',
     stacks: 'Max 6',
     iconSrc: '/assets/units/General/face.jpg',
   },
   sone_ma: {
-    title: 'SONE MA SORCERESS',
+    title: 'SONE MA',
     weakness: 'Physical Snipers & Swarms',
     stacks: 'Max 8',
     iconSrc: '/assets/units/SoneMa/face.jpg',
@@ -394,7 +400,19 @@ export function getTowerEffectTags(towerOrId: any): EffectTag[] {
   if (!tower && !id) return [];
 
   const tags: EffectTag[] = [];
-  if (id === 'cannon' || id === 'bomb') {
+  if (id === 'archer' || id === 'basic') {
+    tags.push({
+      label: 'Multi-Shot',
+      style: 'bg-emerald-950/90 border-emerald-500/80 text-emerald-300',
+      description: 'Fires at multiple targets simultaneously (Lv1: 1, Lv2: 2, Lv3: 3)',
+    });
+  } else if (id === 'crossbow' || id === 'cannon') {
+    tags.push({
+      label: 'Salvo Stun',
+      style: 'bg-amber-950/90 border-amber-500/80 text-amber-300',
+      description: 'Rapid magazine burst; final connecting bolt deals bonus damage and stuns for 1s',
+    });
+  } else if (id === 'bomb') {
     tags.push({
       label: 'AoE',
       style: 'bg-orange-950/90 border-orange-500/80 text-orange-300',

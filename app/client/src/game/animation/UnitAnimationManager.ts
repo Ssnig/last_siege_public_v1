@@ -69,7 +69,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   sar_bal_gyi: {
     id: "sar_bal_gyi",
-    name: "Palace Royal Guard",
+    name: "Sar Bal Gyi",
     frames: 6,
     cols: 3,
     rows: 2,
@@ -81,7 +81,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   gya_pu: {
     id: "gya_pu",
-    name: "Winged Nat",
+    name: "Gya Pu",
     frames: 6,
     cols: 3,
     rows: 2,
@@ -93,7 +93,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   a_ba: {
     id: "a_ba",
-    name: "Nat Spirit Medium",
+    name: "A Ba",
     frames: 6,
     cols: 3,
     rows: 2,
@@ -105,7 +105,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   chon_toe: {
     id: "chon_toe",
-    name: "Bush Sneak",
+    name: "Chon Toe",
     frames: 6,
     cols: 3,
     rows: 2,
@@ -161,7 +161,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   shield_guy: {
     id: "shield_guy",
-    name: "Shield Bearer",
+    name: "Shield Guy",
     frames: 8,
     cols: 4,
     rows: 2,
@@ -189,7 +189,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   bandit: {
     id: "bandit",
-    name: "Bandit Raider",
+    name: "Bandit",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -204,7 +204,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   belu: {
     id: "belu",
-    name: "Belu Ogre",
+    name: "Belu",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -219,7 +219,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   brute: {
     id: "brute",
-    name: "Heavy Brute",
+    name: "Brute",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -234,7 +234,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   general: {
     id: "general",
-    name: "Royal Bo General",
+    name: "Bo General",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -249,7 +249,7 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
   },
   sone_ma: {
     id: "sone_ma",
-    name: "Sone Ma Sorceress",
+    name: "Sone Ma",
     frames: 4,
     cols: 4,
     rows: 1,
@@ -280,6 +280,8 @@ export const MOB_DEATH_VFX_SHEET_KEY = "vfx_mob_death_sheet";
 export const MOB_DEATH_VFX_ANIM_KEY = "vfx_mob_death";
 export const BASE_BREACH_VFX_SHEET_KEY = "vfx_base_breach_sheet";
 export const BASE_BREACH_VFX_ANIM_KEY = "vfx_base_breach";
+export const CROSSBOW_STUN_VFX_SHEET_KEY = "vfx_crossbow_stun_sheet";
+export const CROSSBOW_STUN_VFX_ANIM_KEY = "vfx_crossbow_stun";
 
 /**
  * Manages loading, pinpointing, slicing, and animating unit spritesheets.
@@ -387,6 +389,18 @@ export class UnitAnimationManager {
       scene.load.spritesheet(
         BASE_BREACH_VFX_SHEET_KEY,
         "/assets/vfx/base_breach.png",
+        {
+          frameWidth: 688,
+          frameHeight: 768,
+        },
+      );
+    }
+
+    // Preload Crossbow Fort stun VFX spritesheet (2 rows x 4 cols = 8 frames, 688x768 each)
+    if (!scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        CROSSBOW_STUN_VFX_SHEET_KEY,
+        "/assets/towers/02_crossbow_fort/stun_vfx.png",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -606,6 +620,24 @@ export class UnitAnimationManager {
           }),
           frameRate: 14,
           repeat: 0,
+        });
+      }
+    }
+
+    if (
+      scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY) &&
+      !scene.anims.exists(CROSSBOW_STUN_VFX_ANIM_KEY)
+    ) {
+      const vfxTexture = scene.textures.get(CROSSBOW_STUN_VFX_SHEET_KEY);
+      if (vfxTexture && vfxTexture.frameTotal > 1) {
+        scene.anims.create({
+          key: CROSSBOW_STUN_VFX_ANIM_KEY,
+          frames: scene.anims.generateFrameNumbers(CROSSBOW_STUN_VFX_SHEET_KEY, {
+            start: 0,
+            end: Math.min(6, vfxTexture.frameTotal - 1),
+          }),
+          frameRate: 12,
+          repeat: -1,
         });
       }
     }
@@ -952,6 +984,45 @@ export class UnitAnimationManager {
       vfx.destroy();
     });
 
+    return vfx;
+  }
+
+  /**
+   * Spawns a looping stun VFX sprite on a mob at `(x, y)` from Crossbow Fort's stun effect.
+   */
+  static spawnCrossbowStunVfx(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Sprite | undefined {
+    if (!scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY)) {
+      scene.load.spritesheet(
+        CROSSBOW_STUN_VFX_SHEET_KEY,
+        "/assets/towers/02_crossbow_fort/stun_vfx.png",
+        { frameWidth: 688, frameHeight: 768 },
+      );
+      scene.load.start();
+    }
+    if (!scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY)) return undefined;
+
+    if (!scene.anims.exists(CROSSBOW_STUN_VFX_ANIM_KEY)) {
+      scene.anims.create({
+        key: CROSSBOW_STUN_VFX_ANIM_KEY,
+        frames: scene.anims.generateFrameNumbers(CROSSBOW_STUN_VFX_SHEET_KEY, {
+          start: 0,
+          end: 6,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+
+    const vfx = scene.add
+      .sprite(x, y, CROSSBOW_STUN_VFX_SHEET_KEY)
+      .setOrigin(0.5, 0.85)
+      .setScale(0.12);
+
+    vfx.play(CROSSBOW_STUN_VFX_ANIM_KEY);
     return vfx;
   }
 }

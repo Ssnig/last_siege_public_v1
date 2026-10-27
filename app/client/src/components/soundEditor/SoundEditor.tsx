@@ -25,13 +25,13 @@ const TOWERS: TowerSoundMeta[] = [
     description: 'High-speed rapid anti-swarm sentry firing volleys of piercing arrows.',
   },
   {
-    id: 'cannon',
-    name: 'Cannon Tower',
+    id: 'crossbow',
+    name: 'Crossbow Fort',
     damageType: 'physical',
-    cadence: '1 shot / 3.0s (0.33/s)',
-    cadenceSec: 3.0,
-    icon: '/assets/towers/02_cannon/icon.png',
-    description: 'Heavy artillery firing explosive iron cannonballs with a 25% on-hit slow.',
+    cadence: '4-6 bolts salvo / 2.4s',
+    cadenceSec: 2.4,
+    icon: '/assets/towers/02_crossbow_fort/icon.jpg',
+    description: 'Rapid-fire garrison fort launching concentrated bolt salvos that stun upon landing a full magazine volley.',
   },
   {
     id: 'bomb',
@@ -122,19 +122,19 @@ interface UnitSoundMeta {
 const UNITS: UnitSoundMeta[] = [
   { id: 'monkey', name: 'Monkey', archetype: 'Light Scout', speed: 130, hp: 45, description: 'Agile skirmisher with high-frequency chattering screeches and agile yelps.' },
   { id: 'horse_rider', name: 'Konbaung Cavalry', archetype: 'War Cavalry', speed: 110, hp: 120, description: 'Fast mobile vanguard with galloping hooves and battle whinny.' },
-  { id: 'sar_bal_gyi', name: 'Palace Royal Guard', archetype: 'Heavy Infantry', speed: 45, hp: 420, description: 'Elite armored guard with disciplined march thud and soldier grunt.' },
-  { id: 'gya_pu', name: 'Winged Nat', archetype: 'Spirit / Nat', speed: 90, hp: 200, description: 'Celestial winged spirit with harmonic crystalline shimmer.' },
-  { id: 'a_ba', name: 'Nat Spirit Medium', archetype: 'Spirit / Nat', speed: 70, hp: 320, description: 'Spiritual medium with authentic Burmese Kyeezee spinning brass bell.' },
-  { id: 'chon_toe', name: 'Bush Sneak', archetype: 'Light Scout', speed: 35, hp: 750, description: 'Stealth infiltrator with bamboo foliage rustle and blade whoosh.' },
+  { id: 'sar_bal_gyi', name: 'Sar Bal Gyi', archetype: 'Heavy Infantry', speed: 45, hp: 370, description: 'Elite armored guard with disciplined march thud and soldier grunt.' },
+  { id: 'gya_pu', name: 'Gya Pu', archetype: 'Spirit / Nat', speed: 90, hp: 200, description: 'Celestial winged spirit with harmonic crystalline shimmer.' },
+  { id: 'a_ba', name: 'A Ba', archetype: 'Spirit / Nat', speed: 70, hp: 320, description: 'Spiritual medium with authentic Burmese Kyeezee spinning brass bell.' },
+  { id: 'chon_toe', name: 'Chon Toe', archetype: 'Light Scout', speed: 35, hp: 660, description: 'Stealth infiltrator with bamboo foliage rustle and blade whoosh.' },
   { id: 'elephant_rider', name: 'War Elephant', archetype: 'War Cavalry', speed: 30, hp: 1300, description: 'Colossal war beast with deep ground stomp and mighty trumpet roar.' },
-  { id: 'say_sayar', name: 'Say Sayar (Herbalist)', archetype: 'Spirit / Nat', speed: 30, hp: 220, description: 'Medicine healer with bamboo flute and emerald healing aura chime.', hasAbility: true, abilityName: 'Healing Aura' },
-  { id: 'shield_guy', name: 'Shield Bearer', archetype: 'Heavy Infantry', speed: 40, hp: 320, description: 'Sturdy defender with bronze shield block and taunt bash.', hasAbility: true, abilityName: 'Taunt Shout' },
-  { id: 'doe_pat', name: 'Doe Pat Drummer', archetype: 'Brute / Ogre', speed: 30, hp: 200, description: 'Burmese folk drummer with syncopated Doe Pat cadence.', hasAbility: true, abilityName: 'Speed Drum Roll' },
-  { id: 'bandit', name: 'Bandit Raider', archetype: 'Light Scout', speed: 100, hp: 180, description: 'Ruthless rogue with sinister chuckle and curved dah blade slice.' },
-  { id: 'belu', name: 'Belu Ogre', archetype: 'Brute / Ogre', speed: 35, hp: 950, description: 'Terrifying mythological ogre with cavernous chest roar.' },
-  { id: 'brute', name: 'Heavy Brute', archetype: 'Brute / Ogre', speed: 48, hp: 560, description: 'Muscular brawler with guttural grunt and heavy blunt impact.' },
-  { id: 'general', name: 'Royal Bo General', archetype: 'Heavy Infantry', speed: 55, hp: 480, description: 'Commanding commander with royal sword unsheathe and battle gong.' },
-  { id: 'sone_ma', name: 'Sone Ma Sorceress', archetype: 'Spirit / Nat', speed: 65, hp: 260, description: 'Dark witch with dissonant tritone curse and occult vortex whoosh.' }
+  { id: 'say_sayar', name: 'Say Sayar', archetype: 'Spirit / Nat', speed: 30, hp: 264, description: 'Medicine healer with bamboo flute and emerald healing aura chime.', hasAbility: true, abilityName: 'Healing Aura' },
+  { id: 'shield_guy', name: 'Shield Guy', archetype: 'Heavy Infantry', speed: 40, hp: 275, description: 'Sturdy defender with bronze shield block and taunt bash.', hasAbility: true, abilityName: 'Taunt Shout' },
+  { id: 'doe_pat', name: 'Doe Pat', archetype: 'Brute / Ogre', speed: 30, hp: 240, description: 'Burmese folk drummer with syncopated Doe Pat cadence.', hasAbility: true, abilityName: 'Speed Drum Roll' },
+  { id: 'bandit', name: 'Bandit', archetype: 'Light Scout', speed: 100, hp: 210, description: 'Ruthless rogue with sinister chuckle and curved dah blade slice.' },
+  { id: 'belu', name: 'Belu', archetype: 'Brute / Ogre', speed: 35, hp: 1000, description: 'Terrifying mythological ogre with cavernous chest roar.' },
+  { id: 'brute', name: 'Brute', archetype: 'Brute / Ogre', speed: 48, hp: 540, description: 'Muscular brawler with guttural grunt and heavy blunt impact.' },
+  { id: 'general', name: 'Bo General', archetype: 'Heavy Infantry', speed: 55, hp: 480, description: 'Commanding commander with royal sword unsheathe and battle gong.' },
+  { id: 'sone_ma', name: 'Sone Ma', archetype: 'Spirit / Nat', speed: 30, hp: 400, description: 'Dark witch with dissonant tritone curse and occult vortex whoosh.' }
 ];
 
 export const SoundEditor: React.FC = () => {

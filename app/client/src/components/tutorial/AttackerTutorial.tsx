@@ -520,10 +520,10 @@ export const AttackerTutorial: React.FC = () => {
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { name: 'Monkey', dmg: 1, icon: '🐒' },
-                    { name: 'Palace Royal Guard', dmg: 3, icon: '⚔️' },
-                    { name: 'Belu Ogre', dmg: 5, icon: '👹' },
-                    { name: 'War Elephant', dmg: 10, icon: '🐘' },
+                    { name: 'Monkey', dmg: 1 },
+                    { name: 'Sar Bal Gyi', dmg: 3 },
+                    { name: 'Belu', dmg: 5 },
+                    { name: 'War Elephant', dmg: 10 },
                   ].map((unit) => (
                     <button
                       key={unit.name}
@@ -531,7 +531,6 @@ export const AttackerTutorial: React.FC = () => {
                       disabled={m4CoreHp <= 0}
                       className="p-2.5 rounded-lg bg-red-950/40 hover:bg-red-900/50 border border-red-600/40 text-left transition disabled:opacity-30 cursor-pointer"
                     >
-                      <div className="text-xl mb-1">{unit.icon}</div>
                       <div className="text-xs font-bold text-white">{unit.name}</div>
                       <div className="text-[10px] text-red-400 font-mono mt-0.5">−{unit.dmg} Leak HP</div>
                     </button>

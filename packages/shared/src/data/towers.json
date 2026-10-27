@@ -1,54 +1,60 @@
 {
-  "cannon": {
-    "id": "cannon",
-    "name": "Cannon",
+  "crossbow": {
+    "id": "crossbow",
+    "name": "Crossbow Fort",
     "damageType": "physical",
-    "splashRadius": 75,
     "tiers": [
       {
-        "cost": 140,
+        "cost": 130,
+        "damage": 15,
+        "damageMax": 20,
+        "range": 155,
+        "fireRate": 0.384615,
+        "projectileSpeed": 520,
+        "special": {
+          "salvoCount": 4,
+          "salvoStaggerSec": 0.08,
+          "salvoFinisherBonus": 14,
+          "salvoFinisherStunSec": 1.0
+        }
+      },
+      {
+        "cost": 220,
         "damage": 24,
-        "range": 110,
-        "fireRate": 0.333333,
-        "projectileSpeed": 300,
-        "damageMax": 36,
+        "damageMax": 32,
+        "range": 170,
+        "fireRate": 0.416667,
+        "projectileSpeed": 560,
         "special": {
+          "salvoCount": 5,
+          "salvoStaggerSec": 0.08,
+          "salvoFinisherBonus": 24,
+          "salvoFinisherStunSec": 1.0
+        }
+      },
+      {
+        "cost": 375,
+        "damage": 38,
+        "damageMax": 50,
+        "range": 185,
+        "fireRate": 0.454545,
+        "projectileSpeed": 600,
+        "special": {
+          "salvoCount": 6,
+          "salvoStaggerSec": 0.08,
+          "salvoFinisherBonus": 40,
+          "salvoFinisherStunSec": 1.0,
           "armorPierceRatio": 0.25
-        }
-      },
-      {
-        "cost": 230,
-        "damage": 48,
-        "range": 120,
-        "fireRate": 0.36,
-        "projectileSpeed": 320,
-        "damageMax": 72,
-        "special": {
-          "armorPierceRatio": 0.50
-        }
-      },
-      {
-        "cost": 390,
-        "damage": 96,
-        "range": 135,
-        "fireRate": 0.4,
-        "projectileSpeed": 340,
-        "damageMax": 144,
-        "special": {
-          "armorPierceRatio": 0.75
         }
       }
     ],
-    "onHitEffect": {
-      "type": "slow",
-      "magnitude": 0.25,
-      "durationSec": 1.5
-    },
     "strongAgainst": [
-      "armor",
-      "high hp"
+      "high hp",
+      "bosses",
+      "armor"
     ],
     "weakAgainst": [
+      "swarms",
       "fast units"
     ]
   },
@@ -60,42 +66,44 @@
       {
         "cost": 55,
         "damage": 10,
+        "damageMax": 14,
         "range": 140,
         "fireRate": 2,
         "projectileSpeed": 400,
-        "damageMax": 14,
         "special": {
-          "windupMaxBonus": 0.40
+          "multiTargets": 1
         }
       },
       {
         "cost": 105,
         "damage": 18,
+        "damageMax": 26,
         "range": 160,
         "fireRate": 2.15,
         "projectileSpeed": 430,
-        "damageMax": 26,
         "special": {
-          "windupMaxBonus": 0.60
+          "multiTargets": 2
         }
       },
       {
         "cost": 185,
         "damage": 32,
+        "damageMax": 48,
         "range": 185,
         "fireRate": 2.3,
         "projectileSpeed": 460,
-        "damageMax": 48,
         "special": {
-          "windupMaxBonus": 0.80
+          "multiTargets": 3
         }
       }
     ],
     "strongAgainst": [
-      "flying"
+      "flying",
+      "swarms"
     ],
     "weakAgainst": [
-      "armor"
+      "armor",
+      "high hp"
     ]
   },
   "bomb": {
@@ -106,33 +114,33 @@
     "tiers": [
       {
         "cost": 110,
-        "damage": 24,
+        "damage": 28,
         "range": 130,
         "fireRate": 0.5,
         "projectileSpeed": 280,
-        "damageMax": 36,
+        "damageMax": 40,
         "special": {
           "knockbackPx": 15
         }
       },
       {
         "cost": 190,
-        "damage": 48,
+        "damage": 54,
         "range": 145,
         "fireRate": 0.55,
         "projectileSpeed": 300,
-        "damageMax": 72,
+        "damageMax": 78,
         "special": {
           "knockbackPx": 25
         }
       },
       {
         "cost": 320,
-        "damage": 96,
+        "damage": 92,
         "range": 165,
         "fireRate": 0.6,
         "projectileSpeed": 320,
-        "damageMax": 144,
+        "damageMax": 136,
         "special": {
           "knockbackPx": 35
         }
@@ -164,23 +172,23 @@
         }
       },
       {
-        "cost": 165,
-        "damage": 8,
+        "cost": 120,
+        "damage": 6,
         "range": 150,
         "fireRate": 0.5,
         "projectileSpeed": 350,
-        "damageMax": 12,
+        "damageMax": 9,
         "special": {
           "pulseSlow": 0.30
         }
       },
       {
-        "cost": 280,
-        "damage": 16,
+        "cost": 190,
+        "damage": 10,
         "range": 170,
         "fireRate": 0.55,
         "projectileSpeed": 380,
-        "damageMax": 24,
+        "damageMax": 15,
         "special": {
           "pulseSlow": 0.40
         }
@@ -303,11 +311,11 @@
     "tiers": [
       {
         "cost": 40,
-        "damage": 4,
+        "damage": 6,
         "range": 130,
         "fireRate": 0.8,
         "projectileSpeed": 320,
-        "damageMax": 6,
+        "damageMax": 9,
         "special": {
           "drenchSlow": 0.15,
           "drenchVulnerability": 0.15
@@ -315,11 +323,11 @@
       },
       {
         "cost": 75,
-        "damage": 7,
+        "damage": 10,
         "range": 145,
         "fireRate": 0.9,
         "projectileSpeed": 340,
-        "damageMax": 10,
+        "damageMax": 14,
         "special": {
           "drenchSlow": 0.20,
           "drenchVulnerability": 0.25
@@ -327,11 +335,11 @@
       },
       {
         "cost": 130,
-        "damage": 12,
+        "damage": 18,
         "range": 160,
         "fireRate": 1.0,
         "projectileSpeed": 360,
-        "damageMax": 18,
+        "damageMax": 24,
         "special": {
           "drenchSlow": 0.25,
           "drenchVulnerability": 0.35
@@ -366,24 +374,24 @@
         }
       },
       {
-        "cost": 210,
-        "damage": 58,
+        "cost": 160,
+        "damage": 50,
         "range": 170,
         "fireRate": 0.75,
         "projectileSpeed": 420,
-        "damageMax": 88,
+        "damageMax": 74,
         "special": {
           "knockbackPx": 20,
           "silenceSec": 2.0
         }
       },
       {
-        "cost": 360,
-        "damage": 118,
+        "cost": 260,
+        "damage": 95,
         "range": 190,
         "fireRate": 0.8,
         "projectileSpeed": 440,
-        "damageMax": 178,
+        "damageMax": 140,
         "special": {
           "knockbackPx": 30,
           "silenceSec": 2.5
@@ -455,12 +463,13 @@
     "id": "sein_pyaung",
     "name": "Sein Pyaung",
     "damageType": "physical",
+    "splashRadius": 35,
     "tiers": [
       {
         "cost": 125,
         "damage": 36,
         "range": 220,
-        "fireRate": 0.38,
+        "fireRate": 0.33,
         "projectileSpeed": 560,
         "damageMax": 52,
         "special": {
@@ -471,7 +480,7 @@
         "cost": 215,
         "damage": 68,
         "range": 250,
-        "fireRate": 0.42,
+        "fireRate": 0.37,
         "projectileSpeed": 600,
         "damageMax": 98,
         "special": {
@@ -482,7 +491,7 @@
         "cost": 370,
         "damage": 135,
         "range": 285,
-        "fireRate": 0.48,
+        "fireRate": 0.41,
         "projectileSpeed": 640,
         "damageMax": 195,
         "special": {

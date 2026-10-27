@@ -85,7 +85,7 @@ import { UserModel } from "../models/User.js";
 import { GuestUserModel } from "../models/GuestUser.js";
 import { verifyAuthToken } from "../auth/tokens.js";
 import { Phases } from "../game/phases.js";
-import { selectTarget, type TargetCandidate } from "../game/targeting.js";
+import { selectTarget, selectTargets, type TargetCandidate } from "../game/targeting.js";
 
 export type RoleChoice = "attacker" | "defender" | "random";
 export type PlayerRole = "attacker" | "defender";
@@ -133,6 +133,19 @@ interface ScheduledBatch {
   pathId: string;
   typeId: string;
   count: number;
+}
+
+/** In-progress rapid-fire magazine salvo burst (Crossbow Fort). */
+interface TowerSalvo {
+  towerKey: string;
+  tower: Tower;
+  slot: Vec2;
+  targetId: string;
+  lastKnownPos: Vec2;
+  tier: TowerTier;
+  totalBolts: number;
+  firedBolts: number;
+  staggerTimer: number;
 }
 
 /**
@@ -292,6 +305,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   /** Scaling special tier configuration of the tower that fired each in-flight projectile. */
   private projectileSpecial = new Map<string, TowerTierSpecial>();
+
+  /** Seconds of stun to apply on impact if this projectile connects with a living mob (e.g. Crossbow Fort salvo finisher). */
+  private projectileFinisherStun = new Map<string, number>();
+
+  /** Active rapid-fire magazine salvo burst queues (Crossbow Fort), keyed by `${ownerId}-${slotIndex}`. */
+  private towerSalvos = new Map<string, TowerSalvo>();
 
   /** Current consecutive shot wind-up stacks for ramping fire-rate towers (Archer), keyed by `${ownerId}-${slotIndex}`. */
   private towerWindupStacks = new Map<string, number>();
@@ -1053,6 +1072,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const towerKey = `${client.sessionId}-${tower.slotIndex}`;
     this.towerWindupStacks.delete(towerKey);
     this.towerLastFireTime.delete(towerKey);
+    this.towerSalvos.delete(towerKey);
     this.economies.set(
       client.sessionId,
       Math.min(
@@ -2514,6 +2534,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.projectileAim.clear();
     this.projectileSplash.clear();
     this.projectileSourceSlot.clear();
+    this.projectileSpecial.clear();
+    this.projectileFinisherStun.clear();
+    this.towerSalvos.clear();
     this.mobAbilityCooldowns.clear();
     this.mobCastPause.clear();
     this.mobAliveSec.clear();
@@ -2774,6 +2797,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     this.simulateProjectiles(dt, positions);
     this.simulateTowers(dt, map, candidates);
+    this.simulateTowerSalvos(dt, positions);
     this.simulateMobAbilities(dt, positions);
   }
 
@@ -3056,20 +3080,95 @@ export class GameRoom extends Room<{ state: RoomState }> {
         continue;
       }
 
-      const target = selectTarget(
+      const multiTargetsCount = Math.max(1, tier.special?.multiTargets ?? 1);
+      const targets = selectTargets(
         candidates,
         slot,
         tier.range,
+        multiTargetsCount,
         !!tier.special?.prioritizeSupport,
       );
-      tower.targetId = target?.id;
+      tower.targetId = targets[0]?.id;
 
-      if (!target || tower.cooldown > 0) continue;
+      if (targets.length === 0 || tower.cooldown > 0) continue;
 
       tower.cooldown = 1 / effectiveFireRate;
       this.towerWindupStacks.set(towerKey, windupStacks + 1);
       this.towerLastFireTime.set(towerKey, this.matchTime);
-      this.spawnProjectile(tower, slot, target, tier);
+
+      if (tier.special?.salvoCount && tier.special.salvoCount > 1) {
+        const target = targets[0];
+        // Release initial bolt immediately
+        this.spawnProjectile(tower, slot, target, tier, false);
+        // Queue remaining bolts in the salvo magazine
+        this.towerSalvos.set(towerKey, {
+          towerKey,
+          tower,
+          slot,
+          targetId: target.id,
+          lastKnownPos: { x: target.x, y: target.y },
+          tier,
+          totalBolts: tier.special.salvoCount,
+          firedBolts: 1,
+          staggerTimer: tier.special.salvoStaggerSec ?? 0.08,
+        });
+      } else {
+        for (const target of targets) {
+          this.spawnProjectile(tower, slot, target, tier);
+        }
+      }
+    }
+  }
+
+  /**
+   * Advances active Crossbow Fort salvo burst queues, spawning staggered bolts
+   * toward the original target or its last known position.
+   */
+  private simulateTowerSalvos(
+    dt: number,
+    positions: ReadonlyMap<string, Vec2>,
+  ): void {
+    if (this.towerSalvos.size === 0) return;
+
+    for (const [key, salvo] of this.towerSalvos) {
+      if (
+        !this.state.towers.has(salvo.towerKey) ||
+        salvo.tower.effects.has(TOWER_EFFECT_TYPES.stun)
+      ) {
+        this.towerSalvos.delete(key);
+        continue;
+      }
+
+      const currentPos = positions.get(salvo.targetId);
+      if (currentPos) {
+        salvo.lastKnownPos.x = currentPos.x;
+        salvo.lastKnownPos.y = currentPos.y;
+      }
+
+      salvo.staggerTimer -= dt;
+      while (salvo.staggerTimer <= 0 && salvo.firedBolts < salvo.totalBolts) {
+        salvo.staggerTimer += salvo.tier.special?.salvoStaggerSec ?? 0.08;
+        salvo.firedBolts++;
+        const isFinisher = salvo.firedBolts === salvo.totalBolts;
+        const aimPos = positions.get(salvo.targetId) ?? salvo.lastKnownPos;
+
+        this.spawnProjectile(
+          salvo.tower,
+          salvo.slot,
+          {
+            id: salvo.targetId,
+            x: aimPos.x,
+            y: aimPos.y,
+            remaining: 0,
+          },
+          salvo.tier,
+          isFinisher,
+        );
+      }
+
+      if (salvo.firedBolts >= salvo.totalBolts) {
+        this.towerSalvos.delete(key);
+      }
     }
   }
 
@@ -3087,6 +3186,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     slot: Vec2,
     target: TargetCandidate,
     tier: TowerTier,
+    isFinisher = false,
   ): void {
     const id = `proj-${this.projectileSeq++}`;
     const muzzle = getTowerMuzzleOffset(
@@ -3097,6 +3197,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
       target.y,
     );
 
+    const bonusDamage = isFinisher ? (tier.special?.salvoFinisherBonus ?? 0) : 0;
+    const baseDamage = this.towerDamage(tier);
+
     this.state.projectiles.set(
       id,
       new Projectile({
@@ -3105,7 +3208,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
         x: slot.x + muzzle.x,
         y: slot.y + muzzle.y,
         targetId: target.id,
-        damage: this.towerDamage(tier),
+        damage: baseDamage + bonusDamage,
         speed: tier.projectileSpeed,
       }),
     );
@@ -3120,6 +3223,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.projectileSourceSlot.set(id, tower.slotIndex);
     if (tier.special) {
       this.projectileSpecial.set(id, tier.special);
+    }
+    if (isFinisher && tier.special?.salvoFinisherStunSec) {
+      this.projectileFinisherStun.set(id, tier.special.salvoFinisherStunSec);
     }
   }
 
@@ -3168,6 +3274,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.projectileSplash.delete(id);
       this.projectileSourceSlot.delete(id);
       this.projectileSpecial.delete(id);
+      this.projectileFinisherStun.delete(id);
     }
   }
 
@@ -3197,13 +3304,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (splash > 0) {
       // Artillery damage falloff: 100% within inner core (<= 40px),
       // scaling linearly down to 50% at the splash boundary.
+      // Sein Pyaung applies a flat 50% damage multiplier to all secondary targets.
       const innerCore = 40;
       for (const [mobId, pos] of positions) {
         if (mobId === projectile.targetId) continue;
         const dist = Math.hypot(pos.x - impact.x, pos.y - impact.y);
         if (dist <= splash) {
           let multiplier = 1.0;
-          if (dist > innerCore && splash > innerCore) {
+          if (projectile.typeId === "sein_pyaung") {
+            multiplier = 0.5;
+          } else if (dist > innerCore && splash > innerCore) {
             const fraction = (dist - innerCore) / (splash - innerCore);
             multiplier = 1.0 - fraction * 0.5;
           }
@@ -3215,6 +3325,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const sourceSlotIndex = this.projectileSourceSlot.get(id);
     const special = this.projectileSpecial.get(id);
+    const stunSec = this.projectileFinisherStun.get(id);
     for (const [mobId, damage] of hitDamageMap) {
       const damageType =
         TOWER_TYPES[projectile.typeId]?.damageType ?? DAMAGE_TYPES.physical;
@@ -3227,6 +3338,20 @@ export class GameRoom extends Room<{ state: RoomState }> {
         sourceSlotIndex,
         special,
       );
+
+      // Crossbow Fort Salvo Finisher stun: if the final bolt connected and the mob survived
+      if (stunSec !== undefined && stunSec > 0) {
+        const mob = this.state.mobs.get(mobId);
+        if (mob && mob.hp > 0) {
+          this.applyMobEffect(
+            mob,
+            EFFECT_TYPES.stun,
+            1,
+            stunSec,
+            ownerId,
+          );
+        }
+      }
     }
   }
 
@@ -3456,11 +3581,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
   ): void {
     const type = MOB_TYPES[mob.typeId];
 
-    // Sone Ma On-Death Curse: stuns the tower that killed her for 5 seconds
+    // Sone Ma On-Death Curse: stuns the tower that killed her for 5 seconds.
+    // Suppressed if Sone Ma was silenced at death, or if killed by Chinthe Guardian.
+    const isSilenced = mob.effects.has(EFFECT_TYPES.silence);
+    const killedByChinthe = sourceTowerTypeId === "chinthe";
     if (
       type?.onDeathTowerStunSec &&
       type.onDeathTowerStunSec > 0 &&
-      sourceSlotIndex !== undefined
+      sourceSlotIndex !== undefined &&
+      !isSilenced &&
+      !killedByChinthe
     ) {
       const killerTower = [...this.state.towers.values()].find(
         (t) => t.slotIndex === sourceSlotIndex,
@@ -3785,5 +3915,6 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.projectileSplash.clear();
     this.projectileSourceSlot.clear();
     this.projectileSpecial.clear();
+    this.projectileFinisherStun.clear();
   }
 }

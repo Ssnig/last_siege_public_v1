@@ -227,6 +227,7 @@ export class TowerCard {
   private getColor(id: string): number {
     const colors: Record<string, number> = {
       basic: 0x60a5fa,
+      crossbow: 0xd97706,
       cannon: 0xf97316,
     };
 
