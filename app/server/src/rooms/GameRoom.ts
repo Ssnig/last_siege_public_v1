@@ -305,6 +305,25 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /** Initial spawn speed of each living mob (before progressive speed ramps), keyed by mob id. */
   private mobInitialSpeed = new Map<string, number>();
 
+  /** Per-client message rate limiting to guard against spam and socket buffer flooding. */
+  private clientMessageCounts = new Map<string, { count: number; resetAt: number }>();
+  private readonly MAX_MESSAGES_PER_SEC = 30;
+
+  private checkRateLimit(client: Client): boolean {
+    const now = Date.now();
+    let record = this.clientMessageCounts.get(client.sessionId);
+    if (!record || now > record.resetAt) {
+      record = { count: 1, resetAt: now + 1000 };
+      this.clientMessageCounts.set(client.sessionId, record);
+      return true;
+    }
+    record.count++;
+    if (record.count > this.MAX_MESSAGES_PER_SEC) {
+      return false;
+    }
+    return true;
+  }
+
   plugins = definePlugins({
     /**
      * Drops clients that stop sending messages (e.g. a host who queued and
@@ -320,52 +339,90 @@ export class GameRoom extends Room<{ state: RoomState }> {
   });
 
   messages = {
-    [MESSAGES.ready]: (client: Client) => this.handleReady(client),
+    [MESSAGES.ready]: (client: Client) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleReady(client);
+    },
 
     [MESSAGES.draftReady]: (
       client: Client,
       payload: DraftReadyIntent,
-    ) => this.handleDraftReady(client, payload),
+    ) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleDraftReady(client, payload);
+    },
 
     [MESSAGES.draftPick]: (
       client: Client,
       payload: DraftPickIntent,
-    ) => this.handleDraftPick(client, payload),
+    ) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleDraftPick(client, payload);
+    },
 
-    [MESSAGES.surrender]: (client: Client) => this.handleSurrender(client),
+    [MESSAGES.surrender]: (client: Client) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleSurrender(client);
+    },
 
     [MESSAGES.placeTower]: (
       client: Client,
       payload: PlaceTowerIntent,
-    ) => this.handlePlaceTower(client, payload),
+    ) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handlePlaceTower(client, payload);
+    },
 
     [MESSAGES.sellTower]: (
       client: Client,
       payload: SellTowerIntent,
-    ) => this.handleSellTower(client, payload),
+    ) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleSellTower(client, payload);
+    },
 
     [MESSAGES.upgradeTower]: (
       client: Client,
       payload: UpgradeTowerIntent,
-    ) => this.handleUpgradeTower(client, payload),
+    ) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleUpgradeTower(client, payload);
+    },
 
-    [MESSAGES.startCombat]: (client: Client) => this.handleStartCombat(client),
+    [MESSAGES.startCombat]: (client: Client) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleStartCombat(client);
+    },
 
     [MESSAGES.bufferAdd]: (
       client: Client,
       payload: BufferAddIntent,
-    ) => this.handleBufferAdd(client, payload),
+    ) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleBufferAdd(client, payload);
+    },
 
-    [MESSAGES.bufferClear]: (client: Client) => this.handleBufferClear(client),
+    [MESSAGES.bufferClear]: (client: Client) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleBufferClear(client);
+    },
 
     [MESSAGES.deploy]: (
       client: Client,
       payload: DeployIntent,
-    ) => this.handleDeploy(client, payload),
+    ) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleDeploy(client, payload);
+    },
 
-    [MESSAGES.rematch]: (client: Client) => this.handleRematch(client),
-    [MESSAGES.clientAssetsLoaded]: (client: Client) =>
-      this.handleClientAssetsLoaded(client),
+    [MESSAGES.rematch]: (client: Client) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleRematch(client);
+    },
+    [MESSAGES.clientAssetsLoaded]: (client: Client) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleClientAssetsLoaded(client);
+    },
   };
 
   /**
@@ -1984,6 +2041,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.portalCharges.delete(client.sessionId);
     this.rematchVotes.delete(client.sessionId);
     this.loadedAssetsClients.delete(client.sessionId);
+    this.clientMessageCounts.delete(client.sessionId);
     if (this.waitingForAssets) {
       this.checkAssetsAndProceed();
     }
@@ -2050,6 +2108,32 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
   onDispose(): void {
     console.log(`Room ${this.roomId} disposing...`);
+    this.readyClients.clear();
+    this.loadedAssetsClients.clear();
+    this.rematchVotes.clear();
+    this.pendingReconnect.clear();
+
+    this.acceptedDecks.clear();
+    this.draftRoundPicks.clear();
+    this.economies.clear();
+    this.incomeRates.clear();
+    this.attackerBuffers.clear();
+    this.portalCharges.clear();
+
+    this.projectileAim.clear();
+    this.projectileSplash.clear();
+    this.mobAbilityCooldowns.clear();
+    this.mobCastPause.clear();
+    this.projectileSourceSlot.clear();
+    this.projectileSpecial.clear();
+    this.towerWindupStacks.clear();
+    this.towerLastFireTime.clear();
+    this.mobAliveSec.clear();
+    this.mobInitialSpeed.clear();
+
+    this.clientMessageCounts.clear();
+    this.releaseQueue.length = 0;
+    this.draftMobPool.length = 0;
   }
 
   /**
