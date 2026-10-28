@@ -4,6 +4,7 @@ import { soundEffects } from '../../audio/soundEffects';
 import { useAuth } from '../../auth/AuthContext';
 import { SettingsModal } from './SettingsModal';
 import { SocialModal } from './SocialModal';
+import { prewarmServer } from '../../network/client';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +23,9 @@ export const LandingPage: React.FC = () => {
   const [isButtonHovered, setIsButtonHovered] = useState<boolean>(false);
 
   useEffect(() => {
+    // Wake server container if cold-sleeping on cloud hosting
+    prewarmServer();
+
     // Pre-seed audio context on initial user click anywhere
     const enableAudio = () => {
       soundEffects.playHover();

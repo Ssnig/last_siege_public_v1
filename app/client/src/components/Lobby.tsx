@@ -181,7 +181,10 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
     return () => {
       unmounted = true;
       if (lobbyRoom) {
-        lobbyRoom.leave();
+        try {
+          lobbyRoom.reconnection.maxRetries = 0;
+          lobbyRoom.leave(false);
+        } catch {}
       }
     };
   }, [canEnterLobby]);
