@@ -33,6 +33,7 @@ import { MapRevealOverlay } from './game/MapRevealOverlay';
 import { useSmoothCountdown } from './game/useSmoothCountdown';
 import { DraftOverlay } from './game/DraftOverlay';
 import { GameOverOverlay } from './game/GameOverOverlay';
+import { BattlefieldTransitionOverlay } from './game/BattlefieldTransitionOverlay';
 import { SettingsModal } from './landing/SettingsModal';
 import { AssetPreloader } from '../game/assetPreloader';
 import { bgmManager } from '../audio/bgmManager';
@@ -248,6 +249,56 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       bgmManager.playTrack('in_game', 700).catch(() => {});
     }
   }, [phase]);
+
+  // Battlefield transition overlay displayed while entering building phase
+  const [showBattlefieldTransition, setShowBattlefieldTransition] = useState<boolean>(false);
+  const [isTransitionFading, setIsTransitionFading] = useState<boolean>(false);
+  const [isSceneReady, setIsSceneReady] = useState<boolean>(false);
+  const prevPhaseRef = useRef<string>(phase);
+
+  useEffect(() => {
+    // When transitioning into building phase from drafting or mapReveal:
+    if (phase === 'building' && (prevPhaseRef.current === 'drafting' || prevPhaseRef.current === 'mapReveal')) {
+      setShowBattlefieldTransition(true);
+      setIsTransitionFading(false);
+      setIsSceneReady(false);
+
+      const game = gameInstanceRef.current;
+      const scene = game?.scene?.getScene('GameScene') as any;
+      if (scene?.gameplayStage) {
+        setIsSceneReady(true);
+      }
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
+
+  // Safety fallback for transition overlay if scene-ready does not fire
+  useEffect(() => {
+    if (!showBattlefieldTransition) return;
+    const safetyTimer = setTimeout(() => {
+      setIsSceneReady(true);
+    }, 3500);
+    return () => clearTimeout(safetyTimer);
+  }, [showBattlefieldTransition]);
+
+  // Dismiss transition overlay with fade and notify server
+  useEffect(() => {
+    if (!showBattlefieldTransition || !isSceneReady) return;
+
+    const holdTimer = setTimeout(() => {
+      setIsTransitionFading(true);
+
+      const dismissTimer = setTimeout(() => {
+        setShowBattlefieldTransition(false);
+        setIsTransitionFading(false);
+        room.send(MESSAGES.clientSceneReady, {});
+      }, 500);
+
+      return () => clearTimeout(dismissTimer);
+    }, 400);
+
+    return () => clearTimeout(holdTimer);
+  }, [showBattlefieldTransition, isSceneReady, room]);
 
   // Synchronize selected tower with newly drafted/updated deck
   useEffect(() => {
@@ -550,8 +601,14 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     };
     game.events.on('toggle-ui', onToggleUI);
 
+    const onSceneReady = () => {
+      setIsSceneReady(true);
+    };
+    game.events.on('scene-ready', onSceneReady);
+
     return () => {
       game.events.off('toggle-ui', onToggleUI);
+      game.events.off('scene-ready', onSceneReady);
       try {
         const canvas = game.canvas;
         if (canvas) {
@@ -710,6 +767,14 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           onConfirm={(deck) => {
             room.send(MESSAGES.draftReady, { deck });
           }}
+        />
+      )}
+
+      {/* Battlefield Entrance Transition Overlay */}
+      {showBattlefieldTransition && (
+        <BattlefieldTransitionOverlay
+          mapName={currentMapDef?.name || "Royal Arena"}
+          isFading={isTransitionFading}
         />
       )}
 

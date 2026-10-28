@@ -53,6 +53,8 @@ export const MESSAGES = {
   startCombat: "start_combat",
   /** Client → server: this client confirmed match battlefield assets are loaded. */
   clientMatchReady: "client_match_ready",
+  /** Client → server: this client confirmed battlefield entrance transition completed and scene is ready. */
+  clientSceneReady: "client_scene_ready",
 
   draftRejected: "draft_rejected",
 

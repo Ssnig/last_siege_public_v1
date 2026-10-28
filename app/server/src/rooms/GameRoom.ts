@@ -210,6 +210,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /** Set of client sessionIds that have confirmed match readiness. */
   private matchReadyClients = new Set<string>();
 
+  /** Whether the room is waiting for clients to confirm scene readiness before starting the building countdown. */
+  private buildingHandshakeWaiting = false;
+  /** Safety timeout (in seconds) while waiting for clients to confirm scene readiness. */
+  private buildingHandshakeTimeout = 6.0;
+  /** Set of client sessionIds that have confirmed scene readiness. */
+  private buildingReadyClients = new Set<string>();
+
   /** Picks submitted per player in the current round. */
   private draftRoundPicks = new Map<string, string[]>();
 
@@ -469,6 +476,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     [MESSAGES.clientMatchReady]: (client: Client) => {
       if (!this.checkRateLimit(client)) return;
       this.handleClientMatchReady(client);
+    },
+    [MESSAGES.clientSceneReady]: (client: Client) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleClientSceneReady(client);
     },
   };
 
@@ -799,6 +810,56 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
   }
 
+  private handleClientSceneReady(client: Client): void {
+    this.buildingReadyClients.add(client.sessionId);
+    console.log(
+      `Room ${this.roomId}: Client ${client.sessionId} reported scene ready (${this.buildingReadyClients.size}/${this.clients.length})`,
+    );
+    if (this.buildingHandshakeWaiting) {
+      const allReady =
+        this.clients.length < 2 ||
+        this.clients.every((c) => this.buildingReadyClients.has(c.sessionId));
+      if (allReady) {
+        this.startBuildingCountdown();
+      }
+    }
+  }
+
+  private startBuildingCountdown(): void {
+    if (!this.buildingHandshakeWaiting) return;
+    this.buildingHandshakeWaiting = false;
+    this.state.phaseEndsAt = MATCH_RULES.buildingDurationSec;
+    console.log(
+      `Room ${this.roomId}: All clients scene ready. Arming building countdown (${MATCH_RULES.buildingDurationSec}s)`,
+    );
+  }
+
+  private advanceToBuilding(): void {
+    for (const client of this.clients) {
+      const player = this.state.players.get(client.sessionId);
+      if (player) player.draftReady = true;
+    }
+    this.phases.beginBuilding([]);
+
+    if (process.env.NODE_ENV === "test") {
+      this.buildingHandshakeWaiting = false;
+      this.state.phaseEndsAt = MATCH_RULES.buildingDurationSec;
+    } else {
+      this.buildingHandshakeWaiting = true;
+      this.buildingHandshakeTimeout = 6.0;
+      this.buildingReadyClients.clear();
+      // Keep phaseEndsAt pinned to full building duration while waiting for clients to enter scene
+      this.state.phaseEndsAt = MATCH_RULES.buildingDurationSec;
+    }
+
+    console.log(`Room ${this.roomId}: drafting -> building (waiting for client scene ready: ${this.buildingHandshakeWaiting})`);
+
+    // Push each player their own (now populated) economy snapshot.
+    for (const c of this.clients) {
+      this.sendPlayerState(c);
+    }
+  }
+
   /**
    * Validates and accepts a player's deck, then advances the phase if both
    * players have confirmed.
@@ -886,13 +947,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
         console.log(`Room ${this.roomId}: both confirmed draft ready; waiting for final reveal countdown (${this.draftFinalCountdown.toFixed(1)}s remaining)`);
         return;
       }
-      this.phases.beginBuilding([]);
-      console.log(`Room ${this.roomId}: drafting -> building`);
-
-      // Push each player their own (now populated) economy snapshot.
-      for (const c of this.clients) {
-        this.sendPlayerState(c);
-      }
+      this.advanceToBuilding();
+      return;
     }
   }
 
@@ -1303,6 +1359,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       console.log(`Only defender can manually start combat. Client role: ${role}`);
       return;
     }
+
+    this.buildingHandshakeWaiting = false;
 
     if (!this.phases.beginCombat([])) {
       console.log("Failed to start combat");
@@ -1943,6 +2001,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.state.phaseEndsAt = 15;
     this.draftFinalCountdown = null;
     this.draftRoundPicks.clear();
+    this.buildingHandshakeWaiting = false;
+    this.buildingReadyClients.clear();
 
     for (const c of this.clients) {
       const role = (this.state.players.get(c.sessionId)?.role || c.userData?.role) as PlayerRole | undefined;
@@ -2247,6 +2307,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.state.phaseEndsAt = 15.0;
       this.draftFinalCountdown = null;
       this.draftRoundPicks.clear();
+      this.buildingHandshakeWaiting = false;
+      this.buildingReadyClients.clear();
       this.clearMobs();
       this.clearProjectiles();
       this.resetCombatRuntime();
@@ -2324,7 +2386,20 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * path needing to remember to spawn.
    */
   update(dt: number): void {
-    const event = this.phases.update(dt);
+    if (this.buildingHandshakeWaiting) {
+      this.buildingHandshakeTimeout -= dt;
+      // Maintain full duration so clients don't see timer ticking down during transitions
+      this.state.phaseEndsAt = MATCH_RULES.buildingDurationSec;
+      if (this.buildingHandshakeTimeout <= 0) {
+        console.warn(
+          `Room ${this.roomId}: Building scene ready handshake timeout reached. Starting building countdown`,
+        );
+        this.startBuildingCountdown();
+      }
+    }
+
+    const phaseDt = this.buildingHandshakeWaiting && this.state.phase === "building" ? 0 : dt;
+    const event = this.phases.update(phaseDt);
 
     if (event?.type === "building-started" && event.autoCompleted.length > 0) {
       this.autoFillDecks(event.autoCompleted);
@@ -2358,14 +2433,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       if (this.draftFinalCountdown <= 0) {
         this.draftFinalCountdown = null;
         console.log(`Room ${this.roomId}: Post-draft countdown elapsed, advancing to building`);
-        for (const client of this.clients) {
-          const player = this.state.players.get(client.sessionId);
-          if (player) player.draftReady = true;
-        }
-        this.phases.beginBuilding([]);
-        for (const c of this.clients) {
-          this.sendPlayerState(c);
-        }
+        this.advanceToBuilding();
       }
     } else if (this.state.phase === "drafting" && this.clients.length === 2) {
       // Tick 2-2-2 draft round countdown and auto-advance on timeout

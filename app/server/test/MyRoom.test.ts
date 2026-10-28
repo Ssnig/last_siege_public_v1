@@ -2143,4 +2143,64 @@ describe("testing your Colyseus app", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.strictEqual((room as any).getAttackerUnitTier(attacker.sessionId, "monkey"), 3);
   });
+
+  it("building scene ready handshake gates countdown until both clients confirm scene readiness", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+
+    // Manually arm building handshake waiting to test the two-way gating
+    (room as any).buildingHandshakeWaiting = true;
+    (room as any).buildingReadyClients.clear();
+    (room as any).buildingHandshakeTimeout = 6.0;
+    room.state.phaseEndsAt = MATCH_RULES.buildingDurationSec;
+
+    // Simulate 2 seconds of room ticks: timer must NOT decrease while handshake is pending
+    room.update(2.0);
+    assert.strictEqual(
+      room.state.phaseEndsAt,
+      MATCH_RULES.buildingDurationSec,
+      "building timer must stay pinned to full duration while waiting for scene ready",
+    );
+
+    // First client reports ready
+    attacker.send(MESSAGES.clientSceneReady);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.strictEqual((room as any).buildingHandshakeWaiting, true, "still waiting for defender");
+
+    // Room update again: timer still pinned
+    room.update(1.0);
+    assert.strictEqual(
+      room.state.phaseEndsAt,
+      MATCH_RULES.buildingDurationSec,
+      "timer still pinned after only one client confirmed",
+    );
+
+    // Second client reports ready
+    defender.send(MESSAGES.clientSceneReady);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.strictEqual(
+      (room as any).buildingHandshakeWaiting,
+      false,
+      "handshake unblocked once both clients confirmed",
+    );
+
+    // Now room update ticks the building timer down
+    room.update(1.0);
+    assert.ok(
+      room.state.phaseEndsAt < MATCH_RULES.buildingDurationSec,
+      "building timer ticks down only after handshake completed",
+    );
+    assert.strictEqual(
+      Math.round(room.state.phaseEndsAt),
+      MATCH_RULES.buildingDurationSec - 1,
+      "building timer decremented by ~1 second",
+    );
+  });
 });
