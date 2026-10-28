@@ -142,6 +142,8 @@ type MobRecord = {
   lastProgress?: number;
   /** Active stun VFX sprite riding over this mob. */
   stunVfx?: Phaser.GameObjects.Sprite;
+  /** Roman numeral badge indicating upgraded tier (II or III). */
+  tierBadge?: Phaser.GameObjects.Text;
 };
 
 /** A portal: its spin sprite plus the charge pips drawn above it. */
@@ -1801,6 +1803,22 @@ export class GameplayStage {
         mob.effects?.get(EFFECT_TYPES.armor_crush)?.magnitude ?? 0;
       const initialSilenced = mob.effects?.has(EFFECT_TYPES.silence) ?? false;
 
+      let tierBadge: Phaser.GameObjects.Text | undefined;
+      const tierLevel = mob.tier ?? 1;
+      if (tierLevel > 1) {
+        tierBadge = this.scene.add
+          .text(0, 0, tierLevel === 2 ? "II" : "III", {
+            fontFamily: "monospace, sans-serif",
+            fontSize: "9px",
+            fontStyle: "bold",
+            color: tierLevel === 2 ? "#e2e8f0" : "#fbbf24",
+            stroke: "#000000",
+            strokeThickness: 2,
+          })
+          .setOrigin(0.5)
+          .setDepth(DEPTH.ACTORS_LAYER + 3);
+      }
+
       const record: MobRecord = {
         id: String(key),
         typeId: mob.typeId,
@@ -1809,6 +1827,7 @@ export class GameplayStage {
         sprite,
         hpBg,
         hpFill,
+        tierBadge,
         lastArmorStacks: initialArmor,
         lastMentalStacks: initialMental,
         lastArmorCrush: initialCrush,
@@ -1820,7 +1839,9 @@ export class GameplayStage {
       this.mobSprites.set(mob, record);
       this.mobsById.set(record.id, record);
       // Same y-sorted layer as towers, so the two occlude by world y.
-      (this.actors ?? this.root)?.add([sprite, hpBg, hpFill]);
+      const displayElements: Phaser.GameObjects.GameObject[] = [sprite, hpBg, hpFill];
+      if (tierBadge) displayElements.push(tierBadge);
+      (this.actors ?? this.root)?.add(displayElements);
       this.updateMobSprite(mob, record);
     };
 
@@ -1849,6 +1870,8 @@ export class GameplayStage {
 
       record.stunVfx?.destroy();
       record.stunVfx = undefined;
+      record.tierBadge?.destroy();
+      record.tierBadge = undefined;
       record.vfxSprites?.forEach((vfx) => vfx.destroy());
       record.vfxSprites?.clear();
       record.sprite.destroy();
@@ -2654,6 +2677,12 @@ export class GameplayStage {
       .setDepth(actorDepth(y) + 0.0003)
       .setDisplaySize(MOB_HP_BAR.width * ratio, MOB_HP_BAR.height)
       .setVisible(damaged);
+
+    if (record.tierBadge) {
+      record.tierBadge
+        .setPosition(x, barY - 7)
+        .setDepth(actorDepth(y) + 0.0004);
+    }
   }
 
   /**
@@ -3477,6 +3506,9 @@ export class GameplayStage {
     this.unsubscribers = [];
 
     for (const record of this.mobSprites.values()) {
+      record.stunVfx?.destroy();
+      record.tierBadge?.destroy();
+      record.vfxSprites?.forEach((vfx) => vfx.destroy());
       record.sprite.destroy();
       record.hpBg.destroy();
       record.hpFill.destroy();
@@ -3550,6 +3582,7 @@ export class GameplayStage {
 
     for (const record of this.mobSprites.values()) {
       record.stunVfx?.destroy();
+      record.tierBadge?.destroy();
       record.vfxSprites?.forEach((vfx) => vfx.destroy());
       record.sprite.destroy();
       record.hpBg.destroy();

@@ -101,4 +101,33 @@ export interface MobType {
    * Tower concussion knockback). 'heavy' units have immovable mass and ignore knockback.
    */
   weight?: "light" | "heavy";
+  /** 3-tier upgrade progression (Tiers 1, 2, 3). */
+  tiers?: MobTierDefinition[];
 }
+
+/** Definition for a specific upgrade tier of an attacker unit. */
+export interface MobTierDefinition {
+  /** Tier level: 1, 2, or 3. */
+  level: number;
+  /** One-time gold cost for attacker to upgrade to this tier (0 for tier 1). */
+  upgradeCost: number;
+  /** Gold cost to deploy one unit of this tier in the buffer. */
+  deployCost: number;
+  /** Max health pool of this tier. */
+  maxHp: number;
+  /** Flat physical damage absorbed. */
+  armor?: number;
+  /** Core HP deducted if this mob leaks into the citadel. */
+  leakDamage: number;
+  /** Movement speed along the path in px/s. */
+  speed?: number;
+  /** Optional active support/buff/self ability triggered along the lane. */
+  ability?: MobAbilityConfig;
+  /** Optional progressive speed acceleration over time alive on the lane. */
+  speedRamp?: MobSpeedRampConfig;
+  /** Optional reactive armor / mental strength stacking upon taking hits. */
+  adaptiveDefense?: MobAdaptiveDefenseConfig;
+  /** Optional duration (in seconds) to stun the tower that lands the killing blow on this mob. */
+  onDeathTowerStunSec?: number;
+}
+

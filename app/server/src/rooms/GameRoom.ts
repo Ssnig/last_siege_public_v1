@@ -32,6 +32,8 @@ import {
   tierAt,
   validateBufferAdd,
   deployStaggerSec,
+  getMobTier,
+  unitCost,
   portalChargeRules,
   DAMAGE_TYPES,
   EFFECT_TYPES,
@@ -66,6 +68,7 @@ import {
   type SellTowerIntent,
   type TowerAttackPayload,
   type UpgradeTowerIntent,
+  type UpgradeUnitPayload,
   type TowerTier,
   type TowerTierSpecial,
   type Vec2,
@@ -133,6 +136,7 @@ interface ScheduledBatch {
   pathId: string;
   typeId: string;
   count: number;
+  tier?: number;
 }
 
 /** In-progress rapid-fire magazine salvo burst (Crossbow Fort). */
@@ -222,6 +226,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
    * unit, in spawn order, so deploying streams them out front-to-back.
    */
   private attackerBuffers = new Map<string, string[]>();
+  /** Attacker unit upgrade tiers per session id, mapping unitTypeId -> tier level (1..3). */
+  private attackerUnitTiers = new Map<string, Map<string, number>>();
 
   /**
    * Portal charge state per attacker session id, then per portal id.
@@ -429,6 +435,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.handleBufferClear(client);
     },
 
+    [MESSAGES.upgradeUnit]: (
+      client: Client,
+      payload: UpgradeUnitPayload,
+    ) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleUpgradeUnit(client, payload?.unitTypeId ?? (payload as any)?.typeId);
+    },
+
     [MESSAGES.deploy]: (
       client: Client,
       payload: DeployIntent,
@@ -570,7 +584,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
       buffer: [...buffer],
       maxBufferUnits: DEFAULT_DEPLOY_RULES.maxBufferUnits,
       mobCosts: Object.fromEntries(
-        Object.entries(MOB_TYPES).map(([id, type]) => [id, type.cost]),
+        Object.entries(MOB_TYPES).map(([id]) => [
+          id,
+          unitCost(id, this.getAttackerUnitTier(sessionId, id)),
+        ]),
       ),
       portals: this.portalStatusFor(sessionId),
       canDeploy: this.canDeploy(sessionId),
@@ -580,10 +597,96 @@ export class GameRoom extends Room<{ state: RoomState }> {
     client.send(MESSAGES.attackerBuffer, payload);
   }
 
-  /** Convenience: push both private snapshots a player needs. */
+  /** Gets the current upgrade tier (1..3) for an attacker's unit type. */
+  public getAttackerUnitTier(sessionId: string, unitTypeId: string): number {
+    return this.attackerUnitTiers.get(sessionId)?.get(unitTypeId) ?? 1;
+  }
+
+  /** Pushes the attacker's current unit tier levels to the client. */
+  private sendAttackerUnitTiers(client: Client): void {
+    const role = (this.state.players.get(client.sessionId)?.role || client.userData?.role) as PlayerRole | undefined;
+    if (role !== "attacker") return;
+
+    const tiersMap = this.attackerUnitTiers.get(client.sessionId);
+    const tiers: Record<string, number> = {};
+    if (tiersMap) {
+      for (const [id, tier] of tiersMap) {
+        tiers[id] = tier;
+      }
+    }
+    client.send(MESSAGES.attackerUnitTiers, { tiers });
+  }
+
+  /** Upgrades an attacker unit archetype to the next tier. */
+  private handleUpgradeUnit(client: Client, unitTypeId: string): void {
+    const role = (this.state.players.get(client.sessionId)?.role || client.userData?.role) as PlayerRole | undefined;
+    if (role !== "attacker") return;
+
+    if (this.state.phase !== "combat") {
+      return void this.rejectDeploy(client, "Units can only be upgraded during the Combat Phase.");
+    }
+    if (typeof unitTypeId !== "string" || !MOB_TYPES[unitTypeId]) {
+      return void this.rejectDeploy(client, "Unknown unit.");
+    }
+
+    const sessionId = client.sessionId;
+    const currentTier = this.getAttackerUnitTier(sessionId, unitTypeId);
+    if (currentTier >= 3) {
+      return void this.rejectDeploy(client, "Unit is already at maximum tier.");
+    }
+
+    const nextTier = currentTier + 1;
+    const nextTierDef = getMobTier(unitTypeId, nextTier);
+    const currentGold = Math.floor(this.economies.get(sessionId) ?? 0);
+    if (currentGold < nextTierDef.upgradeCost) {
+      return void this.rejectDeploy(client, "Not enough gold to upgrade unit.");
+    }
+
+    // Deduct upgrade fee
+    this.economies.set(sessionId, currentGold - nextTierDef.upgradeCost);
+
+    // Save upgraded tier
+    let playerTiers = this.attackerUnitTiers.get(sessionId);
+    if (!playerTiers) {
+      playerTiers = new Map<string, number>();
+      this.attackerUnitTiers.set(sessionId, playerTiers);
+    }
+    playerTiers.set(unitTypeId, nextTier);
+
+    // Refund and clear all instances of this unit currently in the deploy buffer
+    const buffer = this.attackerBuffers.get(sessionId) ?? [];
+    const remainingBuffer: string[] = [];
+    let refundTotal = 0;
+    for (const id of buffer) {
+      if (id === unitTypeId) {
+        refundTotal += unitCost(unitTypeId, currentTier);
+      } else {
+        remainingBuffer.push(id);
+      }
+    }
+    if (refundTotal > 0) {
+      const newGold = Math.min(
+        DEFAULT_ECONOMY.maxGold,
+        (this.economies.get(sessionId) ?? 0) + refundTotal,
+      );
+      this.economies.set(sessionId, newGold);
+      this.attackerBuffers.set(sessionId, remainingBuffer);
+    }
+
+    console.log(
+      `Room ${this.roomId}: attacker ${sessionId} upgraded ${unitTypeId} to Tier ${nextTier} for ${nextTierDef.upgradeCost}g (refunded ${refundTotal}g)`,
+    );
+
+    this.sendEconomy(client);
+    this.sendAttackerBuffer(client);
+    this.sendAttackerUnitTiers(client);
+  }
+
+  /** Convenience: push all private snapshots a player needs. */
   private sendPlayerState(client: Client): void {
     this.sendEconomy(client);
     this.sendAttackerBuffer(client);
+    this.sendAttackerUnitTiers(client);
   }
 
   /** Sends a private explanation for a refused deploy intent. */
@@ -1367,10 +1470,18 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     const buffer = this.attackerBuffers.get(sessionId) ?? [];
     const gold = Math.floor(this.economies.get(sessionId) ?? 0);
-    const error = validateBufferAdd(typeId, buffer, allowedDeck, gold);
+    const currentTier = this.getAttackerUnitTier(sessionId, typeId);
+    const error = validateBufferAdd(
+      typeId,
+      buffer,
+      allowedDeck,
+      gold,
+      DEFAULT_DEPLOY_RULES,
+      currentTier,
+    );
     if (error) return void this.rejectDeploy(client, error);
 
-    const cost = MOB_TYPES[typeId]?.cost ?? 0;
+    const cost = unitCost(typeId, currentTier);
     this.economies.set(sessionId, gold - cost);
     this.attackerBuffers.set(sessionId, [...buffer, typeId]);
 
@@ -1390,7 +1501,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     }
 
     const refund = buffer.reduce(
-      (total, typeId) => total + (MOB_TYPES[typeId]?.cost ?? 0),
+      (total, typeId) =>
+        total + unitCost(typeId, this.getAttackerUnitTier(sessionId, typeId)),
       0,
     );
     this.attackerBuffers.set(sessionId, []);
@@ -1467,7 +1579,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     charges.regenAcc = 0;
 
     const unitCostTotal = buffer.reduce(
-      (total, typeId) => total + (MOB_TYPES[typeId]?.cost ?? 0),
+      (total, typeId) =>
+        total + unitCost(typeId, this.getAttackerUnitTier(sessionId, typeId)),
       0,
     );
     const incomeGainRate = DEFAULT_ECONOMY.attackerIncomeGainRate ?? 0;
@@ -1480,7 +1593,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     let atMatchTime = this.matchTime;
     for (const typeId of buffer) {
-      this.releaseQueue.push({ atMatchTime, pathId, typeId, count: 1 });
+      const tier = this.getAttackerUnitTier(sessionId, typeId);
+      this.releaseQueue.push({ atMatchTime, pathId, typeId, count: 1, tier });
       atMatchTime += deployStaggerSec(typeId);
     }
 
@@ -2512,6 +2626,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const type = MOB_TYPES[scheduled.typeId];
     if (!path || path.length < 2 || !type) return;
 
+    const tierLevel = scheduled.tier ?? 1;
     const batchId = ++this.spawnSeq;
     const spawned = this.spawnMobsOnPath(
       path,
@@ -2519,6 +2634,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       type,
       scheduled.count,
       batchId,
+      tierLevel,
     );
 
     if (spawned > 0) {
@@ -2548,6 +2664,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.mobCastPause.clear();
     this.mobAliveSec.clear();
     this.mobInitialSpeed.clear();
+    this.attackerUnitTiers.clear();
   }
 
   /** Named path ids on a map that are long enough to actually walk. */
@@ -2566,9 +2683,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
     type: MobType,
     count: number,
     batchId: number,
+    tierLevel: number = 1,
   ): number {
     const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
     const forkPaths = map.randomFork ? this.pathIdsFor(map) : null;
+    const tierDef = getMobTier(type.id, tierLevel);
 
     for (let i = 0; i < count; i++) {
       const assignedPathId =
@@ -2579,7 +2698,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       const jitter = 1 + (Math.random() * 2 - 1) * MOB_SPEED_JITTER;
       const id = `mob-${batchId}-${assignedPathId}-${i}`;
 
-      const speed = type.speed * jitter;
+      const baseSpeed = tierDef.speed ?? type.speed;
+      const speed = baseSpeed * jitter;
       this.mobInitialSpeed.set(id, speed);
 
       this.state.mobs.set(
@@ -2589,11 +2709,12 @@ export class GameRoom extends Room<{ state: RoomState }> {
           typeId: type.id,
           batchId,
           progress: 0,
-          hp: type.maxHp,
-          maxHp: type.maxHp,
+          hp: tierDef.maxHp,
+          maxHp: tierDef.maxHp,
           speed,
           bounty: type.bounty,
           checkpoint: 0,
+          tier: tierLevel,
           state: "moving",
           seed,
           pathId: assignedPathId,
@@ -2655,13 +2776,15 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.mobAliveSec.set(id, aliveSec);
 
       const mobType = MOB_TYPES[mob.typeId];
-      if (mobType?.speedRamp) {
+      const tierDef = getMobTier(mob.typeId, mob.tier);
+      const speedRamp = tierDef.speedRamp ?? mobType?.speedRamp;
+      if (speedRamp) {
         const initialSpeed = this.mobInitialSpeed.get(id) ?? mob.speed;
         const ratio =
-          mobType.speedRamp.rampDurationSec > 0
-            ? Math.min(1, aliveSec / mobType.speedRamp.rampDurationSec)
+          speedRamp.rampDurationSec > 0
+            ? Math.min(1, aliveSec / speedRamp.rampDurationSec)
             : 1;
-        mob.speed = initialSpeed * (1 + mobType.speedRamp.maxBonusFraction * ratio);
+        mob.speed = initialSpeed * (1 + speedRamp.maxBonusFraction * ratio);
       }
 
       // Pause movement while playing an ability cast animation.
@@ -2678,7 +2801,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       }
 
       const hasPaceSlow =
-        mobType?.ability?.paceSlowFactor !== undefined;
+        (tierDef.ability ?? mobType?.ability)?.paceSlowFactor !== undefined;
       const speed = this.mobSpeed(
         mob,
         id,
@@ -2687,7 +2810,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       mob.progress += (speed / total) * dt;
 
       if (mob.progress >= 1) {
-        this.leakToCore(mobType?.leakDamage ?? 0);
+        this.leakToCore(tierDef.leakDamage ?? mobType?.leakDamage ?? 0);
 
         // Leak pity refund: defender receives a portion of bounty so leaks don't cause starvation
         if (mobType && mobType.bounty > 0) {
@@ -2829,7 +2952,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
       // Silenced mobs cannot cast abilities
       if (caster.effects.has(EFFECT_TYPES.silence)) continue;
       const type = MOB_TYPES[caster.typeId];
-      const ability = type?.ability;
+      const tierDef = getMobTier(caster.typeId, caster.tier);
+      const ability = tierDef.ability ?? type?.ability;
       if (!ability) continue;
 
       const prevCd = this.mobAbilityCooldowns.get(casterId) ?? 0;
@@ -3413,7 +3537,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (!mob) return;
 
     const type = MOB_TYPES[mob.typeId];
-    const adaptive = type?.adaptiveDefense;
+    const tierDef = getMobTier(mob.typeId, mob.tier);
+    const adaptive = tierDef.adaptiveDefense ?? type?.adaptiveDefense;
     const physStacks =
       mob.effects.get(EFFECT_TYPES.armor_stack)?.magnitude ?? 0;
     const mentalStacks =
@@ -3422,8 +3547,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
     // Flat armor stripped by Sein Pyaung armor_crush
     const armorCrush =
       mob.effects.get(EFFECT_TYPES.armor_crush)?.magnitude ?? 0;
+    const baseArmor = tierDef.armor ?? type?.armor ?? 0;
     const rawArmor =
-      (type?.armor ?? 0) + (adaptive ? physStacks * adaptive.armorPerStack : 0);
+      baseArmor + (adaptive ? physStacks * adaptive.armorPerStack : 0);
     const baseEffectiveArmor = Math.max(0, rawArmor - armorCrush);
 
     // Tower armor pierce/penetration ignores a fraction of effective armor
@@ -3625,9 +3751,11 @@ export class GameRoom extends Room<{ state: RoomState }> {
     // Suppressed if Sone Ma was silenced at death, or if killed by Chinthe Guardian.
     const isSilenced = mob.effects.has(EFFECT_TYPES.silence);
     const killedByChinthe = sourceTowerTypeId === "chinthe";
+    const tierDef = getMobTier(mob.typeId, mob.tier);
+    const stunSec = tierDef.onDeathTowerStunSec ?? type?.onDeathTowerStunSec;
     if (
-      type?.onDeathTowerStunSec &&
-      type.onDeathTowerStunSec > 0 &&
+      stunSec &&
+      stunSec > 0 &&
       sourceSlotIndex !== undefined &&
       !isSilenced &&
       !killedByChinthe
@@ -3639,8 +3767,8 @@ export class GameRoom extends Room<{ state: RoomState }> {
         this.applyTowerEffect(
           killerTower,
           TOWER_EFFECT_TYPES.stun,
-          type.onDeathTowerStunSec,
-          type.onDeathTowerStunSec,
+          stunSec,
+          stunSec,
           mobId,
         );
       }

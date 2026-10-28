@@ -14,6 +14,8 @@ import {
   SELL_REFUND_RATE,
   deployStaggerSec,
   portalChargeRules,
+  getMobTier,
+  unitCost,
 } from "@root/shared";
 
 /**
@@ -204,6 +206,37 @@ describe("balance.ts shape guards", () => {
         mob.weight === "light" || mob.weight === "heavy",
         `${mob.id} must define a valid weight ('light' | 'heavy')`,
       );
+    }
+  });
+
+  it("every mob has exactly 3 progressive tiers with increasing hp and costs", () => {
+    for (const mob of Object.values(MOB_TYPES)) {
+      assert.ok(Array.isArray(mob.tiers), `${mob.id} must have tiers array`);
+      assert.strictEqual(mob.tiers.length, 3, `${mob.id} must have 3 tiers`);
+
+      for (let i = 0; i < mob.tiers.length; i++) {
+        const tier = mob.tiers[i];
+        assert.strictEqual(tier.level, i + 1, `${mob.id} tier ${i} level must be ${i + 1}`);
+        assert.ok(tier.maxHp > 0, `${mob.id} tier ${tier.level} maxHp must be > 0`);
+        assert.ok(tier.deployCost > 0, `${mob.id} tier ${tier.level} deployCost must be > 0`);
+        assert.ok(tier.leakDamage >= 1, `${mob.id} tier ${tier.level} leakDamage must be >= 1`);
+
+        if (i === 0) {
+          assert.strictEqual(tier.upgradeCost, 0, `${mob.id} tier 1 upgradeCost must be 0`);
+          assert.strictEqual(tier.maxHp, mob.maxHp, `${mob.id} tier 1 maxHp matches mob.maxHp`);
+          assert.strictEqual(tier.deployCost, mob.cost, `${mob.id} tier 1 deployCost matches mob.cost`);
+        } else {
+          const prev = mob.tiers[i - 1];
+          assert.ok(tier.upgradeCost > 0, `${mob.id} tier ${tier.level} upgradeCost must be > 0`);
+          assert.ok(tier.maxHp > prev.maxHp, `${mob.id} tier ${tier.level} maxHp must exceed tier ${prev.level}`);
+          assert.ok(tier.deployCost > prev.deployCost, `${mob.id} tier ${tier.level} deployCost must exceed tier ${prev.level}`);
+          assert.ok(tier.leakDamage >= prev.leakDamage, `${mob.id} tier ${tier.level} leakDamage must be >= tier ${prev.level}`);
+        }
+
+        const resolvedTier = getMobTier(mob.id, tier.level);
+        assert.deepStrictEqual(resolvedTier, tier, `${mob.id} getMobTier(${tier.level}) matches`);
+        assert.strictEqual(unitCost(mob.id, tier.level), tier.deployCost, `${mob.id} unitCost(${tier.level}) matches`);
+      }
     }
   });
 });

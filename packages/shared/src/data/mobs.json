@@ -18,6 +18,11 @@
       "aoe",
       "physical",
       "mental"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 8, "maxHp": 50, "armor": 0, "leakDamage": 1 },
+      { "level": 2, "upgradeCost": 60, "deployCost": 11, "maxHp": 75, "armor": 1, "leakDamage": 2 },
+      { "level": 3, "upgradeCost": 140, "deployCost": 15, "maxHp": 110, "armor": 2, "leakDamage": 2 }
     ]
   },
   "horse_rider": {
@@ -38,6 +43,11 @@
       "aoe",
       "mental",
       "physical"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 15, "maxHp": 132, "armor": 2, "leakDamage": 1 },
+      { "level": 2, "upgradeCost": 80, "deployCost": 20, "maxHp": 190, "armor": 4, "leakDamage": 2 },
+      { "level": 3, "upgradeCost": 180, "deployCost": 26, "maxHp": 265, "armor": 6, "leakDamage": 2 }
     ]
   },
   "sar_bal_gyi": {
@@ -58,6 +68,11 @@
     "weakAgainst": [
       "mental",
       "single target"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 48, "maxHp": 410, "armor": 8, "leakDamage": 3 },
+      { "level": 2, "upgradeCost": 140, "deployCost": 62, "maxHp": 575, "armor": 11, "leakDamage": 4 },
+      { "level": 3, "upgradeCost": 280, "deployCost": 82, "maxHp": 780, "armor": 14, "leakDamage": 4 }
     ]
   },
   "gya_pu": {
@@ -78,6 +93,11 @@
     "weakAgainst": [
       "aoe",
       "physical"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 20, "maxHp": 220, "armor": 0, "leakDamage": 2 },
+      { "level": 2, "upgradeCost": 90, "deployCost": 26, "maxHp": 310, "armor": 1, "leakDamage": 3 },
+      { "level": 3, "upgradeCost": 190, "deployCost": 34, "maxHp": 420, "armor": 2, "leakDamage": 3 }
     ]
   },
   "a_ba": {
@@ -102,6 +122,35 @@
     "weakAgainst": [
       "physical",
       "aoe"
+    ],
+    "tiers": [
+      {
+        "level": 1,
+        "upgradeCost": 0,
+        "deployCost": 30,
+        "maxHp": 350,
+        "armor": 0,
+        "leakDamage": 2,
+        "speedRamp": { "maxBonusFraction": 1.0, "rampDurationSec": 25 }
+      },
+      {
+        "level": 2,
+        "upgradeCost": 110,
+        "deployCost": 39,
+        "maxHp": 480,
+        "armor": 1,
+        "leakDamage": 3,
+        "speedRamp": { "maxBonusFraction": 1.15, "rampDurationSec": 20 }
+      },
+      {
+        "level": 3,
+        "upgradeCost": 230,
+        "deployCost": 50,
+        "maxHp": 640,
+        "armor": 2,
+        "leakDamage": 3,
+        "speedRamp": { "maxBonusFraction": 1.3, "rampDurationSec": 15 }
+      }
     ]
   },
   "chon_toe": {
@@ -121,6 +170,11 @@
     "weakAgainst": [
       "mental",
       "single target"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 65, "maxHp": 725, "armor": 4, "leakDamage": 4 },
+      { "level": 2, "upgradeCost": 160, "deployCost": 85, "maxHp": 1000, "armor": 6, "leakDamage": 5 },
+      { "level": 3, "upgradeCost": 320, "deployCost": 110, "maxHp": 1350, "armor": 8, "leakDamage": 5 }
     ]
   },
   "elephant_rider": {
@@ -141,6 +195,11 @@
     "weakAgainst": [
       "single target",
       "mental"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 200, "maxHp": 1430, "armor": 10, "leakDamage": 10 },
+      { "level": 2, "upgradeCost": 280, "deployCost": 260, "maxHp": 2000, "armor": 14, "leakDamage": 12 },
+      { "level": 3, "upgradeCost": 450, "deployCost": 330, "maxHp": 2750, "armor": 18, "leakDamage": 14 }
     ]
   },
   "say_sayar": {
@@ -170,7 +229,57 @@
       "aoe",
       "physical"
     ],
-    "notes": "buffer unit. Heals allies under 50% HP. Repeated heals on the same mob suffer diminishing returns (90%, 70%, 40%, 20%, 0%)."
+    "notes": "buffer unit. Heals allies under 50% HP. Repeated heals on the same mob suffer diminishing returns (90%, 70%, 40%, 20%, 0%).",
+    "tiers": [
+      {
+        "level": 1,
+        "upgradeCost": 0,
+        "deployCost": 50,
+        "maxHp": 290,
+        "armor": 0,
+        "leakDamage": 2,
+        "ability": {
+          "type": "heal_aura",
+          "radius": 140,
+          "cooldownSec": 6,
+          "triggerHpThreshold": 0.5,
+          "healAmount": 80,
+          "castDurationSec": 0.5
+        }
+      },
+      {
+        "level": 2,
+        "upgradeCost": 140,
+        "deployCost": 65,
+        "maxHp": 400,
+        "armor": 1,
+        "leakDamage": 3,
+        "ability": {
+          "type": "heal_aura",
+          "radius": 150,
+          "cooldownSec": 5.5,
+          "triggerHpThreshold": 0.55,
+          "healAmount": 115,
+          "castDurationSec": 0.4
+        }
+      },
+      {
+        "level": 3,
+        "upgradeCost": 270,
+        "deployCost": 85,
+        "maxHp": 540,
+        "armor": 2,
+        "leakDamage": 3,
+        "ability": {
+          "type": "heal_aura",
+          "radius": 165,
+          "cooldownSec": 5.0,
+          "triggerHpThreshold": 0.6,
+          "healAmount": 160,
+          "castDurationSec": 0.3
+        }
+      }
+    ]
   },
   "shield_guy": {
     "id": "shield_guy",
@@ -191,6 +300,11 @@
     "weakAgainst": [
       "single target",
       "mental"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 48, "maxHp": 305, "armor": 6, "leakDamage": 3 },
+      { "level": 2, "upgradeCost": 130, "deployCost": 62, "maxHp": 440, "armor": 9, "leakDamage": 4 },
+      { "level": 3, "upgradeCost": 260, "deployCost": 80, "maxHp": 600, "armor": 13, "leakDamage": 4 }
     ]
   },
   "doe_pat": {
@@ -218,7 +332,60 @@
       "aoe",
       "physical"
     ],
-    "notes": "buffer unit. Non-stacking speed aura (+40% haste)."
+    "notes": "buffer unit. Non-stacking speed aura (+40% haste).",
+    "tiers": [
+      {
+        "level": 1,
+        "upgradeCost": 0,
+        "deployCost": 50,
+        "maxHp": 264,
+        "armor": 0,
+        "leakDamage": 2,
+        "ability": {
+          "type": "speed_aura",
+          "radius": 140,
+          "cooldownSec": 10,
+          "durationSec": 4,
+          "speedBoost": 0.4,
+          "paceSlowFactor": 0.6,
+          "castDurationSec": 0
+        }
+      },
+      {
+        "level": 2,
+        "upgradeCost": 130,
+        "deployCost": 65,
+        "maxHp": 370,
+        "armor": 1,
+        "leakDamage": 3,
+        "ability": {
+          "type": "speed_aura",
+          "radius": 155,
+          "cooldownSec": 9,
+          "durationSec": 5,
+          "speedBoost": 0.45,
+          "paceSlowFactor": 0.6,
+          "castDurationSec": 0
+        }
+      },
+      {
+        "level": 3,
+        "upgradeCost": 260,
+        "deployCost": 85,
+        "maxHp": 500,
+        "armor": 2,
+        "leakDamage": 3,
+        "ability": {
+          "type": "speed_aura",
+          "radius": 170,
+          "cooldownSec": 8,
+          "durationSec": 6,
+          "speedBoost": 0.5,
+          "paceSlowFactor": 0.6,
+          "castDurationSec": 0
+        }
+      }
+    ]
   },
   "bandit": {
     "id": "bandit",
@@ -235,6 +402,11 @@
     "weakAgainst": [
       "aoe",
       "mental"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 22, "maxHp": 230, "armor": 1, "leakDamage": 2 },
+      { "level": 2, "upgradeCost": 90, "deployCost": 28, "maxHp": 320, "armor": 2, "leakDamage": 3 },
+      { "level": 3, "upgradeCost": 190, "deployCost": 36, "maxHp": 430, "armor": 4, "leakDamage": 3 }
     ]
   },
   "belu": {
@@ -260,6 +432,47 @@
     "weakAgainst": [
       "mental",
       "single target"
+    ],
+    "tiers": [
+      {
+        "level": 1,
+        "upgradeCost": 0,
+        "deployCost": 120,
+        "maxHp": 1100,
+        "armor": 0,
+        "leakDamage": 5,
+        "adaptiveDefense": {
+          "maxStacks": 5,
+          "armorPerStack": 2.4,
+          "mentalStrengthPerStack": 0.2
+        }
+      },
+      {
+        "level": 2,
+        "upgradeCost": 200,
+        "deployCost": 155,
+        "maxHp": 1500,
+        "armor": 2,
+        "leakDamage": 6,
+        "adaptiveDefense": {
+          "maxStacks": 6,
+          "armorPerStack": 2.8,
+          "mentalStrengthPerStack": 0.22
+        }
+      },
+      {
+        "level": 3,
+        "upgradeCost": 380,
+        "deployCost": 200,
+        "maxHp": 2050,
+        "armor": 4,
+        "leakDamage": 7,
+        "adaptiveDefense": {
+          "maxStacks": 7,
+          "armorPerStack": 3.2,
+          "mentalStrengthPerStack": 0.25
+        }
+      }
     ]
   },
   "brute": {
@@ -286,6 +499,53 @@
     "weakAgainst": [
       "single target",
       "mental"
+    ],
+    "tiers": [
+      {
+        "level": 1,
+        "upgradeCost": 0,
+        "deployCost": 50,
+        "maxHp": 595,
+        "armor": 4,
+        "leakDamage": 3,
+        "ability": {
+          "type": "self_heal",
+          "radius": 0,
+          "cooldownSec": 10,
+          "healFraction": 0.1,
+          "castDurationSec": 0.4
+        }
+      },
+      {
+        "level": 2,
+        "upgradeCost": 140,
+        "deployCost": 65,
+        "maxHp": 820,
+        "armor": 6,
+        "leakDamage": 4,
+        "ability": {
+          "type": "self_heal",
+          "radius": 0,
+          "cooldownSec": 8.5,
+          "healFraction": 0.13,
+          "castDurationSec": 0.35
+        }
+      },
+      {
+        "level": 3,
+        "upgradeCost": 270,
+        "deployCost": 85,
+        "maxHp": 1100,
+        "armor": 8,
+        "leakDamage": 4,
+        "ability": {
+          "type": "self_heal",
+          "radius": 0,
+          "cooldownSec": 7.0,
+          "healFraction": 0.16,
+          "castDurationSec": 0.3
+        }
+      }
     ]
   },
   "general": {
@@ -305,6 +565,11 @@
     ],
     "weakAgainst": [
       "single target"
+    ],
+    "tiers": [
+      { "level": 1, "upgradeCost": 0, "deployCost": 60, "maxHp": 530, "armor": 6, "leakDamage": 3 },
+      { "level": 2, "upgradeCost": 150, "deployCost": 78, "maxHp": 740, "armor": 9, "leakDamage": 4 },
+      { "level": 3, "upgradeCost": 290, "deployCost": 100, "maxHp": 1020, "armor": 12, "leakDamage": 4 }
     ]
   },
   "sone_ma": {
@@ -326,6 +591,35 @@
     "weakAgainst": [
       "physical",
       "aoe"
+    ],
+    "tiers": [
+      {
+        "level": 1,
+        "upgradeCost": 0,
+        "deployCost": 100,
+        "maxHp": 440,
+        "armor": 0,
+        "leakDamage": 2,
+        "onDeathTowerStunSec": 5
+      },
+      {
+        "level": 2,
+        "upgradeCost": 180,
+        "deployCost": 130,
+        "maxHp": 620,
+        "armor": 1,
+        "leakDamage": 3,
+        "onDeathTowerStunSec": 6.5
+      },
+      {
+        "level": 3,
+        "upgradeCost": 350,
+        "deployCost": 170,
+        "maxHp": 850,
+        "armor": 2,
+        "leakDamage": 4,
+        "onDeathTowerStunSec": 8
+      }
     ]
   }
 }

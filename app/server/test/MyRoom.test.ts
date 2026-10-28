@@ -8,6 +8,7 @@ import {
   type RoomState,
   type YouEconomyPayload,
   type AttackerBufferPayload,
+  type AttackerUnitTiersPayload,
   Mob,
   MESSAGES,
   MOB_TYPES,
@@ -105,6 +106,29 @@ function waitForBuffer(
       clearInterval(timer);
       unsubscribe();
       reject(new Error("buffer condition not met within timeout"));
+    }, timeoutMs);
+  });
+}
+
+function waitForUnitTiers(
+  client: {
+    onMessage: (type: string, cb: (payload: AttackerUnitTiersPayload) => void) => () => void;
+  },
+  predicate: (payload: AttackerUnitTiersPayload) => boolean,
+  timeoutMs = 2000,
+): Promise<AttackerUnitTiersPayload> {
+  return new Promise((resolve, reject) => {
+    const unsubscribe = client.onMessage(MESSAGES.attackerUnitTiers, (payload) => {
+      if (predicate(payload)) {
+        clearInterval(timer);
+        unsubscribe();
+        resolve(payload);
+      }
+    });
+    const timer = setInterval(() => {
+      clearInterval(timer);
+      unsubscribe();
+      reject(new Error("unit tiers condition not met within timeout"));
     }, timeoutMs);
   });
 }
@@ -2048,5 +2072,75 @@ describe("testing your Colyseus app", () => {
 
     const speed = (room as any).mobSpeed(mob, "mob-1");
     assert.strictEqual(speed, 130 * (1 - 0.40), "mob moves at 60% base speed under 3 bell towers, never stun locked");
+  });
+
+  it("attacker unit upgrade system: rejects in building phase, upgrades in combat, refunds queued units, and scales spawned stats", async () => {
+    const room = await colyseus.createRoom<RoomState>("game_room", {
+      roleChoice: "attacker",
+      mapId: "konbaung",
+    });
+    const attacker = await colyseus.connectTo(room);
+    const defender = await colyseus.connectTo(room);
+
+    await draftToBuilding(attacker, defender);
+    await waitForPhase(room, "building");
+
+    // Upgrade rejected in building phase
+    attacker.send(MESSAGES.upgradeUnit, { unitTypeId: "monkey" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.strictEqual((room as any).getAttackerUnitTier(attacker.sessionId, "monkey"), 1);
+
+    // Queue 2 monkeys in building phase
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    await waitForBuffer(attacker, (payload) => payload.buffer.length === 2);
+
+    // Defender starts combat
+    defender.send(MESSAGES.startCombat);
+    await waitForPhase(room, "combat");
+
+    // Give attacker enough gold for testing (e.g. 500g)
+    (room as any).economies.set(attacker.sessionId, 500);
+
+    // Upgrading monkey in combat:
+    // Should deduct 60g (upgradeCost for monkey Tier 2)
+    // Should refund the 2 monkeys currently in the buffer (2 * 8g = 16g refunded)
+    // Buffer should now be empty
+    const tiersPromise = waitForUnitTiers(attacker, (payload) => payload.tiers["monkey"] === 2);
+    attacker.send(MESSAGES.upgradeUnit, { unitTypeId: "monkey" });
+    const tiersPayload = await tiersPromise;
+    assert.strictEqual(tiersPayload.tiers["monkey"], 2);
+
+    // Verify buffer was refunded and cleared
+    const buffer = await waitForBuffer(attacker, (payload) => payload.buffer.length === 0);
+    assert.deepStrictEqual(buffer.buffer, []);
+
+    // Verify gold after 60g deduction and +16g refund (500 - 60 + 16 = 456g plus passive income)
+    const attackerGold = (room as any).economies.get(attacker.sessionId) ?? 0;
+    assert.ok(attackerGold >= 455, `gold should be around 456, got ${attackerGold}`);
+
+    // Queue and deploy a Tier 2 monkey
+    attacker.send(MESSAGES.bufferAdd, { typeId: "monkey" });
+    await waitForBuffer(attacker, (payload) => payload.buffer.length === 1);
+    attacker.send(MESSAGES.deploy, { portalId: "portal-0" });
+
+    // Wait for the spawned mob
+    await waitFor(() => room.state.mobs.size === 1, 3000);
+    const spawned = Array.from(room.state.mobs.values())[0];
+    assert.strictEqual(spawned.typeId, "monkey");
+    assert.strictEqual(spawned.tier, 2, "spawned mob has tier 2");
+    assert.strictEqual(spawned.maxHp, 75, "spawned mob inherits Tier 2 maxHp (75 instead of 50)");
+    assert.strictEqual(spawned.hp, 75, "spawned mob starts at Tier 2 maxHp");
+
+    // Upgrade to Tier 3 (cost 140g)
+    const tier3Promise = waitForUnitTiers(attacker, (payload) => payload.tiers["monkey"] === 3);
+    attacker.send(MESSAGES.upgradeUnit, { unitTypeId: "monkey" });
+    const tier3Payload = await tier3Promise;
+    assert.strictEqual(tier3Payload.tiers["monkey"], 3);
+
+    // Attempting to upgrade past Tier 3 is ignored
+    attacker.send(MESSAGES.upgradeUnit, { unitTypeId: "monkey" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.strictEqual((room as any).getAttackerUnitTier(attacker.sessionId, "monkey"), 3);
   });
 });

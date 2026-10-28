@@ -37,6 +37,10 @@ export const MESSAGES = {
   bufferAdd: "buffer_add",
   /** Client → server: attacker empties the deploy buffer (gold is refunded). */
   bufferClear: "buffer_clear",
+  /** Client → server: attacker upgrades a unit archetype in their deck. */
+  upgradeUnit: "upgrade_unit",
+  /** Server → client (private): attacker's current unit tier levels keyed by typeId. */
+  attackerUnitTiers: "attacker_unit_tiers",
   /** Client → server: attacker deploys the buffer through a portal. */
   deploy: "deploy",
   /** Client → server: this side finished its deck draft. */
@@ -358,3 +362,14 @@ export interface GunBountyProcPayload {
   /** Extra bonus gold awarded on kill. */
   bonusGold: number;
 }
+
+/** Payload of the `upgrade_unit` message from client to server. */
+export interface UpgradeUnitPayload {
+  unitTypeId: string;
+}
+
+/** Payload of the `attacker_unit_tiers` message from server to client. */
+export interface AttackerUnitTiersPayload {
+  tiers: Record<string, number>;
+}
+

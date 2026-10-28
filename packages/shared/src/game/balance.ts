@@ -15,7 +15,7 @@ import rulesData from "../data/rules.json" with { type: "json" };
 export * from "./towers/index.js";
 export * from "./units/index.js";
 
-import { MOB_TYPES, mobCost } from "./units/index.js";
+import { MOB_TYPES, mobCost, unitCost } from "./units/index.js";
 
 /** Economy tuning for both sides. */
 export interface EconomyConfig {
@@ -168,12 +168,13 @@ export function validateBufferAdd(
   availableTroops: readonly string[],
   gold: number,
   rules: DeployRules = DEFAULT_DEPLOY_RULES,
+  tierLevel: number = 1,
 ): string | null {
   if (!MOB_TYPES[typeId]) return "Unknown unit.";
   if (!availableTroops.includes(typeId)) return `${typeId} is not in your deck.`;
   if (buffer.length >= rules.maxBufferUnits) {
     return `The deploy queue holds at most ${rules.maxBufferUnits} units.`;
   }
-  if (gold < mobCost(typeId)) return "Not enough gold.";
+  if (gold < unitCost(typeId, tierLevel)) return "Not enough gold.";
   return null;
 }

@@ -28,6 +28,7 @@ import { setGuestElo } from '../auth/guest';
 import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
 import { AttackerDeployBar } from './game/AttackerDeployBar';
+import { UnitUpgradeModal } from './game/UnitUpgradeModal';
 import { MapRevealOverlay } from './game/MapRevealOverlay';
 import { useSmoothCountdown } from './game/useSmoothCountdown';
 import { DraftOverlay } from './game/DraftOverlay';
@@ -212,6 +213,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   // Attacker deploy-buffer state (attacker-only private pushes)
   const [buffer, setBuffer] = useState<AttackerBufferPayload | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
+  const [unitTiers, setUnitTiers] = useState<Record<string, number>>({});
+  const [selectedUpgradeUnit, setSelectedUpgradeUnit] = useState<string | null>(null);
   const [isUIHidden, setIsUIHidden] = useState<boolean>(false);
   const lastToggleTimeRef = useRef<number>(0);
 
@@ -345,6 +348,15 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       },
     );
 
+    const offUnitTiers = room.onMessage(
+      MESSAGES.attackerUnitTiers,
+      (data: { tiers?: Record<string, number> }) => {
+        if (data?.tiers) {
+          setUnitTiers(data.tiers);
+        }
+      },
+    );
+
     // Tell the server the HUD is listening so it can safely send the role payload.
     room.send(MESSAGES.ready);
 
@@ -469,6 +481,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       offEconomy();
       offBuffer();
       offDeployRejected();
+      offUnitTiers();
       offOpponentLeft();
       offOpponentReconnecting();
       offOpponentReconnected();
@@ -728,10 +741,25 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
           phase={phase}
           suddenDeath={suddenDeath}
           isUIHidden={isUIHidden}
+          unitTiers={unitTiers}
+          onOpenUpgrade={(unitTypeId) => setSelectedUpgradeUnit(unitTypeId)}
 
           send={(type, payload) => room.send(type, payload)}
           findMapPortal={(x, y) => getGameScene()?.portalAtPage(x, y) ?? null}
           onMapPortalHover={(portalId) => getGameScene()?.setPortalHover(portalId)}
+        />
+      )}
+
+      {/* Attacker unit upgrade modal */}
+      {selectedUpgradeUnit && (
+        <UnitUpgradeModal
+          unitTypeId={selectedUpgradeUnit}
+          currentTier={unitTiers[selectedUpgradeUnit] ?? 1}
+          playerGold={gold}
+          onConfirm={(unitTypeId) => {
+            room.send(MESSAGES.upgradeUnit, { unitTypeId });
+          }}
+          onClose={() => setSelectedUpgradeUnit(null)}
         />
       )}
 
