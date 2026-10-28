@@ -75,7 +75,7 @@ describe("balance.ts shape guards", () => {
     for (const n of [defenderStartingGold, attackerStartingGold, maxGold]) {
       assert.ok(n > 0, `economy value must be > 0, got ${n}`);
     }
-    assert.strictEqual(maxGold, 750, "maxGold cap must be 750");
+    assert.strictEqual(maxGold, 1000, "maxGold cap must be 1000");
     assert.ok(defenderStartingGold <= maxGold, "defender starting gold must not exceed maxGold");
     assert.ok(attackerStartingGold <= maxGold, "attacker starting gold must not exceed maxGold");
     assert.ok(DEFAULT_DECK_RULES.deckSize > 0);

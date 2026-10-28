@@ -169,8 +169,9 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
     // Water cannon projectile/splash
     this.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
-    // Chinthe attack (whole 8 frames is projectile animation)
-    this.load.spritesheet("chinthe_attack_sheet", "/assets/towers/08_chinthe_statue/chinthe_attack.png", { frameWidth: 688, frameHeight: 768 });
+    // Chinthe projectiles & explosion VFX - 2 rows x 4 cols (688x768)
+    this.load.spritesheet("chinthe_proj_sheet", "/assets/towers/08_chinthe_statue/new_projectile.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("chinthe_empowered_proj_sheet", "/assets/towers/08_chinthe_statue/new_empowered_projectile.png", { frameWidth: 688, frameHeight: 768 });
     // Dragon attack - 3 rows x 4 cols
     this.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
     // Sein Pyaung projectile & hit VFX - 2 rows x 4 cols (688x768)
@@ -235,10 +236,22 @@ export class GameScene extends Phaser.Scene {
         this.anims.create({ key: "water_splash_anim", frames: this.anims.generateFrameNumbers("water_splash_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
       }
     }
-    // Chinthe projectile anim - whole 8 frames, slow (half speed)
-    if (this.textures.exists("chinthe_attack_sheet")) {
+    // Chinthe standard projectile (top row 0..3) and explosion VFX (bottom row 4..7)
+    if (this.textures.exists("chinthe_proj_sheet")) {
       if (!this.anims.exists("chinthe_proj_anim")) {
-        this.anims.create({ key: "chinthe_proj_anim", frames: this.anims.generateFrameNumbers("chinthe_attack_sheet", { start: 0, end: 7 }), frameRate: 6, repeat: -1 });
+        this.anims.create({ key: "chinthe_proj_anim", frames: this.anims.generateFrameNumbers("chinthe_proj_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("chinthe_explosion_anim")) {
+        this.anims.create({ key: "chinthe_explosion_anim", frames: this.anims.generateFrameNumbers("chinthe_proj_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
+      }
+    }
+    // Chinthe empowered projectile (top row 0..3) and explosion VFX (bottom row 4..7)
+    if (this.textures.exists("chinthe_empowered_proj_sheet")) {
+      if (!this.anims.exists("chinthe_empowered_proj_anim")) {
+        this.anims.create({ key: "chinthe_empowered_proj_anim", frames: this.anims.generateFrameNumbers("chinthe_empowered_proj_sheet", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+      }
+      if (!this.anims.exists("chinthe_empowered_explosion_anim")) {
+        this.anims.create({ key: "chinthe_empowered_explosion_anim", frames: this.anims.generateFrameNumbers("chinthe_empowered_proj_sheet", { start: 4, end: 7 }), frameRate: 15, repeat: 0 });
       }
     }
     // Dragon projectile anim - first row, splash from second/third row

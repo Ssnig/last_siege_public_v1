@@ -1173,7 +1173,7 @@ describe("testing your Colyseus app", () => {
     );
   });
 
-  it("clamps player gold at maxGold (750) when earning passive income or bounties", async function () {
+  it("clamps player gold at maxGold (1000) when earning passive income or bounties", async function () {
     this.timeout(10000);
 
     const room = await colyseus.createRoom<RoomState>("game_room", {
@@ -1619,7 +1619,7 @@ describe("testing your Colyseus app", () => {
 
     const mob = [...room.state.mobs.values()][0];
     const bruteType = MOB_TYPES["brute"];
-    assert.strictEqual(mob.maxHp, 540, "brute has 540 maxHp");
+    assert.strictEqual(mob.maxHp, 595, "brute has 595 maxHp");
     assert.strictEqual(bruteType.armor, 4, "brute has 4 base armor in config");
     assert.strictEqual(bruteType.ability?.type, "self_heal", "brute has self_heal ability");
     assert.strictEqual(bruteType.ability?.healFraction, 0.1, "brute heals 10% maxHp");

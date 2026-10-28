@@ -2749,16 +2749,23 @@ export class GameplayStage {
           sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
         }
       } else if (design.id === "chinthe") {
-        if (!this.scene.textures.exists("chinthe_attack_sheet")) {
-          this.scene.load.spritesheet("chinthe_attack_sheet", "/assets/towers/08_chinthe_statue/chinthe_attack.png", { frameWidth: 688, frameHeight: 768 });
+        const isEmpowered = projectile.isEmpowered;
+        const sheetKey = isEmpowered ? "chinthe_empowered_proj_sheet" : "chinthe_proj_sheet";
+        const animKey = isEmpowered ? "chinthe_empowered_proj_anim" : "chinthe_proj_anim";
+        const sheetUrl = isEmpowered
+          ? "/assets/towers/08_chinthe_statue/new_empowered_projectile.png"
+          : "/assets/towers/08_chinthe_statue/new_projectile.png";
+
+        if (!this.scene.textures.exists(sheetKey)) {
+          this.scene.load.spritesheet(sheetKey, sheetUrl, { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
-        if (this.scene.textures.exists("chinthe_attack_sheet")) {
-          sprite = this.scene.add.sprite(projectile.x, projectile.y, "chinthe_attack_sheet").setOrigin(0.5, 0.5).setScale(0.04).setDepth(DEPTH.PROJECTILES_LAYER);
-          if (!this.scene.anims.exists("chinthe_proj_anim")) {
-            this.scene.anims.create({ key: "chinthe_proj_anim", frames: this.scene.anims.generateFrameNumbers("chinthe_attack_sheet", { start: 0, end: 7 }), frameRate: 6, repeat: -1 });
+        if (this.scene.textures.exists(sheetKey)) {
+          sprite = this.scene.add.sprite(projectile.x, projectile.y, sheetKey).setOrigin(0.5, 0.5).setScale(0.045).setDepth(DEPTH.PROJECTILES_LAYER);
+          if (!this.scene.anims.exists(animKey)) {
+            this.scene.anims.create({ key: animKey, frames: this.scene.anims.generateFrameNumbers(sheetKey, { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
           }
-          sprite.play("chinthe_proj_anim");
+          sprite.play(animKey);
         } else {
           sprite = this.scene.add.sprite(projectile.x, projectile.y, textureKey).setOrigin(0.5, 0.5).setDisplaySize(28, 28).setDepth(DEPTH.PROJECTILES_LAYER);
         }
@@ -2952,8 +2959,36 @@ export class GameplayStage {
         if (hit) {
           (this.root ?? this.actors)?.add(hit);
         }
+      } else if (design.id === "chinthe") {
+        const isEmpowered = projectile.isEmpowered;
+        const sheetKey = isEmpowered ? "chinthe_empowered_proj_sheet" : "chinthe_proj_sheet";
+        const explosionAnimKey = isEmpowered ? "chinthe_empowered_explosion_anim" : "chinthe_explosion_anim";
+        const sheetUrl = isEmpowered
+          ? "/assets/towers/08_chinthe_statue/new_empowered_projectile.png"
+          : "/assets/towers/08_chinthe_statue/new_projectile.png";
+
+        if (!this.scene.textures.exists(sheetKey)) {
+          this.scene.load.spritesheet(sheetKey, sheetUrl, { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.start();
+        }
+        if (this.scene.textures.exists(sheetKey)) {
+          const explosion = this.scene.add.sprite(hitX, hitY, sheetKey)
+            .setOrigin(0.5, 0.5)
+            .setScale(isEmpowered ? 0.10 : 0.08)
+            .setDepth(DEPTH.PROJECTILES_LAYER + 1);
+          if (!this.scene.anims.exists(explosionAnimKey)) {
+            this.scene.anims.create({
+              key: explosionAnimKey,
+              frames: this.scene.anims.generateFrameNumbers(sheetKey, { start: 4, end: 7 }),
+              frameRate: 15,
+              repeat: 0,
+            });
+          }
+          explosion.play(explosionAnimKey);
+          explosion.once("animationcomplete", () => explosion.destroy());
+          (this.root ?? this.actors)?.add(explosion);
+        }
       }
-      // chinthe: whole 8 frames is projectile animation as specified
       sprite.destroy();
       this.projectileSprites.delete(projectile);
     };

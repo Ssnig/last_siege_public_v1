@@ -3215,6 +3215,27 @@ export class GameRoom extends Room<{ state: RoomState }> {
     const bonusDamage = isFinisher ? (tier.special?.salvoFinisherBonus ?? 0) : 0;
     const baseDamage = this.towerDamage(tier);
 
+    let specialToApply = tier.special;
+    let isEmpowered = false;
+    if (tier.special) {
+      if (tower.typeId === "chinthe" && tier.special.silenceSec) {
+        const towerKey = `${tower.ownerId}-${tower.slotIndex}`;
+        const roarCd = this.chintheRoarCooldowns.get(towerKey) ?? 0;
+        if (roarCd <= 0) {
+          // Trigger Sacred Roar! Put ability on cooldown
+          this.chintheRoarCooldowns.set(
+            towerKey,
+            tier.special.roarCooldownSec ?? 8.0,
+          );
+          specialToApply = tier.special;
+          isEmpowered = true;
+        } else {
+          // Normal shot while roar is on cooldown: Mental AoE damage without silence
+          specialToApply = { ...tier.special, silenceSec: undefined };
+        }
+      }
+    }
+
     this.state.projectiles.set(
       id,
       new Projectile({
@@ -3225,6 +3246,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
         targetId: target.id,
         damage: baseDamage + bonusDamage,
         speed: tier.projectileSpeed,
+        isEmpowered,
       }),
     );
 
@@ -3236,23 +3258,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.projectileAim.set(id, { x: target.x, y: targetY });
     this.projectileSplash.set(id, splash);
     this.projectileSourceSlot.set(id, tower.slotIndex);
-    if (tier.special) {
-      let specialToApply = tier.special;
-      if (tower.typeId === "chinthe" && tier.special.silenceSec) {
-        const towerKey = `${tower.ownerId}-${tower.slotIndex}`;
-        const roarCd = this.chintheRoarCooldowns.get(towerKey) ?? 0;
-        if (roarCd <= 0) {
-          // Trigger Sacred Roar! Put ability on cooldown
-          this.chintheRoarCooldowns.set(
-            towerKey,
-            tier.special.roarCooldownSec ?? 8.0,
-          );
-          specialToApply = tier.special;
-        } else {
-          // Normal shot while roar is on cooldown: Mental AoE damage without silence
-          specialToApply = { ...tier.special, silenceSec: undefined };
-        }
-      }
+    if (specialToApply) {
       this.projectileSpecial.set(id, specialToApply);
     }
     if (isFinisher && tier.special?.salvoFinisherStunSec) {

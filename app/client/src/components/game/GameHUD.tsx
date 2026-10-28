@@ -68,7 +68,7 @@ const TOWER_ICONS: Record<string, string> = {
 
 export const GameHUD: React.FC<GameHUDProps> = ({
   gold,
-  maxGold = DEFAULT_ECONOMY.maxGold ?? 750,
+  maxGold = DEFAULT_ECONOMY.maxGold ?? 1000,
   deck,
   selectedTowerType = 'basic',
   onSelectTower,

@@ -17,6 +17,7 @@ export const Projectile = schema({
   targetId: t.string(),
   damage: t.int32(),
   speed: t.float32(),
+  isEmpowered: t.boolean().default(false),
 }, "Projectile");
 
 export type Projectile = SchemaType<typeof Projectile>;

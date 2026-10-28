@@ -117,6 +117,8 @@ export const CORE_ASSETS: AssetManifestEntry[] = [
   { id: 't08_lion', url: '/assets/towers/08_chinthe_statue/lion_gurdian.png', type: 'image', category: 'tower', label: 'Chinthe Guardian' },
   { id: 't08_lion_mirr', url: '/assets/towers/08_chinthe_statue/lion_gurdian_mirrored.png', type: 'image', category: 'tower', label: 'Chinthe Mirrored' },
   { id: 't08_anim', url: '/assets/towers/08_chinthe_statue/chinthe_attack.png', type: 'image', category: 'tower', label: 'Chinthe Blast' },
+  { id: 't08_proj', url: '/assets/towers/08_chinthe_statue/new_projectile.png', type: 'image', category: 'tower', label: 'Chinthe Projectile' },
+  { id: 't08_empowered_proj', url: '/assets/towers/08_chinthe_statue/new_empowered_projectile.png', type: 'image', category: 'tower', label: 'Chinthe Empowered Projectile' },
   { id: 't08_icon', url: '/assets/towers/08_chinthe_statue/icon.jpg', type: 'image', category: 'tower', label: 'Chinthe Icon' },
 
   { id: 't09_tower', url: '/assets/towers/09_dragon_tower/tower.png', type: 'image', category: 'tower', label: 'Dragon Base' },

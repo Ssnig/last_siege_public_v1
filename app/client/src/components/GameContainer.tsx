@@ -198,7 +198,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
 
   // Gameplay HUD state
   const [gold, setGold] = useState<number>(200);
-  const [maxGold, setMaxGold] = useState<number>(() => DEFAULT_ECONOMY.maxGold ?? 750);
+  const [maxGold, setMaxGold] = useState<number>(() => DEFAULT_ECONOMY.maxGold ?? 1000);
   const [incomeRate, setIncomeRate] = useState<number>(5);
   const [castleHp, setCastleHp] = useState<number>(() => room.state?.coreHp ?? MATCH_RULES.coreHp);
   const [deck, setDeck] = useState<string[]>([]);
