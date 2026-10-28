@@ -90,3 +90,6 @@ mongo-data/
 *.njsproj
 *.sln
 *.sw?
+
+# Archived unused assets
+unused_assets/

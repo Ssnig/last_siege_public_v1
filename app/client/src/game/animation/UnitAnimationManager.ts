@@ -328,7 +328,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(BRUTE_HEAL_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         BRUTE_HEAL_VFX_SHEET_KEY,
-        "/assets/units/Brute/heal_vfx.png",
+        "/assets/units/say_sayar/heal_vfx.png",
         {
           frameWidth: 688,
           frameHeight: 768,
