@@ -3,15 +3,15 @@ import type { MapDefinition } from '@root/shared';
 import { useSmoothCountdown } from './useSmoothCountdown';
 
 export const MAP_IMAGE_URLS: Record<string, string> = {
-  konbaung: '/assets/maps/map_1_konbaung/map.jpg',
-  bagan: '/assets/maps/map_2_bagan/map.jpg',
-  inle: '/assets/maps/map_3_inle/map.jpg',
-  mandalay: '/assets/maps/map_4_mandalay/map.jpg',
-  innwa: '/assets/maps/map_5_innwa/map.jpg',
-  bago: '/assets/maps/map_6_bago/map.jpg',
-  deserted: '/assets/maps/map_7_deserted/map.jpg',
-  twister: '/assets/maps/map_8_twister/map.jpg',
-  river: '/assets/maps/map_9_river/map.jpg',
+  konbaung: '/assets/maps/map_1_konbaung/map.webp',
+  bagan: '/assets/maps/map_2_bagan/map.webp',
+  inle: '/assets/maps/map_3_inle/map.webp',
+  mandalay: '/assets/maps/map_4_mandalay/map.webp',
+  innwa: '/assets/maps/map_5_innwa/map.webp',
+  bago: '/assets/maps/map_6_bago/map.webp',
+  deserted: '/assets/maps/map_7_deserted/map.webp',
+  twister: '/assets/maps/map_8_twister/map.webp',
+  river: '/assets/maps/map_9_river/map.webp',
 };
 
 interface MapRevealOverlayProps {
@@ -72,7 +72,7 @@ export const MapRevealOverlay: React.FC<MapRevealOverlayProps> = ({
 }) => {
   const secondsLeft = useSmoothCountdown(serverSeconds, true);
   const mapImageUrl =
-    MAP_IMAGE_URLS[map.id] || map.thumbnail || '/assets/maps/map_1_konbaung/map.jpg';
+    MAP_IMAGE_URLS[map.id] || map.thumbnail || '/assets/maps/map_1_konbaung/map.webp';
 
   return (
     <div className="absolute inset-0 z-40 h-full w-full overflow-y-auto bg-[#0a0304]/90 backdrop-blur-md animate-fadeIn">

@@ -6,21 +6,21 @@
  * generic banner glyph at the call site.
  */
 export const MOB_ICONS: Record<string, string> = {
-  horse_rider: '/assets/units/horse_rider/face.png',
-  sar_bal_gyi: '/assets/units/sar_bal_gyi/face.png',
-  gya_pu: '/assets/units/gya_pu/face.png',
-  a_ba: '/assets/units/a_ba/face.png',
-  chon_toe: '/assets/units/chon_toe/face.png',
-  elephant_rider: '/assets/units/elephant_rider/face.jpg',
-  monkey: '/assets/units/monkey/face.jpg',
-  say_sayar: '/assets/units/say_sayar/face.jpg',
-  shield_guy: '/assets/units/shield_guy/face.jpg',
-  doe_pat: '/assets/units/doe_pat/face.jpg',
-  bandit: '/assets/units/Bandit/face.jpg',
-  belu: '/assets/units/Belu/face.jpg',
-  brute: '/assets/units/Brute/face.jpg',
-  general: '/assets/units/General/face.jpg',
-  sone_ma: '/assets/units/SoneMa/face.jpg',
+  horse_rider: '/assets/units/horse_rider/face.webp',
+  sar_bal_gyi: '/assets/units/sar_bal_gyi/face.webp',
+  gya_pu: '/assets/units/gya_pu/face.webp',
+  a_ba: '/assets/units/a_ba/face.webp',
+  chon_toe: '/assets/units/chon_toe/face.webp',
+  elephant_rider: '/assets/units/elephant_rider/face.webp',
+  monkey: '/assets/units/monkey/face.webp',
+  say_sayar: '/assets/units/say_sayar/face.webp',
+  shield_guy: '/assets/units/shield_guy/face.webp',
+  doe_pat: '/assets/units/doe_pat/face.webp',
+  bandit: '/assets/units/Bandit/face.webp',
+  belu: '/assets/units/Belu/face.webp',
+  brute: '/assets/units/Brute/face.webp',
+  general: '/assets/units/General/face.webp',
+  sone_ma: '/assets/units/SoneMa/face.webp',
 };
 
 /** Portal sprites, indexed by portal order (portal 1 uses `spawn1.png`). */

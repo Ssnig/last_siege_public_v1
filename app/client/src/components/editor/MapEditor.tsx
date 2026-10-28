@@ -23,55 +23,55 @@ const MAP_PRESETS: MapPreset[] = [
   {
     id: "bagan",
     name: "Bagan (Ancient Plains)",
-    imageSrc: "/assets/maps/map_2_bagan/map.jpg",
+    imageSrc: "/assets/maps/map_2_bagan/map.webp",
     definition: MAPS["bagan"],
   },
   {
     id: "konbaung",
     name: "Konbaung (Palace Front)",
-    imageSrc: "/assets/maps/map_1_konbaung/map.jpg",
+    imageSrc: "/assets/maps/map_1_konbaung/map.webp",
     definition: MAPS["konbaung"],
   },
   {
     id: "inle",
     name: "Inle (Floating Lake)",
-    imageSrc: "/assets/maps/map_3_inle/map.jpg",
+    imageSrc: "/assets/maps/map_3_inle/map.webp",
     definition: MAPS["inle"],
   },
   {
     id: "mandalay",
     name: "Mandalay (Royal Citadel)",
-    imageSrc: "/assets/maps/map_4_mandalay/map.jpg",
+    imageSrc: "/assets/maps/map_4_mandalay/map.webp",
     definition: MAPS["mandalay"],
   },
   {
     id: "innwa",
     name: "Innwa (Golden Kingdom)",
-    imageSrc: "/assets/maps/map_5_innwa/map.jpg",
+    imageSrc: "/assets/maps/map_5_innwa/map.webp",
     definition: MAPS["innwa"],
   },
   {
     id: "bago",
     name: "Bago (Hanthawaddy Fortress)",
-    imageSrc: "/assets/maps/map_6_bago/map.jpg",
+    imageSrc: "/assets/maps/map_6_bago/map.webp",
     definition: MAPS["bago"],
   },
   {
     id: "deserted",
     name: "Sri Ksetra (Ancient Sands)",
-    imageSrc: "/assets/maps/map_7_deserted/map.jpg",
+    imageSrc: "/assets/maps/map_7_deserted/map.webp",
     definition: MAPS["deserted"],
   },
   {
     id: "twister",
     name: "Taungoo (Mountain Pass)",
-    imageSrc: "/assets/maps/map_8_twister/map.jpg",
+    imageSrc: "/assets/maps/map_8_twister/map.webp",
     definition: MAPS["twister"],
   },
   {
     id: "river",
     name: "Ayeyarwady (River Delta)",
-    imageSrc: "/assets/maps/map_9_river/map.jpg",
+    imageSrc: "/assets/maps/map_9_river/map.webp",
     definition: MAPS["river"],
   },
 ];
@@ -387,7 +387,7 @@ export const MapEditor: React.FC = () => {
   // Active background image
   const currentPreset = MAP_PRESETS.find((p) => p.id === selectedMapId);
   const activeImageSrc =
-    customImageSrc || currentPreset?.imageSrc || "/assets/maps/map_2_bagan/map.jpg";
+    customImageSrc || currentPreset?.imageSrc || "/assets/maps/map_2_bagan/map.webp";
 
   // Tool definitions
   const TOOL_INFO: Record<

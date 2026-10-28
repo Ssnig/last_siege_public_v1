@@ -50,20 +50,20 @@ const TOWER_SHORT_NAMES: Record<string, string> = {
 };
 
 const TOWER_ICONS: Record<string, string> = {
-  archer: '/assets/towers/01_archer_tower/icon.jpg',
-  basic: '/assets/towers/01_archer_tower/icon.jpg',
-  crossbow: '/assets/towers/02_crossbow_fort/icon.jpg',
-  cannon: '/assets/towers/02_crossbow_fort/icon.jpg',
-  bomb: '/assets/towers/03_bomb_throwing_tower/icon.jpg',
-  bell: '/assets/towers/04_bell_tower/icon.jpg',
-  spear: '/assets/towers/05_spear_tower/icon.jpg',
-  pitchfork: '/assets/towers/05_spear_tower/icon.jpg',
-  gun: '/assets/towers/06_gun_tower/icon.jpg',
-  sniper: '/assets/towers/06_gun_tower/icon.jpg',
-  water_cannon: '/assets/towers/07_water_cannon/icon.jpg',
-  chinthe: '/assets/towers/08_chinthe_statue/icon.jpg',
-  dragon: '/assets/towers/09_dragon_tower/icon.jpg',
-  sein_pyaung: '/assets/towers/10_sein_pyaung/icon.jpg',
+  archer: '/assets/towers/01_archer_tower/icon.webp',
+  basic: '/assets/towers/01_archer_tower/icon.webp',
+  crossbow: '/assets/towers/02_crossbow_fort/icon.webp',
+  cannon: '/assets/towers/02_crossbow_fort/icon.webp',
+  bomb: '/assets/towers/03_bomb_throwing_tower/icon.webp',
+  bell: '/assets/towers/04_bell_tower/icon.webp',
+  spear: '/assets/towers/05_spear_tower/icon.webp',
+  pitchfork: '/assets/towers/05_spear_tower/icon.webp',
+  gun: '/assets/towers/06_gun_tower/icon.webp',
+  sniper: '/assets/towers/06_gun_tower/icon.webp',
+  water_cannon: '/assets/towers/07_water_cannon/icon.webp',
+  chinthe: '/assets/towers/08_chinthe_statue/icon.webp',
+  dragon: '/assets/towers/09_dragon_tower/icon.webp',
+  sein_pyaung: '/assets/towers/10_sein_pyaung/icon.webp',
 };
 
 export const GameHUD: React.FC<GameHUDProps> = ({

@@ -107,7 +107,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
             {playableMaps.map((map: MapDefinition) => {
               const isSelected = selectedMapId === map.id;
               const thumbSrc =
-                map.thumbnail || `/assets/maps/map_1_konbaung/preview.png`;
+                map.thumbnail || `/assets/maps/map_1_konbaung/preview.webp`;
 
               return (
                 <div
@@ -127,7 +127,7 @@ export const MapSelectorModal: React.FC<MapSelectorModalProps> = ({
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src =
-                          "/assets/maps/map_1_konbaung/preview.png";
+                          "/assets/maps/map_1_konbaung/preview.webp";
                       }}
                     />
                     {/* Lanes Badge */}

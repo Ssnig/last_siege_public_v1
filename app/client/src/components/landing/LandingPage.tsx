@@ -66,7 +66,7 @@ export const LandingPage: React.FC = () => {
     <div className="relative w-screen h-screen bg-slate-950 flex items-center justify-center overflow-hidden select-none">
       {/* Expansive Ambient Background for Ultrawide Viewports */}
       <img
-        src="/assets/ui/bg.jpg"
+        src="/assets/ui/bg.webp"
         alt=""
         aria-hidden="true"
         decoding="async"
@@ -76,7 +76,7 @@ export const LandingPage: React.FC = () => {
       <div className="relative w-full max-w-[2752px] aspect-[2752/1536] max-h-screen overflow-hidden shadow-2xl bg-black">
         {/* Layer 1: Base Landscape */}
         <img
-          src="/assets/ui/bg.jpg"
+          src="/assets/ui/bg.webp"
           alt="Battlefield Landscape"
           decoding="async"
           className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
@@ -209,7 +209,7 @@ export const LandingPage: React.FC = () => {
         <div className="absolute z-20 left-1/2 top-[7%] sm:top-[8%] md:top-[9%] -translate-x-1/2 flex flex-col items-center select-none pointer-events-none">
           {/* Official 'Last Siege' Game Logo */}
           <img
-            src="/assets/logo/landing_logo_tight.png"
+            src="/assets/logo/landing_logo_tight.webp"
             alt="Last Siege"
             className="w-[38vw] min-w-[270px] max-w-[490px] h-auto object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.65)]"
           />
@@ -232,7 +232,7 @@ export const LandingPage: React.FC = () => {
             />
 
             <img
-              src="/assets/logo/start_btn_tight.png"
+              src="/assets/logo/start_btn_tight.webp"
               alt="START"
               className={`relative w-[18vw] min-w-[140px] max-w-[225px] h-auto object-contain transition-all duration-200 ease-out active:scale-95 ${
                 isButtonHovered
@@ -248,7 +248,7 @@ export const LandingPage: React.FC = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
             <div className="relative w-full max-w-md bg-slate-900 border-2 border-amber-500 rounded-2xl p-6 shadow-[0_0_50px_rgba(245,158,11,0.35)] text-white animate-modalPop">
               <h3 className="text-xl font-bold text-amber-300 font-serif mb-2 tracking-wide flex items-center gap-2">
-                <span>⚔️</span> ENTER WARRIOR NICKNAME
+                <span>[BATTLE]</span> ENTER WARRIOR NICKNAME
               </h3>
               <p className="text-xs text-slate-400 mb-5">
                 Choose your battle callsign before entering the Konbaung Royal Arena.

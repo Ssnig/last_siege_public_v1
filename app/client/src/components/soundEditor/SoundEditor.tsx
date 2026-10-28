@@ -21,7 +21,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '1 shot / 0.5s (2.0/s)',
     cadenceSec: 0.5,
-    icon: '/assets/towers/01_archer_tower/icon.png',
+    icon: '/assets/towers/01_archer_tower/icon.webp',
     description: 'High-speed rapid anti-swarm sentry firing volleys of piercing arrows.',
   },
   {
@@ -30,7 +30,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '4-6 bolts salvo / 2.4s',
     cadenceSec: 2.4,
-    icon: '/assets/towers/02_crossbow_fort/icon.jpg',
+    icon: '/assets/towers/02_crossbow_fort/icon.webp',
     description: 'Rapid-fire garrison fort launching concentrated bolt salvos that stun upon landing a full magazine volley.',
   },
   {
@@ -39,7 +39,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '1 shot / 2.0s (0.5/s)',
     cadenceSec: 2.0,
-    icon: '/assets/towers/03_bomb_throwing_tower/icon.png',
+    icon: '/assets/towers/03_bomb_throwing_tower/icon.webp',
     description: 'Wide-radius siege mortar hurling high-explosive incendiary canisters.',
   },
   {
@@ -48,7 +48,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'mental',
     cadence: '1 pulse / 1.5s (0.67/s)',
     cadenceSec: 1.5,
-    icon: '/assets/towers/04_bell_tower/icon.jpg',
+    icon: '/assets/towers/04_bell_tower/icon.webp',
     description: 'Sacred bronze temple chime emitting harmonic sonic pulses that crack mob resolve.',
   },
   {
@@ -57,7 +57,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '1 shot / 1.0s (1.0/s)',
     cadenceSec: 1.0,
-    icon: '/assets/towers/05_spear_tower/icon.png',
+    icon: '/assets/towers/05_spear_tower/icon.webp',
     description: 'High-tension ballista launching armor-piercing heavy ballista bolts.',
   },
   {
@@ -66,7 +66,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '1 shot / 1.0s (1.0/s)',
     cadenceSec: 1.0,
-    icon: '/assets/towers/06_gun_tower/icon.jpg',
+    icon: '/assets/towers/06_gun_tower/icon.webp',
     description: 'Precision flintlock barricade firing rapid high-velocity lead shot.',
   },
   {
@@ -75,7 +75,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '1 burst / 1.8s (0.56/s)',
     cadenceSec: 1.8,
-    icon: '/assets/towers/07_water_cannon/icon.jpg',
+    icon: '/assets/towers/07_water_cannon/icon.webp',
     description: 'High-pressure hydraulic torrent drenching attackers with heavy knockback.',
   },
   {
@@ -84,7 +84,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'mental',
     cadence: '1 strike / 2.2s (0.45/s)',
     cadenceSec: 2.2,
-    icon: '/assets/towers/08_chinthe_statue/icon.jpg',
+    icon: '/assets/towers/08_chinthe_statue/icon.webp',
     description: 'Mythical stone lion monolith shattering enemy resolve with celestial roar.',
   },
   {
@@ -93,7 +93,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '1 breath / 1.2s (0.83/s)',
     cadenceSec: 1.2,
-    icon: '/assets/towers/09_dragon_tower/icon.jpg',
+    icon: '/assets/towers/09_dragon_tower/icon.webp',
     description: 'Mythical pyromancer spire incinerating infantry lines with continuous flame.',
   },
   {
@@ -102,7 +102,7 @@ const TOWERS: TowerSoundMeta[] = [
     damageType: 'physical',
     cadence: '1 shot / 3.5s (0.29/s)',
     cadenceSec: 3.5,
-    icon: '/assets/towers/10_sein_pyaung/icon.jpg',
+    icon: '/assets/towers/10_sein_pyaung/icon.webp',
     description: 'Long-range imperial siege sniper inflicting cataclysmic kinetic crater damage.',
   },
 ];
@@ -519,7 +519,7 @@ export const SoundEditor: React.FC = () => {
                         alt={tower.name}
                         className="w-11 h-11 rounded-lg border border-slate-700 object-cover shrink-0 bg-slate-950"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/assets/towers/01_archer_tower/icon.png';
+                          (e.target as HTMLImageElement).src = '/assets/towers/01_archer_tower/icon.webp';
                         }}
                       />
                       <div className="flex-1 min-w-0">

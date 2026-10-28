@@ -123,14 +123,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   useEffect(() => {
     const baseImg = new Image();
-    baseImg.src = "/assets/tower_placeholder/tower_placeholder_1.png";
+    baseImg.src = "/assets/tower_placeholder/tower_placeholder_1.webp";
     baseImg.onload = () => {
       towerBaseImgRef.current = baseImg;
       setIsTowerBaseLoaded(true);
     };
 
     const towerImg = new Image();
-    towerImg.src = "/assets/towers/01_archer_tower/sheet.png";
+    towerImg.src = "/assets/towers/01_archer_tower/sheet.webp";
     towerImg.onload = () => {
       archerTowerImgRef.current = towerImg;
       setIsArcherTowerLoaded(true);

@@ -330,7 +330,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
       <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden select-none">
         {/* Background */}
         <img
-          src="/assets/ui/bg2.jpg"
+          src="/assets/ui/bg2.webp"
           alt="Battlefield"
           className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
         />
@@ -421,7 +421,7 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
     <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden select-none">
       {/* Background */}
       <img
-        src="/assets/ui/bg2.jpg"
+        src="/assets/ui/bg2.webp"
         alt="Battlefield"
         className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
       />

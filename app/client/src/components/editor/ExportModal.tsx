@@ -87,7 +87,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   name: "${mapName}",
   description: "Custom tactical layout with precision waypoints and strategic tower pads.",
   lanes: ${Object.keys(paths).length},
-  thumbnail: "/assets/maps/map_${mapId === 'bagan' ? '2_bagan' : mapId === 'mandalay' ? '4_mandalay' : mapId === 'inle' ? '3_inle' : mapId === 'innwa' ? '5_innwa' : mapId === 'bago' ? '6_bago' : mapId === 'deserted' ? '7_deserted' : mapId === 'twister' ? '8_twister' : mapId === 'river' ? '9_river' : '1_konbaung'}/preview.png",
+  thumbnail: "/assets/maps/map_${mapId === 'bagan' ? '2_bagan' : mapId === 'mandalay' ? '4_mandalay' : mapId === 'inle' ? '3_inle' : mapId === 'innwa' ? '5_innwa' : mapId === 'bago' ? '6_bago' : mapId === 'deserted' ? '7_deserted' : mapId === 'twister' ? '8_twister' : mapId === 'river' ? '9_river' : '1_konbaung'}/preview.webp",
   pathHalfWidth: 26,
   holderScale: ${holderScale},
   path: [],

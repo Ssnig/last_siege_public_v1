@@ -105,18 +105,12 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // Default Map (Konbaung) is always loaded and pre-cached
-    this.load.image("konbaung", MAP_IMAGE_URLS.konbaung.map);
-    this.load.image("base_konbaung", MAP_IMAGE_URLS.konbaung.base);
-    this.load.image("base_castle", "/assets/sprites/base_castle.png");
-
-    // Preload match's specific map if it differs from the default map
-    const roomRef = (this.registry?.get("room") as Room | undefined) ?? this.room;
-    const currentMapId = roomRef?.state?.mapId;
-    if (currentMapId && currentMapId !== DEFAULT_MAP_ID && MAP_IMAGE_URLS[currentMapId]) {
-      this.load.image(currentMapId, MAP_IMAGE_URLS[currentMapId].map);
-      this.load.image(`base_${currentMapId}`, MAP_IMAGE_URLS[currentMapId].base);
+    // Preload all canonical battlefield maps and citadel bases into Phaser texture cache
+    for (const [mapId, urls] of Object.entries(MAP_IMAGE_URLS)) {
+      this.load.image(mapId, urls.map);
+      this.load.image(`base_${mapId}`, urls.base);
     }
+    this.load.image("base_castle", "/assets/sprites/base_castle.png");
     this.load.image("tower_placeholder_1", "/assets/tower_placeholder/tower_placeholder_1.webp");
     this.load.image("npc_monk", "/assets/sprites/npc_monk.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
@@ -473,7 +467,25 @@ export class GameScene extends Phaser.Scene {
       (stateRole === "attacker" || stateRole === "defender" ? stateRole : undefined) ||
       "defender";
 
-    const map = MAPS[this.room.state.mapId] ?? KONBAUNG_MAP;
+    const mapId = this.room?.state?.mapId || DEFAULT_MAP_ID;
+    const map = MAPS[mapId] ?? KONBAUNG_MAP;
+
+    // Safety fallback: if texture is not yet in cache, queue and load it before creating GameplayStage
+    if (!this.textures.exists(map.id) && MAP_IMAGE_URLS[map.id]) {
+      this.load.image(map.id, MAP_IMAGE_URLS[map.id].map);
+      this.load.image(`base_${map.id}`, MAP_IMAGE_URLS[map.id].base);
+      this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+        this.initGameplayStage(effectiveRole, map);
+      });
+      this.load.start();
+      return;
+    }
+
+    this.initGameplayStage(effectiveRole, map);
+  }
+
+  private initGameplayStage(effectiveRole: PlayerRole, map: any): void {
+    if (this.gameplayStage) return;
     this.gameplayStage = new GameplayStage(this, {
       room: this.room,
       map,

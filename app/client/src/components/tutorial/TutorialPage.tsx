@@ -13,7 +13,7 @@ export const TutorialPage: React.FC = () => {
       {/* Background Ambience Layer */}
       <div
         className="absolute inset-0 bg-cover bg-center opacity-25 pointer-events-none"
-        style={{ backgroundImage: 'url(/assets/landing/landing_background.png)' }}
+        style={{ backgroundImage: 'url(/assets/ui/bg.webp)' }}
       />
       <div className="absolute inset-0 bg-radial from-transparent via-[#0d0709]/70 to-[#0d0709] pointer-events-none" />
 

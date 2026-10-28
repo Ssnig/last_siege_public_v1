@@ -96,7 +96,7 @@ export const AlmanacMapsTab: React.FC = () => {
     attackerAdvice: 'Time your waves with supporting auras and taunts.',
   };
 
-  const mapBgUrl = MAP_IMAGE_URLS[selectedMapId]?.map || `/assets/maps/map_1_konbaung/map.jpg`;
+  const mapBgUrl = MAP_IMAGE_URLS[selectedMapId]?.map || `/assets/maps/map_1_konbaung/map.webp`;
 
   // Draw Tactical Canvas overlay
   useEffect(() => {
@@ -301,7 +301,7 @@ export const AlmanacMapsTab: React.FC = () => {
           {CANONICAL_MAPS.map((m) => {
             const isSelected = m.id === selectedMapId;
             const note = MAP_TACTICAL_NOTES[m.id];
-            const thumb = MAP_IMAGE_URLS[m.id]?.map || `/assets/maps/map_1_konbaung/map.jpg`;
+            const thumb = MAP_IMAGE_URLS[m.id]?.map || `/assets/maps/map_1_konbaung/map.webp`;
 
             return (
               <div
@@ -360,7 +360,7 @@ export const AlmanacMapsTab: React.FC = () => {
       <div className="flex md:hidden overflow-x-auto gap-2 p-1.5 bg-slate-950/90 rounded-xl border border-amber-600/40 shrink-0 custom-scrollbar">
         {CANONICAL_MAPS.map((m) => {
           const isSelected = m.id === selectedMapId;
-          const thumb = MAP_IMAGE_URLS[m.id]?.map || `/assets/maps/map_1_konbaung/map.jpg`;
+          const thumb = MAP_IMAGE_URLS[m.id]?.map || `/assets/maps/map_1_konbaung/map.webp`;
 
           return (
             <button

@@ -40,7 +40,7 @@ export const AlmanacPage: React.FC = () => {
     <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden select-none bg-slate-950 text-white">
       {/* Background Ambience */}
       <img
-        src="/assets/ui/bg2.jpg"
+        src="/assets/ui/bg2.webp"
         alt="Almanac Background"
         className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
       />
