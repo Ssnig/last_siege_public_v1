@@ -35,7 +35,7 @@ export const MatchLoadingScreen: React.FC<MatchLoadingScreenProps> = ({
     <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden select-none animate-fadeIn">
       {/* Background with blur */}
       <img
-        src="/assets/ui/bg2.jpg"
+        src="/assets/ui/bg2.webp"
         alt="Battlefield"
         className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
       />

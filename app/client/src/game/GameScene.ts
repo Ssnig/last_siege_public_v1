@@ -117,7 +117,7 @@ export class GameScene extends Phaser.Scene {
       this.load.image(currentMapId, MAP_IMAGE_URLS[currentMapId].map);
       this.load.image(`base_${currentMapId}`, MAP_IMAGE_URLS[currentMapId].base);
     }
-    this.load.image("tower_placeholder_1", "/assets/tower_placeholder/tower_placeholder_1.png");
+    this.load.image("tower_placeholder_1", "/assets/tower_placeholder/tower_placeholder_1.webp");
     this.load.image("npc_monk", "/assets/sprites/npc_monk.png");
     this.load.image("unit_warrior", "/assets/sprites/unit_warrior.png");
     this.load.image("arrow_proj", "/assets/sprites/arrow.png");
@@ -156,30 +156,30 @@ export class GameScene extends Phaser.Scene {
     UnitAnimationManager.preload(this);
     TowerAnimationManager.preload(this);
     // Archer projectile & hit VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
     // Crossbow Fort projectile & hit VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
     // Crossbow Fort stun VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("vfx_crossbow_stun_sheet", "/assets/towers/02_crossbow_fort/stun_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("vfx_crossbow_stun_sheet", "/assets/towers/02_crossbow_fort/stun_vfx.webp", { frameWidth: 688, frameHeight: 768 });
     // Bomb projectile & hit VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
     // Spear projectile & hit VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
     // Gun tower projectile, hit & skill bounty proc VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.webp", { frameWidth: 688, frameHeight: 768 });
     // Water cannon projectile/splash
-    this.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.webp", { frameWidth: 688, frameHeight: 768 });
     // Chinthe projectiles & explosion VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("chinthe_proj_sheet", "/assets/towers/08_chinthe_statue/new_projectile.png", { frameWidth: 688, frameHeight: 768 });
-    this.load.spritesheet("chinthe_empowered_proj_sheet", "/assets/towers/08_chinthe_statue/new_empowered_projectile.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("chinthe_proj_sheet", "/assets/towers/08_chinthe_statue/new_projectile.webp", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("chinthe_empowered_proj_sheet", "/assets/towers/08_chinthe_statue/new_empowered_projectile.webp", { frameWidth: 688, frameHeight: 768 });
     // Dragon attack - 3 rows x 4 cols
-    this.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
+    this.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.webp", { frameWidth: 600, frameHeight: 597 });
     // Sein Pyaung projectile & hit VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.webp", { frameWidth: 688, frameHeight: 768 });
     // Mob death VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("vfx_mob_death_sheet", "/assets/vfx/mob_death.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("vfx_mob_death_sheet", "/assets/vfx/mob_death.webp", { frameWidth: 688, frameHeight: 768 });
     // Base breach VFX - 2 rows x 4 cols (688x768)
-    this.load.spritesheet("vfx_base_breach_sheet", "/assets/vfx/base_breach.png", { frameWidth: 688, frameHeight: 768 });
+    this.load.spritesheet("vfx_base_breach_sheet", "/assets/vfx/base_breach.webp", { frameWidth: 688, frameHeight: 768 });
   }
 
 

@@ -51,6 +51,8 @@ export const MESSAGES = {
   draftRoundUpdate: "draft_round_update",
   /** Client → server: start combat phase manually. */
   startCombat: "start_combat",
+  /** Client → server: this client confirmed match battlefield assets are loaded. */
+  clientMatchReady: "client_match_ready",
 
   draftRejected: "draft_rejected",
 

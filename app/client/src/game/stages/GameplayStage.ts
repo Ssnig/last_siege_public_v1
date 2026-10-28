@@ -2709,7 +2709,7 @@ export class GameplayStage {
       let sprite: Phaser.GameObjects.Sprite;
       if (design.id === "archer") {
         if (!this.scene.textures.exists("archer_vfx_sheet")) {
-          this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("archer_vfx_sheet")) {
@@ -2723,7 +2723,7 @@ export class GameplayStage {
         }
       } else if (design.id === "crossbow" || design.id === "cannon") {
         if (!this.scene.textures.exists("crossbow_vfx_sheet")) {
-          this.scene.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("crossbow_vfx_sheet")) {
@@ -2737,7 +2737,7 @@ export class GameplayStage {
         }
       } else if (design.id === "bomb") {
         if (!this.scene.textures.exists("bomb_vfx_sheet")) {
-          this.scene.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("bomb_vfx_sheet")) {
@@ -2751,7 +2751,7 @@ export class GameplayStage {
         }
       } else if (design.id === "spear") {
         if (!this.scene.textures.exists("spear_vfx_sheet")) {
-          this.scene.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("spear_vfx_sheet")) {
@@ -2765,7 +2765,7 @@ export class GameplayStage {
         }
       } else if (design.id === "water_cannon") {
         if (!this.scene.textures.exists("water_splash_sheet")) {
-          this.scene.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("water_splash_sheet")) {
@@ -2782,8 +2782,8 @@ export class GameplayStage {
         const sheetKey = isEmpowered ? "chinthe_empowered_proj_sheet" : "chinthe_proj_sheet";
         const animKey = isEmpowered ? "chinthe_empowered_proj_anim" : "chinthe_proj_anim";
         const sheetUrl = isEmpowered
-          ? "/assets/towers/08_chinthe_statue/new_empowered_projectile.png"
-          : "/assets/towers/08_chinthe_statue/new_projectile.png";
+          ? "/assets/towers/08_chinthe_statue/new_empowered_projectile.webp"
+          : "/assets/towers/08_chinthe_statue/new_projectile.webp";
 
         if (!this.scene.textures.exists(sheetKey)) {
           this.scene.load.spritesheet(sheetKey, sheetUrl, { frameWidth: 688, frameHeight: 768 });
@@ -2800,7 +2800,7 @@ export class GameplayStage {
         }
       } else if (design.id === "dragon") {
         if (!this.scene.textures.exists("dragon_attack_sheet")) {
-          this.scene.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
+          this.scene.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.webp", { frameWidth: 600, frameHeight: 597 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("dragon_attack_sheet")) {
@@ -2814,7 +2814,7 @@ export class GameplayStage {
         }
       } else if (design.id === "sein_pyaung") {
         if (!this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
-          this.scene.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
@@ -2828,7 +2828,7 @@ export class GameplayStage {
         }
       } else if (design.id === "gun") {
         if (!this.scene.textures.exists("gun_vfx_sheet")) {
-          this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("gun_vfx_sheet")) {
@@ -2883,7 +2883,7 @@ export class GameplayStage {
 
       if (design.id === "archer") {
         if (!this.scene.textures.exists("archer_vfx_sheet")) {
-          this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("archer_vfx_sheet", "/assets/towers/01_archer_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("archer_vfx_sheet")) {
@@ -2897,7 +2897,7 @@ export class GameplayStage {
         }
       } else if (design.id === "crossbow" || design.id === "cannon") {
         if (!this.scene.textures.exists("crossbow_vfx_sheet")) {
-          this.scene.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("crossbow_vfx_sheet", "/assets/towers/02_crossbow_fort/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("crossbow_vfx_sheet")) {
@@ -2911,7 +2911,7 @@ export class GameplayStage {
         }
       } else if (design.id === "bomb") {
         if (!this.scene.textures.exists("bomb_vfx_sheet")) {
-          this.scene.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("bomb_vfx_sheet", "/assets/towers/03_bomb_throwing_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("bomb_vfx_sheet")) {
@@ -2925,7 +2925,7 @@ export class GameplayStage {
         }
       } else if (design.id === "spear") {
         if (!this.scene.textures.exists("spear_vfx_sheet")) {
-          this.scene.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("spear_vfx_sheet", "/assets/towers/05_spear_tower/projectile_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("spear_vfx_sheet")) {
@@ -2939,7 +2939,7 @@ export class GameplayStage {
         }
       } else if (design.id === "water_cannon") {
         if (!this.scene.textures.exists("water_splash_sheet")) {
-          this.scene.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("water_splash_sheet", "/assets/towers/07_water_cannon/water_splash.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("water_splash_sheet")) {
@@ -2953,7 +2953,7 @@ export class GameplayStage {
         }
       } else if (design.id === "dragon") {
         if (!this.scene.textures.exists("dragon_attack_sheet")) {
-          this.scene.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.png", { frameWidth: 600, frameHeight: 597 });
+          this.scene.load.spritesheet("dragon_attack_sheet", "/assets/towers/09_dragon_tower/dragon_attack.webp", { frameWidth: 600, frameHeight: 597 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("dragon_attack_sheet")) {
@@ -2967,7 +2967,7 @@ export class GameplayStage {
         }
       } else if (design.id === "sein_pyaung") {
         if (!this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
-          this.scene.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("sein_pyaung_vfx_sheet", "/assets/towers/10_sein_pyaung/vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         if (this.scene.textures.exists("sein_pyaung_vfx_sheet")) {
@@ -2981,7 +2981,7 @@ export class GameplayStage {
         }
       } else if (design.id === "gun") {
         if (!this.scene.textures.exists("gun_vfx_sheet")) {
-          this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.png", { frameWidth: 688, frameHeight: 768 });
+          this.scene.load.spritesheet("gun_vfx_sheet", "/assets/towers/06_gun_tower/shooting_vfx.webp", { frameWidth: 688, frameHeight: 768 });
           this.scene.load.start();
         }
         const hit = TowerAnimationManager.spawnGunHitVfx(this.scene, hitX, hitY);
@@ -2993,8 +2993,8 @@ export class GameplayStage {
         const sheetKey = isEmpowered ? "chinthe_empowered_proj_sheet" : "chinthe_proj_sheet";
         const explosionAnimKey = isEmpowered ? "chinthe_empowered_explosion_anim" : "chinthe_explosion_anim";
         const sheetUrl = isEmpowered
-          ? "/assets/towers/08_chinthe_statue/new_empowered_projectile.png"
-          : "/assets/towers/08_chinthe_statue/new_projectile.png";
+          ? "/assets/towers/08_chinthe_statue/new_empowered_projectile.webp"
+          : "/assets/towers/08_chinthe_statue/new_projectile.webp";
 
         if (!this.scene.textures.exists(sheetKey)) {
           this.scene.load.spritesheet(sheetKey, sheetUrl, { frameWidth: 688, frameHeight: 768 });

@@ -14,7 +14,7 @@ import { MapSelectorModal } from './match/MapSelectorModal';
 import { SettingsModal } from './landing/SettingsModal';
 import { RankBadge } from './rank/RankBadge';
 import { getOrCreateGuestId, getGuestElo, syncGuestWithServer } from '../auth/guest';
-import { AssetPreloader } from '../game/assetPreloader';
+import { AssetPreloader, useAssetDownloadProgress } from '../game/assetPreloader';
 
 interface LobbyProps {
   client: Client;
@@ -68,6 +68,7 @@ function roomStatusOf(room: RoomAvailable): RoomStatus {
 export const Lobby: React.FC<LobbyProps> = ({ client }) => {
   const { setRoom } = useGameRoom();
   const { user, signOut, updateProfile } = useAuth();
+  const assetProgress = useAssetDownloadProgress();
   const navigate = useNavigate();
   const [name, setName] = useState<string>(() => {
     try {
@@ -496,6 +497,43 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
               </div>
             </div>
 
+            {/* Asset Preload Status Badge */}
+            <div className="hidden lg:flex items-center shrink-0">
+              {!assetProgress.isBattleReady ? (
+                <div
+                  className="flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/50 bg-black/60 shadow-[0_0_12px_rgba(245,158,11,0.25)] animate-pulse"
+                  title={assetProgress.statusLabel}
+                >
+                  <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
+                  <span
+                    className="text-[11px] font-bold text-amber-200 tracking-wide"
+                    style={{ fontFamily: "'Almendra SC', serif" }}
+                  >
+                    Downloading Battle Assets ({assetProgress.percentage}%)
+                  </span>
+                  <div className="w-14 h-1.5 rounded-full bg-slate-800 overflow-hidden border border-amber-600/40">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-all duration-300"
+                      style={{ width: `${assetProgress.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/40 bg-emerald-950/40"
+                  title="All battle assets are cached and ready"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                  <span
+                    className="text-[10px] font-bold text-emerald-200 tracking-wider uppercase"
+                    style={{ fontFamily: "'Almendra SC', serif" }}
+                  >
+                    Battlefield Ready
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Header action buttons */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
@@ -809,19 +847,27 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
 
             {/* Host New Match Button: Pinned to bottom with shrink-0, min-h-[42px] */}
             <button
-              disabled={loading}
+              disabled={loading || !assetProgress.isBattleReady}
               onClick={handleCreateRoom}
               onMouseEnter={() => soundEffects.playHover()}
               className="w-full shrink-0 mt-2 sm:mt-3 py-2 sm:py-2.5 min-h-[42px] rounded-lg font-bold text-xs sm:text-sm tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] hover:brightness-110 flex items-center justify-center"
               style={{
                 fontFamily: "'Almendra SC', 'Almendra', serif",
-                background: 'linear-gradient(180deg, #10b981 0%, #059669 50%, #047857 100%)',
+                background: !assetProgress.isBattleReady
+                  ? 'linear-gradient(180deg, #4b5563 0%, #374151 100%)'
+                  : 'linear-gradient(180deg, #10b981 0%, #059669 50%, #047857 100%)',
                 border: '2px solid #d4af37',
                 color: '#fef3c7',
-                boxShadow: '0 2px 12px rgba(5,150,105,0.4), inset 0 1px 0 rgba(254,240,138,0.3)',
+                boxShadow: !assetProgress.isBattleReady
+                  ? 'none'
+                  : '0 2px 12px rgba(5,150,105,0.4), inset 0 1px 0 rgba(254,240,138,0.3)',
               }}
             >
-              {loading ? "Creating..." : "Host New Match"}
+              {loading
+                ? "Creating..."
+                : !assetProgress.isBattleReady
+                ? `Preparing Assets... (${assetProgress.percentage}%)`
+                : "Host New Match"}
             </button>
           </RoyalPanel>
 
@@ -914,23 +960,29 @@ export const Lobby: React.FC<LobbyProps> = ({ client }) => {
                         </p>
                       </div>
                       <button
-                        disabled={loading || isPlaying}
+                        disabled={loading || isPlaying || !assetProgress.isBattleReady}
                         onClick={() => handleJoinRoom(room.roomId)}
                         onMouseEnter={() => soundEffects.playHover()}
                         className="px-3 sm:px-5 py-1.5 sm:py-2 rounded-md font-bold text-xs tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:brightness-110"
                         style={{
                           fontFamily: "'Almendra SC', 'Almendra', serif",
-                          background: isPlaying
+                          background: isPlaying || !assetProgress.isBattleReady
                             ? 'linear-gradient(180deg, #4b5563, #374151)'
                             : 'linear-gradient(180deg, #10b981, #059669)',
                           border: '1.5px solid #d4af37',
                           color: '#fef3c7',
-                          boxShadow: isPlaying
+                          boxShadow: isPlaying || !assetProgress.isBattleReady
                             ? 'none'
                             : '0 1px 6px rgba(5,150,105,0.3)',
                         }}
                       >
-                        {isPlaying ? 'In Progress' : loading ? 'Joining...' : 'Join Match'}
+                        {isPlaying
+                          ? 'In Progress'
+                          : !assetProgress.isBattleReady
+                          ? `${assetProgress.percentage}%`
+                          : loading
+                          ? 'Joining...'
+                          : 'Join Match'}
                       </button>
                     </div>
                   );

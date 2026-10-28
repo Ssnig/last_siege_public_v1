@@ -203,6 +203,13 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /** Safety timeout (in seconds) while waiting for clients to load assets. */
   private assetWaitTimeout = 0;
 
+  /** Whether the room is waiting for clients to confirm match/map readiness before map reveal. */
+  private matchHandshakeWaiting = false;
+  /** Safety timeout (in seconds) while waiting for clients to confirm match readiness. */
+  private matchHandshakeTimeout = 10.0;
+  /** Set of client sessionIds that have confirmed match readiness. */
+  private matchReadyClients = new Set<string>();
+
   /** Picks submitted per player in the current round. */
   private draftRoundPicks = new Map<string, string[]>();
 
@@ -458,6 +465,10 @@ export class GameRoom extends Room<{ state: RoomState }> {
     [MESSAGES.clientAssetsLoaded]: (client: Client) => {
       if (!this.checkRateLimit(client)) return;
       this.handleClientAssetsLoaded(client);
+    },
+    [MESSAGES.clientMatchReady]: (client: Client) => {
+      if (!this.checkRateLimit(client)) return;
+      this.handleClientMatchReady(client);
     },
   };
 
@@ -752,8 +763,37 @@ export class GameRoom extends Room<{ state: RoomState }> {
     if (metadata && metadata.mapId !== this.state.mapId) {
       this.setMetadata({ ...metadata, mapId: this.state.mapId });
     }
-    this.phases.beginMapReveal();
 
+    if (process.env.NODE_ENV === "test") {
+      this.phases.beginMapReveal();
+    } else {
+      this.matchHandshakeWaiting = true;
+      this.matchHandshakeTimeout = 10.0;
+      this.matchReadyClients.clear();
+      this.state.phase = "waiting";
+      this.state.phaseEndsAt = 0;
+    }
+
+    for (const c of this.clients) {
+      this.sendRoleAssigned(c);
+    }
+  }
+
+  private handleClientMatchReady(client: Client): void {
+    this.matchReadyClients.add(client.sessionId);
+    if (
+      this.matchHandshakeWaiting &&
+      this.clients.length >= 2 &&
+      this.clients.every((c) => this.matchReadyClients.has(c.sessionId))
+    ) {
+      this.startMapRevealAfterHandshake();
+    }
+  }
+
+  private startMapRevealAfterHandshake(): void {
+    if (!this.matchHandshakeWaiting) return;
+    this.matchHandshakeWaiting = false;
+    this.phases.beginMapReveal();
     for (const c of this.clients) {
       this.sendRoleAssigned(c);
     }
@@ -2292,6 +2332,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
 
     if (event?.type === "siege-expired") {
       this.onSiegeExpired();
+    }
+
+    if (this.matchHandshakeWaiting) {
+      this.matchHandshakeTimeout -= dt;
+      if (this.matchHandshakeTimeout <= 0) {
+        console.warn(`Room ${this.roomId}: Match handshake timeout reached. Starting map reveal`);
+        this.startMapRevealAfterHandshake();
+      }
     }
 
     // Handle asset loading gate and 5-second post-draft countdown before advancing to building

@@ -169,7 +169,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
       : 'Defeated in battle! Regroup and fight again.';
   })();
 
-  const logoSrc = gameOver.youWin ? '/assets/logo/Victory.png' : '/assets/logo/Defeat.png';
+  const logoSrc = gameOver.youWin ? '/assets/logo/Victory.webp' : '/assets/logo/Defeat.webp';
 
   return (
     <div

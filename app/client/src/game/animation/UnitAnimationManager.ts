@@ -126,8 +126,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 7,
     scale: 0.15,
     origin: { x: 0.5, y: 0.85 },
-    spritesheetFile: "elephant_rider.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "elephant_rider.webp",
+    faceFile: "face.webp",
   },
   monkey: {
     id: "monkey",
@@ -140,8 +140,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 10,
     scale: 0.05,
     origin: { x: 0.5, y: 0.85 },
-    spritesheetFile: "spritesheet.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "spritesheet.webp",
+    faceFile: "face.webp",
   },
   say_sayar: {
     id: "say_sayar",
@@ -154,8 +154,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 7,
     scale: 0.085,
     origin: { x: 0.5, y: 0.85 },
-    spritesheetFile: "say_sayar.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "say_sayar.webp",
+    faceFile: "face.webp",
     walkFrames: { start: 0, end: 3 },
     castFrames: { start: 4, end: 7, frameRate: 8 },
   },
@@ -170,8 +170,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 7,
     scale: 0.085,
     origin: { x: 0.5, y: 0.85 },
-    spritesheetFile: "shield_guy.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "shield_guy.webp",
+    faceFile: "face.webp",
   },
   doe_pat: {
     id: "doe_pat",
@@ -184,8 +184,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 8,
     scale: 0.085,
     origin: { x: 0.5, y: 0.85 },
-    spritesheetFile: "sheet.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "sheet.webp",
+    faceFile: "face.webp",
   },
   bandit: {
     id: "bandit",
@@ -198,8 +198,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 8,
     scale: 0.061,
     origin: { x: 0.5, y: 0.917 },
-    spritesheetFile: "spritesheet.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "spritesheet.webp",
+    faceFile: "face.webp",
     walkFrames: { start: 0, end: 3 },
   },
   belu: {
@@ -213,8 +213,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 7,
     scale: 0.108,
     origin: { x: 0.5, y: 0.917 },
-    spritesheetFile: "spritesheet.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "spritesheet.webp",
+    faceFile: "face.webp",
     walkFrames: { start: 0, end: 3 },
   },
   brute: {
@@ -228,8 +228,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 7,
     scale: 0.096,
     origin: { x: 0.5, y: 0.917 },
-    spritesheetFile: "spritesheet.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "spritesheet.webp",
+    faceFile: "face.webp",
     walkFrames: { start: 0, end: 3 },
   },
   general: {
@@ -243,8 +243,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 7,
     scale: 0.061,
     origin: { x: 0.5, y: 0.917 },
-    spritesheetFile: "spritesheet.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "spritesheet.webp",
+    faceFile: "face.webp",
     walkFrames: { start: 0, end: 3 },
   },
   sone_ma: {
@@ -258,8 +258,8 @@ export const UNIT_MANIFESTS: Record<string, UnitManifest> = {
     frameRate: 7,
     scale: 0.051,
     origin: { x: 0.5, y: 0.917 },
-    spritesheetFile: "spritesheet.png",
-    faceFile: "face.jpg",
+    spritesheetFile: "spritesheet.webp",
+    faceFile: "face.webp",
     walkFrames: { start: 0, end: 3 },
   },
 };
@@ -297,7 +297,7 @@ export class UnitAnimationManager {
       // Spritesheet (only for units with physical spritesheets on disk)
       const sheetKey = `unit_${unitId}_sheet`;
       if (UNITS_WITH_SPRITESHEET.has(unitId) && !scene.textures.exists(sheetKey)) {
-        const sheetFile = manifest.spritesheetFile ?? "spritesheet.png";
+        const sheetFile = manifest.spritesheetFile ?? "spritesheet.webp";
         scene.load.spritesheet(sheetKey, `/assets/units/${folder}/${sheetFile}`, {
           frameWidth: manifest.frameWidth,
           frameHeight: manifest.frameHeight,
@@ -307,7 +307,7 @@ export class UnitAnimationManager {
       // Face icon for draft and HUD
       const faceKey = `unit-face-${unitId}`;
       if (!scene.textures.exists(faceKey)) {
-        const faceFile = manifest.faceFile ?? "face.png";
+        const faceFile = manifest.faceFile ?? "face.webp";
         scene.load.image(faceKey, `/assets/units/${folder}/${faceFile}`);
       }
     }
@@ -316,7 +316,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(HEAL_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         HEAL_VFX_SHEET_KEY,
-        "/assets/units/say_sayar/heal_vfx.png",
+        "/assets/units/say_sayar/heal_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -328,7 +328,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(BRUTE_HEAL_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         BRUTE_HEAL_VFX_SHEET_KEY,
-        "/assets/units/say_sayar/heal_vfx.png",
+        "/assets/units/say_sayar/heal_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -340,7 +340,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(SPEED_BOOST_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         SPEED_BOOST_VFX_SHEET_KEY,
-        "/assets/units/doe_pat/speed_boost_vfx.png",
+        "/assets/units/doe_pat/speed_boost_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -352,7 +352,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(BELU_SKILL_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         BELU_SKILL_VFX_SHEET_KEY,
-        "/assets/units/Belu/skill_vfx.png",
+        "/assets/units/Belu/skill_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -364,7 +364,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(SONE_MA_SKILL_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         SONE_MA_SKILL_VFX_SHEET_KEY,
-        "/assets/units/SoneMa/skill_vfx.png",
+        "/assets/units/SoneMa/skill_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -376,7 +376,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(MOB_DEATH_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         MOB_DEATH_VFX_SHEET_KEY,
-        "/assets/vfx/mob_death.png",
+        "/assets/vfx/mob_death.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -388,7 +388,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(BASE_BREACH_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         BASE_BREACH_VFX_SHEET_KEY,
-        "/assets/vfx/base_breach.png",
+        "/assets/vfx/base_breach.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -400,7 +400,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         CROSSBOW_STUN_VFX_SHEET_KEY,
-        "/assets/towers/02_crossbow_fort/stun_vfx.png",
+        "/assets/towers/02_crossbow_fort/stun_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -905,7 +905,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(MOB_DEATH_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         MOB_DEATH_VFX_SHEET_KEY,
-        "/assets/vfx/mob_death.png",
+        "/assets/vfx/mob_death.webp",
         { frameWidth: 688, frameHeight: 768 },
       );
       scene.load.start();
@@ -955,7 +955,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(BASE_BREACH_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         BASE_BREACH_VFX_SHEET_KEY,
-        "/assets/vfx/base_breach.png",
+        "/assets/vfx/base_breach.webp",
         { frameWidth: 688, frameHeight: 768 },
       );
       scene.load.start();
@@ -998,7 +998,7 @@ export class UnitAnimationManager {
     if (!scene.textures.exists(CROSSBOW_STUN_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         CROSSBOW_STUN_VFX_SHEET_KEY,
-        "/assets/towers/02_crossbow_fort/stun_vfx.png",
+        "/assets/towers/02_crossbow_fort/stun_vfx.webp",
         { frameWidth: 688, frameHeight: 768 },
       );
       scene.load.start();

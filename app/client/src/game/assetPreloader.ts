@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   type AssetManifestEntry,
   CORE_ASSETS,
@@ -5,27 +6,72 @@ import {
   EXTRA_MAPS,
 } from './assetManifest';
 
-type ProgressCallback = (loaded: number, total: number, pct: number, label: string) => void;
+export interface AssetProgressState {
+  loaded: number;
+  total: number;
+  percentage: number;
+  isBattleReady: boolean;
+  statusLabel: string;
+}
 
-const SESSION_STORAGE_KEY = 'td_core_assets_preloaded_v1';
+type ProgressCallback = (loaded: number, total: number, pct: number, label: string) => void;
+type StateListener = (state: AssetProgressState) => void;
+
+const SESSION_STORAGE_KEY = 'td_core_assets_preloaded_v2';
 const CONCURRENT_DOWNLOAD_LIMIT = 6;
 
 /**
- * Singleton Asset Preloader for client-side preloading.
- * Preloads all core game assets upfront on site entry so matches load in milliseconds.
+ * Singleton Asset Preloader for progressive client-side preloading.
+ * Streams all core game assets in the background while players explore the Lobby.
  */
 class AssetPreloaderService {
   private loadedMapIds = new Set<string>([DEFAULT_MAP_ID]);
   private coreLoaded = false;
   private preloadPromise: Promise<void> | null = null;
+  private listeners = new Set<StateListener>();
+  private currentState: AssetProgressState = {
+    loaded: 0,
+    total: CORE_ASSETS.length + 1,
+    percentage: 0,
+    isBattleReady: false,
+    statusLabel: 'Preparing Battlefield...',
+  };
 
   constructor() {
     try {
       if (typeof window !== 'undefined' && window.sessionStorage) {
         this.coreLoaded = window.sessionStorage.getItem(SESSION_STORAGE_KEY) === 'true';
+        if (this.coreLoaded) {
+          this.currentState = {
+            loaded: CORE_ASSETS.length + 1,
+            total: CORE_ASSETS.length + 1,
+            percentage: 100,
+            isBattleReady: true,
+            statusLabel: 'Battlefield Ready',
+          };
+        }
       }
     } catch {
-      // sessionStorage might be restricted in private/incognito mode
+      // sessionStorage might be restricted
+    }
+  }
+
+  public getState(): AssetProgressState {
+    return this.currentState;
+  }
+
+  public subscribe(listener: StateListener): () => void {
+    this.listeners.add(listener);
+    listener(this.currentState);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify(newState: Partial<AssetProgressState>): void {
+    this.currentState = { ...this.currentState, ...newState };
+    for (const listener of this.listeners) {
+      listener(this.currentState);
     }
   }
 
@@ -55,7 +101,7 @@ class AssetPreloaderService {
         await response.blob();
       }
     } catch {
-      // Fallback: non-blocking on individual network hiccup
+      // Non-blocking on individual hiccups
     }
   }
 
@@ -89,7 +135,14 @@ class AssetPreloaderService {
    */
   public preloadCoreAssets(onProgress?: ProgressCallback): Promise<void> {
     if (this.coreLoaded) {
-      onProgress?.(CORE_ASSETS.length, CORE_ASSETS.length, 100, 'Battlefield Ready');
+      this.notify({
+        loaded: CORE_ASSETS.length + 1,
+        total: CORE_ASSETS.length + 1,
+        percentage: 100,
+        isBattleReady: true,
+        statusLabel: 'Battlefield Ready',
+      });
+      onProgress?.(CORE_ASSETS.length + 1, CORE_ASSETS.length + 1, 100, 'Battlefield Ready');
       return Promise.resolve();
     }
 
@@ -104,6 +157,13 @@ class AssetPreloaderService {
       const report = (label: string) => {
         completed++;
         const pct = Math.min(100, Math.round((completed / total) * 100));
+        this.notify({
+          loaded: completed,
+          total,
+          percentage: pct,
+          isBattleReady: pct >= 100,
+          statusLabel: label,
+        });
         onProgress?.(completed, total, pct, label);
       };
 
@@ -128,6 +188,14 @@ class AssetPreloaderService {
       );
 
       this.coreLoaded = true;
+      this.notify({
+        loaded: total,
+        total,
+        percentage: 100,
+        isBattleReady: true,
+        statusLabel: 'Battlefield Ready',
+      });
+
       try {
         if (typeof window !== 'undefined' && window.sessionStorage) {
           window.sessionStorage.setItem(SESSION_STORAGE_KEY, 'true');
@@ -155,3 +223,16 @@ class AssetPreloaderService {
 }
 
 export const AssetPreloader = new AssetPreloaderService();
+
+/**
+ * React hook to observe live asset preloading progress across the application.
+ */
+export function useAssetDownloadProgress(): AssetProgressState {
+  const [state, setState] = useState<AssetProgressState>(() => AssetPreloader.getState());
+
+  useEffect(() => {
+    return AssetPreloader.subscribe(setState);
+  }, []);
+
+  return state;
+}

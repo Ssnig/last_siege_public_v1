@@ -24,7 +24,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   archer: {
     id: "archer",
     sheetKey: "tower_archer_sheet",
-    sheetPath: "/assets/towers/01_archer_tower/sheet.png",
+    sheetPath: "/assets/towers/01_archer_tower/sheet.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -39,7 +39,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   crossbow: {
     id: "crossbow",
     sheetKey: "tower_crossbow_sheet",
-    sheetPath: "/assets/towers/02_crossbow_fort/sheet.png",
+    sheetPath: "/assets/towers/02_crossbow_fort/sheet.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -54,7 +54,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   cannon: {
     id: "cannon",
     sheetKey: "tower_crossbow_sheet",
-    sheetPath: "/assets/towers/02_crossbow_fort/sheet.png",
+    sheetPath: "/assets/towers/02_crossbow_fort/sheet.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -69,7 +69,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   bomb: {
     id: "bomb",
     sheetKey: "tower_bomb_sheet",
-    sheetPath: "/assets/towers/03_bomb_throwing_tower/sheet.png",
+    sheetPath: "/assets/towers/03_bomb_throwing_tower/sheet.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -84,7 +84,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   spear: {
     id: "spear",
     sheetKey: "tower_spear_sheet",
-    sheetPath: "/assets/towers/05_spear_tower/sheet.png",
+    sheetPath: "/assets/towers/05_spear_tower/sheet.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -99,7 +99,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   gun: {
     id: "gun",
     sheetKey: "tower_gun_sheet",
-    sheetPath: "/assets/towers/06_gun_tower/sheet.png",
+    sheetPath: "/assets/towers/06_gun_tower/sheet.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -114,7 +114,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   water_cannon: {
     id: "water_cannon",
     sheetKey: "tower_water_cannon_sheet",
-    sheetPath: "/assets/towers/07_water_cannon/water_gun.png",
+    sheetPath: "/assets/towers/07_water_cannon/water_gun.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -129,7 +129,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   chinthe: {
     id: "chinthe",
     sheetKey: "tower_chinthe_sheet",
-    sheetPath: "/assets/towers/08_chinthe_statue/lion_gurdian.png",
+    sheetPath: "/assets/towers/08_chinthe_statue/lion_gurdian.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -144,7 +144,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   dragon: {
     id: "dragon",
     sheetKey: "tower_dragon_sheet",
-    sheetPath: "/assets/towers/09_dragon_tower/dragon_tower.png",
+    sheetPath: "/assets/towers/09_dragon_tower/dragon_tower.webp",
     frameWidth: 600,
     frameHeight: 896,
     cols: 4,
@@ -159,7 +159,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   bell: {
     id: "bell",
     sheetKey: "tower_bell_sheet",
-    sheetPath: "/assets/towers/04_bell_tower/bell_tower.png",
+    sheetPath: "/assets/towers/04_bell_tower/bell_tower.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -174,7 +174,7 @@ export const TOWER_ANIM_MANIFESTS: Record<string, TowerAnimManifest> = {
   sein_pyaung: {
     id: "sein_pyaung",
     sheetKey: "tower_sein_pyaung_sheet",
-    sheetPath: "/assets/towers/10_sein_pyaung/sein_pyaung.png",
+    sheetPath: "/assets/towers/10_sein_pyaung/sein_pyaung.webp",
     frameWidth: 688,
     frameHeight: 768,
     cols: 4,
@@ -208,7 +208,7 @@ export class TowerAnimationManager {
       }
       if (manifest.id === "water_cannon") {
         if (!scene.textures.exists("tower_water_cannon_sheet_mirrored")) {
-          scene.load.spritesheet("tower_water_cannon_sheet_mirrored", "/assets/towers/07_water_cannon/water_gun_mirrored.png", {
+          scene.load.spritesheet("tower_water_cannon_sheet_mirrored", "/assets/towers/07_water_cannon/water_gun_mirrored.webp", {
             frameWidth: manifest.frameWidth,
             frameHeight: manifest.frameHeight,
           });
@@ -216,7 +216,7 @@ export class TowerAnimationManager {
       }
       if (manifest.id === "chinthe") {
         if (!scene.textures.exists("tower_chinthe_sheet_mirrored")) {
-          scene.load.spritesheet("tower_chinthe_sheet_mirrored", "/assets/towers/08_chinthe_statue/lion_gurdian_mirrored.png", {
+          scene.load.spritesheet("tower_chinthe_sheet_mirrored", "/assets/towers/08_chinthe_statue/lion_gurdian_mirrored.webp", {
             frameWidth: manifest.frameWidth,
             frameHeight: manifest.frameHeight,
           });
@@ -224,7 +224,7 @@ export class TowerAnimationManager {
       }
       if (manifest.id === "dragon") {
         if (!scene.textures.exists("tower_dragon_sheet_mirrored")) {
-          scene.load.spritesheet("tower_dragon_sheet_mirrored", "/assets/towers/09_dragon_tower/dragon_tower_mirrored.png", {
+          scene.load.spritesheet("tower_dragon_sheet_mirrored", "/assets/towers/09_dragon_tower/dragon_tower_mirrored.webp", {
             frameWidth: manifest.frameWidth,
             frameHeight: manifest.frameHeight,
           });
@@ -232,7 +232,7 @@ export class TowerAnimationManager {
       }
       if (manifest.id === "sein_pyaung") {
         if (!scene.textures.exists("tower_sein_pyaung_sheet_mirrored")) {
-          scene.load.spritesheet("tower_sein_pyaung_sheet_mirrored", "/assets/towers/10_sein_pyaung/sein_pyaung_mirrored.png", {
+          scene.load.spritesheet("tower_sein_pyaung_sheet_mirrored", "/assets/towers/10_sein_pyaung/sein_pyaung_mirrored.webp", {
             frameWidth: manifest.frameWidth,
             frameHeight: manifest.frameHeight,
           });
@@ -243,7 +243,7 @@ export class TowerAnimationManager {
     if (!scene.textures.exists(BELL_ATTACK_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         BELL_ATTACK_VFX_SHEET_KEY,
-        "/assets/towers/04_bell_tower/attack_vfx.png",
+        "/assets/towers/04_bell_tower/attack_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -254,7 +254,7 @@ export class TowerAnimationManager {
     if (!scene.textures.exists(DRAGON_EXPLOSION_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         DRAGON_EXPLOSION_VFX_SHEET_KEY,
-        "/assets/towers/09_dragon_tower/skill_vfx.png",
+        "/assets/towers/09_dragon_tower/skill_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,
@@ -265,7 +265,7 @@ export class TowerAnimationManager {
     if (!scene.textures.exists(GUN_VFX_SHEET_KEY)) {
       scene.load.spritesheet(
         GUN_VFX_SHEET_KEY,
-        "/assets/towers/06_gun_tower/shooting_vfx.png",
+        "/assets/towers/06_gun_tower/shooting_vfx.webp",
         {
           frameWidth: 688,
           frameHeight: 768,

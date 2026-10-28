@@ -1,149 +1,74 @@
 import React, { useState, useEffect } from 'react';
 import { AssetPreloader } from '../../game/assetPreloader';
 
-const LORE_TIPS = [
-  "The Konbaung defenders command five ancient stone pads to guard the citadel.",
-  "Invaders march across two treacherous mountain passes toward the royal palace.",
-  "Archer towers strike from afar, picking off fast-moving scout runners.",
-  "Fortifying your defenses requires strategic gold management during the build phase.",
-  "Cooperate or conquer: every commander chooses between attacking or defending the realm."
-];
-
 /**
- * Initial Game Asset Preloader.
- * Preloads all core game assets (units, towers, UI, audio, and default map)
- * on first site entry, displaying an ornate gold progress bar and rotating lore tips.
+ * Fast-Boot Splash Screen.
+ * Displays a brief 700ms royal crest intro on initial site entry,
+ * then gracefully reveals the Lobby while battle assets continue
+ * streaming in the background.
  */
 export const InitialLoadingScreen: React.FC = () => {
-  const [progress, setProgress] = useState<number>(() => (AssetPreloader.isCoreLoaded() ? 100 : 0));
-  const [statusLabel, setStatusLabel] = useState<string>('Preparing Battlefield...');
-  const [tipIndex, setTipIndex] = useState<number>(0);
   const [isLoaded, setIsLoaded] = useState<boolean>(() => AssetPreloader.isCoreLoaded());
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
 
   useEffect(() => {
-    // If core assets are already cached in this session, skip immediately
+    // Start background asset downloading immediately
+    AssetPreloader.preloadCoreAssets().catch(() => {});
+
     if (AssetPreloader.isCoreLoaded()) {
       setIsLoaded(true);
       return;
     }
 
-    // Cycle lore tips every 2.4 seconds
-    const tipInterval = setInterval(() => {
-      setTipIndex((prev) => (prev + 1) % LORE_TIPS.length);
-    }, 2400);
-
-    let active = true;
-
-    AssetPreloader.preloadCoreAssets((_loaded, _total, pct, label) => {
-      if (!active) return;
-      setProgress(pct);
-      if (label) {
-        setStatusLabel(label);
-      }
-    }).then(() => {
-      if (!active) return;
-      setProgress(100);
-      setStatusLabel('Royal Battlefield Ready');
-      // Smooth fade-out finish
-      setTimeout(() => {
-        if (!active) return;
-        setIsFadingOut(true);
-        setTimeout(() => {
-          if (!active) return;
-          setIsLoaded(true);
-        }, 400);
-      }, 350);
-    }).catch(() => {
-      if (!active) return;
-      // In case of any unhandled error, gracefully proceed
+    // Brief premium imperial crest splash (650ms), then smooth fade out
+    const splashTimer = setTimeout(() => {
       setIsFadingOut(true);
-      setTimeout(() => setIsLoaded(true), 400);
-    });
+      const exitTimer = setTimeout(() => {
+        setIsLoaded(true);
+      }, 350);
+      return () => clearTimeout(exitTimer);
+    }, 650);
 
-    return () => {
-      active = false;
-      clearInterval(tipInterval);
-    };
+    return () => clearTimeout(splashTimer);
   }, []);
 
   if (isLoaded) return null;
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white select-none transition-opacity duration-400 ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white select-none transition-opacity duration-350 ${
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
       style={{ backgroundColor: '#020617' }}
     >
       {/* Ambient Radial Golden Glow */}
-      <div className="absolute w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+      <div className="absolute w-[450px] h-[450px] rounded-full bg-amber-500/15 blur-3xl pointer-events-none" />
 
-      {/* Center Ornate Card */}
-      <div className="relative z-10 flex flex-col items-center max-w-md w-full px-6 text-center">
-        {/* Animated Imperial Crest Icon */}
-        <div className="relative w-24 h-24 mb-4 flex items-center justify-center">
+      {/* Center Royal Crest */}
+      <div className="relative z-10 flex flex-col items-center px-6 text-center animate-fadeIn">
+        <div className="relative w-20 h-20 mb-4 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-600/30 via-yellow-500/20 to-transparent animate-spin-slow" />
           <div className="absolute inset-2 rounded-full border-2 border-amber-400/40" />
           <img
             src="/assets/svg/logo.svg"
-            alt="Royal Crest Emblem"
-            className="w-16 h-16 object-contain drop-shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-pulse"
+            alt="Royal Crest"
+            className="w-14 h-14 object-contain drop-shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-pulse"
           />
         </div>
 
-        {/* Title & Subtitle */}
         <h1
-          className="text-3xl sm:text-4xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 mb-8"
+          className="text-3xl sm:text-4xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 mb-2"
           style={{ fontFamily: "'MedievalSharp', 'Cinzel', serif" }}
         >
           LAST SIEGE
         </h1>
 
-        {/* Ornate Gold Progress Bar */}
-        <div className="w-full relative mb-3">
-          {/* Progress Bar Track */}
-          <div
-            className="w-full h-3 rounded-full overflow-hidden p-0.5"
-            style={{
-              background: 'linear-gradient(180deg, #1e1b18, #0f0d0b)',
-              border: '1.5px solid #c59b27',
-              boxShadow: '0 0 12px rgba(197,155,39,0.3), inset 0 2px 4px rgba(0,0,0,0.8)',
-            }}
-          >
-            {/* Progress Bar Fill */}
-            <div
-              className="h-full rounded-full transition-all duration-200 ease-out"
-              style={{
-                width: `${progress}%`,
-                background: 'linear-gradient(90deg, #d97706, #fbbf24, #10b981)',
-                boxShadow: '0 0 10px rgba(251,191,36,0.7)',
-              }}
-            />
-          </div>
-
-          {/* Gold Progress Percentage & Asset Label */}
-          <div className="flex justify-between items-center text-[11px] text-amber-200/80 font-mono mt-2 font-bold">
-            <span
-              className="truncate max-w-[280px] text-left"
-              style={{ fontFamily: "'Almendra', serif" }}
-            >
-              {statusLabel}
-            </span>
-            <span>{progress}%</span>
-          </div>
-        </div>
-
-        {/* Dynamic Rotating Lore Tip */}
-        <div className="h-12 flex items-center justify-center mt-2">
-          <p
-            key={tipIndex}
-            className="text-xs text-slate-400 italic leading-relaxed animate-fadeIn"
-            style={{ fontFamily: "'Almendra', 'Georgia', serif" }}
-          >
-            "{LORE_TIPS[tipIndex]}"
-          </p>
-        </div>
+        <p
+          className="text-xs text-amber-200/60 uppercase tracking-[0.2em]"
+          style={{ fontFamily: "'Almendra SC', 'Almendra', serif" }}
+        >
+          Entering Imperial Realm...
+        </p>
       </div>
     </div>
   );

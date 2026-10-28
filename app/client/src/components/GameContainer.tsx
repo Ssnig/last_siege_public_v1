@@ -60,15 +60,15 @@ interface GameOverInfo {
 const GAME_OVER_AUTO_RETURN_MS = 3 * 60 * 1000;
 
 const MAP_IMAGE_URLS: Record<string, string> = {
-  konbaung: '/assets/maps/map_1_konbaung/map.jpg',
-  bagan: '/assets/maps/map_2_bagan/map.jpg',
-  inle: '/assets/maps/map_3_inle/map.jpg',
-  mandalay: '/assets/maps/map_4_mandalay/map.jpg',
-  innwa: '/assets/maps/map_5_innwa/map.jpg',
-  bago: '/assets/maps/map_6_bago/map.jpg',
-  deserted: '/assets/maps/map_7_deserted/map.jpg',
-  twister: '/assets/maps/map_8_twister/map.jpg',
-  river: '/assets/maps/map_9_river/map.jpg',
+  konbaung: '/assets/maps/map_1_konbaung/map.webp',
+  bagan: '/assets/maps/map_2_bagan/map.webp',
+  inle: '/assets/maps/map_3_inle/map.webp',
+  mandalay: '/assets/maps/map_4_mandalay/map.webp',
+  innwa: '/assets/maps/map_5_innwa/map.webp',
+  bago: '/assets/maps/map_6_bago/map.webp',
+  deserted: '/assets/maps/map_7_deserted/map.webp',
+  twister: '/assets/maps/map_8_twister/map.webp',
+  river: '/assets/maps/map_9_river/map.webp',
 };
 
 type PlayerRole = "attacker" | "defender";
@@ -307,13 +307,19 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
         setPhaseEndsAt(data.phaseEndsAt);
         setMapId(data.mapId);
         if (data.mapId) {
-          AssetPreloader.preloadMap(data.mapId);
+          AssetPreloader.preloadMap(data.mapId).then(() => {
+            room.send(MESSAGES.clientMatchReady, {});
+          }).catch(() => {
+            room.send(MESSAGES.clientMatchReady, {});
+          });
+        } else {
+          room.send(MESSAGES.clientMatchReady, {});
         }
         if (data.phase === 'gameover') {
           setGameOver((prev) => prev ?? gameOverFromState(room));
         }
         setMatchStarted(true);
-        setStatusText("Match Ready! Roles Assigned.");
+        setStatusText(data.phase === 'waiting' ? "Synchronizing Battlefield..." : "Match Ready! Roles Assigned.");
       },
     );
 
@@ -624,8 +630,8 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     </div>
   );
 
-  // Pre-match: no Phaser yet, render royal match waiting screen
-  if (!matchStarted) {
+  // Pre-match: render royal match waiting screen until roles assigned and battlefield synchronized
+  if (!matchStarted || phase === 'waiting') {
     return (
       <>
         <MatchLoadingScreen
@@ -638,8 +644,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
     );
   }
 
-
-  const ambientBgUrl = (mapId && MAP_IMAGE_URLS[mapId]) || '/assets/maps/map_1_konbaung/map.jpg';
+  const ambientBgUrl = (mapId && MAP_IMAGE_URLS[mapId]) || '/assets/maps/map_1_konbaung/map.webp';
 
   const effectiveRole = (playerInfo.myRole || room.state?.players?.get(room.sessionId)?.role) as 'attacker' | 'defender' | undefined;
 
