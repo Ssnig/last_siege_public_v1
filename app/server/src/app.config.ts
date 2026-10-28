@@ -7,6 +7,7 @@ import {
   createEndpoint,
   LobbyRoom,
 } from "colyseus";
+import { WebSocketTransport } from "@colyseus/ws-transport";
 
 import { authRouter } from "./auth/routes.js";
 import { disconnectDatabase } from "./db.js";
@@ -16,6 +17,10 @@ import { disconnectDatabase } from "./db.js";
 import { GameRoom } from "./rooms/GameRoom.js";
 
 const server = defineServer({
+  transport: new WebSocketTransport({
+    pingInterval: 10_000,
+    pingMaxRetries: 4,
+  }),
 
   /**
    * Room definitions.

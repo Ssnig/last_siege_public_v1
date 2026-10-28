@@ -23,7 +23,7 @@ import {
   type RoleAssignedPayload,
 } from '@root/shared';
 import { useGameRoom } from '../network/roomContext';
-import { saveActiveMatch } from '../network/activeRoom';
+import { saveActiveMatch, clearActiveMatch } from '../network/activeRoom';
 import { setGuestElo } from '../auth/guest';
 import { MatchLoadingScreen } from './match/MatchLoadingScreen';
 import { GameHUD } from './game/GameHUD';
@@ -283,10 +283,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
   // Room wiring: listeners + the ready handshake. Runs once per room; the
   // cleanup (including room.leave()) runs only when this component unmounts.
   useEffect(() => {
-    // Match the SDK's retry budget to the server's 120s reconnection window.
-    // The default budget (~56s) gives up long before the held seat expires,
-    // so a backgrounded tab would be dropped for good.
-    room.reconnection.maxRetries = 40;
+    // Bound reconnection attempts to 8 (~35-40s) so failed/dead matches cleanly expire
+    // instead of looping indefinitely in the background.
+    room.reconnection.maxRetries = 8;
 
     const offRoleAssigned = room.onMessage(
       MESSAGES.roleAssigned,
@@ -404,6 +403,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ room, onLeaveRoom 
       // Our own teardown (navigating away) calls `room.leave()`; ignore it.
       if (intentionalLeaveRef.current) return;
       console.warn('Connection lost:', code, reason);
+      clearActiveMatch();
       setStatusText('Connection Lost.');
       setConnectionState('disconnected');
     };
