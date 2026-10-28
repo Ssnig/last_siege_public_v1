@@ -419,7 +419,7 @@ export const AlmanacTowersTab: React.FC = () => {
               )}
               {selectedId === 'bomb' && currentTier.special?.knockbackPx !== undefined && (
                 <p>
-                  <strong className="text-amber-300">Demolition Concussion:</strong> Direct hits and concussive blasts knock targets backward along the path by <strong>{currentTier.special.knockbackPx}px</strong>.
+                  <strong className="text-amber-300">Demolition Concussion:</strong> Direct hits and concussive blasts knock light-weight targets backward along the path by <strong>{currentTier.special.knockbackPx}px</strong> (heavy units are immune to knockback).
                 </p>
               )}
               {currentTier.special?.pulseSlow !== undefined && (
@@ -444,7 +444,7 @@ export const AlmanacTowersTab: React.FC = () => {
               )}
               {currentTier.special?.silenceSec !== undefined && (
                 <p>
-                  <strong className="text-amber-300">Temple Gatekeeper:</strong> Sacred roar knocks targets backward by <strong>{currentTier.special.knockbackPx ?? 0}px</strong> and silences active mob auras and abilities for <strong>{currentTier.special.silenceSec}s</strong>.
+                  <strong className="text-amber-300">Temple Gatekeeper:</strong> Every <strong>{currentTier.special.roarCooldownSec ?? 8}s</strong>, unleashes a Sacred Roar blast that silences all enemy abilities and auras within the 40px AoE for <strong>{currentTier.special.silenceSec}s</strong>.
                 </p>
               )}
               {currentTier.special?.deathExplosionDamage !== undefined && (

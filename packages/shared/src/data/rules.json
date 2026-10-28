@@ -1,8 +1,8 @@
 {
   "economy": {
-    "defenderStartingGold": 400,
+    "defenderStartingGold": 340,
     "attackerStartingGold": 200,
-    "maxGold": 750,
+    "maxGold": 1000,
     "attackerBaseIncome": 5.0,
     "defenderBaseIncome": 5.0,
     "attackerIncomeGainRate": 0.007,

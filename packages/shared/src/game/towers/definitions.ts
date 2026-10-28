@@ -35,7 +35,7 @@ export const CORE_TOWER_TYPES: Record<string, TowerType> = {
         projectileSpeed: 430,
       },
       {
-        cost: 185,
+        cost: 240,
         damage: 32,
         damageMax: 48,
         range: 185,
@@ -97,26 +97,26 @@ export const CORE_TOWER_TYPES: Record<string, TowerType> = {
     tiers: [
       {
         cost: 110,
-        damage: 28,
-        damageMax: 40,
+        damage: 49,
+        damageMax: 70,
         range: 130,
-        fireRate: 0.5, // 1 shot per 2.0s
+        fireRate: 0.25, // 1 shot per 4.0s
         projectileSpeed: 280,
       },
       {
         cost: 190,
-        damage: 54,
-        damageMax: 78,
+        damage: 95,
+        damageMax: 136,
         range: 145,
-        fireRate: 0.55,
+        fireRate: 0.28,
         projectileSpeed: 300,
       },
       {
         cost: 320,
-        damage: 92,
-        damageMax: 136,
+        damage: 160,
+        damageMax: 238,
         range: 165,
-        fireRate: 0.6,
+        fireRate: 0.3,
         projectileSpeed: 320,
       },
     ],

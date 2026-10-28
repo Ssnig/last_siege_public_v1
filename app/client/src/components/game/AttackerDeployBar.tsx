@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   MESSAGES,
   MOB_TYPES,
+  getMobTier,
   type AttackerBufferPayload,
   type AttackerPortalStatus,
 } from '@root/shared';
@@ -25,6 +26,10 @@ interface AttackerDeployBarProps {
   /** Highlight (or clear) the on-map portal under a drag. */
   onMapPortalHover?: (portalId: string | null) => void;
   isUIHidden?: boolean;
+  /** Attacker unit upgrade tiers keyed by typeId. */
+  unitTiers?: Record<string, number>;
+  /** Callback when the player clicks the upgrade button for a unit type. */
+  onOpenUpgrade?: (unitTypeId: string) => void;
 }
 
 const GOLD_BORDER = 'rgba(212, 175, 55, 0.75)';
@@ -123,6 +128,8 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
   findMapPortal,
   onMapPortalHover,
   isUIHidden = false,
+  unitTiers = {},
+  onOpenUpgrade,
 }) => {
   const repeatRef = useRef<number | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
@@ -325,27 +332,62 @@ export const AttackerDeployBar: React.FC<AttackerDeployBarProps> = ({
         >
           {/* Unit palette: tap to queue one, hold to queue many. Scrolls so the
               queue and portal controls always stay on screen. */}
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none touch-pan-x">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none touch-pan-x pt-2">
             {Array.from(new Set(buffer.availableTroops)).map((typeId) => {
               const cost = buffer.mobCosts[typeId] ?? 0;
               const disabled = bufferLocked || capReached;
+              const currentTier = unitTiers[typeId] ?? 1;
+              const canUpgrade = currentTier < 3 && phase === 'combat';
+              const nextTierDef = canUpgrade ? getMobTier(typeId, currentTier + 1) : null;
+              const upgradeCost = nextTierDef?.upgradeCost ?? 0;
+              const canAffordUpgrade = canUpgrade && buffer.gold >= upgradeCost;
+
               return (
-                <button
-                  key={typeId}
-                  onPointerDown={() => startHold(typeId)}
-                  onPointerUp={stopHold}
-                  onPointerLeave={stopHold}
-                  onPointerCancel={stopHold}
-                  disabled={disabled}
-                  className="flex w-[44px] sm:w-[52px] flex-shrink-0 flex-col items-center gap-0.5 rounded border border-amber-900/40 hover:border-amber-500/60 hover:bg-[#450a0a]/50 p-0.5 transition active:scale-95 disabled:opacity-40 cursor-pointer"
-                  title={`Queue ${MOB_TYPES[typeId]?.name ?? typeId} (${cost}g)`}
-                >
-                  <UnitIcon typeId={typeId} className="h-6 w-6 sm:h-7 sm:w-7" />
-                  <span className="w-full truncate text-center text-[9px] font-bold leading-none text-white">
-                    {MOB_TYPES[typeId]?.name ?? typeId}
-                  </span>
-                  <span className="text-[9px] font-bold leading-none text-amber-300">{cost}g</span>
-                </button>
+                <div key={typeId} className="relative flex flex-shrink-0 flex-col items-center">
+                  <button
+                    onPointerDown={() => startHold(typeId)}
+                    onPointerUp={stopHold}
+                    onPointerLeave={stopHold}
+                    onPointerCancel={stopHold}
+                    disabled={disabled}
+                    className="flex w-[44px] sm:w-[52px] flex-col items-center gap-0.5 rounded border border-amber-900/40 hover:border-amber-500/60 hover:bg-[#450a0a]/50 p-0.5 transition active:scale-95 disabled:opacity-40 cursor-pointer"
+                    title={`Queue ${MOB_TYPES[typeId]?.name ?? typeId} (${cost}g)`}
+                  >
+                    <UnitIcon typeId={typeId} className="h-6 w-6 sm:h-7 sm:w-7" />
+                    <span className="w-full truncate text-center text-[9px] font-bold leading-none text-white">
+                      {MOB_TYPES[typeId]?.name ?? typeId}
+                    </span>
+                    <span className="text-[9px] font-bold leading-none text-amber-300">{cost}g</span>
+                  </button>
+
+                  {/* Upgrade Pill Button */}
+                  {canUpgrade && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onOpenUpgrade?.(typeId);
+                      }}
+                      className={`absolute -top-2 -right-1 z-10 flex items-center justify-center rounded-full px-1 py-0.5 text-[8px] font-black shadow-md border transition cursor-pointer ${
+                        canAffordUpgrade
+                          ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-300 animate-pulse'
+                          : 'bg-stone-800 text-stone-400 border-stone-600 opacity-80 hover:opacity-100'
+                      }`}
+                      title={`Upgrade to Tier ${currentTier + 1} (${upgradeCost}g)`}
+                    >
+                      ▲ {upgradeCost}g
+                    </button>
+                  )}
+
+                  {/* Current Tier Badge */}
+                  {currentTier > 1 && (
+                    <span className="absolute -top-1.5 -left-1 z-10 rounded bg-amber-950/95 border border-amber-500/70 px-1 text-[7px] font-black text-amber-300 shadow">
+                      {currentTier === 2 ? 'II' : 'III'}
+                    </span>
+                  )}
+                </div>
               );
             })}
           </div>

@@ -25,6 +25,7 @@ export const Mob = schema({
   speed: t.float32(),
   bounty: t.uint16().default(0),
   checkpoint: t.uint8().default(0),
+  tier: t.uint8().default(1),
   state: t.string().default("moving"),
   /** Stable per-mob RNG seed; drives deterministic lateral drift on both sides. */
   seed: t.uint32().default(0),

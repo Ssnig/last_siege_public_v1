@@ -182,9 +182,9 @@ describe("tower shooting speeds and crossbow salvo burst / stun", () => {
     assert.strictEqual(TOWER_TYPES.gun.tiers[0].fireRate, 1.0);
     assert.strictEqual(getTowerCooldown("gun", 1), 1.0);
 
-    // Bomb: 1 per 2.0s -> 0.5 shots/sec
-    assert.strictEqual(TOWER_TYPES.bomb.tiers[0].fireRate, 0.5);
-    assert.strictEqual(getTowerCooldown("bomb", 1), 2.0);
+    // Bomb: 1 per 4.0s -> 0.25 shots/sec (rebalanced reload)
+    assert.strictEqual(TOWER_TYPES.bomb.tiers[0].fireRate, 0.25);
+    assert.strictEqual(getTowerCooldown("bomb", 1), 4.0);
 
     // Spear: 1 per 1.0s -> 1.0 shots/sec
     assert.strictEqual(TOWER_TYPES.spear.tiers[0].fireRate, 1.0);
@@ -228,14 +228,74 @@ describe("tower shooting speeds and crossbow salvo burst / stun", () => {
     assert.strictEqual(TOWER_TYPES.sein_pyaung.splashRadius, 35);
   });
 
-  it("bomb tower has smoothed damage curve across tiers", () => {
+  it("bomb tower has doubled reload time and +75% damage rebalance", () => {
     const bomb = TOWER_TYPES.bomb;
-    assert.strictEqual(bomb.tiers[0].damage, 28);
-    assert.strictEqual(bomb.tiers[0].damageMax, 40);
-    assert.strictEqual(bomb.tiers[1].damage, 54);
-    assert.strictEqual(bomb.tiers[1].damageMax, 78);
-    assert.strictEqual(bomb.tiers[2].damage, 92);
-    assert.strictEqual(bomb.tiers[2].damageMax, 136);
+    assert.strictEqual(bomb.tiers[0].damage, 49);
+    assert.strictEqual(bomb.tiers[0].damageMax, 70);
+    assert.strictEqual(bomb.tiers[0].fireRate, 0.25);
+
+    assert.strictEqual(bomb.tiers[1].damage, 95);
+    assert.strictEqual(bomb.tiers[1].damageMax, 136);
+    assert.strictEqual(bomb.tiers[1].fireRate, 0.28);
+
+    assert.strictEqual(bomb.tiers[2].damage, 160);
+    assert.strictEqual(bomb.tiers[2].damageMax, 238);
+    assert.strictEqual(bomb.tiers[2].fireRate, 0.3);
+  });
+
+  it("archer tower tier 3 upgrade cost is 240g", () => {
+    assert.strictEqual(TOWER_TYPES.archer.tiers[2].cost, 240);
+  });
+
+  it("chinthe guardian has 40px splash radius, no knockback, and 8s roar cooldown", () => {
+    const chinthe = TOWER_TYPES.chinthe;
+    assert.strictEqual(chinthe.splashRadius, 40);
+    assert.strictEqual(chinthe.tiers[0].damage, 24);
+    assert.strictEqual(chinthe.tiers[0].damageMax, 36);
+    assert.strictEqual(chinthe.tiers[0].special?.knockbackPx, undefined);
+    assert.strictEqual(chinthe.tiers[0].special?.roarCooldownSec, 8.0);
+    assert.strictEqual(chinthe.tiers[0].special?.silenceSec, 2.0);
+
+    assert.strictEqual(chinthe.tiers[1].damage, 40);
+    assert.strictEqual(chinthe.tiers[1].damageMax, 58);
+    assert.strictEqual(chinthe.tiers[1].special?.knockbackPx, undefined);
+    assert.strictEqual(chinthe.tiers[1].special?.roarCooldownSec, 8.0);
+    assert.strictEqual(chinthe.tiers[1].special?.silenceSec, 2.5);
+
+    assert.strictEqual(chinthe.tiers[2].damage, 76);
+    assert.strictEqual(chinthe.tiers[2].damageMax, 110);
+    assert.strictEqual(chinthe.tiers[2].special?.knockbackPx, undefined);
+    assert.strictEqual(chinthe.tiers[2].special?.roarCooldownSec, 8.0);
+    assert.strictEqual(chinthe.tiers[2].special?.silenceSec, 3.0);
+  });
+
+  it("mob weight classification assigns heavy to frontline tanks and light to swarms/supports", () => {
+    const heavyUnits = [
+      "elephant_rider",
+      "belu",
+      "brute",
+      "general",
+      "sar_bal_gyi",
+      "shield_guy",
+    ];
+    for (const id of heavyUnits) {
+      assert.strictEqual(MOB_TYPES[id].weight, "heavy", `${id} should be heavy`);
+    }
+
+    const lightUnits = [
+      "chon_toe",
+      "monkey",
+      "bandit",
+      "gya_pu",
+      "say_sayar",
+      "doe_pat",
+      "horse_rider",
+      "a_ba",
+      "sone_ma",
+    ];
+    for (const id of lightUnits) {
+      assert.strictEqual(MOB_TYPES[id].weight, "light", `${id} should be light`);
+    }
   });
 
   it("bell and chinthe have reduced upgrade costs for accessible utility", () => {

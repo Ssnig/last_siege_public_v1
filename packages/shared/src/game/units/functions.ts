@@ -1,9 +1,45 @@
 import rulesData from "../../data/rules.json" with { type: "json" };
 import { MOB_TYPES } from "./definitions.js";
+import type { MobTierDefinition } from "./types.js";
 
-/** Gold cost to deploy one unit of this archetype. */
-export function unitCost(typeId: string): number {
-  return MOB_TYPES[typeId]?.cost ?? 0;
+/** Retrieves the specific tier definition for a mob type (defaulting to Tier 1). */
+export function getMobTier(typeId: string, level: number = 1): MobTierDefinition {
+  const mob = MOB_TYPES[typeId];
+  if (!mob) {
+    return {
+      level: 1,
+      upgradeCost: 0,
+      deployCost: 0,
+      maxHp: 100,
+      leakDamage: 1,
+    };
+  }
+  const tier = mob.tiers?.find((t) => t.level === level);
+  if (tier) return tier;
+  return {
+    level: 1,
+    upgradeCost: 0,
+    deployCost: mob.cost,
+    maxHp: mob.maxHp,
+    armor: mob.armor,
+    leakDamage: mob.leakDamage,
+    speed: mob.speed,
+    ability: mob.ability,
+    speedRamp: mob.speedRamp,
+    adaptiveDefense: mob.adaptiveDefense,
+    onDeathTowerStunSec: mob.onDeathTowerStunSec,
+  };
+}
+
+/** Gold cost to deploy one unit of this archetype at the given tier. */
+export function unitCost(typeId: string, tierLevel: number = 1): number {
+  const mob = MOB_TYPES[typeId];
+  if (!mob) return 0;
+  if (tierLevel > 1 && mob.tiers) {
+    const tier = mob.tiers.find((t) => t.level === tierLevel);
+    if (tier) return tier.deployCost;
+  }
+  return mob.cost;
 }
 
 /** Legacy alias for unitCost. */
