@@ -94,4 +94,11 @@ export interface MobType {
   damagedSpeed?: number;
   /** Optional duration (in seconds) to stun the tower that lands the killing blow on this mob. */
   onDeathTowerStunSec?: number;
+  /**
+   * Weight category: 'light' or 'heavy'.
+   *
+   * @remarks 'light' mobs are vulnerable to displacement effects (such as Bomb Throwing
+   * Tower concussion knockback). 'heavy' units have immovable mass and ignore knockback.
+   */
+  weight?: "light" | "heavy";
 }

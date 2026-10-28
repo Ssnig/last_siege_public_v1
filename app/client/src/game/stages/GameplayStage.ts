@@ -1299,10 +1299,10 @@ export class GameplayStage {
     if (special.pulseSlow) return `Pulse: ${Math.round(special.pulseSlow * 100)}% slow for 1.5s`;
     if (special.prioritizeSupport) return `Bounty Hunter: Targets support, +${special.bonusGoldOnKill}g`;
     if (special.drenchSlow) return `Drench: ${Math.round(special.drenchSlow * 100)}% slow, +${Math.round((special.drenchVulnerability ?? 0) * 100)}% mental vuln`;
-    if (special.silenceSec) return `Roar: ${special.knockbackPx}px knockback, ${special.silenceSec}s silence`;
+    if (special.silenceSec) return `Sacred Roar (${special.roarCooldownSec ?? 8}s cd): ${special.silenceSec}s AoE silence`;
     if (special.deathExplosionDamage) return `Detonation: ${special.deathExplosionDamage} dmg on kill (${special.deathExplosionRadius}px)`;
     if (special.armorStripPermanent) return `Crush: Permanently strips ${special.armorStripPermanent} armor/hit`;
-    if (special.knockbackPx) return `Knockback: ${special.knockbackPx}px`;
+    if (special.knockbackPx) return `Knockback: ${special.knockbackPx}px (light mobs)`;
     return null;
   }
 

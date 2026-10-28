@@ -41,6 +41,8 @@ export interface TowerTierSpecial {
   drenchVulnerability?: number;
   /** Chinthe: Duration in seconds mob abilities and auras are silenced. */
   silenceSec?: number;
+  /** Chinthe: Cooldown in seconds before the next Sacred Roar silence blast is ready. */
+  roarCooldownSec?: number;
   /** Dragon: Damage dealt in spiritual explosion when an enemy is slain by dragon fire. */
   deathExplosionDamage?: number;
   /** Dragon: Radius in px of the on-death spiritual explosion. */

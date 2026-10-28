@@ -318,6 +318,9 @@ export class GameRoom extends Room<{ state: RoomState }> {
   /** Match time in seconds when a tower last fired, keyed by `${ownerId}-${slotIndex}`. */
   private towerLastFireTime = new Map<string, number>();
 
+  /** Remaining cooldown in seconds before Chinthe Guardian's next Sacred Roar silence blast is ready, keyed by `${ownerId}-${slotIndex}`. */
+  private chintheRoarCooldowns = new Map<string, number>();
+
   /** Elapsed time in seconds each living mob has spent on the lane, keyed by mob id. */
   private mobAliveSec = new Map<string, number>();
 
@@ -1073,6 +1076,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.towerWindupStacks.delete(towerKey);
     this.towerLastFireTime.delete(towerKey);
     this.towerSalvos.delete(towerKey);
+    this.chintheRoarCooldowns.delete(towerKey);
     this.economies.set(
       client.sessionId,
       Math.min(
@@ -2148,6 +2152,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.projectileSpecial.clear();
     this.towerWindupStacks.clear();
     this.towerLastFireTime.clear();
+    this.chintheRoarCooldowns.clear();
     this.mobAliveSec.clear();
     this.mobInitialSpeed.clear();
 
@@ -2252,6 +2257,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
       this.clearProjectiles();
       this.towerWindupStacks.clear();
       this.towerLastFireTime.clear();
+      this.chintheRoarCooldowns.clear();
       this.releaseQueue = [];
     }
 
@@ -2269,6 +2275,7 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.incomePushAccumulator = 0;
     this.towerWindupStacks.clear();
     this.towerLastFireTime.clear();
+    this.chintheRoarCooldowns.clear();
     this.state.suddenDeath = false;
     this.portalCharges.clear();
 
@@ -3040,6 +3047,14 @@ export class GameRoom extends Room<{ state: RoomState }> {
       const windupBonus = tier.special?.windupMaxBonus
         ? Math.min(tier.special.windupMaxBonus, windupStacks * 0.10)
         : 0;
+      // Chinthe Sacred Roar: cooldown recovery
+      if (tower.typeId === "chinthe") {
+        const roarCd = this.chintheRoarCooldowns.get(towerKey) ?? 0;
+        if (roarCd > 0) {
+          this.chintheRoarCooldowns.set(towerKey, Math.max(0, roarCd - dt));
+        }
+      }
+
       const effectiveFireRate = tier.fireRate * (1 + windupBonus);
 
       if (type?.attackMode === "aoe_pulse") {
@@ -3222,7 +3237,23 @@ export class GameRoom extends Room<{ state: RoomState }> {
     this.projectileSplash.set(id, splash);
     this.projectileSourceSlot.set(id, tower.slotIndex);
     if (tier.special) {
-      this.projectileSpecial.set(id, tier.special);
+      let specialToApply = tier.special;
+      if (tower.typeId === "chinthe" && tier.special.silenceSec) {
+        const towerKey = `${tower.ownerId}-${tower.slotIndex}`;
+        const roarCd = this.chintheRoarCooldowns.get(towerKey) ?? 0;
+        if (roarCd <= 0) {
+          // Trigger Sacred Roar! Put ability on cooldown
+          this.chintheRoarCooldowns.set(
+            towerKey,
+            tier.special.roarCooldownSec ?? 8.0,
+          );
+          specialToApply = tier.special;
+        } else {
+          // Normal shot while roar is on cooldown: Mental AoE damage without silence
+          specialToApply = { ...tier.special, silenceSec: undefined };
+        }
+      }
+      this.projectileSpecial.set(id, specialToApply);
     }
     if (isFinisher && tier.special?.salvoFinisherStunSec) {
       this.projectileFinisherStun.set(id, tier.special.salvoFinisherStunSec);
@@ -3538,13 +3569,16 @@ export class GameRoom extends Room<{ state: RoomState }> {
       );
     }
 
-    // Bomb Throwing Tower / Chinthe Guardian: Knockback along path
+    // Bomb Throwing Tower: Knockback along path (affects light mobs only)
     if (special?.knockbackPx !== undefined && special.knockbackPx > 0) {
-      const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
-      const path = this.pathFor(map, mob.pathId);
-      const total = path ? pathLength(path) : 0;
-      if (total > 0) {
-        mob.progress = Math.max(0, mob.progress - special.knockbackPx / total);
+      const mobDef = MOB_TYPES[mob.typeId];
+      if (mobDef?.weight !== "heavy") {
+        const map = MAPS[this.state.mapId] ?? SAMPLE_MAP;
+        const path = this.pathFor(map, mob.pathId);
+        const total = path ? pathLength(path) : 0;
+        if (total > 0) {
+          mob.progress = Math.max(0, mob.progress - special.knockbackPx / total);
+        }
       }
     }
 

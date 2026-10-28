@@ -200,6 +200,10 @@ describe("balance.ts shape guards", () => {
       assert.ok(mob.bounty >= 0, `${mob.id} bounty must be >= 0`);
       assert.ok(mob.cost > 0, `${mob.id} needs cost > 0`);
       assert.ok(mob.maxHp > 0 && mob.speed > 0, `${mob.id} maxHp/speed must be > 0`);
+      assert.ok(
+        mob.weight === "light" || mob.weight === "heavy",
+        `${mob.id} must define a valid weight ('light' | 'heavy')`,
+      );
     }
   });
 });

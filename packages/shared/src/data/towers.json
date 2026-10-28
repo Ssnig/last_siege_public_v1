@@ -86,7 +86,7 @@
         }
       },
       {
-        "cost": 185,
+        "cost": 240,
         "damage": 32,
         "damageMax": 48,
         "range": 185,
@@ -114,33 +114,33 @@
     "tiers": [
       {
         "cost": 110,
-        "damage": 28,
+        "damage": 49,
         "range": 130,
-        "fireRate": 0.5,
+        "fireRate": 0.25,
         "projectileSpeed": 280,
-        "damageMax": 40,
+        "damageMax": 70,
         "special": {
           "knockbackPx": 15
         }
       },
       {
         "cost": 190,
-        "damage": 54,
+        "damage": 95,
         "range": 145,
-        "fireRate": 0.55,
+        "fireRate": 0.28,
         "projectileSpeed": 300,
-        "damageMax": 78,
+        "damageMax": 136,
         "special": {
           "knockbackPx": 25
         }
       },
       {
         "cost": 320,
-        "damage": 92,
+        "damage": 160,
         "range": 165,
-        "fireRate": 0.6,
+        "fireRate": 0.3,
         "projectileSpeed": 320,
-        "damageMax": 136,
+        "damageMax": 238,
         "special": {
           "knockbackPx": 35
         }
@@ -360,41 +360,42 @@
     "id": "chinthe",
     "name": "Chinthe Guardian",
     "damageType": "mental",
+    "splashRadius": 40,
     "tiers": [
       {
         "cost": 120,
-        "damage": 30,
+        "damage": 24,
         "range": 150,
         "fireRate": 0.7,
         "projectileSpeed": 400,
-        "damageMax": 45,
+        "damageMax": 36,
         "special": {
-          "knockbackPx": 10,
-          "silenceSec": 1.5
+          "silenceSec": 2.0,
+          "roarCooldownSec": 8.0
         }
       },
       {
         "cost": 160,
-        "damage": 50,
+        "damage": 40,
         "range": 170,
         "fireRate": 0.75,
         "projectileSpeed": 420,
-        "damageMax": 74,
+        "damageMax": 58,
         "special": {
-          "knockbackPx": 20,
-          "silenceSec": 2.0
+          "silenceSec": 2.5,
+          "roarCooldownSec": 8.0
         }
       },
       {
         "cost": 260,
-        "damage": 95,
+        "damage": 76,
         "range": 190,
         "fireRate": 0.8,
         "projectileSpeed": 440,
-        "damageMax": 140,
+        "damageMax": 110,
         "special": {
-          "knockbackPx": 30,
-          "silenceSec": 2.5
+          "silenceSec": 3.0,
+          "roarCooldownSec": 8.0
         }
       }
     ],

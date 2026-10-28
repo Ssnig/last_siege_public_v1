@@ -2,6 +2,7 @@
   "monkey": {
     "id": "monkey",
     "name": "Monkey",
+    "weight": "light",
     "maxHp": 45,
     "speed": 130,
     "damagedSpeed": 65,
@@ -22,6 +23,7 @@
   "horse_rider": {
     "id": "horse_rider",
     "name": "Konbaung Cavalry",
+    "weight": "light",
     "maxHp": 120,
     "speed": 110,
     "bounty": 6,
@@ -41,6 +43,7 @@
   "sar_bal_gyi": {
     "id": "sar_bal_gyi",
     "name": "Sar Bal Gyi",
+    "weight": "heavy",
     "maxHp": 370,
     "speed": 45,
     "bounty": 16,
@@ -60,6 +63,7 @@
   "gya_pu": {
     "id": "gya_pu",
     "name": "Gya Pu",
+    "weight": "light",
     "maxHp": 200,
     "speed": 90,
     "bounty": 8,
@@ -79,6 +83,7 @@
   "a_ba": {
     "id": "a_ba",
     "name": "A Ba",
+    "weight": "light",
     "maxHp": 320,
     "speed": 45,
     "bounty": 12,
@@ -102,6 +107,7 @@
   "chon_toe": {
     "id": "chon_toe",
     "name": "Chon Toe",
+    "weight": "light",
     "maxHp": 660,
     "speed": 35,
     "bounty": 22,
@@ -120,6 +126,7 @@
   "elephant_rider": {
     "id": "elephant_rider",
     "name": "War Elephant",
+    "weight": "heavy",
     "maxHp": 1300,
     "speed": 30,
     "bounty": 80,
@@ -139,6 +146,7 @@
   "say_sayar": {
     "id": "say_sayar",
     "name": "Say Sayar",
+    "weight": "light",
     "maxHp": 264,
     "speed": 30,
     "bounty": 20,
@@ -167,6 +175,7 @@
   "shield_guy": {
     "id": "shield_guy",
     "name": "Shield Guy",
+    "weight": "heavy",
     "maxHp": 275,
     "speed": 40,
     "bounty": 16,
@@ -187,6 +196,7 @@
   "doe_pat": {
     "id": "doe_pat",
     "name": "Doe Pat",
+    "weight": "light",
     "maxHp": 240,
     "speed": 30,
     "bounty": 20,
@@ -213,6 +223,7 @@
   "bandit": {
     "id": "bandit",
     "name": "Bandit",
+    "weight": "light",
     "maxHp": 210,
     "speed": 100,
     "bounty": 9,
@@ -229,6 +240,7 @@
   "belu": {
     "id": "belu",
     "name": "Belu",
+    "weight": "heavy",
     "maxHp": 1000,
     "speed": 35,
     "bounty": 34,
@@ -253,6 +265,7 @@
   "brute": {
     "id": "brute",
     "name": "Brute",
+    "weight": "heavy",
     "maxHp": 540,
     "speed": 48,
     "bounty": 24,
@@ -278,6 +291,7 @@
   "general": {
     "id": "general",
     "name": "Bo General",
+    "weight": "heavy",
     "maxHp": 480,
     "speed": 55,
     "bounty": 24,
@@ -296,6 +310,7 @@
   "sone_ma": {
     "id": "sone_ma",
     "name": "Sone Ma",
+    "weight": "light",
     "maxHp": 400,
     "speed": 30,
     "bounty": 35,

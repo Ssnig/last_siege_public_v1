@@ -1804,7 +1804,7 @@ describe("testing your Colyseus app", () => {
     await waitFor(() => mob.effects.has(EFFECT_TYPES.silence), 15000);
     const silence = mob.effects.get(EFFECT_TYPES.silence);
     assert.ok(silence, "target has silence effect");
-    assert.ok(silence.remaining > 0 && silence.remaining <= 1.5, "Lv1 silence duration is 1.5s");
+    assert.ok(silence.remaining > 0 && silence.remaining <= 2.0, "Lv1 silence duration is 2.0s");
   });
 
   it("sein_pyaung strips physical armor via armor_crush on hit", async function () {

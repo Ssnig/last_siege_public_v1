@@ -366,6 +366,13 @@ export const AlmanacUnitsTab: React.FC = () => {
                 <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/40 bg-amber-950/40 text-amber-300 shrink-0">
                   Cost: {mob.cost}g
                 </span>
+                <span className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                  mob.weight === 'heavy'
+                    ? 'border-orange-500/40 bg-orange-950/40 text-orange-300'
+                    : 'border-sky-500/40 bg-sky-950/40 text-sky-300'
+                }`}>
+                  Weight: {mob.weight === 'heavy' ? 'Heavy' : 'Light'}
+                </span>
               </div>
               <p className="text-[11px] sm:text-xs text-amber-400/80 font-serif italic mt-0.5 truncate">
                 {info.title} — <span className="text-slate-300 not-italic font-sans text-[10px] sm:text-[11px]">{info.role}</span>
@@ -433,6 +440,13 @@ export const AlmanacUnitsTab: React.FC = () => {
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-600/60 font-mono">
                 Active Battlefield Ability & Traits
+              </span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                mob.weight === 'heavy'
+                  ? 'text-orange-300 bg-orange-950/60 border-orange-600/60'
+                  : 'text-sky-300 bg-sky-950/60 border-sky-600/60'
+              }`}>
+                {mob.weight === 'heavy' ? 'Heavy (Knockback Immune)' : 'Light (Knockable)'}
               </span>
               {mob.taunt && (
                 <span className="text-[10px] text-red-300 font-bold bg-red-950/60 px-2 py-0.5 rounded border border-red-600/60">
